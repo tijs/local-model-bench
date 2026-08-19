@@ -26,10 +26,20 @@ import re
 import sys
 
 THINK_BLOCK = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
+# Some models/templates (observed live with Qwen3.8-27B via vllm-mlx) start
+# assistant turns implicitly "inside" a thinking block — the response has a
+# closing </think> but no opening <think> tag. Strip everything up to and
+# including the first lone closing tag too, or reasoning leaks into graded
+# output.
+LONE_CLOSE_THINK = re.compile(r"^.*?</think>", re.DOTALL | re.IGNORECASE)
 
 
 def strip_reasoning(text):
-    return THINK_BLOCK.sub("", text or "").strip()
+    text = text or ""
+    stripped = THINK_BLOCK.sub("", text)
+    if stripped == text and "</think>" in text and "<think>" not in text:
+        stripped = LONE_CLOSE_THINK.sub("", text)
+    return stripped.strip()
 
 
 def grade(result, check):
