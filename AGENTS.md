@@ -148,6 +148,30 @@ Swift/Xcode commands in this project must set
   levels are tested per candidate model (not just one), each as a separate
   log row.
 
+## Unloading local backends (validated live 2026-08-19)
+
+`runner/unload_all.sh` / `runner/restore_local_backends.sh`. Two
+**independent** supervisors were found keeping a `vllm_mlx.server` alive on
+port 8012, and both had to be stopped properly (pkill alone just gets
+fought and respawned):
+
+1. **`cocore`** — not just a personal local-model server: a client for the
+   decentralized `cocore.dev` compute network, paired to Tijs's `tijs.org`
+   ATProto identity, actively **serving inference to that network**
+   (`cocore agent active` → `serving`). Stopping it for a benchmark run
+   takes the machine offline as a network provider for the duration —
+   confirm with Tijs before running unload_all.sh if that matters that day.
+   `cocore agent pause` only stops new work being routed here, it does
+   **not** unload the model from memory (~11.5GB for LFM2.5-2.6B) — actually
+   freeing it needs `cocore agent models set ""`, which (despite being
+   documented as "bounces the daemon") fully unloads the LaunchAgent and
+   needs `launchctl bootstrap` to bring back, not just a re-run of `models
+   set` with a real model.
+2. **hermes's own separate LaunchAgent**, `ai.hermes.mara-mlx` — the
+   "fitness" profile's own local-model fallback, entirely independent of
+   cocore, also targeting port 8012. Stop via `launchctl bootout gui/501/
+   ai.hermes.mara-mlx`, restore via `launchctl bootstrap`.
+
 ## Reproducibility / pinned dependencies
 
 - **Fixtures**: `Cargo.lock` (kiem_mini), `package-lock.json` (hearth_mini),
