@@ -15,6 +15,7 @@ genuinely different experiments (e.g. before/after a settings fix).
 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | — | [f6397d624011](configs/Qwen3.8-27B/gguf.yaml) | 10 | 80% | 6.5 | 44.33 | 0 |
 | mlx-community/Qwen3.8-27B-4bit | mlx | — | [bbaa3dfa1953](configs/Qwen3.8-27B/mlx.yaml) | 2 | 100% | 8.6 | 3.76 | 0 |
 | mlx-community/Qwen3.8-27B-4bit | mlx | — | [f894953f1f80](configs/Qwen3.8-27B/mlx.yaml) | 6 | 50% | 0.3 | 334.45 | 0 |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q2_K_XL | gguf | UD-Q2_K_XL | [2233edb1c4f2](configs/Qwen3.8-27B/gguf-unsloth-ud-q2.yaml) | 5 | 80% | 6.2 | 55.15 | 0 |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q4_K_M | gguf | — | [89f4d8d04793](configs/Qwen3.8-27B/gguf-unsloth-ud-q4.yaml) | 5 | 80% | 6.2 | 55.60 | 0 |
 
 ## By suite
@@ -33,5 +34,7 @@ genuinely different experiments (e.g. before/after a settings fix).
 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | f6397d624011 | sanity | 4/4 |
 | mlx-community/Qwen3.8-27B-4bit | mlx | bbaa3dfa1953 | sanity | 2/2 |
 | mlx-community/Qwen3.8-27B-4bit | mlx | f894953f1f80 | hermes_ops | 3/6 |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q2_K_XL | gguf | 2233edb1c4f2 | hermes_ops | 2/3 |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q2_K_XL | gguf | 2233edb1c4f2 | sanity | 2/2 |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q4_K_M | gguf | 89f4d8d04793 | hermes_ops | 2/3 |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q4_K_M | gguf | 89f4d8d04793 | sanity | 2/2 |
