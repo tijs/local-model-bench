@@ -1,0 +1,66 @@
+model: bartowski/Qwen3.8-27B-GGUF:Q4_K_M
+backend: gguf
+framework: llama.cpp
+
+benchmark_launch_command: |
+  HF_TOKEN=$(cat ~/.cache/huggingface/token) llama-server \
+    --hf-repo bartowski/Qwen3.8-27B-GGUF:Q4_K_M \
+    --host 127.0.0.1 --port 8017 \
+    --temp 1.0 --top-p 0.95 --top-k 20 \
+    --ctx-size 32768
+
+benchmark_endpoint: http://127.0.0.1:8017/v1
+  # no proxy needed — same as LFM's GGUF leg, llama-server returns tool_calls
+  # natively (not independently re-verified for Qwen specifically at time of
+  # writing due to the OOM issue below eating the test budget — do that
+  # before fully trusting Qwen GGUF tool-call results).
+
+settings:
+  - name: quant
+    value: Q4_K_M (bartowski/Qwen3.8-27B-GGUF)
+    source: "chosen per 32GB-Mac RAM constraint at this model size, same
+      reasoning as the MLX config. File size confirmed 17.76GB via
+      GET /v1/models on the running server."
+  - name: ctx-size
+    value: 32768 (explicit — do NOT rely on llama-server's auto-sizing)
+    source: "CRITICAL FIX, discovered live 2026-08-19: llama-server's default
+      --ctx-size 0 (\"loaded from model\") auto-selected n_ctx=112128 for
+      this model — far more than needed, and the resulting KV cache
+      allocation caused a hard Metal OOM crash
+      (kIOGPUCommandBufferCallbackErrorOutOfMemory, ggml_metal_synchronize
+      command buffer failures) the moment a real ~23K-token hermes_ops
+      request arrived, even with NO other model loaded. Explicit
+      --ctx-size 32768 (comfortably covering hermes_ops's ~23K-token system
+      prompt with headroom) fixed it — confirmed via a real successful
+      prefill run afterward (100-134 tok/s prefill, no errors)."
+  - name: temperature / top_p / top_k (thinking mode)
+    value: 1.0 / 0.95 / 20
+    source: "same Qwen/Qwen3.8-27B model card guidance as mlx.yaml — thinking
+      mode ON by default, not disabled here."
+  - name: prefill time (measured, not a setting, but critical to know)
+    value: "~200s+ for hermes_ops's ~23K-token system prompt at Q4_K_M
+      (measured: 100-134 tok/s prefill rate)"
+    note: "task timeout_seconds must account for this — tasks/hermes_ops.yaml
+      was bumped from 120s to 600s to accommodate large models like this
+      one; a small model finishing early just doesn't use the full budget,
+      so this is a safe change for all models, not Qwen-specific."
+
+known_gaps:
+  - "run_prompt.py hardcodes temperature=0 — see mlx.yaml's known_gaps, same
+    caveat applies here (sanity/hermes_ops don't get these sampling
+    settings, coding suites via hermes chat do)."
+  - "Native tool_calls not independently re-verified for this specific
+    model+backend (assumed from the LFM GGUF precedent) — confirm before
+    fully trusting a hermes_ops/coding-suite pass on this config."
+
+process_discipline_note: |
+  Learned live 2026-08-19: never run more than one model server at a time
+  during ad-hoc testing, even when the automated orchestrator
+  (runner/run_bench.py) would enforce this via unload_all.sh. Running LFM
+  MLX + LFM GGUF + Qwen MLX + Qwen GGUF simultaneously (4 servers, ~4GB free
+  RAM remaining) caused silent-looking failures (empty responses, 1-token
+  completions) that were actually resource exhaustion, not model or harness
+  bugs — wasted significant debugging time before the real cause was found.
+
+last_updated: 2026-08-19
+last_verified_against_docs: 2026-08-19
