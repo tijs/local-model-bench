@@ -13,6 +13,7 @@ genuinely different experiments (e.g. before/after a settings fix).
 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | mlx | — | [8dd47a586509](configs/LiquidAI-LFM2.5-2.6B/mlx.yaml) | 5 | 80% | 1.5 | 11.45 | 0 |
 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | mlx | — | [a03394d84d27](configs/LiquidAI-LFM2.5-2.6B/mlx.yaml) | 6 | 83% | 1.7 | 15.56 | 0 |
 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | — | [f6397d624011](configs/Qwen3.8-27B/gguf.yaml) | 10 | 80% | 6.5 | 44.33 | 0 |
+| bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | gguf | — | [163fa63ffb83](configs/Qwen3.5-9B/gguf.yaml) | 5 | 80% | 20.2 | 15.45 | 0 |
 | mlx-community/Qwen3.8-27B-4bit | mlx | — | [bbaa3dfa1953](configs/Qwen3.8-27B/mlx.yaml) | 2 | 100% | 8.6 | 3.76 | 0 |
 | mlx-community/Qwen3.8-27B-4bit | mlx | — | [f894953f1f80](configs/Qwen3.8-27B/mlx.yaml) | 6 | 50% | 0.3 | 334.45 | 0 |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q2_K_XL | gguf | UD-Q2_K_XL | [2233edb1c4f2](configs/Qwen3.8-27B/gguf-unsloth-ud-q2.yaml) | 5 | 80% | 6.2 | 55.15 | 0 |
@@ -32,6 +33,8 @@ genuinely different experiments (e.g. before/after a settings fix).
 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | mlx | a03394d84d27 | sanity | 2/2 |
 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | f6397d624011 | hermes_ops | 4/6 |
 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | f6397d624011 | sanity | 4/4 |
+| bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | gguf | 163fa63ffb83 | hermes_ops | 2/3 |
+| bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | gguf | 163fa63ffb83 | sanity | 2/2 |
 | mlx-community/Qwen3.8-27B-4bit | mlx | bbaa3dfa1953 | sanity | 2/2 |
 | mlx-community/Qwen3.8-27B-4bit | mlx | f894953f1f80 | hermes_ops | 3/6 |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q2_K_XL | gguf | 2233edb1c4f2 | hermes_ops | 2/3 |
