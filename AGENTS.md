@@ -23,9 +23,21 @@ new session that opens this repo.
   0/nonzero (build, test, lint), never by an LLM judge or manual eyeballing.
   Keeps scoring cheap, deterministic, and comparable across models including
   weak local judges.
-- **Isolated environment per run** — each suite run happens in a throwaway
-  `git worktree` off the real project repo, torn down after. Nothing touches
-  your actual working trees.
+- **Isolated environment per run, fully self-contained** — each suite's
+  fixture is a small original project (inspired by, but not copied from, a
+  real Tijs project — no real project is ever touched or read at run time)
+  committed straight into this repo under `fixtures/`. A run copies it to a
+  scratch dir and `git init`s a fresh baseline commit there, so the starting
+  state is byte-identical every time and teardown is just deleting the
+  directory. Anyone who clones this repo gets everything needed to run the
+  benchmark with nothing external required.
+- **Held-out grading tests, not agent-authored** — each task's pass/fail test
+  lives in `checks/<suite>/<task-id>/`, outside the fixture the agent sees.
+  The runner only copies it into the run dir *after* the agent finishes, then
+  runs it. The agent is never shown the grading test and never asked to write
+  its own — this is the same separation SWE-bench/HumanEval-style benchmarks
+  use, and it keeps scoring meaningful (an agent can't special-case a test it
+  never sees).
 - **Everything held constant except model+backend** — same task prompts, same
   tool/capability set (hermes's full current set, not a curated subset — this
   is deliberately meant to stress-test large-prompt/many-tools behavior), same
@@ -49,21 +61,28 @@ new session that opens this repo.
 
 ## Layout
 
-- `fixtures/` — seed state for each suite (or a pointer to the source repo +
-  a base ref/commit to worktree from)
+- `fixtures/<suite>/` — the pristine starting project, tracked in git,
+  copied fresh + re-initialized as its own git repo per run
+- `checks/<suite>/<task-id>/` — held-out grading test file(s), overlaid onto
+  the run dir only after the agent finishes, never shown during the task
 - `tasks/` — one YAML file per suite: task list with prompt, expected tools,
-  and the automated pass/fail check
-- `runner/` — orchestration scripts (backend load/unload, hermes provider
-  swap, per-task driver, metrics extraction)
+  and the automated pass/fail check command
+- `runner/` — orchestration scripts (fixture reset/teardown, backend
+  load/unload, hermes provider swap, per-task driver, metrics extraction)
 - `results/` — `log.jsonl` (raw) + `LEADERBOARD.md` (rollup)
 
 ## Test suites
 
-| suite | source repo | languages |
-|---|---|---|
-| `kiem` | `~/projects/kiem` | Swift, Rust |
-| `hearth_and_oar` | `~/projects/hearth-and-oar` | JavaScript |
-| `kipclip_appview` | `~/projects/kipclip-appview` | TypeScript, atproto |
+Each is an original mini-project sized for a single focused agent session,
+inspired by the *type and complexity* of work in a real Tijs project — same
+languages/tooling, invented code, no dependency on or connection to the real
+repo at run time.
+
+| suite | inspired by | languages | tooling |
+|---|---|---|---|
+| `kiem_mini` | `~/projects/kiem` (notes CLI + app) | Rust, Swift | cargo, swift test |
+| `hearth_mini` | `~/projects/hearth-and-oar` (settlement sim game) | TypeScript | vitest |
+| `kipclip_mini` | `~/projects/kipclip-appview` (atproto bookmark appview) | TypeScript (Deno) | deno test |
 
 ## Backends
 
