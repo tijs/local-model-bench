@@ -6,7 +6,8 @@ benchmark_launch_command: |
   HF_TOKEN=$(cat ~/.cache/huggingface/token) /Users/tijs/.cocore/python/bin/python -m vllm_mlx.server \
     --model mlx-community/Qwen3.8-27B-4bit --host 127.0.0.1 --port 8018 \
     --max-request-tokens 32768 --max-tokens 32768 --continuous-batching \
-    --default-temperature 1.0 --default-top-p 0.95 --default-top-k 20
+    --default-temperature 1.0 --default-top-p 0.95 --default-top-k 20 \
+    --timeout 900
 
 benchmark_endpoint: http://127.0.0.1:8018/v1
   # No proxy needed — confirmed live 2026-08-19: unlike LFM, Qwen3.8-27B's
@@ -42,7 +43,20 @@ settings:
     value: 262144 (native)
     source: "https://huggingface.co/Qwen/Qwen3.8-27B model card — native
       context, extensible to 1M via RoPE scaling (not applied here)."
-  - name: MTP (multi-token prediction)
+  - name: "--timeout (vllm_mlx.server's own request timeout)"
+    value: 900 (was 300, the framework default)
+    source: "CRITICAL FIX, discovered live 2026-08-19: vllm_mlx.server has
+      its own internal request timeout (--timeout, default 300s per
+      `vllm_mlx.server --help`) that aborts a request and returns an empty
+      0-token response if prefill takes longer than that — confirmed via
+      server log: 'TIMEOUT after 300s ... ABORTING orphaned request (0
+      tokens generated in 300.0s)'. MLX prefill for this model's ~21.5K-token
+      hermes_ops prompt exceeds 300s (no error, no exception — just a
+      silent empty response that looks exactly like a model failure or a
+      harness bug). This is DISTINCT from the earlier OOM issue (that was
+      llama.cpp/GGUF-side and about memory; this is MLX-side and about a
+      request-timeout flag) — don't conflate the two when debugging a
+      similar-looking empty response on a different model."
     value: "not available in this quant"
     source: "observed in server startup log: 'MTP weights not found' warning
       — this 4-bit MLX quant doesn't include them. Not investigated further;
