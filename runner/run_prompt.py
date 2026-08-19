@@ -92,12 +92,22 @@ def guardrail_warning(tool_history, name, args_key, warned):
     return None
 
 
-def call_backend(base_url, model, messages, tools, temperature, timeout):
+def call_backend_streaming(base_url, model, messages, tools, temperature, timeout):
+    """Streams the response so we can measure real time-to-first-token
+    (TTFT) — separate from total wall time, since a big fixed system prompt
+    mostly costs prefill time, not generation time. Reassembles the stream
+    into the same shape a non-streaming call would return, so callers don't
+    need to know the difference. Backends that don't send true token-by-
+    token deltas (e.g. buffer the whole response into one SSE chunk) will
+    just report ttft ~= total generation time, which is itself useful
+    signal, not a bug."""
     body = {
         "model": model,
         "messages": messages,
         "temperature": temperature,
         "max_tokens": 1024,
+        "stream": True,
+        "stream_options": {"include_usage": True},
     }
     if tools:
         body["tools"] = tools
@@ -107,8 +117,75 @@ def call_backend(base_url, model, messages, tools, temperature, timeout):
         headers={"Content-Type": "application/json"},
         method="POST",
     )
+
+    start = time.time()
+    ttft = None
+    content_parts = []
+    tool_calls_acc = {}
+    usage = {}
+    finish_reason = None
+
     with urllib.request.urlopen(req, timeout=timeout) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+        for raw_line in resp:
+            line = raw_line.decode("utf-8").strip()
+            if not line or not line.startswith("data:"):
+                continue
+            data = line[len("data:"):].strip()
+            if data == "[DONE]":
+                break
+            chunk = json.loads(data)
+            if chunk.get("usage"):
+                usage = chunk["usage"]
+            choices = chunk.get("choices") or []
+            if not choices:
+                continue
+            delta = choices[0].get("delta", {})
+            if delta.get("content") or delta.get("tool_calls"):
+                if ttft is None:
+                    ttft = time.time() - start
+            if delta.get("content"):
+                content_parts.append(delta["content"])
+            for tc_delta in delta.get("tool_calls") or []:
+                idx = tc_delta.get("index", 0)
+                if idx not in tool_calls_acc:
+                    tool_calls_acc[idx] = {"id": tc_delta.get("id"), "type": "function", "function": {"name": "", "arguments": ""}}
+                if tc_delta.get("id"):
+                    tool_calls_acc[idx]["id"] = tc_delta["id"]
+                fn_delta = tc_delta.get("function") or {}
+                if fn_delta.get("name"):
+                    tool_calls_acc[idx]["function"]["name"] += fn_delta["name"]
+                if fn_delta.get("arguments"):
+                    tool_calls_acc[idx]["function"]["arguments"] += fn_delta["arguments"]
+            if choices[0].get("finish_reason"):
+                finish_reason = choices[0]["finish_reason"]
+
+    message = {"role": "assistant", "content": "".join(content_parts) or None}
+    if tool_calls_acc:
+        message["tool_calls"] = [tool_calls_acc[i] for i in sorted(tool_calls_acc)]
+
+    usage_estimated = False
+    if not usage.get("prompt_tokens") and not usage.get("completion_tokens"):
+        # This backend never sends a usage chunk during streaming (confirmed
+        # live — stream_options.include_usage is a no-op here), even though
+        # the non-streaming endpoint reports it accurately. Fall back to a
+        # rough ~4-chars-per-token estimate rather than silently reporting 0.
+        usage_estimated = True
+        prompt_chars = sum(len(json.dumps(m)) for m in messages)
+        if tools:
+            prompt_chars += len(json.dumps(tools))
+        completion_chars = len("".join(content_parts)) + sum(
+            len(tc["function"]["arguments"]) + len(tc["function"]["name"]) for tc in tool_calls_acc.values()
+        )
+        usage = {
+            "prompt_tokens": max(1, prompt_chars // 4),
+            "completion_tokens": max(1, completion_chars // 4),
+        }
+
+    return {
+        "choices": [{"message": message, "finish_reason": finish_reason}],
+        "usage": usage,
+        "usage_estimated": usage_estimated,
+    }, ttft
 
 
 def main():
@@ -139,12 +216,18 @@ def main():
     error = None
     final_text = ""
     turns = 0
+    ttft_seconds = None  # time-to-first-token of the FIRST API call in this run
+    usage_estimated = False
 
     try:
         for turns in range(1, args.max_turns + 1):
-            resp = call_backend(
+            resp, turn_ttft = call_backend_streaming(
                 args.base_url, args.model, messages, tools, args.temperature, args.timeout
             )
+            if ttft_seconds is None:
+                ttft_seconds = turn_ttft
+            if resp.get("usage_estimated"):
+                usage_estimated = True
             usage = resp.get("usage", {})
             prompt_tokens += usage.get("prompt_tokens", 0)
             completion_tokens += usage.get("completion_tokens", 0)
@@ -197,10 +280,19 @@ def main():
     except (KeyError, IndexError, json.JSONDecodeError) as e:
         error = f"unexpected response shape: {e}"
 
+    # Tool-call parsing here is regex/text-based, not schema-validated — a
+    # model can emit a call to a name it was never actually offered (and a
+    # misconfigured proxy/filter upstream can silently drop tools before the
+    # model ever sees them). Surface that mismatch explicitly rather than
+    # letting a check accidentally pass on a hallucinated tool name.
+    declared_names = {t["function"]["name"] for t in (tools or [])}
+    hallucinated_tool_calls = [c["name"] for c in all_tool_calls if c["name"] not in declared_names]
+
     wall = time.time() - start
     result = {
         "messages": messages,
         "tool_calls": all_tool_calls,
+        "hallucinated_tool_calls": hallucinated_tool_calls,
         "final_text": final_text,
         "turns": turns,
         "prompt_tokens": prompt_tokens,
@@ -208,6 +300,8 @@ def main():
         "total_tokens": prompt_tokens + completion_tokens,
         "wall_seconds": round(wall, 3),
         "tokens_per_second": round(completion_tokens / wall, 2) if wall > 0 else None,
+        "ttft_seconds": round(ttft_seconds, 3) if ttft_seconds is not None else None,
+        "usage_estimated": usage_estimated,
         "error": error,
     }
     print(json.dumps(result, indent=2))

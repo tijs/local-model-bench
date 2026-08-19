@@ -11,6 +11,7 @@ Usage:
       --model LiquidAI/LFM2.5-2.6B-MLX-bf16 --backend mlx [--quant Q4_K_M]
 """
 import argparse
+import hashlib
 import json
 import subprocess
 import sys
@@ -30,6 +31,7 @@ def main():
     ap.add_argument("--model", required=True)
     ap.add_argument("--backend", required=True, help="mlx | gguf, recorded in the log")
     ap.add_argument("--quant", default=None, help="quant level, for gguf log rows")
+    ap.add_argument("--config", default=None, help="path to configs/<model>/<backend>.yaml used for this run")
     args = ap.parse_args()
 
     task_file = REPO / "tasks" / f"{args.suite}.yaml"
@@ -39,6 +41,11 @@ def main():
 
     timeout = task_spec.get("timeout_seconds", 60)
     log_path = REPO / "results" / "log.jsonl"
+
+    config_path = config_hash = None
+    if args.config:
+        config_path = str(Path(args.config).resolve().relative_to(REPO))
+        config_hash = hashlib.sha256(Path(args.config).read_bytes()).hexdigest()[:12]
 
     rows = []
     for task in task_spec["tasks"]:
@@ -93,11 +100,14 @@ def main():
                 "model": args.model,
                 "backend": args.backend,
                 "quant": args.quant,
+                "config_path": config_path,
+                "config_hash": config_hash,
                 "pass": passed,
                 "grade_output": grade.stdout.strip(),
                 "prompt_tokens": parsed.get("prompt_tokens"),
                 "completion_tokens": parsed.get("completion_tokens"),
                 "tokens_per_second": parsed.get("tokens_per_second"),
+                "ttft_seconds": parsed.get("ttft_seconds"),
                 "wall_seconds": parsed.get("wall_seconds"),
                 "run_error": parsed.get("error"),
                 "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),

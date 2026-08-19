@@ -35,6 +35,8 @@ def strip_reasoning(text):
 def grade(result, check):
     if result.get("error"):
         return False, f"run errored: {result['error']}"
+    if result.get("hallucinated_tool_calls"):
+        return False, f"model called tool(s) never declared in this task's manifest: {result['hallucinated_tool_calls']} — check the proxy isn't filtering tools, or the model is confabulating"
 
     kind = check["type"]
 

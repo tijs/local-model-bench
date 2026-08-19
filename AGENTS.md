@@ -111,26 +111,42 @@ Swift/Xcode commands in this project must set
 
 ## Backends
 
-- **MLX**: two layers, and the benchmark must hit the outer one —
-  `vllm_mlx.server --model <candidate>` is the raw engine on port 8012, but
-  it returns tool calls as raw text in `content` (e.g.
+- **MLX**: three layers. `vllm_mlx.server --model <candidate>` is the raw
+  engine on port 8012 — no server-side tool-call parsing exists in vllm-mlx
+  at all (confirmed: no `--tool-call-parser` flag in `vllm_mlx.server
+  --help`, only `--reasoning-parser` for `<think>`-style extraction), so it
+  returns tool calls as raw text in `content` (e.g. LFM's
   `<|tool_call_start|>[fn(a=1)]<|tool_call_end|>`), not a real `tool_calls`
-  array. `mara_local_proxy.py` sits in front of it on **port 8013** and is
-  what actually parses that into proper OpenAI-format `tool_calls` — this is
-  the endpoint hermes's `mara-local` provider in `~/.hermes/config.yaml`
-  points at, and the endpoint every model/backend in this benchmark must use.
-  Verified live: hitting 8012 directly gives an empty `tool_calls: []` with
-  the call embedded as text; hitting 8013 gives a correct `tool_calls` array.
-  Confirmed against the currently-loaded `LiquidAI/LFM2.5-2.6B-MLX-bf16`.
+  array. **The benchmark uses its own proxy for this — `runner/
+  bench_local_proxy.py`, started via `runner/start_bench_proxy.sh`, listening
+  on port 8015.** This is a fork of `~/.hermes/profiles/fitness/
+  mara_local_proxy.py` (the "fitness" hermes profile's own proxy on port
+  8013) with one critical difference: that file unconditionally filters
+  every caller's `tools` array down to its own ~12-tool allowlist tuned for
+  the fitness/Kiri profile. **Never point the benchmark at port 8013** — this
+  was discovered live 2026-08-19 after it silently gave false-passing
+  `hermes_ops` tool-selection results (the intended tool wasn't even in the
+  manifest the model received, and since tool-call parsing is regex-based on
+  raw text with no schema validation, the model can still "call" a tool name
+  it was never given — which further masked the filtering). All prior
+  `results/log.jsonl` rows from before this fix were cleared as invalid.
+  `bench_local_proxy.py` is also **parser-pluggable per model family** — it
+  registers named parsers (`lfm` confirmed working; `hermes_style` for
+  Qwen-style `<tool_call>{...}</tool_call>` JSON blocks, added but not yet
+  verified against a real Qwen response) selected via `BENCH_TOOL_PARSER`.
+  Every new candidate model's `configs/<model>/mlx.yaml` must research and
+  cite its actual raw tool-call format (from the model card/creator docs)
+  and set `tool_call_parser:` accordingly — getting this wrong doesn't
+  error, it silently produces zero or hallucinated tool calls.
 - **GGUF**: llama.cpp's `llama-server` (not yet installed — `brew install
-  llama.cpp`), OpenAI-compatible. Port TBD (8013 is taken by
-  `mara_local_proxy.py` above — use 8014). Also TBD: whether `llama-server`
-  needs a similar translation proxy for tool calls, or returns a proper
-  `tool_calls` array natively depending on the model's chat template — check
-  this the same way (hit it directly with `runner/run_prompt.py` and inspect
-  `tool_calls` vs raw content) before trusting any GGUF results. Multiple
-  quant levels are tested per candidate model (not just one), each as a
-  separate log row.
+  llama.cpp`), OpenAI-compatible, port 8016 (8012-8015 reserved per above).
+  Also TBD: whether `llama-server` returns a proper `tool_calls` array
+  natively (its chat-template-driven tool calling is more standardized than
+  vllm-mlx's), or still needs a `bench_local_proxy.py`-style shim per model
+  family — check with `runner/run_prompt.py` and inspect raw `tool_calls`
+  vs. content before trusting any GGUF tool-call results. Multiple quant
+  levels are tested per candidate model (not just one), each as a separate
+  log row.
 - Hermes routes to whichever is live via a dedicated `custom_providers: bench`
   entry in `~/.hermes/config.yaml`, toggled for the duration of a run and
   restored after. **Unloading/swapping backends is not yet validated live —
