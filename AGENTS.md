@@ -180,6 +180,18 @@ fought and respawned):
    cocore, also targeting port 8012. Stop via `launchctl bootout gui/501/
    ai.hermes.mara-mlx`, restore via `launchctl bootstrap`.
 
+## Hermes's hard minimums (applies to every future model config)
+
+- **`context_length` must be >= 64,000** in the bench profile's provider
+  entry, or `hermes chat` refuses to start at all ("Failed to initialize
+  agent: ... below the minimum 64,000 required by Hermes Agent") —
+  discovered 2026-08-19 testing Qwen3.5-9B at `--ctx-size 32768`. This only
+  bites the **coding suites** (driven via `hermes chat`) — `sanity`/
+  `hermes_ops` go through `run_prompt.py` directly and don't hit hermes's
+  own startup checks. When picking a server `--ctx-size` for a new model,
+  size it for the coding suites' needs (>=64K) even if `hermes_ops`'s own
+  prompt would fit in less — one server config serves both types of test.
+
 ## Reproducibility / pinned dependencies
 
 - **Fixtures**: `Cargo.lock` (kiem_mini), `package-lock.json` (hearth_mini),
