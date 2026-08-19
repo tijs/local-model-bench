@@ -137,6 +137,18 @@ inline `<think>...</think>` block before the real answer. `grade_prompt.py`
 strips it before matching, so grading only ever scores the actual answer, not
 whether the model reasoned first.
 
+**Temperature is deliberately fixed at 0** for every `run_prompt.py` call
+(`sanity`/`hermes_ops`) — these suites test precise behavior fidelity (right
+tool, right args, converges vs. loops), where determinism matters more than
+matching a model's "recommended" sampling settings. This means a model's
+researched `temperature`/`top_k`/`repetition_penalty` (in `configs/<model>/
+*.yaml`) do **not** apply to sanity/hermes_ops — the client always overrides
+the server default. They **do** apply to the coding suites, since `hermes
+chat` (used by `run_fixture_suite.py`) doesn't hardcode temperature and
+respects the server's launch flags. Don't attribute a sanity/hermes_ops
+result to a sampling-settings change without checking this first (a
+2026-08-19 result was initially mis-attributed this way — see kiem notes).
+
 **Endpoint matters more than it looks**: always point `--base-url` at the
 proxy layer a real backend needs (e.g. `mara_local_proxy` on port 8013 for
 MLX, not `vllm_mlx.server` directly on 8012 — see AGENTS.md "Backends"). The
