@@ -147,6 +147,22 @@ Swift/Xcode commands in this project must set
   vs. content before trusting any GGUF tool-call results. Multiple quant
   levels are tested per candidate model (not just one), each as a separate
   log row.
+
+## Reproducibility / pinned dependencies
+
+- **Fixtures**: `Cargo.lock` (kiem_mini), `package-lock.json` (hearth_mini),
+  `deno.lock` (kipclip_mini) are all tracked in git — a benchmark run should
+  be byte-for-byte reproducible, not dependent on whatever happens to be
+  latest on a registry that day.
+- **Runner scripts** (Python): run with `/Users/tijs/.cocore/python/bin/
+  python` (3.12.13) — the only local interpreter confirmed to have PyYAML
+  pre-installed; version pinned in `runner/requirements.txt`
+  (`pip install -r runner/requirements.txt` into any other interpreter if
+  cocore's python ever goes away).
+- **Every logged result** carries `config_path` + `config_hash` (a sha256
+  prefix of the exact config file content at run time) — so even if a
+  `configs/<model>/*.yaml` file is edited later, historical `results/
+  log.jsonl` rows stay traceable to exactly what settings produced them.
 - Hermes routes to whichever is live via a dedicated `custom_providers: bench`
   entry in `~/.hermes/config.yaml`, toggled for the duration of a run and
   restored after. **Unloading/swapping backends is not yet validated live —
