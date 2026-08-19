@@ -111,11 +111,26 @@ Swift/Xcode commands in this project must set
 
 ## Backends
 
-- **MLX**: `cocore`'s existing stack — `vllm_mlx.server --model <candidate>`,
-  OpenAI-compatible, port 8012.
+- **MLX**: two layers, and the benchmark must hit the outer one —
+  `vllm_mlx.server --model <candidate>` is the raw engine on port 8012, but
+  it returns tool calls as raw text in `content` (e.g.
+  `<|tool_call_start|>[fn(a=1)]<|tool_call_end|>`), not a real `tool_calls`
+  array. `mara_local_proxy.py` sits in front of it on **port 8013** and is
+  what actually parses that into proper OpenAI-format `tool_calls` — this is
+  the endpoint hermes's `mara-local` provider in `~/.hermes/config.yaml`
+  points at, and the endpoint every model/backend in this benchmark must use.
+  Verified live: hitting 8012 directly gives an empty `tool_calls: []` with
+  the call embedded as text; hitting 8013 gives a correct `tool_calls` array.
+  Confirmed against the currently-loaded `LiquidAI/LFM2.5-2.6B-MLX-bf16`.
 - **GGUF**: llama.cpp's `llama-server` (not yet installed — `brew install
-  llama.cpp`), OpenAI-compatible, port 8013. Multiple quant levels are tested
-  per candidate model (not just one), each as a separate log row.
+  llama.cpp`), OpenAI-compatible. Port TBD (8013 is taken by
+  `mara_local_proxy.py` above — use 8014). Also TBD: whether `llama-server`
+  needs a similar translation proxy for tool calls, or returns a proper
+  `tool_calls` array natively depending on the model's chat template — check
+  this the same way (hit it directly with `runner/run_prompt.py` and inspect
+  `tool_calls` vs raw content) before trusting any GGUF results. Multiple
+  quant levels are tested per candidate model (not just one), each as a
+  separate log row.
 - Hermes routes to whichever is live via a dedicated `custom_providers: bench`
   entry in `~/.hermes/config.yaml`, toggled for the duration of a run and
   restored after. **Unloading/swapping backends is not yet validated live —

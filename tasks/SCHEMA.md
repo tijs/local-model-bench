@@ -1,6 +1,18 @@
 # Task file schema
 
-One YAML file per suite in `tasks/`. Loaded by `runner/run_suite.sh`.
+One YAML file per suite in `tasks/`. Loaded by `runner/run_suite.sh`. Two
+families, distinguished by the top-level `runner:` field:
+
+- **`runner: fixture`** (or omitted, the default) — `kiem_mini`, `hearth_mini`,
+  `kipclip_mini`. A real project the agent edits with real tools (file edit,
+  git, cargo/npm/deno). See "Fixture-based tasks" below.
+- **`runner: prompt`** — `sanity`, `hermes_ops`. No project, no file edits: a
+  single (or scripted multi-turn) chat-completions exchange against a model
+  backend, with tool calls intercepted and given a scripted mock response.
+  Driven by `runner/run_prompt.py` + graded by `runner/grade_prompt.py`. See
+  "Prompt-based tasks" below.
+
+## Fixture-based tasks
 
 ```yaml
 suite: <slug>              # matches tasks/<slug>.yaml, fixtures/<slug>/, checks/<slug>/
@@ -72,3 +84,48 @@ semantics.
 Held-out tests, not agent-authored tests: this mirrors SWE-bench/HumanEval —
 the agent is scored against a test it never had the chance to special-case,
 which is what makes automated pass/fail meaningful instead of gameable.
+
+## Prompt-based tasks
+
+```yaml
+suite: sanity
+runner: prompt
+timeout_seconds: 60
+
+tasks:
+  - id: sanity-tool
+    type: tool-call              # prompt-response | tool-call
+    prompt_spec:
+      system_prompt: "..."
+      user_prompt: "..."
+      tools: [ {type: function, function: {...}}, ... ]   # OpenAI tool schema, omit for prompt-response
+      mock_tool_responses: { tool_name: "<string returned as the tool result>" }
+      force_tool_error: [tool_name, ...]   # optional — return a scripted error instead
+    check:
+      type: tool_call_then_response   # regex | contains | tool_call_then_response
+      expected_tool: add_numbers
+      expected_args: { a: 15, b: 27 }  # order-agnostic on values (handles e.g. commutative args)
+      response_contains: "42"
+```
+
+Runner mechanics: `prompt_spec` is written to a temp `spec.json` and passed to
+`runner/run_prompt.py --base-url <backend> --model <candidate> --spec
+spec.json`, which sends the exchange (mocking any tool call named in
+`mock_tool_responses`/`force_tool_error`, looping until the model stops
+calling tools or `--max-turns` is hit) and prints a result JSON (full
+transcript, `tool_calls`, `final_text`, token counts, `tokens_per_second`).
+`check` is written to a temp `check.json` and graded via
+`runner/grade_prompt.py --result <result.json> --check check.json` — prints
+PASS/FAIL, exit 0/1.
+
+**Reasoning-trace stripping**: several local models (LFM included) emit an
+inline `<think>...</think>` block before the real answer. `grade_prompt.py`
+strips it before matching, so grading only ever scores the actual answer, not
+whether the model reasoned first.
+
+**Endpoint matters more than it looks**: always point `--base-url` at the
+proxy layer a real backend needs (e.g. `mara_local_proxy` on port 8013 for
+MLX, not `vllm_mlx.server` directly on 8012 — see AGENTS.md "Backends"). The
+raw engine can return a tool call as unparsed text instead of a real
+`tool_calls` array, which would silently and unfairly fail every tool-call
+check.
