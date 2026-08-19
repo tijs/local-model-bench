@@ -6,6 +6,7 @@ fn note(id: &str, tags: &[&str]) -> Note {
         title: id.to_string(),
         body: String::new(),
         tags: tags.iter().map(|s| s.to_string()).collect(),
+        pinned: false,
     }
 }
 
