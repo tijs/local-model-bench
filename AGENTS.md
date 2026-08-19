@@ -148,13 +148,22 @@ Swift/Xcode commands in this project must set
   isn't a guarantee for every family, but no proxy work needed unless that
   check fails. Multiple quant levels are tested per candidate model (not
   just one), each as a separate log row.
-- **DFlash 2** (speculative decoding, Inco AI): confirmed present in the
-  installed llama.cpp build (`--spec-type draft-dflash`,
-  `--spec-draft-hf`/`-hfd` for the drafter). **No LFM2.5 drafter exists** —
-  only `incoai/dflash-2` covers `Qwen3.8-27B` and `Muse-Glimmer-30B` (both
-  already candidates) — so DFlash2 can't be validated against LFM at all;
-  test it for real the first time either of those two models is
-  benchmarked, not before.
+- **DFlash 2** (speculative decoding, Inco AI/z-lab): **abandoned, confirmed
+  broken upstream in this llama.cpp build.** Flags exist
+  (`--spec-type draft-dflash`, `--spec-draft-hf`/`-hfd`) and both target
+  GGUFs load fine standalone, but the drafter GGUF fails to load every time
+  with `done_getting_tensors: wrong number of tensors; expected 81, got 58`.
+  Reproduced on **two unrelated checkpoints**: `Qwen3.8-27B` (3 attempts,
+  also hit a separate empty-download-path failure once) and
+  `Muse-Glimmer-30B` (`z-lab/Muse-Glimmer-30B-DFlash2-GGUF`, same exact
+  tensor-count error, first attempt). Identical error across two different
+  model families rules out a per-checkpoint or per-config problem — this is
+  a llama.cpp GGUF loader bug in how it reads DFlash2 draft-model tensors
+  (or a bug in how these draft GGUFs were converted), not something fixable
+  from this repo. **Do not retry DFlash2 again in this benchmark** unless
+  llama.cpp is upgraded past this build; if revisiting, check the
+  llama.cpp changelog for a DFlash2-loader fix first rather than
+  re-attempting blind.
 
 ## Unloading local backends (validated live 2026-08-19)
 
