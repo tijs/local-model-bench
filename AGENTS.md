@@ -43,9 +43,19 @@ new session that opens this repo.
   is deliberately meant to stress-test large-prompt/many-tools behavior), same
   system scaffolding. Only the `custom:bench` provider in hermes's config
   changes between runs.
-- **Graduated difficulty, small task count** — ~5 tasks per suite, easy→hard,
-  not a large suite. Enough to see where a model breaks down without turning
-  every run into an hours-long ordeal on local hardware.
+- **Three task types per suite, not a graduated list** — every suite has
+  exactly one **feature** task (implement a new function against a given
+  signature), one **debug** task (fix a real, unhinted bug in existing code —
+  the prompt reads like a bug report), and one **test-writing** task (write
+  tests for correct-but-under-tested existing code). Separating these
+  isolates the signal — a combined task can't tell you whether a model
+  failed to plan, to diagnose, or to test. 3 suites × 3 types = 9 tasks per
+  model/backend, a small, legible grid rather than a loose graduated list.
+  Test-writing tasks are graded by mutation kill rate, not exit code alone:
+  the agent's tests must pass against the real implementation and fail
+  against every pre-written buggy mutant swapped in one at a time
+  (`runner/grade_mutation.sh`) — otherwise an empty test file would trivially
+  "pass."
 - **Bounded per-task timeout** — a hung/looping model fails the task rather
   than stalling the run.
 - **Single trial by default** — LLM agentic runs are stochastic, but repeated
@@ -82,7 +92,22 @@ repo at run time.
 |---|---|---|---|
 | `kiem_mini` | `~/projects/kiem` (notes CLI + app) | Rust, Swift | cargo, swift test |
 | `hearth_mini` | `~/projects/hearth-and-oar` (settlement sim game) | TypeScript | vitest |
-| `kipclip_mini` | `~/projects/kipclip-appview` (atproto bookmark appview) | TypeScript (Deno) | deno test |
+| `kipclip_mini` | `~/projects/kipclip-appview` (bookmark appview) | TypeScript (Deno) | deno test |
+
+Each suite fully verified end to end: baseline builds/tests pass clean, every
+`feature`/`debug` check fails correctly against baseline and was spot-checked
+to pass against a correct fix, and every `test-writing` mutation check was
+verified against both a real test file (passes, kills all mutants) and a
+trivial one (correctly fails).
+
+**Swift/Xcode note**: Xcode.app lives at `/Applications/Xcode.app` (moved
+there from `~/Applications/Xcode.app`, which was a stray install location —
+every other app on this machine is in the system-wide folder). The system
+default toolchain is still Command Line Tools
+(`xcode-select -p` unset via sudo would need Tijs's password to change) — so
+Swift/Xcode commands in this project must set
+`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` explicitly, as the
+`kiem_mini-debug` check command already does.
 
 ## Backends
 
@@ -95,3 +120,6 @@ repo at run time.
   entry in `~/.hermes/config.yaml`, toggled for the duration of a run and
   restored after. **Unloading/swapping backends is not yet validated live —
   do this supervised on the first real run before trusting it unattended.**
+- Hugging Face auth is configured for higher-rate model downloads (both this
+  session and any hermes-spawned agent session): token in
+  `~/.cache/huggingface/token` and `HF_TOKEN` exported in `~/.zshrc`.
