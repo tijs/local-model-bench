@@ -12,6 +12,8 @@ genuinely different experiments (e.g. before/after a settings fix).
 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | gguf | — | [aa5d02c11bba](configs/LiquidAI-LFM2.5-2.6B/gguf.yaml) | 6 | 83% | 55.8 | 5.54 | 0 |
 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | mlx | — | [8dd47a586509](configs/LiquidAI-LFM2.5-2.6B/mlx.yaml) | 5 | 80% | 1.5 | 11.45 | 0 |
 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | mlx | — | [a03394d84d27](configs/LiquidAI-LFM2.5-2.6B/mlx.yaml) | 6 | 83% | 1.7 | 15.56 | 0 |
+| bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | — | [f6397d624011](configs/Qwen3.8-27B/gguf.yaml) | 5 | 80% | 6.4 | 34.02 | 0 |
+| mlx-community/Qwen3.8-27B-4bit | mlx | — | [bbaa3dfa1953](configs/Qwen3.8-27B/mlx.yaml) | 2 | 100% | 8.6 | 3.76 | 0 |
 
 ## By suite
 
@@ -25,3 +27,6 @@ genuinely different experiments (e.g. before/after a settings fix).
 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | mlx | a03394d84d27 | hermes_ops | 3/3 |
 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | mlx | a03394d84d27 | kiem_mini | 0/1 |
 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | mlx | a03394d84d27 | sanity | 2/2 |
+| bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | f6397d624011 | hermes_ops | 2/3 |
+| bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | f6397d624011 | sanity | 2/2 |
+| mlx-community/Qwen3.8-27B-4bit | mlx | bbaa3dfa1953 | sanity | 2/2 |
