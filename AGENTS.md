@@ -138,15 +138,23 @@ Swift/Xcode commands in this project must set
   cite its actual raw tool-call format (from the model card/creator docs)
   and set `tool_call_parser:` accordingly — getting this wrong doesn't
   error, it silently produces zero or hallucinated tool calls.
-- **GGUF**: llama.cpp's `llama-server` (not yet installed — `brew install
-  llama.cpp`), OpenAI-compatible, port 8016 (8012-8015 reserved per above).
-  Also TBD: whether `llama-server` returns a proper `tool_calls` array
-  natively (its chat-template-driven tool calling is more standardized than
-  vllm-mlx's), or still needs a `bench_local_proxy.py`-style shim per model
-  family — check with `runner/run_prompt.py` and inspect raw `tool_calls`
-  vs. content before trusting any GGUF tool-call results. Multiple quant
-  levels are tested per candidate model (not just one), each as a separate
-  log row.
+- **GGUF**: llama.cpp's `llama-server` (installed via `brew install
+  llama.cpp`, build 10470), OpenAI-compatible, port 8016 — **no proxy
+  needed**, confirmed live: it returns proper `tool_calls` natively for LFM
+  (unlike vllm-mlx), plus real streaming usage counts (`usage_estimated:
+  false`), so hermes's `local-gguf` provider points straight at it. Still
+  worth spot-checking a new model family's raw output before trusting
+  results (`run_prompt.py` against 8016 directly), since "native for LFM"
+  isn't a guarantee for every family, but no proxy work needed unless that
+  check fails. Multiple quant levels are tested per candidate model (not
+  just one), each as a separate log row.
+- **DFlash 2** (speculative decoding, Inco AI): confirmed present in the
+  installed llama.cpp build (`--spec-type draft-dflash`,
+  `--spec-draft-hf`/`-hfd` for the drafter). **No LFM2.5 drafter exists** —
+  only `incoai/dflash-2` covers `Qwen3.8-27B` and `Muse-Glimmer-30B` (both
+  already candidates) — so DFlash2 can't be validated against LFM at all;
+  test it for real the first time either of those two models is
+  benchmarked, not before.
 
 ## Unloading local backends (validated live 2026-08-19)
 
