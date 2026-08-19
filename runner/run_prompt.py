@@ -21,6 +21,16 @@ task_spec.json:
     "force_tool_error": ["tool_name", ...]   // optional: return an error string instead
   }
 
+Replicates Hermes's real tool_loop_guardrails (~/.hermes/config.yaml) so a
+model gets the same "you're not making progress" nudge a real Hermes session
+would inject — testing raw model behavior without this would understate how
+the model actually behaves in production, where these nudges exist.
+hard_stop_enabled is false in the real config, so this only ever warns, it
+never forces a stop — matches that. Thresholds (warn after N calls):
+exact_failure=2 (same tool+args, failing), same_tool_failure=3 (same tool,
+any args, failing), idempotent_no_progress=2 (same tool, consecutive calls
+returning an identical result). Each warning fires once per tool per run.
+
 Prints a single JSON result to stdout:
   {
     "messages": [...],           // full conversation incl. tool turns
@@ -39,6 +49,47 @@ import sys
 import time
 import urllib.request
 import urllib.error
+
+
+GUARDRAIL_WARN_AFTER = {"exact_failure": 2, "same_tool_failure": 3, "idempotent_no_progress": 2}
+
+
+def guardrail_warning(tool_history, name, args_key, warned):
+    """Mirrors ~/.hermes/config.yaml's tool_loop_guardrails (warn-only, hard_stop_enabled=false)."""
+    same_name = [h for h in tool_history if h["name"] == name]
+
+    exact_same = [h for h in same_name if h["args_key"] == args_key]
+    exact_failures = sum(1 for h in exact_same if h["is_failure"])
+    if exact_failures >= GUARDRAIL_WARN_AFTER["exact_failure"] and f"{name}:exact" not in warned:
+        warned.add(f"{name}:exact")
+        return (
+            f"[guardrail] You've called {name} with these exact arguments {exact_failures} times "
+            "and it keeps failing the same way. Repeating it again won't change the outcome — "
+            "try a different approach, or tell the user it isn't working."
+        )
+
+    same_tool_failures = sum(1 for h in same_name if h["is_failure"])
+    if same_tool_failures >= GUARDRAIL_WARN_AFTER["same_tool_failure"] and f"{name}:same_tool" not in warned:
+        warned.add(f"{name}:same_tool")
+        return (
+            f"[guardrail] You've called {name} {same_tool_failures} times without success. "
+            "Consider a different tool, or report this back to the user instead of continuing to retry."
+        )
+
+    idempotent = 0
+    prev = None
+    for h in same_name:
+        if prev is not None and h["result_text"] == prev:
+            idempotent += 1
+        prev = h["result_text"]
+    if idempotent >= GUARDRAIL_WARN_AFTER["idempotent_no_progress"] and f"{name}:idempotent" not in warned:
+        warned.add(f"{name}:idempotent")
+        return (
+            f"[guardrail] Your last few calls to {name} returned the same result — no new "
+            "information. Repeating it again won't help; try something else or report back to the user."
+        )
+
+    return None
 
 
 def call_backend(base_url, model, messages, tools, temperature, timeout):
@@ -81,6 +132,8 @@ def main():
     messages.append({"role": "user", "content": spec["user_prompt"]})
 
     all_tool_calls = []
+    tool_history = []  # [{"name":..., "args_key":..., "result_text":..., "is_failure": bool}]
+    guardrail_warned = set()
     prompt_tokens = completion_tokens = 0
     start = time.time()
     error = None
@@ -113,12 +166,22 @@ def main():
                     fn_args = {"_raw": fn.get("arguments")}
                 all_tool_calls.append({"name": fn["name"], "arguments": fn_args})
 
+                is_failure = True
                 if fn["name"] in force_errors:
                     result_text = json.dumps({"error": f"{fn['name']} failed: simulated error for benchmark"})
                 elif fn["name"] in mock_responses:
                     result_text = mock_responses[fn["name"]]
+                    is_failure = False
                 else:
                     result_text = json.dumps({"error": f"no mock response defined for tool '{fn['name']}'"})
+
+                args_key = json.dumps(fn_args, sort_keys=True)
+                warning = guardrail_warning(tool_history, fn["name"], args_key, guardrail_warned)
+                tool_history.append(
+                    {"name": fn["name"], "args_key": args_key, "result_text": result_text, "is_failure": is_failure}
+                )
+                if warning:
+                    result_text = result_text + "\n\n" + warning
 
                 messages.append(
                     {

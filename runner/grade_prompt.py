@@ -50,20 +50,60 @@ def grade(result, check):
             return True, ""
         return False, f"final_text {text!r} did not contain {check['text']!r}"
 
+    if kind == "contains_any":
+        text = strip_reasoning(result.get("final_text", "")).lower()
+        if any(phrase.lower() in text for phrase in check["phrases"]):
+            return True, ""
+        return False, f"final_text {text!r} did not contain any of {check['phrases']}"
+
+    if kind == "chained_tool_calls":
+        calls = result.get("tool_calls", [])
+        names_in_order = [c["name"] for c in calls]
+        expected = check["expected_sequence"]
+        # each expected name must appear, in order (not necessarily contiguous)
+        cursor = 0
+        for name in expected:
+            found = False
+            while cursor < len(names_in_order):
+                if names_in_order[cursor] == name:
+                    found = True
+                    cursor += 1
+                    break
+                cursor += 1
+            if not found:
+                return False, f"expected sequence {expected} not found in actual calls {names_in_order}"
+
+        if "write_file_arg_contains" in check:
+            needle = check["write_file_arg_contains"]
+            matches = [
+                c for c in calls
+                if c["name"] == "write_file"
+                and any(needle in str(v) for v in c["arguments"].values())
+            ]
+            if not matches:
+                return False, f"no write_file call had an argument containing {needle!r} (calls: {[c['arguments'] for c in calls if c['name']=='write_file']})"
+
+        return True, ""
+
     if kind == "tool_call_then_response":
         calls = [c for c in result.get("tool_calls", []) if c["name"] == check["expected_tool"]]
         if not calls:
             return False, f"tool '{check['expected_tool']}' was never called (called: {[c['name'] for c in result.get('tool_calls', [])]})"
 
-        expected_values = sorted(map(str, check.get("expected_args", {}).values()))
-        matched = None
-        for c in calls:
-            actual_values = sorted(map(str, c["arguments"].values()))
-            if actual_values == expected_values:
-                matched = c
-                break
-        if matched is None:
-            return False, f"'{check['expected_tool']}' was called but never with argument values {expected_values} (saw: {[c['arguments'] for c in calls]})"
+        expected_args = check.get("expected_args")
+        if not expected_args:
+            # no specific arguments required — any call to the right tool counts
+            matched = calls[0]
+        else:
+            expected_values = sorted(map(str, expected_args.values()))
+            matched = None
+            for c in calls:
+                actual_values = sorted(map(str, c["arguments"].values()))
+                if actual_values == expected_values:
+                    matched = c
+                    break
+            if matched is None:
+                return False, f"'{check['expected_tool']}' was called but never with argument values {expected_values} (saw: {[c['arguments'] for c in calls]})"
 
         if "response_contains" in check:
             text = strip_reasoning(result.get("final_text", ""))

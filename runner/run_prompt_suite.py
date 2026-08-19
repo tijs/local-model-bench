@@ -47,7 +47,12 @@ def main():
             spec_path = td / "spec.json"
             check_path = td / "check.json"
             result_path = td / "result.json"
-            spec_path.write_text(json.dumps(task["prompt_spec"]))
+            prompt_spec = dict(task["prompt_spec"])
+            if "system_prompt_file" in prompt_spec:
+                prompt_spec["system_prompt"] = (REPO / prompt_spec.pop("system_prompt_file")).read_text()
+            if "tools_file" in prompt_spec:
+                prompt_spec["tools"] = json.loads((REPO / prompt_spec.pop("tools_file")).read_text())
+            spec_path.write_text(json.dumps(prompt_spec))
             check_path.write_text(json.dumps(task["check"]))
 
             run = subprocess.run(

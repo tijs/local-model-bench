@@ -102,11 +102,25 @@ tasks:
       mock_tool_responses: { tool_name: "<string returned as the tool result>" }
       force_tool_error: [tool_name, ...]   # optional — return a scripted error instead
     check:
-      type: tool_call_then_response   # regex | contains | tool_call_then_response
+      type: tool_call_then_response   # regex | contains | contains_any | tool_call_then_response | chained_tool_calls
       expected_tool: add_numbers
-      expected_args: { a: 15, b: 27 }  # order-agnostic on values (handles e.g. commutative args)
+      expected_args: { a: 15, b: 27 }  # optional — omit/empty to accept any arguments; order-agnostic on values otherwise
       response_contains: "42"
 ```
+
+Check types: `regex`/`contains` match `final_text` directly. `contains_any` takes
+`phrases: [...]` and passes if any appear (case-insensitive) — used for
+error-recovery tasks where several acceptable phrasings exist.
+`tool_call_then_response` requires a specific tool was called (optionally
+with specific argument values) and the final response contains a string.
+`chained_tool_calls` takes `expected_sequence: [tool_a, tool_b, ...]` (each
+must appear in order, not necessarily contiguous) and optionally
+`write_file_arg_contains` to check a later call used an earlier call's
+result. `large fixture files` (a full real tool manifest, a large system
+prompt) go in `prompt_spec` as `tools_file`/`system_prompt_file` (paths
+relative to repo root) instead of inlining huge JSON/text into the YAML —
+`run_prompt_suite.py` resolves and merges them before calling
+`run_prompt.py`.
 
 Runner mechanics: `prompt_spec` is written to a temp `spec.json` and passed to
 `runner/run_prompt.py --base-url <backend> --model <candidate> --spec

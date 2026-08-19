@@ -1,0 +1,70 @@
+suite: hermes_ops
+description: >-
+  Tier 1: tool-use behavior under Hermes's real operating conditions — a
+  ~26-27K-token fixed system prompt + 41-tool manifest (see
+  fixtures/hermes_ops/README.md for provenance) — not coding ability. Run
+  after sanity passes, before the coding suites. All tools in the manifest
+  are present in every task; only 1-2 are ever actually relevant, so a wrong
+  tool call or a hallucinated tool name is itself a meaningful failure.
+timeout_seconds: 120
+runner: prompt
+
+tasks:
+  - id: hermes_ops-selection
+    title: Pick the right tool out of 41 available
+    type: tool-selection
+    difficulty: 2
+    prompt_spec:
+      system_prompt_file: fixtures/hermes_ops/system_prompt.txt
+      tools_file: fixtures/hermes_ops/tools.json
+      user_prompt: "What's the current weather in Amsterdam?"
+      mock_tool_responses:
+        web_search: '{"results": [{"title": "Amsterdam weather", "snippet": "Currently 18C, light rain, wind 15km/h."}]}'
+    check:
+      type: tool_call_then_response
+      expected_tool: web_search
+      expected_args: {}
+      response_contains: "18"
+
+  - id: hermes_ops-chaining
+    title: Two-step tool chain, second call depends on the first's result
+    type: tool-chaining
+    difficulty: 3
+    prompt_spec:
+      system_prompt_file: fixtures/hermes_ops/system_prompt.txt
+      tools_file: fixtures/hermes_ops/tools.json
+      user_prompt: >-
+        Search the web for the current population of Amsterdam, then write
+        just that number to a file called population.txt.
+      mock_tool_responses:
+        web_search: '{"results": [{"title": "Amsterdam population", "snippet": "Amsterdam has a population of 912046."}]}'
+        write_file: '{"status": "ok", "bytes_written": 6}'
+    check:
+      type: chained_tool_calls
+      expected_sequence: [web_search, write_file]
+      write_file_arg_contains: "912046"
+
+  - id: hermes_ops-error-recovery
+    title: Tool call fails — must not hallucinate success or loop
+    type: error-recovery
+    difficulty: 3
+    prompt_spec:
+      system_prompt_file: fixtures/hermes_ops/system_prompt.txt
+      tools_file: fixtures/hermes_ops/tools.json
+      user_prompt: "Read the file called notes.txt and tell me what it says."
+      force_tool_error: [read_file]
+      mock_tool_responses:
+        search_files: '{"matches": []}'
+        terminal: '{"stdout": "ls: notes.txt: No such file or directory", "exit_code": 1}'
+    check:
+      type: contains_any
+      phrases:
+        - "couldn't find"
+        - "could not find"
+        - "not found"
+        - "doesn't exist"
+        - "does not exist"
+        - "no such file"
+        - "unable to"
+        - "failed"
+        - "error"
