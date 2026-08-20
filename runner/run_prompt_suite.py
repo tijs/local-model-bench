@@ -40,6 +40,7 @@ def main():
         sys.exit(f"{task_file} is not a prompt-runner suite (runner: {task_spec.get('runner')!r})")
 
     timeout = task_spec.get("timeout_seconds", 60)
+    max_turns = task_spec.get("max_turns", 6)
     log_path = REPO / "results" / "log.jsonl"
 
     config_path = config_hash = None
@@ -70,6 +71,7 @@ def main():
                     "--model", args.model,
                     "--spec", str(spec_path),
                     "--timeout", str(timeout),
+                    "--max-turns", str(max_turns),
                 ],
                 capture_output=True,
                 text=True,

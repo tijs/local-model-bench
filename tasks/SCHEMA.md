@@ -91,6 +91,7 @@ which is what makes automated pass/fail meaningful instead of gameable.
 suite: sanity
 runner: prompt
 timeout_seconds: 60
+max_turns: 40   # optional, defaults to 6 (run_prompt.py's CLI default) if omitted
 
 tasks:
   - id: sanity-tool
@@ -136,6 +137,17 @@ PASS/FAIL, exit 0/1.
 inline `<think>...</think>` block before the real answer. `grade_prompt.py`
 strips it before matching, so grading only ever scores the actual answer, not
 whether the model reasoned first.
+
+**max_turns matters more than it looks**: defaults to 6 (run_prompt.py's own
+CLI default) if the suite file omits it — an arbitrary number, not matched
+to anything. `hermes_ops` sets it explicitly to 40 to match this
+benchmark's own `~/.hermes/profiles/bench/config.yaml` `agent.max_turns`
+(discovered live 2026-08-20 that the un-set default silently produced 14
+false "exceeded max_turns" failures across nearly every model tested —
+verified on Qwen3.8-27B that the same model/temperature converges cleanly
+by turn 11 given 15 turns instead of 6, doing reasonable diagnostic
+exploration rather than looping). Always set this explicitly for a new
+suite rather than relying on the fallback.
 
 **Temperature is deliberately fixed at 0** for every `run_prompt.py` call
 (`sanity`/`hermes_ops`) — these suites test precise behavior fidelity (right
