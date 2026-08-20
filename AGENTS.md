@@ -236,7 +236,7 @@ Swift/Xcode commands in this project must set
   fork: `z-lab/llama.cpp-fork`, branch `dflash2`. Confirmed via
   https://inco.ai/blog/dflash2/, which explicitly says llama.cpp support
   "requires building from PR #27342." Built it from source (cmake + Ninja +
-  Metal, ~2 min build) into the scratchpad — kept entirely separate from
+  Metal, ~2 min build) — kept entirely separate from
   the Homebrew install so `brew`'s `llama-server` is untouched for every
   other model in this benchmark. Two issues on the way to a working
   request, both resolved:
@@ -255,14 +255,14 @@ Swift/Xcode commands in this project must set
   9.32 tok/s vs. this benchmark's own baseline non-spec Qwen3.8-27B GGUF
   result (~6.5 tok/s) — a real ~1.4x speedup (less than the PR's cited
   1.85x on a 64GB M5 Pro, plausibly due to this being a 32GB machine plus
-  `<think>` reasoning tokens counted in the total). **To reproduce**: clone
-  `z-lab/llama.cpp-fork` at branch `dflash2`, `cmake -B build -G Ninja
-  -DGGML_METAL=ON -DCMAKE_BUILD_TYPE=Release && cmake --build build
-  --target llama-server`, then launch with `--spec-type draft-dflash
-  --spec-draft-hf <drafter-repo> --spec-draft-n-max 7 --parallel 1`. This
-  fork binary is NOT installed system-wide — it only exists in this
-  session's scratchpad, so it will need rebuilding in a future session
-  (or moved somewhere durable) to reuse this.
+  `<think>` reasoning tokens counted in the total). **To reproduce**: run
+  `runner/setup_dflash2_fork.sh` (builds into `runner/.dflash2-fork/`,
+  gitignored — a durable, one-command setup, not scratchpad-only), then
+  launch `runner/.dflash2-fork/build/bin/llama-server` with `--spec-type
+  draft-dflash --spec-draft-hf <drafter-repo> --spec-draft-n-max 7
+  --parallel 1`. This fork binary is NOT installed system-wide like the
+  Homebrew build — every config using it must point at
+  `runner/.dflash2-fork/build/bin/llama-server` explicitly.
   <!-- Earlier (2026-08-19/20), wrongly concluded abandoned: -->
   <details><summary>superseded reasoning (kept for context, do not trust)</summary>
   Originally concluded broken upstream after 3 Homebrew-build attempts on
