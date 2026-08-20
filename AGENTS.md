@@ -138,6 +138,53 @@ Swift/Xcode commands in this project must set
   cite its actual raw tool-call format (from the model card/creator docs)
   and set `tool_call_parser:` accordingly — getting this wrong doesn't
   error, it silently produces zero or hallucinated tool calls.
+
+  **vllm-mlx version note, discovered live 2026-08-20**: the "no
+  --tool-call-parser flag exists" statement above was true for the
+  installed **0.4.0**, but is NOT a fundamental vllm-mlx limitation — it's
+  a stale-dependency artifact. **0.4.1** (one patch version up, now
+  installed in `~/.cocore/python` — upgraded live with Tijs's explicit
+  go-ahead, since that's also his real daily-driver Python env, not a
+  benchmark-isolated one) ships a real `vllm-mlx` CLI (`vllm-mlx serve
+  <model> --enable-auto-tool-choice --tool-call-parser <name>`, a
+  different, richer entry point than the bare `python -m vllm_mlx.server`
+  module invocation used all session) with native parsers for `qwen`,
+  `qwen3_coder` (exact match for the custom parser hand-written for
+  Qwen3-Coder-30B this session), `mistral`, `llama`, `hermes`, `deepseek`,
+  `harmony`/`gpt-oss`, `granite`, `nemotron`, `xlam`, `functionary`,
+  `gemma4`, `glm47`, `minimax`, plus `auto` (tries all). There's also a
+  `poolside_v1` parser registered internally (exact name match for
+  Laguna-XS-2.1's undocumented tool-call format) — but it's missing from
+  `vllm-mlx serve`'s hardcoded `--tool-call-parser` argparse `choices=`
+  list (confirmed: `--tool-call-parser poolside_v1` is hard-rejected even
+  though the parser class exists and IS in `--reasoning-parser`'s choices)
+  — use `--tool-call-parser auto` for Laguna, not a direct name, to reach
+  it without patching vendor code.
+
+  **CRITICAL CAVEAT, also discovered live 2026-08-20**: the native
+  `qwen3_coder` parser has a real bug specifically in **streaming** mode.
+  Confirmed via a controlled A/B test on Qwen3-Coder-30B-A3B MLX: the
+  exact same request (identical system/user prompt, `temperature=0`,
+  everything else equal) produces a clean, correct tool call every time
+  under `stream: false`, but produces malformed tool_calls with an EMPTY
+  function `name` and truncated/garbled `arguments` (e.g. `{"query": `
+  with no closing, or a stray literal `<tool_call>` token leaking into an
+  argument value) under `stream: true` — which `run_prompt.py` always
+  uses (deliberately, to measure real TTFT). This is why the qwen3_coder
+  MLX numbers in this leaderboard use **`bench_local_proxy.py`'s own
+  custom parser, not the new native one** — the proxy always parses the
+  complete non-streaming response before faking SSE back to the client,
+  so it structurally cannot hit this streaming-specific bug. **Lesson: for
+  any model where a native vllm-mlx parser exists, verify it against BOTH
+  a streaming and non-streaming request before trusting it for this
+  benchmark (which requires streaming) — do not assume "native support
+  exists" implies "native support works safely under streaming."** The
+  custom-proxy approach, while more manual, turned out to be the *safer*
+  default for models with complex multi-parameter tool-call formats (XML/
+  parameter-tag styles), not just a workaround for a missing feature.
+  Simpler single-JSON-blob formats (plain `qwen`, `hermes`/`nous`) were not
+  re-tested for this same bug and may or may not be affected — don't
+  assume either way without checking.
 - **GGUF**: llama.cpp's `llama-server` (installed via `brew install
   llama.cpp`, build 10470), OpenAI-compatible, port 8016 — **no proxy
   needed**, confirmed live: it returns proper `tool_calls` natively for LFM
