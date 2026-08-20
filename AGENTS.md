@@ -66,6 +66,16 @@ new session that opens this repo.
 - **Raw logs + rollup kept separate** — `results/log.jsonl` is the append-only
   raw record (one row per task attempt); `results/LEADERBOARD.md` is a
   human-readable summary regenerated from it. Never hand-edit the log.
+- **Full coding-suite transcripts are saved, not just the final grade
+  output** — `results/transcripts/<suite>/<task_id>/<timestamp>_<model>.log`
+  (referenced by each log row's `transcript_path`), committed like everything
+  else. Added 2026-08-20 after discovering that no transcript had ever been
+  saved anywhere all session, which made a genuinely-suspicious result
+  (Luna failing a task it should have handled easily — see the stale-
+  build-cache bug below) impossible to verify without a slow manual
+  live rerun. Every result before this fix was judged on exit code + the
+  final compile/test error only, never the agent's actual behavior — if a
+  result looks surprising, read its transcript before trusting it.
 - **No decontamination step needed** — tasks are grounded in Tijs's own
   private repos, which no candidate model could have trained on.
 - **When a model doesn't work as expected, always do deeper research before

@@ -16,6 +16,7 @@ Usage:
 import argparse
 import hashlib
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -145,6 +146,25 @@ def main():
                 max_turns=args.max_turns, timeout=timeout,
             )
 
+            # Full transcript, saved and committed (not just the last 500
+            # chars of grade_output) — discovered live 2026-08-20 that no
+            # coding-suite run had ever saved its actual transcript
+            # anywhere, which made a genuinely-suspicious result (Luna
+            # failing a task it should have handled easily) impossible to
+            # verify without a slow, manual live rerun. Every PASS/FAIL
+            # this session before this fix was judged on exit code + the
+            # final grade_output only, never the agent's actual behavior.
+            transcript_dir = REPO / "results" / "transcripts" / args.suite / task["id"]
+            transcript_dir.mkdir(parents=True, exist_ok=True)
+            model_slug = re.sub(r"[^A-Za-z0-9._-]+", "_", args.hermes_model)
+            transcript_path = transcript_dir / f"{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}_{model_slug}.log"
+            transcript_path.write_text(
+                f"$ hermes chat --profile bench --provider {args.hermes_provider} "
+                f"-m {args.hermes_model} --max-turns {args.max_turns}\n\n"
+                f"--- stdout ---\n{stdout}\n\n--- stderr ---\n{stderr}\n"
+            )
+            transcript_rel = str(transcript_path.relative_to(REPO))
+
             if rc == -1:
                 passed, grade_output = False, f"TIMEOUT after {timeout}s"
             elif task["check"]["type"] == "mutation":
@@ -165,6 +185,7 @@ def main():
                 "hermes_exit_code": rc,
                 "wall_seconds": round(wall, 1),
                 "grade_output": grade_output.strip()[-500:],
+                "transcript_path": transcript_rel,
                 "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             }
             rows.append(row)
