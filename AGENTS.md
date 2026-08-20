@@ -148,22 +148,58 @@ Swift/Xcode commands in this project must set
   isn't a guarantee for every family, but no proxy work needed unless that
   check fails. Multiple quant levels are tested per candidate model (not
   just one), each as a separate log row.
-- **DFlash 2** (speculative decoding, Inco AI/z-lab): **abandoned, confirmed
-  broken upstream in this llama.cpp build.** Flags exist
-  (`--spec-type draft-dflash`, `--spec-draft-hf`/`-hfd`) and both target
-  GGUFs load fine standalone, but the drafter GGUF fails to load every time
-  with `done_getting_tensors: wrong number of tensors; expected 81, got 58`.
-  Reproduced on **two unrelated checkpoints**: `Qwen3.8-27B` (3 attempts,
-  also hit a separate empty-download-path failure once) and
-  `Muse-Glimmer-30B` (`z-lab/Muse-Glimmer-30B-DFlash2-GGUF`, same exact
-  tensor-count error, first attempt). Identical error across two different
-  model families rules out a per-checkpoint or per-config problem — this is
-  a llama.cpp GGUF loader bug in how it reads DFlash2 draft-model tensors
-  (or a bug in how these draft GGUFs were converted), not something fixable
-  from this repo. **Do not retry DFlash2 again in this benchmark** unless
-  llama.cpp is upgraded past this build; if revisiting, check the
-  llama.cpp changelog for a DFlash2-loader fix first rather than
-  re-attempting blind.
+- **DFlash 2** (speculative decoding, Inco AI/z-lab): **WORKING, as of
+  2026-08-20 — reverses the earlier "abandoned" conclusion below.** The
+  Homebrew-installed llama.cpp (build 10470) has the `--spec-type
+  draft-dflash` CLI flag but NOT the actual DFlash2 tensor-loading logic —
+  that only exists in **PR #27342** (`ggml-org/llama.cpp#27342`, still open/
+  unmerged at time of writing), whose actual code lives in the author's own
+  fork: `z-lab/llama.cpp-fork`, branch `dflash2`. Confirmed via
+  https://inco.ai/blog/dflash2/, which explicitly says llama.cpp support
+  "requires building from PR #27342." Built it from source (cmake + Ninja +
+  Metal, ~2 min build) into the scratchpad — kept entirely separate from
+  the Homebrew install so `brew`'s `llama-server` is untouched for every
+  other model in this benchmark. Two issues on the way to a working
+  request, both resolved:
+  1. The old "expected 81, got 58" tensor-count error is GONE with this
+     fork's binary — that was purely a Homebrew-build limitation (stub flag,
+     no loader), not a genuine upstream/checkpoint bug as the earlier
+     (wrong) conclusion below claimed.
+  2. First real request hit a Metal OOM (`kIOGPUCommandBufferCallbackErrorOutOfMemory`)
+     during the draft model's decode — caused by the server's default 4
+     parallel slots quadrupling KV-cache memory across BOTH the target and
+     draft models at once. Fixed with `--parallel 1`.
+  Confirmed live: `bartowski/Qwen3.8-27B-GGUF:Q4_K_M` +
+  `incoai/Qwen3.8-27B-DFlash2-GGUF` (Q4_K_M drafter), `--spec-draft-n-max 7`
+  per the PR's own benchmark command, `--parallel 1`, `--ctx-size 32768`.
+  Real completion: draft_n=791, draft_n_accepted=389 (~49% acceptance),
+  9.32 tok/s vs. this benchmark's own baseline non-spec Qwen3.8-27B GGUF
+  result (~6.5 tok/s) — a real ~1.4x speedup (less than the PR's cited
+  1.85x on a 64GB M5 Pro, plausibly due to this being a 32GB machine plus
+  `<think>` reasoning tokens counted in the total). **To reproduce**: clone
+  `z-lab/llama.cpp-fork` at branch `dflash2`, `cmake -B build -G Ninja
+  -DGGML_METAL=ON -DCMAKE_BUILD_TYPE=Release && cmake --build build
+  --target llama-server`, then launch with `--spec-type draft-dflash
+  --spec-draft-hf <drafter-repo> --spec-draft-n-max 7 --parallel 1`. This
+  fork binary is NOT installed system-wide — it only exists in this
+  session's scratchpad, so it will need rebuilding in a future session
+  (or moved somewhere durable) to reuse this.
+  <!-- Earlier (2026-08-19/20), wrongly concluded abandoned: -->
+  <details><summary>superseded reasoning (kept for context, do not trust)</summary>
+  Originally concluded broken upstream after 3 Homebrew-build attempts on
+  Qwen3.8-27B and 1 on Muse-Glimmer-30B all hit the same tensor-count
+  error, reasoning that two unrelated checkpoints hitting an identical
+  error ruled out a per-checkpoint problem. That inference was correct
+  in isolation but incomplete — it didn't consider that the INSTALLED
+  BUILD itself (not the checkpoints) was the actual common cause, since
+  Homebrew's llama.cpp only merged the CLI flag, not PR #27342's loader
+  implementation. Lesson: a bug reproducing identically across multiple
+  models is strong evidence against a per-model cause, but does not by
+  itself rule out a shared-tooling cause — check the tool's own version/
+  build provenance against the feature's actual merge status before
+  concluding "upstream broken," especially for a flag that exists but a
+  PR implementing it is still open.
+  </details>
 
 ## Unloading local backends (validated live 2026-08-19)
 

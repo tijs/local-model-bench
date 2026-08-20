@@ -1,0 +1,92 @@
+model: bartowski/Qwen3.8-27B-GGUF:Q4_K_M (+ incoai/Qwen3.8-27B-DFlash2-GGUF:Q4_K_M drafter)
+backend: gguf
+framework: "llama.cpp, built from z-lab/llama.cpp-fork branch dflash2 (NOT
+  the Homebrew build used for every other GGUF config in this repo — see
+  AGENTS.md's DFlash2 section for why)"
+
+benchmark_launch_command: |
+  # Built from source (one-time, in scratchpad, kept separate from the
+  # Homebrew install so it never affects any other model's config):
+  #   git clone --branch dflash2 https://github.com/z-lab/llama.cpp-fork.git
+  #   cmake -B build -G Ninja -DGGML_METAL=ON -DCMAKE_BUILD_TYPE=Release
+  #   cmake --build build --target llama-server
+  HF_TOKEN=$(cat ~/.cache/huggingface/token) <path-to-fork-build>/bin/llama-server \
+    --hf-repo bartowski/Qwen3.8-27B-GGUF:Q4_K_M \
+    --spec-type draft-dflash \
+    --spec-draft-hf incoai/Qwen3.8-27B-DFlash2-GGUF \
+    --spec-draft-n-max 7 \
+    --parallel 1 \
+    --host 127.0.0.1 --port 8017 \
+    --temp 1.0 --top-p 0.95 --top-k 20 \
+    --ctx-size 32768 --timeout 1800 \
+    --jinja --chat-template-file configs/Qwen3.8-27B/chat_template.jinja
+
+benchmark_endpoint: http://127.0.0.1:8017/v1
+  # Same froggeric chat-template fix and sampling settings as the plain
+  # bartowski GGUF config (configs/Qwen3.8-27B/gguf.yaml) — this config
+  # ONLY differs by adding DFlash2 speculative decoding on top. Native
+  # tool_calls expected (same base model/backend as the working plain
+  # config), re-verify live since the fork is a different binary.
+
+settings:
+  - name: "why this needs its own config/binary (not just a flag on the
+      existing Qwen3.8-27B gguf.yaml)"
+    value: "The Homebrew-installed llama.cpp (build 10470, used for every
+      other GGUF config in this repo) has the --spec-type draft-dflash CLI
+      flag but NOT PR #27342's actual DFlash2 tensor-loading/decode
+      implementation — that PR is still open/unmerged upstream. Its real
+      code lives only in the author's own fork, z-lab/llama.cpp-fork branch
+      dflash2. Confirmed via https://inco.ai/blog/dflash2/, which
+      explicitly documents 'build from PR #27342' as the llama.cpp setup
+      step."
+    source: "https://inco.ai/blog/dflash2/ +
+      https://github.com/ggml-org/llama.cpp/pull/27342 (state: open,
+      merged: false, as of 2026-08-20)."
+  - name: --spec-draft-n-max
+    value: 7
+    source: "https://github.com/ggml-org/llama.cpp/pull/27342's own PR
+      description benchmark command uses this value (block_size=8 per the
+      server startup log's speculative-implementation summary)."
+  - name: --parallel 1
+    value: 1 (framework default is 4)
+    source: "CRITICAL FIX, discovered live 2026-08-20: the default 4
+      parallel slots allocate 4x the KV cache for BOTH the target and
+      draft models simultaneously, causing a hard Metal OOM
+      (kIOGPUCommandBufferCallbackErrorOutOfMemory) on the very first real
+      request even though the model 'loaded' successfully and reported no
+      error at load time. --parallel 1 fixed it immediately. This
+      benchmark doesn't need concurrent slots anyway (one request at a
+      time, per the established process-discipline note), so no
+      functional loss from setting this."
+  - name: measured result (2026-08-20, one real completion, not yet a
+      full suite run at time of writing this settings block)
+    value: "draft_n=791, draft_n_accepted=389 (~49% acceptance), 9.32 tok/s
+      predicted_per_second vs. this benchmark's own baseline non-spec
+      Qwen3.8-27B GGUF result (~6.5 tok/s, see configs/Qwen3.8-27B/gguf.yaml's
+      leaderboard row) — roughly 1.4x speedup. Lower than the PR's own
+      cited 1.85x (measured on an Apple M5 Pro with 64GB, vs. this
+      benchmark's 32GB machine) — plausibly memory-bandwidth-bound
+      differently on this hardware, or affected by <think> reasoning
+      tokens being included in the completion count here. Not
+      independently isolated/confirmed as the sole cause — noting as a
+      plausible explanation, not a verified one."
+    source: "Direct curl request against the running server, 2026-08-20."
+
+known_gaps:
+  - "This fork binary lives ONLY in this session's scratchpad
+    (/private/tmp/claude-501/.../scratchpad/llama.cpp-fork/build/bin/llama-server)
+    — it is NOT installed system-wide like the Homebrew build every other
+    config uses. A future session will need to rebuild it (or find it
+    moved somewhere durable) to reproduce this config's results at all."
+  - "Only tested with Qwen3.8-27B's own drafter so far — Muse-Glimmer-30B's
+    DFlash2 drafter was never retried with this working fork build (the
+    'abandoned' conclusion was reversed on Qwen3.8-27B alone). Worth trying
+    if there's time, now that the real fix (fork build + --parallel 1) is
+    known — should very likely work there too since the root cause was
+    binary-wide, not checkpoint-specific."
+  - "run_prompt.py hardcodes temperature=0 for sanity/hermes_ops — same
+    caveat as every other config, these settings only fully apply to the
+    coding suites."
+
+last_updated: 2026-08-20
+last_verified_against_docs: 2026-08-20
