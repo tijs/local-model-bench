@@ -26,6 +26,7 @@ genuinely different experiments (e.g. before/after a settings fix).
 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | Q4_K_M+DFlash2 | [0686abeab746](configs/Qwen3.8-27B/gguf-dflash2.yaml) | 5 | 100% | 5.8 | 55.96 | 0 |
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | gguf | — | [163fa63ffb83](configs/Qwen3.5-9B/gguf.yaml) | 5 | 80% | 20.2 | 15.45 | 0 |
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | gguf | — | [29ed581f7054](configs/Qwen3.5-9B/gguf.yaml) | 1 | 100% | — | — | 0 |
+| empero-ai/Qwen3.8-27B-Ridge-GGUF | gguf | — | [6a3700901e2b](configs/Qwen3.8-27B-Ridge/gguf.yaml) | 6 | 67% | 4.6 | 52.03 | 0 |
 | gpt-5.6-luna | api | — | [86cbe69b94ae](configs/Luna/api.yaml) | 1 | 100% | — | — | 0 |
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | mlx | — | [8b3cbca5d1b1](configs/Qwen3-Coder-30B-A3B/mlx.yaml) | 5 | 80% | 4.6 | 22.76 | 0 |
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | mlx | — | [92c4b9be230e](configs/Qwen3-Coder-30B-A3B/mlx.yaml) | 1 | 100% | — | — | 0 |
@@ -78,6 +79,9 @@ genuinely different experiments (e.g. before/after a settings fix).
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | gguf | 163fa63ffb83 | hermes_ops | 2/3 |
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | gguf | 163fa63ffb83 | sanity | 2/2 |
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | gguf | 29ed581f7054 | kiem_mini | 1/1 |
+| empero-ai/Qwen3.8-27B-Ridge-GGUF | gguf | 6a3700901e2b | hermes_ops | 1/3 |
+| empero-ai/Qwen3.8-27B-Ridge-GGUF | gguf | 6a3700901e2b | kiem_mini | 1/1 |
+| empero-ai/Qwen3.8-27B-Ridge-GGUF | gguf | 6a3700901e2b | sanity | 2/2 |
 | gpt-5.6-luna | api | 86cbe69b94ae | kiem_mini | 1/1 |
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | mlx | 8b3cbca5d1b1 | hermes_ops | 2/3 |
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | mlx | 8b3cbca5d1b1 | sanity | 2/2 |
