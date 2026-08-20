@@ -37,7 +37,8 @@ genuinely different experiments (e.g. before/after a settings fix).
 | poolside/Laguna-XS-2.1-GGUF:Q4_K_M | gguf | — | [e427e7a50b14](configs/Laguna-XS-2.1/gguf.yaml) | 2 | 50% | 0.1 | 11.96 | 0 |
 | prism-ml/Ternary-Bonsai-27B-mlx-2bit | mlx | 2bit-native | [21faf0240ec3](configs/Ternary-Bonsai-27B/mlx.yaml) | 5 | 100% | 7.0 | 117.18 | 0 |
 | prism-ml/Ternary-Bonsai-27B-mlx-2bit | mlx | 2bit-native | [c2576cd6b385](configs/Ternary-Bonsai-27B/mlx.yaml) | 5 | 80% | 7.3 | 117.07 | 0 |
-| unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | gguf | — | [fe085c7fef30](configs/Qwen3-Coder-30B-A3B/gguf.yaml) | 6 | 83% | 18.0 | 18.49 | 0 |
+| unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | gguf | — | [840ac866adff](configs/Qwen3-Coder-30B-A3B/gguf.yaml) | 1 | 100% | — | — | 0 |
+| unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | gguf | — | [fe085c7fef30](configs/Qwen3-Coder-30B-A3B/gguf.yaml) | 5 | 100% | 18.0 | 18.49 | 0 |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q2_K_XL | gguf | UD-Q2_K_XL | [2233edb1c4f2](configs/Qwen3.8-27B/gguf-unsloth-ud-q2.yaml) | 5 | 100% | 6.3 | 55.08 | 0 |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q4_K_M | gguf | — | [89f4d8d04793](configs/Qwen3.8-27B/gguf-unsloth-ud-q4.yaml) | 5 | 100% | 6.4 | 55.57 | 0 |
 
@@ -92,8 +93,8 @@ genuinely different experiments (e.g. before/after a settings fix).
 | prism-ml/Ternary-Bonsai-27B-mlx-2bit | mlx | 21faf0240ec3 | sanity | 2/2 |
 | prism-ml/Ternary-Bonsai-27B-mlx-2bit | mlx | c2576cd6b385 | hermes_ops | 2/3 |
 | prism-ml/Ternary-Bonsai-27B-mlx-2bit | mlx | c2576cd6b385 | sanity | 2/2 |
+| unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | gguf | 840ac866adff | kiem_mini | 1/1 |
 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | gguf | fe085c7fef30 | hermes_ops | 3/3 |
-| unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | gguf | fe085c7fef30 | kiem_mini | 0/1 |
 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | gguf | fe085c7fef30 | sanity | 2/2 |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q2_K_XL | gguf | 2233edb1c4f2 | hermes_ops | 3/3 |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q2_K_XL | gguf | 2233edb1c4f2 | sanity | 2/2 |
