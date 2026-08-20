@@ -22,6 +22,7 @@ genuinely different experiments (e.g. before/after a settings fix).
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | gguf | — | [29ed581f7054](configs/Qwen3.5-9B/gguf.yaml) | 1 | 100% | — | — | 0 |
 | gpt-5.6-luna | api | — | [cca18f6650ea](configs/Luna/api.yaml) | 1 | 0% | — | — | 0 |
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | mlx | — | [8b3cbca5d1b1](configs/Qwen3-Coder-30B-A3B/mlx.yaml) | 6 | 67% | 8.3 | 2.28 | 0 |
+| mlx-community/Qwen3.8-27B-4bit | mlx | — | [152424abaa13](configs/Qwen3.8-27B/mlx.yaml) | 5 | 100% | 3.1 | 198.83 | 0 |
 | mlx-community/Qwen3.8-27B-4bit | mlx | — | [bbaa3dfa1953](configs/Qwen3.8-27B/mlx.yaml) | 2 | 100% | 8.6 | 3.76 | 0 |
 | mlx-community/Qwen3.8-27B-4bit | mlx | — | [f894953f1f80](configs/Qwen3.8-27B/mlx.yaml) | 6 | 50% | 0.3 | 334.45 | 0 |
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | gguf | — | [3047922de5b7](configs/Ornith-1.5-35B-A3B/gguf.yaml) | 6 | 67% | 29.4 | 10.84 | 0 |
@@ -64,6 +65,8 @@ genuinely different experiments (e.g. before/after a settings fix).
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | mlx | 8b3cbca5d1b1 | hermes_ops | 2/3 |
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | mlx | 8b3cbca5d1b1 | kiem_mini | 0/1 |
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | mlx | 8b3cbca5d1b1 | sanity | 2/2 |
+| mlx-community/Qwen3.8-27B-4bit | mlx | 152424abaa13 | hermes_ops | 3/3 |
+| mlx-community/Qwen3.8-27B-4bit | mlx | 152424abaa13 | sanity | 2/2 |
 | mlx-community/Qwen3.8-27B-4bit | mlx | bbaa3dfa1953 | sanity | 2/2 |
 | mlx-community/Qwen3.8-27B-4bit | mlx | f894953f1f80 | hermes_ops | 3/6 |
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | gguf | 3047922de5b7 | hermes_ops | 1/3 |
