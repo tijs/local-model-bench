@@ -8,11 +8,36 @@ benchmark_launch_command: |
     --max-request-tokens 65536 --max-tokens 65536 --continuous-batching \
     --default-temperature 0.7 --default-top-p 0.8 --default-top-k 20 \
     --timeout 1800
+  # then, separately (proxy required — see below):
+  BENCH_TOOL_PARSER=qwen3_coder BENCH_PROXY_UPSTREAM=http://127.0.0.1:8018 \
+    BENCH_PROXY_PORT=8015 python runner/bench_local_proxy.py
 
-benchmark_endpoint: http://127.0.0.1:8018/v1
-  # tool_call_parser assumed native per the Qwen3.8-27B precedent (same
-  # family, same vllm-mlx backend) — spot-check before trusting results,
-  # per standing policy.
+benchmark_endpoint: http://127.0.0.1:8015/v1
+  # PROXY REQUIRED, unlike Qwen3.8-27B. CONFIRMED LIVE 2026-08-20:
+  # vllm-mlx has no server-side tool-call parser (only --reasoning-parser
+  # for <think> extraction), so this model's raw tool-call format
+  # (<tool_call><function=NAME><parameter=ARG>VALUE</parameter></function>
+  # </tool_call> — vLLM's "qwen3_xml" format, confirmed by reading the
+  # model's own shipped reference parser,
+  # qwen3coder_tool_parser.py, cached at
+  # ~/.cache/huggingface/hub/models--mlx-community--Qwen3-Coder-30B-A3B-Instruct-4bit/
+  # snapshots/*/qwen3coder_tool_parser.py) comes back as plain text in
+  # `content` with an EMPTY tool_calls array from the raw endpoint. This
+  # is DIFFERENT from Qwen3.8-27B, which gets native tool_calls straight
+  # from vllm-mlx (confirmed: <tool_call>{json}</tool_call> hermes-style
+  # format works there without a proxy) — tool-call format is NOT uniform
+  # across the Qwen model family, don't assume one config's answer applies
+  # to the next Qwen variant. First discovered as a real hermes_ops
+  # regression (1/3 vs GGUF's 3/3 on the identical model, both empty
+  # tool_calls arrays for selection/chaining) — root-caused via a direct
+  # curl against the raw endpoint before accepting it as a genuine model
+  # weakness, per this benchmark's standing "verify before trusting"
+  # discipline. New parser added to bench_local_proxy.py
+  # (`_parse_qwen3_coder_tool_calls`, registered as `qwen3_coder`),
+  # unit-tested against the exact captured raw sample, then confirmed
+  # end-to-end via a live proxied curl request before rerunning the suite.
+  # All 5 pre-fix log rows for this model+backend were invalid (empty
+  # tool_calls from the raw port) and were removed.
 
 settings:
   - name: quant
@@ -48,10 +73,14 @@ settings:
 known_gaps:
   - "run_prompt.py hardcodes temperature=0 for sanity/hermes_ops — these
     settings only apply to hermes-chat-driven coding suites."
-  - "Native tool_calls assumed from the Qwen3.8-27B MLX precedent, not yet
-    independently re-verified for this specific checkpoint at time of
-    writing — confirm via a raw run_prompt.py spot-check before trusting
-    hermes_ops/coding results."
+  - "bench_local_proxy.py's qwen3_coder parser doesn't have access to each
+    tool's declared JSON parameter types (unlike the reference vLLM
+    parser, which uses the request's `tools` schema for int/float/bool/
+    object coercion) — it does its own best-effort numeric/bool guessing
+    instead. Fine for this benchmark's grading (checks argument values,
+    not Python types), but a config/object-typed argument could come back
+    as a plain string where the reference parser would return structured
+    JSON. Note if a task ever fails specifically on argument *type*."
 
 last_updated: 2026-08-20
 last_verified_against_docs: 2026-08-20

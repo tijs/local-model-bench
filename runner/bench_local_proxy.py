@@ -47,6 +47,7 @@ from urllib.request import Request, urlopen
 UPSTREAM = os.environ.get("BENCH_PROXY_UPSTREAM", "http://127.0.0.1:8012")
 LISTEN = ("127.0.0.1", int(os.environ.get("BENCH_PROXY_PORT", "8015")))
 THINK_BLOCK = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
+STRAY_TOOL_CALL_TAG = re.compile(r"</?tool_call>", re.IGNORECASE)
 LOG = logging.getLogger("bench_local_proxy")
 
 # Different model families emit tool calls as different raw-text formats —
@@ -69,6 +70,85 @@ LFM_SPLIT_MARKER = "<|tool_call_start|>"
 # and correct/replace if its real format differs.
 HERMES_TOOL_BLOCK = re.compile(r"<tool_call>\s*(.*?)\s*</tool_call>", re.DOTALL)
 HERMES_SPLIT_MARKER = "<tool_call>"
+
+# Qwen3-Coder's "qwen3_xml" format: <tool_call><function=NAME><parameter=ARG>
+# VALUE</parameter>...</function></tool_call>. Confirmed live 2026-08-20 by
+# reading the ground-truth vLLM parser the model's own HF repo ships
+# (qwen3coder_tool_parser.py, registered as "qwen3_xml") — vllm-mlx has no
+# server-side tool-call parser at all (only --reasoning-parser), so this is
+# reimplemented here rather than assumed from a single raw sample. The
+# reference parser tolerates a missing opening <tool_call> tag (back-off:
+# treat the whole output as one candidate block if the tag isn't found) —
+# matched here too, since a raw spot-check saw exactly that: content ending
+# in a stray "</tool_call>" with no opening tag.
+QWEN3_CODER_TOOL_CALL_REGEX = re.compile(r"<tool_call>(.*?)</tool_call>|<tool_call>(.*?)$", re.DOTALL)
+QWEN3_CODER_FUNCTION_REGEX = re.compile(r"<function=(.*?)</function>|<function=(.*)$", re.DOTALL)
+QWEN3_CODER_PARAMETER_REGEX = re.compile(r"<parameter=(.*?)</parameter>|<parameter=(.*?)$", re.DOTALL)
+QWEN3_CODER_SPLIT_MARKER = "<function="
+
+
+def _qwen3_coder_convert_value(value: str) -> object:
+    """No tool schema is threaded through to this parser (unlike the
+    reference implementation, which uses each parameter's declared JSON
+    type) — best-effort numeric/bool coercion, string otherwise. Good
+    enough for grading purposes: task checks compare argument values, not
+    their Python type."""
+    if value.lower() == "true":
+        return True
+    if value.lower() == "false":
+        return False
+    if value.lower() == "null":
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        pass
+    try:
+        return float(value)
+    except ValueError:
+        pass
+    return value
+
+
+def _parse_qwen3_coder_tool_calls(text: str) -> list[dict]:
+    if QWEN3_CODER_SPLIT_MARKER not in (text or ""):
+        return []
+    tool_call_matches = QWEN3_CODER_TOOL_CALL_REGEX.findall(text)
+    raw_tool_calls = [match[0] if match[0] else match[1] for match in tool_call_matches]
+    if not raw_tool_calls:
+        raw_tool_calls = [text]
+    raw_function_calls: list[str] = []
+    for block in raw_tool_calls:
+        raw_function_calls.extend(QWEN3_CODER_FUNCTION_REGEX.findall(block))
+    function_calls = [match[0] if match[0] else match[1] for match in raw_function_calls]
+
+    calls: list[dict] = []
+    for function_call_str in function_calls:
+        if ">" not in function_call_str:
+            continue
+        end_index = function_call_str.index(">")
+        name = function_call_str[:end_index].strip()
+        parameters_text = function_call_str[end_index + 1:]
+        param_matches = QWEN3_CODER_PARAMETER_REGEX.findall(parameters_text)
+        args: dict[str, object] = {}
+        for match in param_matches:
+            match_text = match[0] if match[0] else match[1]
+            if ">" not in match_text:
+                continue
+            idx = match_text.index(">")
+            param_name = match_text[:idx].strip()
+            param_value = match_text[idx + 1:]
+            if param_value.startswith("\n"):
+                param_value = param_value[1:]
+            if param_value.endswith("\n"):
+                param_value = param_value[:-1]
+            args[param_name] = _qwen3_coder_convert_value(param_value)
+        calls.append({
+            "id": f"call_{uuid.uuid4().hex[:16]}",
+            "type": "function",
+            "function": {"name": name, "arguments": json.dumps(args, ensure_ascii=False)},
+        })
+    return calls
 
 
 def _parse_lfm_tool_calls(text: str) -> list[dict]:
@@ -136,6 +216,7 @@ def _parse_hermes_style_tool_calls(text: str) -> list[dict]:
 PARSERS = {
     "lfm": (_parse_lfm_tool_calls, LFM_SPLIT_MARKER),
     "hermes_style": (_parse_hermes_style_tool_calls, HERMES_SPLIT_MARKER),
+    "qwen3_coder": (_parse_qwen3_coder_tool_calls, QWEN3_CODER_SPLIT_MARKER),
 }
 
 if TOOL_CALL_PARSER not in PARSERS:
@@ -313,7 +394,8 @@ def normalize_response(data: dict) -> dict:
         calls = _active_parser(content)
         if calls:
             before = content.split(_active_split_marker, 1)[0]
-            before = THINK_BLOCK.sub("", before).strip() or None
+            before = THINK_BLOCK.sub("", before)
+            before = STRAY_TOOL_CALL_TAG.sub("", before).strip() or None
             message["content"] = before
             message["tool_calls"] = calls
             choice["finish_reason"] = "tool_calls"
