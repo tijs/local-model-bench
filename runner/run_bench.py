@@ -109,7 +109,7 @@ def last_n_rows(n):
     return [json.loads(l) for l in lines[-n:]]
 
 
-def run_one(config_path: Path, skip_teardown=False):
+def run_one(config_path: Path):
     cfg = yaml.safe_load(config_path.read_text())
     orch = cfg.get("orchestration")
     if not orch:
@@ -176,13 +176,11 @@ def run_one(config_path: Path, skip_teardown=False):
         basic = next((r for r in sanity_rows if r["task_id"] == "sanity-basic"), None)
         if basic and not basic["pass"]:
             print(f"\n!!! {model} FAILED sanity-basic — not viable. Stopping here.")
-            _teardown(needs_proxy, skip_teardown)
             _leaderboard()
             return
         tool_row = next((r for r in sanity_rows if r["task_id"] == "sanity-tool"), None)
         if viable == "sanity_only" or (tool_row and not tool_row["pass"]):
             print("\nsanity-tool failed (or this config is sanity_only) — skipping hermes_ops/coding.")
-            _teardown(needs_proxy, skip_teardown)
             _leaderboard()
             return
 
@@ -201,15 +199,16 @@ def run_one(config_path: Path, skip_teardown=False):
     elif viable in ("full", "coding_only"):
         print("\n(coding spot-check skipped — no hermes_provider registered for this config)")
 
-    _teardown(needs_proxy, skip_teardown)
+    # Deliberately no teardown here — the NEXT config's own run_one() (in
+    # --all mode) already calls unload_all.sh at its start, so a second
+    # call here is pure redundancy (and cocore's bounce mechanism errors
+    # noisily, if harmlessly, when called twice in a row with nothing
+    # restored in between). For a single --config run, leaving the server
+    # up matches this script's original behavior — useful if you want to
+    # keep poking at the same model afterward. Run
+    # runner/restore_local_backends.sh manually when you're done for the
+    # day to bring back cocore/hermes's own local fallback.
     _leaderboard()
-
-
-def _teardown(needs_proxy, skip_teardown):
-    if skip_teardown:
-        return
-    print("\n--- teardown ---")
-    run(["bash", str(REPO / "runner" / "unload_all.sh")])
 
 
 def _leaderboard():

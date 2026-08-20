@@ -44,17 +44,20 @@ settings:
   - name: tool_call_parser
     value: lfm    # must match a parser registered in runner/bench_local_proxy.py's PARSERS dict
     source: "https://..."   # the model's raw tool-call text format, from its model
-      card / creator docs — vllm-mlx has no server-side tool-call parsing at
-      all (confirmed: no --tool-call-parser flag exists, only
-      --reasoning-parser for <think>-style extraction), so every model
-      family needs its own parser researched and added here before it can be
-      benchmarked with tool use at all. Getting this wrong doesn't error —
-      it just silently produces 0 tool calls or hallucinated ones, so verify
-      against a real raw response from the loaded model before trusting a
-      new parser.
+      card / creator docs. vllm-mlx 0.4.1+ does have native tool-call
+      parsers (--enable-auto-tool-choice --tool-call-parser <name> via the
+      `vllm-mlx serve` CLI), but this benchmark still uses its own proxy
+      for models needing complex formats — the native qwen3_coder parser
+      has a confirmed real bug in streaming mode specifically (see
+      AGENTS.md), which the proxy structurally can't hit since it always
+      parses the complete non-streaming response. Getting a parser wrong
+      doesn't error — it just silently produces 0 tool calls or
+      hallucinated ones, so verify against a real raw response from the
+      loaded model before trusting a new parser (both streaming and
+      non-streaming, if a native parser is ever used instead of the proxy).
 
-last_updated: 2026-08-19
-last_verified_against_docs: 2026-08-19   # bump when re-checked — configs go stale
+last_updated: 2026-08-20
+last_verified_against_docs: 2026-08-20   # bump when re-checked — configs go stale
 ```
 
 ## Process for adding a new model+backend config
@@ -76,5 +79,21 @@ last_verified_against_docs: 2026-08-19   # bump when re-checked — configs go s
 
 ## Config files
 
-- `LiquidAI-LFM2.5-2.6B/mlx.yaml` — the default model already running on
-  this machine; first worked example of the schema above.
+One directory per model family, `gguf.yaml`/`mlx.yaml` (or a variant name,
+e.g. `gguf-unsloth-ud-q4.yaml`, for a distinct quant/backend combo) inside:
+
+- `LiquidAI-LFM2.5-2.6B/` — gguf, mlx
+- `LiquidAI-LFM2.5-8B-A1B/` — gguf, mlx
+- `Qwen3.8-27B/` — gguf, mlx, gguf-unsloth-ud-q4, gguf-unsloth-ud-q2,
+  gguf-dflash2 (speculative decoding, needs `runner/setup_dflash2_fork.sh`)
+- `Qwen3.5-9B/` — gguf
+- `Qwen3-Coder-30B-A3B/` — gguf, mlx
+- `Ternary-Bonsai-27B/` — mlx (native 2-bit ternary training)
+- `Ornith-1.5-35B-A3B/` — gguf
+- `Muse-Glimmer-30B/` — gguf
+- `Laguna-XS-2.1/` — gguf (mlx is `viable: blocked` — see AGENTS.md)
+- `Luna/` — api (hosted, via hermes's `openai-codex` OAuth provider, not a
+  local server at all)
+
+See the top-level `README.md` for how to run any/all of these, and
+`AGENTS.md` for the reasoning behind every non-obvious setting.
