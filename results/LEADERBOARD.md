@@ -26,7 +26,7 @@ genuinely different experiments (e.g. before/after a settings fix).
 | mlx-community/Qwen3.8-27B-4bit | mlx | — | [152424abaa13](configs/Qwen3.8-27B/mlx.yaml) | 5 | 100% | 3.1 | 198.83 | 0 |
 | mlx-community/Qwen3.8-27B-4bit | mlx | — | [bbaa3dfa1953](configs/Qwen3.8-27B/mlx.yaml) | 2 | 100% | 8.6 | 3.76 | 0 |
 | mlx-community/Qwen3.8-27B-4bit | mlx | — | [f894953f1f80](configs/Qwen3.8-27B/mlx.yaml) | 6 | 50% | 0.3 | 334.45 | 0 |
-| openai/gpt-5.6-luna | api | — | [1f7b55bd4401](configs/Luna/openrouter.yaml) | 5 | 100% | 15.2 | 4.30 | 0 |
+| openai/gpt-5.6-luna | api | — | [1f7b55bd4401](configs/Luna/openrouter.yaml) | 6 | 83% | 15.2 | 4.30 | 0 |
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | gguf | — | [3047922de5b7](configs/Ornith-1.5-35B-A3B/gguf.yaml) | 6 | 100% | 34.7 | 1.90 | 0 |
 | poolside/Laguna-XS-2.1-GGUF:Q4_K_M | gguf | — | [e427e7a50b14](configs/Laguna-XS-2.1/gguf.yaml) | 2 | 50% | 0.1 | 11.96 | 0 |
 | prism-ml/Ternary-Bonsai-27B-mlx-2bit | mlx | 2bit-native | [21faf0240ec3](configs/Ternary-Bonsai-27B/mlx.yaml) | 5 | 100% | 7.0 | 117.18 | 0 |
@@ -76,6 +76,7 @@ genuinely different experiments (e.g. before/after a settings fix).
 | mlx-community/Qwen3.8-27B-4bit | mlx | bbaa3dfa1953 | sanity | 2/2 |
 | mlx-community/Qwen3.8-27B-4bit | mlx | f894953f1f80 | hermes_ops | 3/6 |
 | openai/gpt-5.6-luna | api | 1f7b55bd4401 | hermes_ops | 3/3 |
+| openai/gpt-5.6-luna | api | 1f7b55bd4401 | kiem_mini | 0/1 |
 | openai/gpt-5.6-luna | api | 1f7b55bd4401 | sanity | 2/2 |
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | gguf | 3047922de5b7 | hermes_ops | 3/3 |
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | gguf | 3047922de5b7 | kiem_mini | 1/1 |
