@@ -21,7 +21,7 @@ genuinely different experiments (e.g. before/after a settings fix).
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | gguf | — | [163fa63ffb83](configs/Qwen3.5-9B/gguf.yaml) | 5 | 80% | 20.2 | 15.45 | 0 |
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | gguf | — | [29ed581f7054](configs/Qwen3.5-9B/gguf.yaml) | 1 | 100% | — | — | 0 |
 | gpt-5.6-luna | api | — | [cca18f6650ea](configs/Luna/api.yaml) | 1 | 0% | — | — | 0 |
-| mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | mlx | — | [8b3cbca5d1b1](configs/Qwen3-Coder-30B-A3B/mlx.yaml) | 6 | 67% | 8.3 | 2.28 | 0 |
+| mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | mlx | — | [8b3cbca5d1b1](configs/Qwen3-Coder-30B-A3B/mlx.yaml) | 6 | 67% | 4.6 | 22.76 | 0 |
 | mlx-community/Qwen3.8-27B-4bit | mlx | — | [152424abaa13](configs/Qwen3.8-27B/mlx.yaml) | 5 | 100% | 3.1 | 198.83 | 0 |
 | mlx-community/Qwen3.8-27B-4bit | mlx | — | [bbaa3dfa1953](configs/Qwen3.8-27B/mlx.yaml) | 2 | 100% | 8.6 | 3.76 | 0 |
 | mlx-community/Qwen3.8-27B-4bit | mlx | — | [f894953f1f80](configs/Qwen3.8-27B/mlx.yaml) | 6 | 50% | 0.3 | 334.45 | 0 |
