@@ -1,0 +1,99 @@
+model: bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M (+ incoai/Muse-Glimmer-30B-DFlash2-GGUF:Q4_K_M drafter)
+backend: gguf
+framework: "llama.cpp, built from z-lab/llama.cpp-fork branch dflash2 (NOT
+  the Homebrew build used for every other GGUF config in this repo — same
+  fork as configs/Qwen3.8-27B/gguf-dflash2.yaml, see AGENTS.md's DFlash2
+  section)"
+
+benchmark_launch_command: |
+  # One-time setup (builds into runner/.dflash2-fork/, gitignored — shared
+  # with configs/Qwen3.8-27B/gguf-dflash2.yaml, already built this session):
+  #   runner/setup_dflash2_fork.sh
+  HF_TOKEN=$(cat ~/.cache/huggingface/token) runner/.dflash2-fork/build/bin/llama-server \
+    --hf-repo bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M \
+    --spec-type draft-dflash \
+    --spec-draft-hf incoai/Muse-Glimmer-30B-DFlash2-GGUF \
+    --spec-draft-n-max 15 \
+    --parallel 1 \
+    --host 127.0.0.1 --port 8017 \
+    --temp 1.0 --top-p 0.95 --top-k 64 \
+    --ctx-size 32768 --timeout 1800
+
+benchmark_endpoint: http://127.0.0.1:8017/v1
+  # Same sampling settings as the plain config (configs/Muse-Glimmer-30B/
+  # gguf.yaml) — this ONLY adds DFlash2 speculative decoding on top.
+  # Native tool_calls expected (same base model as the working plain
+  # config); re-verify live since the fork is a different binary.
+
+system_prompt_suffix: "Reasoning strength: high"
+  # Same requirement as the plain config — appended by run_prompt_suite.py
+  # for sanity/hermes_ops. Not needed for the coding suite (hermes chat
+  # doesn't go through run_prompt_suite.py), which is moot here anyway
+  # since this variant isn't expected to reach the coding suite at all —
+  # see the --ctx-size entry below.
+
+orchestration:
+  raw_port: 8017
+  needs_proxy: false
+  hermes_provider: muse-gguf   # only usable for coding IF ctx-size is
+    # raised to 65536 first — see the --ctx-size settings entry below for
+    # why that's expected to OOM on this hardware, same as Qwen3.8-27B's
+    # DFlash2 config.
+  server_binary: runner/.dflash2-fork/build/bin/llama-server
+  viable: sanity_and_hermes_ops_only   # applying the lesson learned live
+    # on configs/Qwen3.8-27B/gguf-dflash2.yaml before re-discovering it the
+    # hard way: a similar-class 30B target + drafter + 65536 KV cache
+    # together exceeded this 32GB machine's Metal memory there. Starting
+    # at the known-working 32768 directly. Revisit if there's reason to
+    # think Muse-Glimmer's memory footprint differs meaningfully.
+
+settings:
+  - name: --spec-draft-n-max
+    value: 15
+    source: "https://huggingface.co/incoai/Muse-Glimmer-30B-DFlash2-GGUF
+      README.md's own 'Quick Start' launch command (higher than
+      Qwen3.8-27B's drafter, which recommended 7 — drafter-specific, not
+      copied over)."
+  - name: --parallel 1
+    value: 1 (framework default is 4)
+    source: "Same fix as configs/Qwen3.8-27B/gguf-dflash2.yaml — default 4
+      parallel slots double-allocate KV cache across target+draft,
+      confirmed causing a hard Metal OOM there; applying preemptively here
+      rather than rediscovering it."
+  - name: --ctx-size 32768 (not 65536)
+    value: 32768
+    source: "Same hardware-ceiling reasoning as configs/Qwen3.8-27B/
+      gguf-dflash2.yaml: a 65536 KV cache on top of a ~30B target + drafter
+      model caused a genuine Metal OOM there on this 32GB machine. Starting
+      conservative here rather than repeating that crash-and-discard cycle
+      — revisit (try 65536) only if there's a specific reason to think
+      Muse-Glimmer's footprint is meaningfully smaller."
+  - name: temperature / top_p / top_k / reasoning strength
+    value: "1.0 / 0.95 / 64, high reasoning strength — identical to the
+      plain config"
+    source: "configs/Muse-Glimmer-30B/gguf.yaml's own settings block
+      (Muse's officially recommended parameters) — DFlash2 is lossless
+      speculative decoding (greedy output matches the target model
+      exactly, sampling preserves its distribution per the drafter's own
+      README), so sampling settings are unchanged from the non-spec
+      config, not re-derived."
+  - name: drafter acceptance length (from the drafter's own card, not yet
+      independently measured on this hardware)
+    value: "~5.4-5.6 (Q4_K_M: 5.44, Q8_0: 5.58, BF16: 5.45), measured by
+      incoai on GSM8K prompts against meta-models' own Q4_K_M target quant
+      — our target is bartowski's Q4_K_M of the same base model, expected
+      to behave equivalently since DFlash2 verification is exact against
+      whichever target is actually loaded, not tied to a specific
+      quantizer's weights."
+    source: "https://huggingface.co/incoai/Muse-Glimmer-30B-DFlash2-GGUF
+      README.md 'Evaluation' section."
+
+known_gaps:
+  - "No kiem_mini-feature coding-suite spot-check expected for this
+    variant, same structural reason as configs/Qwen3.8-27B/gguf-dflash2.yaml
+    (hermes chat's hard 64K context_length minimum vs. this hardware's
+    Metal memory ceiling at that context size for a target+drafter pair
+    this large) — confirm live rather than assume, but don't be surprised
+    by it."
+
+last_updated: 2026-08-20

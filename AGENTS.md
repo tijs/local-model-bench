@@ -348,3 +348,23 @@ fought and respawned):
 - Hugging Face auth is configured for higher-rate model downloads (both this
   session and any hermes-spawned agent session): token in
   `~/.cache/huggingface/token` and `HF_TOKEN` exported in `~/.zshrc`.
+
+## Killed-task retry hazard (found live 2026-08-20)
+
+If a `run_fixture_suite.py` invocation gets killed (e.g. a backgrounded
+shell task terminated externally), **do not immediately relaunch the same
+task** — killing the client process does not cancel its already-in-flight
+request server-side (`bench_local_proxy.py`'s queue has no way to abort an
+in-progress `urllib` call). That orphaned request keeps generating and can
+collide with the retry's first request: the retry queues behind it, `hermes
+chat`'s own client-side timeout fires while waiting, the proxy logs a
+`cancelled` queue event, hermes silently retries — and in the one case
+observed live, that cancel+retry cycle was enough to produce a spurious
+FAIL (a `filter_by_tag` patch that should have applied cleanly appeared not
+to). A clean rerun against an *idle* server (verified via the proxy log
+showing `active_requests=0`, not just a passing `/healthz`) passed with no
+issue. **Before retrying a killed run, confirm the proxy/server is actually
+idle — check the proxy log for a recent `completed` with
+`active_requests=0`, not just that the port answers.** If in doubt, wait a
+beat or check `ps`/`lsof` for the old client's absence plus a quiet proxy
+log before resubmitting.
