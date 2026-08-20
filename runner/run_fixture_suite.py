@@ -52,7 +52,13 @@ def run_hermes(prompt, cwd, provider, model, max_turns, timeout):
 # completely correct — reproduced live on a model that had actually
 # implemented the task correctly. Every recorded kiem_mini-feature FAIL
 # this session needs re-verification against this fix.
-_STALE_BUILD_CACHE_DIRS = {"target", ".dart_tool", "__pycache__"}
+_STALE_BUILD_CACHE_DIRS = {
+    "target",       # cargo (Rust) — the one that actually bit us live
+    ".build",       # Swift Package Manager — found in the same audit,
+                    # same risk, never yet triggered only because no
+                    # swift-language task had been run against a model yet
+    ".dart_tool", "__pycache__",  # defensive, not yet confirmed present
+}
 
 
 def reset_fixture(suite, run_dir):
