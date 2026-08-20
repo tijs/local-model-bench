@@ -16,6 +16,23 @@ launch_command: |
   python -m vllm_mlx.server --model LiquidAI/LFM2.5-2.6B-MLX-bf16 \
     --host 127.0.0.1 --port 8012 --max-request-tokens 4096 --max-tokens 4096
 
+# Machine-readable — this is what runner/run_bench.py actually reads to
+# drive a run. Everything else in this file is human-facing documentation.
+orchestration:
+  raw_port: 8012          # port benchmark_launch_command binds to
+  needs_proxy: true        # does bench_local_proxy.py need to sit in front?
+  proxy_parser: lfm        # required if needs_proxy: true — must match a
+                           # name in runner/bench_local_proxy.py's PARSERS
+  proxy_port: 8015         # default; rarely needs changing
+  hermes_provider: local-mlx   # must match an entry in
+                               # ~/.hermes/profiles/bench/config.yaml,
+                               # or null if no coding-suite spot-check
+                               # was ever run for this config
+  viable: full             # full | sanity_and_hermes_ops_only |
+                           # sanity_only | coding_only | blocked
+                           # — see runner/run_bench.py's docstring for
+                           # exactly what each value skips and why
+
 settings:
   - name: max_tokens
     value: 4096

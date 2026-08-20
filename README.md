@@ -1,0 +1,139 @@
+# local-model-bench
+
+A benchmark harness for picking the best local LLM to run as the inference
+backend for [Hermes](https://hermes-agent.nousresearch.com/docs) (a local
+agent framework) for agentic coding work — JS/TS, Rust, Swift, a large
+system prompt, and a large tool manifest. Compares candidate models across
+two backends (MLX and GGUF/llama.cpp) on three axes: raw quality, speed,
+and tool-use reliability under realistic agentic conditions.
+
+Results: [`results/LEADERBOARD.md`](results/LEADERBOARD.md) (human-readable
+summary) and [`results/log.jsonl`](results/log.jsonl) (append-only raw
+record, one row per task attempt). Methodology, backend architecture, and
+every non-obvious gotcha discovered while running this are in
+[`AGENTS.md`](AGENTS.md) — read that before touching the runner code.
+
+## Prerequisites
+
+- **macOS on Apple Silicon.** MLX only runs there; GGUF/llama.cpp would
+  work elsewhere but this repo's launch commands assume Metal.
+- **A Python with PyYAML** for the orchestration/runner scripts
+  (`pip install -r runner/requirements.txt`, or point at an existing env
+  that has it — this repo's own commands use
+  `/Users/tijs/.cocore/python/bin/python`, a machine-specific path; swap
+  in your own).
+- **`llama.cpp`** (`brew install llama.cpp`) for the GGUF backend.
+- **`vllm-mlx`** (`pip install vllm-mlx`) for the MLX backend — needs
+  **0.4.1 or newer** for native tool-call parsing to be available at all
+  (see AGENTS.md's "vllm-mlx version note" if you're on an older install).
+- **[Hermes](https://hermes-agent.nousresearch.com/docs)** installed
+  locally, with an isolated `bench` profile
+  (`~/.hermes/profiles/bench/config.yaml`) — this is what the coding-suite
+  tasks actually drive (via `hermes chat`), kept separate from any real
+  daily-driver hermes profile so a benchmark run never touches real
+  session/memory state. Each config's `orchestration.hermes_provider` must
+  have a matching entry in that profile's `providers:` block.
+- A HuggingFace token cached at `~/.cache/huggingface/token` (for gated
+  model downloads).
+
+## Running the benchmark
+
+**Everything, one command:**
+```
+python runner/run_bench.py --all
+```
+Iterates every `configs/*/*.yaml`, one at a time (strict one-server-at-a-
+time — see AGENTS.md's process-discipline note on why running multiple
+model servers concurrently causes silent-looking failures that are
+actually resource exhaustion). Skips anything marked `viable: blocked` in
+its config, prints why, and moves on.
+
+**One model:**
+```
+python runner/run_bench.py --config configs/Qwen3-Coder-30B-A3B/gguf.yaml
+```
+
+Either way, this launches the candidate server (and a tool-call-parsing
+proxy in front of it, if the config needs one), runs the `sanity` suite as
+a fail-fast gate, then `hermes_ops`, then one coding-suite spot-check
+(`kiem_mini-feature`) — skipping whichever of those a config's
+`orchestration.viable` says isn't reachable for that model (see the
+docstring at the top of `runner/run_bench.py` for exactly what each
+`viable` value means). Regenerates `results/LEADERBOARD.md` after every
+model, tears down the server, and moves to the next.
+
+**Config-driven, not hardcoded**: every port, launch flag, proxy
+requirement, and hermes provider name lives in that model's
+`configs/<model>/<backend>.yaml`, not in the runner code. See
+[`configs/README.md`](configs/README.md) for the full schema.
+
+## Adding a new candidate model
+
+1. Copy the closest-matching existing `configs/<model-slug>/` directory as
+   a starting point — GGUF and MLX are separate files
+   (`configs/<model-slug>/gguf.yaml`, `.../mlx.yaml`).
+2. Research the model's actual recommended settings — model card, release
+   blog post, any linked deployment guide — and update
+   `benchmark_launch_command`, `settings:` (with real citations, not
+   guesses), and the `orchestration:` block (`raw_port`, `needs_proxy`,
+   `hermes_provider`, `viable`).
+3. **Spot-check the raw tool-call format live** before trusting any
+   result: hit the running server directly with a simple tool-call prompt
+   and inspect the response. If it comes back as a proper `tool_calls`
+   array, no proxy is needed (`needs_proxy: false`). If it comes back as
+   raw text in `content` (or, seen once this session, in
+   `reasoning_content` instead), you need a new parser in
+   `runner/bench_local_proxy.py`'s `PARSERS` dict — see the existing
+   `lfm`/`qwen3_coder`/`poolside_v1`/`hermes_style` parsers for the
+   pattern, and AGENTS.md's Backends section for why this step matters
+   (getting it wrong doesn't error, it silently produces 0 or hallucinated
+   tool calls).
+4. Register a provider for the model in
+   `~/.hermes/profiles/bench/config.yaml` matching
+   `orchestration.hermes_provider`, so the coding-suite spot-check can
+   reach it via `hermes chat`.
+5. If the model needs thinking/reasoning mode explicitly enabled to run as
+   intended (check the model's own deployment docs, not just its sampling
+   defaults — see AGENTS.md's standing note on this), set it via
+   `--chat-template-kwargs`/`--default-chat-template-kwargs`, or via
+   `system_prompt_suffix:` in the config if the mechanism is a system-
+   prompt directive rather than a template kwarg (e.g. Muse-Glimmer's
+   `"Reasoning strength: high"`). Record which value was used — it's not
+   directly comparable across model families, so never leave it implicit.
+6. Run it: `python runner/run_bench.py --config configs/<model>/<backend>.yaml`.
+
+**When a model underperforms expectations**, don't accept the result at
+face value — do deeper research first (a dedicated deployment guide, a
+minimum framework/build-version requirement, a required launch flag or
+mode toggle). This surfaced real, fixable gaps twice this session
+(Laguna-XS-2.1's thinking-mode default, Muse-Glimmer's reasoning-strength
+directive) that looked like genuine capability gaps until checked. See
+AGENTS.md for the full writeups.
+
+## Special cases
+
+- **DFlash2 speculative decoding** needs a from-source llama.cpp build
+  (mainline/Homebrew doesn't have the real loader yet, only a CLI stub —
+  see AGENTS.md's DFlash 2 section). Run `runner/setup_dflash2_fork.sh`
+  once; it builds into the gitignored `runner/.dflash2-fork/`.
+- **Luna** (`configs/Luna/api.yaml`) isn't a local model at all — it's
+  reached through hermes's `openai-codex` OAuth provider (a hosted model,
+  included as a comparison point with the user's explicit go-ahead, given
+  the same category of concern that got Haiku excluded — see AGENTS.md).
+  Only the coding spot-check runs for it; `sanity`/`hermes_ops` need a
+  plain OpenAI-compatible endpoint this provider doesn't expose.
+- **Laguna-XS-2.1 MLX** is currently blocked outright — `mlx-lm` (the
+  library under `vllm-mlx`) doesn't recognize this model's architecture at
+  all. GGUF-only until that changes.
+
+## Repo layout
+
+- `configs/<model-slug>/<backend>.yaml` — one file per model+backend,
+  everything needed to reproduce a result (see `configs/README.md`).
+- `tasks/*.yaml` — the suite definitions (`sanity`, `hermes_ops`,
+  `kiem_mini`, `hearth_mini`, `kipclip_mini`); see `tasks/SCHEMA.md`.
+- `fixtures/`, `checks/` — the coding-suite fixture projects and their
+  held-out grading tests.
+- `runner/` — every script; `run_bench.py` is the entry point, everything
+  else is called by it (or directly, for debugging one suite at a time).
+- `results/log.jsonl` / `results/LEADERBOARD.md` — raw record / rollup.
