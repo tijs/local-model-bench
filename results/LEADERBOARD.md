@@ -28,7 +28,7 @@ genuinely different experiments (e.g. before/after a settings fix).
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | gguf | — | [3047922de5b7](configs/Ornith-1.5-35B-A3B/gguf.yaml) | 6 | 67% | 29.4 | 10.84 | 0 |
 | prism-ml/Ternary-Bonsai-27B-mlx-2bit | mlx | 2bit-native | [c2576cd6b385](configs/Ternary-Bonsai-27B/mlx.yaml) | 5 | 80% | 7.3 | 117.07 | 0 |
 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | gguf | — | [fe085c7fef30](configs/Qwen3-Coder-30B-A3B/gguf.yaml) | 6 | 83% | 18.0 | 18.49 | 0 |
-| unsloth/Qwen3.8-27B-GGUF:UD-Q2_K_XL | gguf | UD-Q2_K_XL | [2233edb1c4f2](configs/Qwen3.8-27B/gguf-unsloth-ud-q2.yaml) | 5 | 80% | 6.2 | 55.15 | 0 |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q2_K_XL | gguf | UD-Q2_K_XL | [2233edb1c4f2](configs/Qwen3.8-27B/gguf-unsloth-ud-q2.yaml) | 5 | 100% | 6.3 | 55.08 | 0 |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q4_K_M | gguf | — | [89f4d8d04793](configs/Qwen3.8-27B/gguf-unsloth-ud-q4.yaml) | 5 | 100% | 6.4 | 55.57 | 0 |
 
 ## By suite
@@ -77,7 +77,7 @@ genuinely different experiments (e.g. before/after a settings fix).
 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | gguf | fe085c7fef30 | hermes_ops | 3/3 |
 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | gguf | fe085c7fef30 | kiem_mini | 0/1 |
 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | gguf | fe085c7fef30 | sanity | 2/2 |
-| unsloth/Qwen3.8-27B-GGUF:UD-Q2_K_XL | gguf | 2233edb1c4f2 | hermes_ops | 2/3 |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q2_K_XL | gguf | 2233edb1c4f2 | hermes_ops | 3/3 |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q2_K_XL | gguf | 2233edb1c4f2 | sanity | 2/2 |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q4_K_M | gguf | 89f4d8d04793 | hermes_ops | 3/3 |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q4_K_M | gguf | 89f4d8d04793 | sanity | 2/2 |
