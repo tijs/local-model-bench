@@ -34,15 +34,22 @@ launchctl bootout gui/501/ai.hermes.mara-mlx 2>/dev/null || true
 sleep 1
 
 echo "--- Cleaning up any orphaned processes (cocore's own bounce leaves one) ---"
+# Matches every server invocation style seen this session: the old
+# `python -m vllm_mlx.server` module form AND the newer `vllm-mlx serve`
+# CLI entry point (added with the 0.4.1 upgrade, 2026-08-20) — a plain
+# pkill -f "vllm_mlx.server" misses the latter, which bit this session
+# twice (a stale process kept answering on a port a new one couldn't
+# bind, silently serving the WRONG model to a request that looked fine).
 for _ in 1 2 3; do
-  pids=$(pgrep -f "vllm_mlx.server|cocore_inference_server.py" || true)
+  pids=$(pgrep -f "vllm_mlx.server|vllm-mlx serve|vllm-mlx|cocore_inference_server.py" || true)
   [ -z "$pids" ] && break
-  echo "$pids" | xargs kill 2>/dev/null || true
+  echo "$pids" | xargs kill -9 2>/dev/null || true
   sleep 2
 done
 
-pkill -f "llama-server" 2>/dev/null || true
+pkill -9 -f "llama-server" 2>/dev/null || true
+pkill -9 -f "bench_local_proxy.py" 2>/dev/null || true
 
 sleep 1
 echo "--- Remaining candidate-backend processes (should be empty) ---"
-ps aux | grep -iE "cocore_inference_server|vllm_mlx.server|llama-server" | grep -v grep || echo "  (none)"
+ps aux | grep -iE "cocore_inference_server|vllm_mlx.server|vllm-mlx|llama-server|bench_local_proxy" | grep -v grep || echo "  (none)"
