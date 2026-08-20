@@ -44,9 +44,17 @@ def main():
     log_path = REPO / "results" / "log.jsonl"
 
     config_path = config_hash = None
+    system_prompt_suffix = None
     if args.config:
         config_path = str(Path(args.config).resolve().relative_to(REPO))
         config_hash = hashlib.sha256(Path(args.config).read_bytes()).hexdigest()[:12]
+        # A model-specific operating instruction the model needs to run as
+        # intended (e.g. Muse-Glimmer's "Reasoning strength: high" toggle) —
+        # NOT a way to hint at task content. This appends to the suite's
+        # fixed system prompt, it never replaces or edits it, so the task
+        # itself stays identical across models. Cite the source in the
+        # config file's settings, same as any other model-specific setting.
+        system_prompt_suffix = yaml.safe_load(Path(args.config).read_text()).get("system_prompt_suffix")
 
     rows = []
     for task in task_spec["tasks"]:
@@ -60,6 +68,10 @@ def main():
                 prompt_spec["system_prompt"] = (REPO / prompt_spec.pop("system_prompt_file")).read_text()
             if "tools_file" in prompt_spec:
                 prompt_spec["tools"] = json.loads((REPO / prompt_spec.pop("tools_file")).read_text())
+            if system_prompt_suffix:
+                prompt_spec["system_prompt"] = (
+                    prompt_spec.get("system_prompt", "") + "\n\n" + system_prompt_suffix
+                )
             spec_path.write_text(json.dumps(prompt_spec))
             check_path.write_text(json.dumps(task["check"]))
 

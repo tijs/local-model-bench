@@ -68,6 +68,20 @@ new session that opens this repo.
   human-readable summary regenerated from it. Never hand-edit the log.
 - **No decontamination step needed** — tasks are grounded in Tijs's own
   private repos, which no candidate model could have trained on.
+- **When a model doesn't work as expected, always do deeper research before
+  accepting the result** — per Tijs (2026-08-20). "Doesn't work as expected"
+  means: an unexpectedly poor/unstable result, a surprising failure mode, or
+  anything that doesn't match what the model card's own claims would
+  predict. Don't stop at the first plausible sampling-settings citation —
+  check for a dedicated deployment guide, a minimum framework/build version
+  requirement, a required launch flag, or a mode toggle (reasoning
+  strength, thinking mode) that the model needs to run as intended. This is
+  what surfaced Laguna-XS-2.1's `enable_thinking` default-off template
+  behavior and Muse-Glimmer-30B's "Reasoning strength: <level>" system-
+  prompt mechanism (both found only by searching beyond the first model-
+  card settings table) — a result that looks like a genuine capability gap
+  can actually be a missed setup step, and the only way to tell the two
+  apart is to dig deeper before writing the result down as final.
 - **Thinking/reasoning mode: always pick a reasonable setting per model, and
   always record which value was actually used** — per Tijs (2026-08-20): a
   single "thinking mode" setting isn't directly comparable across model
