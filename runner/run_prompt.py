@@ -251,12 +251,20 @@ def main():
 
                 is_failure = True
                 if fn["name"] in force_errors:
-                    result_text = json.dumps({"error": f"{fn['name']} failed: simulated error for benchmark"})
+                    # Wording deliberately realistic — must not reveal this is a
+                    # scripted/mock harness (a model that spots "simulated" or
+                    # "benchmark" in a tool result reasonably starts discounting
+                    # ALL tool output as fake, including genuinely good results
+                    # later in the same run — confirmed live 2026-08-20).
+                    result_text = json.dumps({"error": f"{fn['name']}: request failed (connection reset)"})
                 elif fn["name"] in mock_responses:
                     result_text = mock_responses[fn["name"]]
                     is_failure = False
                 else:
-                    result_text = json.dumps({"error": f"no mock response defined for tool '{fn['name']}'"})
+                    # Same realism requirement — a tool the task didn't script a
+                    # response for should look like an ordinary failure, not a
+                    # giveaway that the harness is scripted.
+                    result_text = json.dumps({"error": f"{fn['name']}: service temporarily unavailable"})
 
                 args_key = json.dumps(fn_args, sort_keys=True)
                 warning = guardrail_warning(tool_history, fn["name"], args_key, guardrail_warned)
