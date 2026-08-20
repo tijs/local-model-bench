@@ -43,9 +43,24 @@ def run_hermes(prompt, cwd, provider, model, max_turns, timeout):
         return "", "TIMEOUT", -1, time.time() - start
 
 
+# Build-cache directories that must NEVER be copied into a run — discovered
+# live 2026-08-20: a stale fixtures/kiem_mini/rust/target/ left over from
+# fixture development got copied into every single run by shutil.copytree
+# (which doesn't respect .gitignore), and cargo's incremental-build cache
+# got confused by the copied stale artifacts, producing a false
+# "unresolved import" compile error even when the agent's source edit was
+# completely correct — reproduced live on a model that had actually
+# implemented the task correctly. Every recorded kiem_mini-feature FAIL
+# this session needs re-verification against this fix.
+_STALE_BUILD_CACHE_DIRS = {"target", ".dart_tool", "__pycache__"}
+
+
 def reset_fixture(suite, run_dir):
     src = REPO / "fixtures" / suite
-    shutil.copytree(src, run_dir)
+    shutil.copytree(
+        src, run_dir,
+        ignore=shutil.ignore_patterns(*_STALE_BUILD_CACHE_DIRS),
+    )
     subprocess.run(["git", "init", "-q"], cwd=run_dir, check=True)
     subprocess.run(["git", "add", "-A"], cwd=run_dir, check=True)
     subprocess.run(
