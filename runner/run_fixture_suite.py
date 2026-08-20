@@ -134,10 +134,22 @@ def main():
     log_path = REPO / "results" / "log.jsonl"
     rows = []
 
+    # Run dirs live under the repo (gitignored), NOT the OS default temp dir.
+    # Discovered live 2026-08-20: on macOS, tempfile's default location
+    # resolves to /private/var/folders/... — which trips Hermes's own
+    # sensitive-system-path write guardrail (tools/file_tools.py's
+    # _SENSITIVE_PATH_PREFIXES includes "/private/var/", intended for
+    # genuinely sensitive locations, not realizing it also covers macOS's
+    # ordinary per-user scratch space). That guardrail has no config-level
+    # override, and patching Hermes's own source would change its real
+    # daily-driver security behavior, not just this benchmark's — so fixed
+    # here instead, entirely within this repo's control.
+    runs_root = REPO / "runner" / "runs"
+    runs_root.mkdir(parents=True, exist_ok=True)
     for task in spec["tasks"]:
         if args.only_task and task["id"] != args.only_task:
             continue
-        with tempfile.TemporaryDirectory() as td:
+        with tempfile.TemporaryDirectory(dir=str(runs_root)) as td:
             run_dir = Path(td) / "run"
             reset_fixture(args.suite, run_dir)
 
