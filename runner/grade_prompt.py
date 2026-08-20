@@ -42,6 +42,28 @@ def strip_reasoning(text):
     return stripped.strip()
 
 
+# Typographic ("smart") punctuation normalization. Discovered live 2026-08-20:
+# gpt-5.6-luna answered a task correctly ("i couldn't find a file named
+# notes.txt...") but used a curly apostrophe (U+2019, '), which silently
+# failed contains_any against the check's plain-ASCII phrase list
+# ("couldn't find") — a real, semantically-correct answer graded as a
+# failure purely over typography. Apply to every text-matching check kind,
+# not just the one that surfaced it — regex/contains checks against a
+# fixed literal are just as exposed if a model's prose happens to use
+# curly quotes/dashes where the check was written with straight ones.
+_SMART_PUNCTUATION = {
+    "‘": "'", "’": "'",  # single quotes/apostrophe
+    "“": '"', "”": '"',  # double quotes
+    "–": "-", "—": "-",  # en/em dash
+}
+
+
+def normalize_punctuation(text):
+    for smart, plain in _SMART_PUNCTUATION.items():
+        text = text.replace(smart, plain)
+    return text
+
+
 def grade(result, check):
     if result.get("error"):
         return False, f"run errored: {result['error']}"
@@ -51,19 +73,19 @@ def grade(result, check):
     kind = check["type"]
 
     if kind == "regex":
-        text = strip_reasoning(result.get("final_text", ""))
+        text = normalize_punctuation(strip_reasoning(result.get("final_text", "")))
         if re.search(check["pattern"], text):
             return True, ""
         return False, f"final_text {text!r} did not match pattern {check['pattern']!r}"
 
     if kind == "contains":
-        text = strip_reasoning(result.get("final_text", ""))
+        text = normalize_punctuation(strip_reasoning(result.get("final_text", "")))
         if check["text"] in text:
             return True, ""
         return False, f"final_text {text!r} did not contain {check['text']!r}"
 
     if kind == "contains_any":
-        text = strip_reasoning(result.get("final_text", "")).lower()
+        text = normalize_punctuation(strip_reasoning(result.get("final_text", ""))).lower()
         if any(phrase.lower() in text for phrase in check["phrases"]):
             return True, ""
         return False, f"final_text {text!r} did not contain any of {check['phrases']}"
@@ -118,7 +140,7 @@ def grade(result, check):
                 return False, f"'{check['expected_tool']}' was called but never with argument values {expected_values} (saw: {[c['arguments'] for c in calls]})"
 
         if "response_contains" in check:
-            text = strip_reasoning(result.get("final_text", ""))
+            text = normalize_punctuation(strip_reasoning(result.get("final_text", "")))
             if check["response_contains"] not in text:
                 return False, f"tool was called correctly but final response {text!r} did not contain {check['response_contains']!r}"
 

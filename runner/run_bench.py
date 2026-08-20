@@ -49,6 +49,7 @@ steps 1-4 entirely.
 """
 import argparse
 import json
+import os
 import subprocess
 import sys
 import time
@@ -129,6 +130,14 @@ def run_one(config_path: Path):
     needs_proxy = orch.get("needs_proxy", False)
     proxy_port = orch.get("proxy_port", 8015)
     hermes_provider = orch.get("hermes_provider")
+    api_base_url = orch.get("api_base_url")
+
+    if api_base_url and not orch.get("api_key_env"):
+        sys.exit(f"{config_path} sets api_base_url but no api_key_env")
+    if api_base_url and not os.environ.get(orch["api_key_env"]):
+        print(f"FAILED: {orch['api_key_env']} is not set in the environment — "
+              f"export it before running this config.")
+        return
 
     if raw_port is not None:
         print("\n--- unload any existing candidate backend ---")
@@ -165,7 +174,7 @@ def run_one(config_path: Path):
                 print(f"FAILED: proxy never became healthy — check {proxy_log}")
                 return
 
-    base_url = f"http://127.0.0.1:{proxy_port if needs_proxy else raw_port}/v1"
+    base_url = api_base_url or f"http://127.0.0.1:{proxy_port if needs_proxy else raw_port}/v1"
 
     if viable in ("full", "sanity_and_hermes_ops_only", "sanity_only"):
         print("\n--- sanity (fail-fast gate) ---")

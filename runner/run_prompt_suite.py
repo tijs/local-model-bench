@@ -32,6 +32,7 @@ def main():
     ap.add_argument("--backend", required=True, help="mlx | gguf, recorded in the log")
     ap.add_argument("--quant", default=None, help="quant level, for gguf log rows")
     ap.add_argument("--config", default=None, help="path to configs/<model>/<backend>.yaml used for this run")
+    ap.add_argument("--only-task", default=None, help="run just this one task id (e.g. to rerun a single fixed/flaky task)")
     args = ap.parse_args()
 
     task_file = REPO / "tasks" / f"{args.suite}.yaml"
@@ -45,19 +46,28 @@ def main():
 
     config_path = config_hash = None
     system_prompt_suffix = None
+    api_key_env = None
     if args.config:
         config_path = str(Path(args.config).resolve().relative_to(REPO))
         config_hash = hashlib.sha256(Path(args.config).read_bytes()).hexdigest()[:12]
+        config_yaml = yaml.safe_load(Path(args.config).read_text())
         # A model-specific operating instruction the model needs to run as
         # intended (e.g. Muse-Glimmer's "Reasoning strength: high" toggle) —
         # NOT a way to hint at task content. This appends to the suite's
         # fixed system prompt, it never replaces or edits it, so the task
         # itself stays identical across models. Cite the source in the
         # config file's settings, same as any other model-specific setting.
-        system_prompt_suffix = yaml.safe_load(Path(args.config).read_text()).get("system_prompt_suffix")
+        system_prompt_suffix = config_yaml.get("system_prompt_suffix")
+        # Only the ENV VAR NAME is read from the config — the actual secret
+        # is never written to a config file, never passed as a CLI arg to
+        # the subprocess below (would leak via `ps`), and is read directly
+        # from this process's own environment by run_prompt.py itself.
+        api_key_env = (config_yaml.get("orchestration") or {}).get("api_key_env")
 
     rows = []
     for task in task_spec["tasks"]:
+        if args.only_task and task["id"] != args.only_task:
+            continue
         with tempfile.TemporaryDirectory() as td:
             td = Path(td)
             spec_path = td / "spec.json"
@@ -75,19 +85,18 @@ def main():
             spec_path.write_text(json.dumps(prompt_spec))
             check_path.write_text(json.dumps(task["check"]))
 
-            run = subprocess.run(
-                [
-                    sys.executable,
-                    str(REPO / "runner" / "run_prompt.py"),
-                    "--base-url", args.base_url,
-                    "--model", args.model,
-                    "--spec", str(spec_path),
-                    "--timeout", str(timeout),
-                    "--max-turns", str(max_turns),
-                ],
-                capture_output=True,
-                text=True,
-            )
+            cmd = [
+                sys.executable,
+                str(REPO / "runner" / "run_prompt.py"),
+                "--base-url", args.base_url,
+                "--model", args.model,
+                "--spec", str(spec_path),
+                "--timeout", str(timeout),
+                "--max-turns", str(max_turns),
+            ]
+            if api_key_env:
+                cmd += ["--api-key-env", api_key_env]
+            run = subprocess.run(cmd, capture_output=True, text=True)
             result_path.write_text(run.stdout)
 
             grade = subprocess.run(
@@ -123,6 +132,7 @@ def main():
                 "tokens_per_second": parsed.get("tokens_per_second"),
                 "ttft_seconds": parsed.get("ttft_seconds"),
                 "wall_seconds": parsed.get("wall_seconds"),
+                "total_cost_usd": parsed.get("total_cost_usd"),
                 "run_error": parsed.get("error"),
                 "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             }

@@ -45,6 +45,7 @@ Prints a single JSON result to stdout:
 """
 import argparse
 import json
+import os
 import sys
 import time
 import urllib.request
@@ -92,7 +93,7 @@ def guardrail_warning(tool_history, name, args_key, warned):
     return None
 
 
-def call_backend_streaming(base_url, model, messages, tools, temperature, timeout):
+def call_backend_streaming(base_url, model, messages, tools, temperature, timeout, api_key=None):
     """Streams the response so we can measure real time-to-first-token
     (TTFT) — separate from total wall time, since a big fixed system prompt
     mostly costs prefill time, not generation time. Reassembles the stream
@@ -111,10 +112,13 @@ def call_backend_streaming(base_url, model, messages, tools, temperature, timeou
     }
     if tools:
         body["tools"] = tools
+    headers = {"Content-Type": "application/json"}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
     req = urllib.request.Request(
         f"{base_url.rstrip('/')}/chat/completions",
         data=json.dumps(body).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
+        headers=headers,
         method="POST",
     )
 
@@ -196,7 +200,15 @@ def main():
     ap.add_argument("--max-turns", type=int, default=6)
     ap.add_argument("--temperature", type=float, default=0)
     ap.add_argument("--timeout", type=float, default=120)
+    ap.add_argument("--api-key-env", default=None,
+                     help="name of an env var holding a Bearer token for hosted "
+                          "APIs (e.g. OPENROUTER_API_KEY) — the value is read from "
+                          "this process's own environment, never passed as a CLI arg")
     args = ap.parse_args()
+
+    api_key = os.environ.get(args.api_key_env) if args.api_key_env else None
+    if args.api_key_env and not api_key:
+        sys.exit(f"--api-key-env {args.api_key_env} was given but that env var is unset")
 
     spec = json.loads(open(args.spec).read())
     tools = spec.get("tools") or None
@@ -218,11 +230,14 @@ def main():
     turns = 0
     ttft_seconds = None  # time-to-first-token of the FIRST API call in this run
     usage_estimated = False
+    total_cost_usd = None  # only hosted/metered backends (e.g. OpenRouter)
+    # report this in their usage object; stays None for local models
 
     try:
         for turns in range(1, args.max_turns + 1):
             resp, turn_ttft = call_backend_streaming(
-                args.base_url, args.model, messages, tools, args.temperature, args.timeout
+                args.base_url, args.model, messages, tools, args.temperature, args.timeout,
+                api_key=api_key,
             )
             if ttft_seconds is None:
                 ttft_seconds = turn_ttft
@@ -231,6 +246,8 @@ def main():
             usage = resp.get("usage", {})
             prompt_tokens += usage.get("prompt_tokens", 0)
             completion_tokens += usage.get("completion_tokens", 0)
+            if usage.get("cost") is not None:
+                total_cost_usd = (total_cost_usd or 0) + usage["cost"]
 
             choice = resp["choices"][0]
             msg = choice["message"]
@@ -310,6 +327,7 @@ def main():
         "tokens_per_second": round(completion_tokens / wall, 2) if wall > 0 else None,
         "ttft_seconds": round(ttft_seconds, 3) if ttft_seconds is not None else None,
         "usage_estimated": usage_estimated,
+        "total_cost_usd": total_cost_usd,
         "error": error,
     }
     print(json.dumps(result, indent=2))
