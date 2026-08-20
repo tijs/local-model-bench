@@ -349,6 +349,15 @@ fought and respawned):
   session and any hermes-spawned agent session): token in
   `~/.cache/huggingface/token` and `HF_TOKEN` exported in `~/.zshrc`.
 
+## Follow-up ideas (not yet investigated)
+
+- **oMLX** as a possible additional runner/backend to evaluate alongside
+  MLX (vllm-mlx) and llama.cpp/GGUF — raised by Tijs 2026-08-20, not yet
+  looked into (what it is exactly, whether it's a meaningfully distinct
+  backend for this benchmark's purposes, tool-calling support). Look into
+  this next time there's room for a new backend, not a blocker for
+  filling out the current model list.
+
 ## Killed-task retry hazard (found live 2026-08-20)
 
 If a `run_fixture_suite.py` invocation gets killed (e.g. a backgrounded
