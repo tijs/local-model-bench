@@ -1,0 +1,49 @@
+model: mlx-community/Laguna-XS-2.1-4bit
+backend: mlx
+framework: vllm-mlx
+
+benchmark_launch_command: |
+  HF_TOKEN=$(cat ~/.cache/huggingface/token) /Users/tijs/.cocore/python/bin/vllm-mlx serve \
+    mlx-community/Laguna-XS-2.1-4bit --host 127.0.0.1 --port 8018 \
+    --max-request-tokens 65536 --max-tokens 65536 --continuous-batching \
+    --default-temperature 1.0 --default-top-p 1.0 --default-top-k 20 \
+    --timeout 1800
+  # then, separately (proxy required, same as GGUF — see gguf.yaml):
+  BENCH_TOOL_PARSER=poolside_v1 BENCH_PROXY_UPSTREAM=http://127.0.0.1:8018 \
+    BENCH_PROXY_PORT=8015 python runner/bench_local_proxy.py
+
+benchmark_endpoint: http://127.0.0.1:8015/v1
+  # Same poolside_v1 proxy parser as the GGUF leg — vllm-mlx 0.4.1 (see
+  # AGENTS.md) does register a native 'poolside_v1' parser, but its CLI's
+  # --tool-call-parser choices= list omits it (only reachable via
+  # --tool-call-parser auto there, not confirmed reliable, and the native
+  # qwen3_coder parser was already found to have a real streaming-mode bug
+  # this session) — using the same proven proxy path as GGUF for
+  # consistency and safety rather than risking an unverified native path.
+
+settings:
+  - name: quant
+    value: 4-bit (mlx-community/Laguna-XS-2.1-4bit, ~18GB)
+    source: "standard policy for this model size."
+  - name: temperature / top_p / top_k
+    value: 1.0 / 1.0 / 20
+    source: "https://huggingface.co/poolside/Laguna-XS-2.1 model card,
+      'as used in official benchmarking.' NOTE: this benchmark's own
+      sanity/hermes_ops hardcode temperature=0 client-side regardless (see
+      known_gaps) — these settings only fully apply to coding suites."
+  - name: context_length
+    value: 65536 (native 262144, capped per hermes's >=64K hard minimum)
+    source: "https://huggingface.co/poolside/Laguna-XS-2.1 model card +
+      AGENTS.md hermes hard-minimum note."
+
+known_gaps:
+  - "run_prompt.py hardcodes temperature=0 for sanity/hermes_ops."
+  - "See configs/Laguna-XS-2.1/gguf.yaml's known_gaps for the major
+    reliability concern found on the GGUF leg (temp=1.0 producing a
+    completely unrelated hallucinated fairy tale; temp=0 sometimes
+    collapsing into empty output) — testing this MLX leg specifically to
+    see whether the instability is GGUF/quant-specific or a base-model/
+    architecture trait that reproduces across backends."
+
+last_updated: 2026-08-20
+last_verified_against_docs: 2026-08-20

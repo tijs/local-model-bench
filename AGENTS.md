@@ -68,6 +68,24 @@ new session that opens this repo.
   human-readable summary regenerated from it. Never hand-edit the log.
 - **No decontamination step needed** — tasks are grounded in Tijs's own
   private repos, which no candidate model could have trained on.
+- **Thinking/reasoning mode: always pick a reasonable setting per model, and
+  always record which value was actually used** — per Tijs (2026-08-20): a
+  single "thinking mode" setting isn't directly comparable across model
+  families (some default on, some off, some have no toggle at all, the
+  enabling mechanism differs — a `chat_template_kwargs` flag, a dedicated
+  CLI flag, a system-prompt instruction), so don't try to force one global
+  policy. Instead: (1) research and cite what the model's own card/docs
+  recommend, matching the setting used in that model's own official
+  benchmarks where stated; (2) write the exact value used as its own
+  labeled `settings:` entry in `configs/<model>/*.yaml`, not buried in
+  prose elsewhere; (3) if a model's default and its "recommended for
+  benchmarking" value differ, use the latter and say so explicitly, since
+  the default is not necessarily what the model card's own numbers
+  reflect. Testing both a low and a high thinking-mode setting per model
+  (Tijs's suggestion) is a reasonable deeper follow-up if there's time —
+  not done as standard practice this session given the added run cost,
+  but worth doing for any model whose thinking-mode setting is suspected
+  of materially changing results.
 
 ## Layout
 
