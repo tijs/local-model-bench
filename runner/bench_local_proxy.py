@@ -151,6 +151,39 @@ def _parse_qwen3_coder_tool_calls(text: str) -> list[dict]:
     return calls
 
 
+POOLSIDE_V1_TOOL_CALL_BLOCK = re.compile(r"<tool_call>(.*?)</tool_call>", re.DOTALL)
+POOLSIDE_V1_ARG_PAIR = re.compile(r"<arg_key>(.*?)</arg_key>\s*<arg_value>(.*?)</arg_value>", re.DOTALL)
+POOLSIDE_V1_SPLIT_MARKER = "<tool_call>"
+
+
+def _parse_poolside_v1_tool_calls(text: str) -> list[dict]:
+    """poolside's Laguna-XS/S tool-call format: <tool_call>NAME<arg_key>KEY
+    </arg_key><arg_value>VALUE</arg_value>...</tool_call>. Confirmed live
+    2026-08-20 via a raw spot-check against llama-server (no native
+    llama.cpp support for this format — the whole block lands in
+    reasoning_content, not content or tool_calls, so this proxy is needed
+    for the GGUF leg too, not just MLX). vllm-mlx 0.4.1 registers a
+    'poolside_v1' native parser, but its CLI's --tool-call-parser choices=
+    list omits it (only reachable via --tool-call-parser auto there) —
+    this proxy parser is independent of that and used for both backends."""
+    calls: list[dict] = []
+    for match in POOLSIDE_V1_TOOL_CALL_BLOCK.finditer(text or ""):
+        block = match.group(1)
+        first_arg_idx = block.find("<arg_key>")
+        name = (block[:first_arg_idx] if first_arg_idx >= 0 else block).strip()
+        if not name:
+            continue
+        args: dict[str, object] = {}
+        for key, value in POOLSIDE_V1_ARG_PAIR.findall(block):
+            args[key.strip()] = value.strip()
+        calls.append({
+            "id": f"call_{uuid.uuid4().hex[:16]}",
+            "type": "function",
+            "function": {"name": name, "arguments": json.dumps(args, ensure_ascii=False)},
+        })
+    return calls
+
+
 def _parse_lfm_tool_calls(text: str) -> list[dict]:
     """LFM's format: <|tool_call_start|>[fn(a=1, b=2)]<|tool_call_end|> —
     Python-call syntax, one or more calls in a bracketed list."""
@@ -217,6 +250,7 @@ PARSERS = {
     "lfm": (_parse_lfm_tool_calls, LFM_SPLIT_MARKER),
     "hermes_style": (_parse_hermes_style_tool_calls, HERMES_SPLIT_MARKER),
     "qwen3_coder": (_parse_qwen3_coder_tool_calls, QWEN3_CODER_SPLIT_MARKER),
+    "poolside_v1": (_parse_poolside_v1_tool_calls, POOLSIDE_V1_SPLIT_MARKER),
 }
 
 if TOOL_CALL_PARSER not in PARSERS:
@@ -391,6 +425,17 @@ def normalize_response(data: dict) -> dict:
         if message.get("tool_calls"):
             continue
         content = message.get("content") or ""
+        # llama-server's chat-template-driven reasoning extraction sometimes
+        # misclassifies an ENTIRE response (tool-call XML included) as
+        # reasoning_content, leaving content empty — confirmed live
+        # 2026-08-20 for poolside/Laguna-XS-2.1 (no <think>-style tags in
+        # its output at all, just a template quirk). Fall back to
+        # reasoning_content as the effective text whenever content is empty,
+        # since downstream grading only ever reads `content`.
+        source_field = "content"
+        if not content and message.get("reasoning_content"):
+            content = message["reasoning_content"]
+            source_field = "reasoning_content"
         calls = _active_parser(content)
         if calls:
             before = content.split(_active_split_marker, 1)[0]
@@ -399,6 +444,8 @@ def normalize_response(data: dict) -> dict:
             message["content"] = before
             message["tool_calls"] = calls
             choice["finish_reason"] = "tool_calls"
+        elif source_field == "reasoning_content":
+            message["content"] = THINK_BLOCK.sub("", content).strip()
         elif isinstance(content, str):
             message["content"] = THINK_BLOCK.sub("", content).strip()
         choice["message"] = message
