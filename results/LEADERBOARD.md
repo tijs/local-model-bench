@@ -17,7 +17,7 @@ genuinely different experiments (e.g. before/after a settings fix).
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | gguf | — | [b0b30ac444da](configs/Muse-Glimmer-30B/gguf.yaml) | 6 | 67% | 8.0 | 57.94 | 0 |
 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | — | [e6a0628476cc](configs/Qwen3.8-27B/gguf.yaml) | 5 | 100% | 7.8 | 8.98 | 0 |
 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | — | [f6397d624011](configs/Qwen3.8-27B/gguf.yaml) | 10 | 80% | 6.5 | 44.33 | 0 |
-| bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | Q4_K_M+DFlash2 | [0686abeab746](configs/Qwen3.8-27B/gguf-dflash2.yaml) | 5 | 80% | 6.0 | 55.92 | 0 |
+| bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | Q4_K_M+DFlash2 | [0686abeab746](configs/Qwen3.8-27B/gguf-dflash2.yaml) | 5 | 100% | 5.8 | 55.96 | 0 |
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | gguf | — | [163fa63ffb83](configs/Qwen3.5-9B/gguf.yaml) | 5 | 80% | 20.2 | 15.45 | 0 |
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | gguf | — | [29ed581f7054](configs/Qwen3.5-9B/gguf.yaml) | 1 | 100% | — | — | 0 |
 | gpt-5.6-luna | api | — | [cca18f6650ea](configs/Luna/api.yaml) | 1 | 0% | — | — | 0 |
@@ -53,7 +53,7 @@ genuinely different experiments (e.g. before/after a settings fix).
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | gguf | b0b30ac444da | hermes_ops | 1/3 |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | gguf | b0b30ac444da | kiem_mini | 1/1 |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | gguf | b0b30ac444da | sanity | 2/2 |
-| bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | 0686abeab746 | hermes_ops | 2/3 |
+| bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | 0686abeab746 | hermes_ops | 3/3 |
 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | 0686abeab746 | sanity | 2/2 |
 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | e6a0628476cc | hermes_ops | 3/3 |
 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | e6a0628476cc | sanity | 2/2 |
