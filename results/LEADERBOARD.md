@@ -12,6 +12,7 @@ genuinely different experiments (e.g. before/after a settings fix).
 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | gguf | — | [aa5d02c11bba](configs/LiquidAI-LFM2.5-2.6B/gguf.yaml) | 6 | 83% | 55.8 | 5.54 | 0 |
 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | mlx | — | [8dd47a586509](configs/LiquidAI-LFM2.5-2.6B/mlx.yaml) | 5 | 80% | 1.5 | 11.45 | 0 |
 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | mlx | — | [a03394d84d27](configs/LiquidAI-LFM2.5-2.6B/mlx.yaml) | 6 | 83% | 1.7 | 15.56 | 0 |
+| LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | gguf | — | [303eba1d5495](configs/LiquidAI-LFM2.5-8B-A1B/gguf.yaml) | 5 | 100% | 61.4 | 5.03 | 0 |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | gguf | — | [b0b30ac444da](configs/Muse-Glimmer-30B/gguf.yaml) | 6 | 67% | 8.0 | 57.96 | 0 |
 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | — | [f6397d624011](configs/Qwen3.8-27B/gguf.yaml) | 10 | 80% | 6.5 | 44.33 | 0 |
 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | Q4_K_M+DFlash2 | [0686abeab746](configs/Qwen3.8-27B/gguf-dflash2.yaml) | 5 | 80% | 6.0 | 55.92 | 0 |
@@ -39,6 +40,8 @@ genuinely different experiments (e.g. before/after a settings fix).
 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | mlx | a03394d84d27 | hermes_ops | 3/3 |
 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | mlx | a03394d84d27 | kiem_mini | 0/1 |
 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | mlx | a03394d84d27 | sanity | 2/2 |
+| LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | gguf | 303eba1d5495 | hermes_ops | 3/3 |
+| LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | gguf | 303eba1d5495 | sanity | 2/2 |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | gguf | b0b30ac444da | hermes_ops | 1/3 |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | gguf | b0b30ac444da | kiem_mini | 1/1 |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | gguf | b0b30ac444da | sanity | 2/2 |
