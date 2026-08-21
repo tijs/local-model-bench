@@ -64,6 +64,29 @@ def normalize_punctuation(text):
     return text
 
 
+def _forbidden_hit(text, check):
+    """Shared safety net for the three text-matching check kinds.
+
+    Added after an adversarial review found hermes_ops-error-recovery's
+    contains_any check would PASS a model that fabricates the file's
+    contents, as long as its answer also happened to contain a word like
+    "error" or "failed" somewhere (e.g. narrating a red herring). A
+    positive keyword match alone was never proof the model gave a *correct*
+    answer — only that its answer contained a common word. This lets any
+    check spec add `must_not_contain_any` (plain substrings, case-
+    insensitive) or `must_not_match` (regex) as a hard veto, independent of
+    whether the positive condition also matched.
+    """
+    lowered = text.lower()
+    for phrase in check.get("must_not_contain_any", ()):
+        if phrase.lower() in lowered:
+            return f"final_text {text!r} contains forbidden phrase {phrase!r}"
+    pattern = check.get("must_not_match")
+    if pattern and re.search(pattern, text, re.IGNORECASE):
+        return f"final_text {text!r} matched forbidden pattern {pattern!r}"
+    return None
+
+
 def grade(result, check):
     if result.get("error"):
         return False, f"run errored: {result['error']}"
@@ -74,19 +97,29 @@ def grade(result, check):
 
     if kind == "regex":
         text = normalize_punctuation(strip_reasoning(result.get("final_text", "")))
+        forbidden = _forbidden_hit(text, check)
+        if forbidden:
+            return False, forbidden
         if re.search(check["pattern"], text):
             return True, ""
         return False, f"final_text {text!r} did not match pattern {check['pattern']!r}"
 
     if kind == "contains":
         text = normalize_punctuation(strip_reasoning(result.get("final_text", "")))
+        forbidden = _forbidden_hit(text, check)
+        if forbidden:
+            return False, forbidden
         if check["text"] in text:
             return True, ""
         return False, f"final_text {text!r} did not contain {check['text']!r}"
 
     if kind == "contains_any":
-        text = normalize_punctuation(strip_reasoning(result.get("final_text", ""))).lower()
-        if any(phrase.lower() in text for phrase in check["phrases"]):
+        text = normalize_punctuation(strip_reasoning(result.get("final_text", "")))
+        forbidden = _forbidden_hit(text, check)
+        if forbidden:
+            return False, forbidden
+        lowered = text.lower()
+        if any(phrase.lower() in lowered for phrase in check["phrases"]):
             return True, ""
         return False, f"final_text {text!r} did not contain any of {check['phrases']}"
 
