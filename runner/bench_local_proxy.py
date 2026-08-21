@@ -619,9 +619,9 @@ class Handler(BaseHTTPRequestHandler):
         if not requested_stream:
             self._send_json(status, data)
             return
-        self._send_stream(data)
+        self._send_stream(data, requested_model=request.get("model"))
 
-    def _send_stream(self, data: dict) -> None:
+    def _send_stream(self, data: dict, requested_model: str | None = None) -> None:
         choice = (data.get("choices") or [{}])[0]
         message = choice.get("message") or {}
         delta: dict[str, object] = {"role": "assistant"}
@@ -635,7 +635,12 @@ class Handler(BaseHTTPRequestHandler):
             "id": data.get("id", f"chatcmpl-{uuid.uuid4().hex[:12]}"),
             "object": "chat.completion.chunk",
             "created": data.get("created", int(time.time())),
-            "model": data.get("model", "LiquidAI/LFM2.5-2.6B-MLX-bf16"),
+            # Falls back to the CALLER'S requested model (this specific
+            # run's actual model), not a hardcoded default — adversarial
+            # review finding L8: a client trusting this field used to get
+            # mislabeled as LFM2.5-2.6B for every other model whenever the
+            # upstream response happened to omit its own "model" field.
+            "model": data.get("model") or requested_model or "unknown",
         }
         chunks = [
             {**chunk_base, "choices": [{"index": 0, "delta": delta, "finish_reason": None}]},
