@@ -177,6 +177,22 @@ def grade(result, check):
             if not matches:
                 return False, f"no write_file call had a 'content' argument containing {needle!r} (calls: {[c['arguments'] for c in calls if c['name']=='write_file']})"
 
+        if "write_file_arg_equals" in check:
+            # Exact-match alternative (adversarial review finding L5): a
+            # prompt asking to write JUST a value (e.g. "write just that
+            # number to a file") is satisfied by write_file_arg_contains
+            # even if the model also wrote a sentence around the number —
+            # this checks the content is the expected value and nothing
+            # else (stripped of surrounding whitespace only).
+            expected = str(check["write_file_arg_equals"])
+            matches = [
+                c for c in calls
+                if c["name"] == "write_file"
+                and str(c["arguments"].get("content", "")).strip() == expected
+            ]
+            if not matches:
+                return False, f"no write_file call had a 'content' argument equal to {expected!r} (calls: {[c['arguments'] for c in calls if c['name']=='write_file']})"
+
         return True, ""
 
     if kind == "tool_call_then_response":
