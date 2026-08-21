@@ -48,7 +48,21 @@ is a follow-up, not yet implemented. `avg TTFT` is blanked instead of
 silently mislabeled for proxied configs (see below), but is still a
 single combined average across suites where it IS real.
 
-| model | backend | quant | temp | reasoning | config | runner | tasks | pass rate | avg tok/s | avg TTFT (s) | hallucinated tools |
+**¹ `temp (coding only)`** (2nd adversarial review finding CR-3, a bug in
+the H7 fix): the config's declared temperature is what the coding suite
+(`hermes chat`, driven by `run_fixture_suite.py`) actually runs at, since
+it respects the server's launch flags. `sanity`/`hermes_ops` (driven by
+`run_prompt.py`) deliberately hardcode `temperature=0` for EVERY model,
+always, regardless of this config value — a longstanding, documented
+design choice (see `tasks/SCHEMA.md` "Temperature is deliberately fixed
+at 0"), not a bug. The H7 fix originally displayed this value as if it
+applied everywhere, which was false for 124 of 138 rows at the time.
+Note also: `configs/Qwen3.8-27B-Ridge/gguf.yaml` is the only config that
+sets `--presence-penalty` (1.5) — a third confound alongside temp/
+reasoning-mode when comparing it against `configs/Qwen3.8-27B/gguf.yaml`,
+not currently its own column since no other config sets this flag.
+
+| model | backend | quant | temp (coding only)¹ | reasoning | config | runner | tasks | pass rate | avg tok/s | avg TTFT (s) | hallucinated tools |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | gguf | — | 0.1 | n/a | [011816a7d0df](configs/LiquidAI-LFM2.5-2.6B/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 1 | 100% | — | — | 0 |
 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | gguf | — | 0.1 | n/a | [aa5d02c11bba](configs/LiquidAI-LFM2.5-2.6B/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 5 | 100% | 55.8 | 5.54 | 0 |
