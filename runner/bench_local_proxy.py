@@ -49,6 +49,14 @@ LISTEN = ("127.0.0.1", int(os.environ.get("BENCH_PROXY_PORT", "8015")))
 THINK_BLOCK = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
 STRAY_TOOL_CALL_TAG = re.compile(r"</?tool_call>", re.IGNORECASE)
 LOG = logging.getLogger("bench_local_proxy")
+# Opt-in only (adversarial review finding L6) — the upstream-exception
+# handler below deliberately doesn't log exception details by default
+# (they can contain request/response data, and this proxy only ever runs
+# on localhost against a benchmark backend, not a hostile network, but the
+# default stays conservative). Set this when debugging a genuine
+# "upstream_exception_total is climbing and I don't know why" — it logs
+# only the exception TYPE name, never its message/args/traceback.
+DEBUG_EXCEPTIONS = bool(os.environ.get("BENCH_PROXY_DEBUG"))
 
 # Different model families emit tool calls as different raw-text formats —
 # vllm-mlx has no server-side --tool-call-parser (confirmed: not in
@@ -252,12 +260,26 @@ PARSERS = {
     "qwen3_coder": (_parse_qwen3_coder_tool_calls, QWEN3_CODER_SPLIT_MARKER),
     "poolside_v1": (_parse_poolside_v1_tool_calls, POOLSIDE_V1_SPLIT_MARKER),
 }
+# Parsers here that have NOT been confirmed against a real raw response
+# from a live model — adversarial review finding L7: this was selectable
+# with no runtime signal that it's unverified, only a source comment
+# nobody launching a benchmark run would see. Move a name out of this set
+# once you've actually verified it (see bench_local_proxy.py's usual
+# standing policy: hit the raw endpoint directly and confirm real
+# tool_calls come back, both streaming and non-streaming).
+_UNVERIFIED_PARSERS = {"hermes_style"}
 
 if TOOL_CALL_PARSER not in PARSERS:
     raise SystemExit(
         f"Unknown BENCH_TOOL_PARSER={TOOL_CALL_PARSER!r}. "
         f"Known parsers: {sorted(PARSERS)}. Add a new one in bench_local_proxy.py "
         f"(research the model's real tool-call format from its model card first)."
+    )
+if TOOL_CALL_PARSER in _UNVERIFIED_PARSERS:
+    LOG.warning(
+        "BENCH_TOOL_PARSER=%s has NOT been confirmed against a real model response — "
+        "verify it against a live raw endpoint before trusting any result graded through it",
+        TOOL_CALL_PARSER,
     )
 _active_parser, _active_split_marker = PARSERS[TOOL_CALL_PARSER]
 
@@ -399,8 +421,13 @@ class GenerationQueue:
                 self._log_locked("started")
             try:
                 ticket.result = ticket.work()
-            except Exception:
-                # Do not expose/log exception strings: they can contain request data.
+            except Exception as exc:
+                # Do not expose/log exception strings by default: they can
+                # contain request data. BENCH_PROXY_DEBUG=1 logs just the
+                # exception TYPE (never its message) as an opt-in escape
+                # hatch for actually debugging a run.
+                if DEBUG_EXCEPTIONS:
+                    LOG.warning("upstream_exception type=%s", type(exc).__name__)
                 ticket.result = (
                     502,
                     {"Content-Type": "application/json"},
