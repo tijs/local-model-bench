@@ -517,7 +517,19 @@ class Handler(BaseHTTPRequestHandler):
             self._send_json(200, {"generation_queue": GENERATION_QUEUE.snapshot()})
             return
         if path == "/healthz":
-            self._send_json(200, {"status": "ok", "generation_queue": GENERATION_QUEUE.snapshot()})
+            # tool_call_parser/upstream added 2026-08-21 (adversarial review
+            # finding H2): a stale proxy left bound to an old port answers
+            # /healthz just fine, but may be pointed at the WRONG upstream
+            # model or configured with the WRONG parser for whatever config
+            # is actually being tested right now — health alone can't catch
+            # that. A caller should assert both match what it expects before
+            # trusting this process.
+            self._send_json(200, {
+                "status": "ok",
+                "generation_queue": GENERATION_QUEUE.snapshot(),
+                "tool_call_parser": TOOL_CALL_PARSER,
+                "upstream": UPSTREAM,
+            })
             return
         status, headers, raw = upstream("GET", self.path)
         self._send_payload(status, headers.get("Content-Type", "application/json"), raw)

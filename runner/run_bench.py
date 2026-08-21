@@ -72,10 +72,19 @@ def run(cmd, **kw):
     return subprocess.run(cmd, shell=isinstance(cmd, str), cwd=str(REPO), **kw)
 
 
-def wait_for_health(url, timeout=600):
+def wait_for_health(url, timeout=600, proc=None):
+    """proc, if given, is the just-launched server's Popen handle — if it
+    has already exited, fail immediately instead of waiting out the full
+    timeout only to report a generic "never became healthy" (adversarial
+    review finding H2, partial: this alone doesn't catch a STALE process
+    silently answering instead of the new one — see model/parser identity
+    checks in run_one())."""
     print(f"Waiting for {url} to respond (timeout {timeout}s)...")
     start = time.time()
     while time.time() - start < timeout:
+        if proc is not None and proc.poll() is not None:
+            print(f"  server process exited early (returncode={proc.returncode}) — not waiting further")
+            return False
         try:
             with urllib.request.urlopen(url, timeout=3) as resp:
                 if resp.status == 200:
@@ -84,6 +93,56 @@ def wait_for_health(url, timeout=600):
         except (urllib.error.URLError, ConnectionError, TimeoutError, OSError):
             pass
         time.sleep(3)
+    return False
+
+
+def _base_repo_name(model_id):
+    """Strip a ':quant' suffix, e.g. 'foo/Bar-GGUF:Q4_K_M' -> 'foo/Bar-GGUF'."""
+    return model_id.split(":")[0]
+
+
+def assert_serving_expected_model(raw_port, expected_model):
+    """Confirm the server actually answering raw_port is serving the model
+    THIS config expects, not a stale process left over from a previous
+    config (adversarial review finding H2: wait_for_health only checks
+    that *something* answers 200 — a leftover server on the same port
+    would pass that check while silently serving the wrong model)."""
+    url = f"http://127.0.0.1:{raw_port}/v1/models"
+    try:
+        with urllib.request.urlopen(url, timeout=5) as resp:
+            data = json.loads(resp.read())
+    except (urllib.error.URLError, OSError, ValueError) as e:
+        print(f"FAILED: could not verify served model via {url}: {e}")
+        return False
+    served_ids = [m.get("id", "") for m in data.get("data", [])]
+    expected = _base_repo_name(expected_model)
+    if any(expected in sid or sid in expected for sid in served_ids if sid):
+        return True
+    print(f"FAILED: {url} is serving {served_ids!r}, expected something matching {expected!r} "
+          f"— a stale server from a previous config may still be bound to this port.")
+    return False
+
+
+def assert_proxy_matches(proxy_port, expected_parser, expected_upstream):
+    """Same identity check as assert_serving_expected_model, for the proxy
+    layer: a stale bench_local_proxy.py left bound to the port would also
+    answer /healthz successfully while pointed at the wrong parser/upstream
+    (the exact failure mode observed live 2026-08-20 — see AGENTS.md's
+    killed-task retry hazard note)."""
+    url = f"http://127.0.0.1:{proxy_port}/healthz"
+    try:
+        with urllib.request.urlopen(url, timeout=5) as resp:
+            data = json.loads(resp.read())
+    except (urllib.error.URLError, OSError, ValueError) as e:
+        print(f"FAILED: could not verify proxy identity via {url}: {e}")
+        return False
+    actual_parser = data.get("tool_call_parser")
+    actual_upstream = data.get("upstream")
+    if actual_parser == expected_parser and actual_upstream == expected_upstream:
+        return True
+    print(f"FAILED: proxy on {proxy_port} reports parser={actual_parser!r} upstream={actual_upstream!r}, "
+          f"expected parser={expected_parser!r} upstream={expected_upstream!r} — "
+          f"a stale proxy process is likely still bound to this port.")
     return False
 
 
@@ -142,31 +201,41 @@ def run_one(config_path: Path, trials: int = 1):
         cmd = server_command(cfg)
         log_file = f"/tmp/bench_{config_path.parent.name}_{config_path.stem}_server.log"
         print(f"(backgrounded, log: {log_file})")
-        subprocess.Popen(
+        server_proc = subprocess.Popen(
             cmd, shell=True, cwd=str(REPO),
             stdout=open(log_file, "w"), stderr=subprocess.STDOUT,
         )
 
-        if not wait_for_health(f"http://127.0.0.1:{raw_port}/v1/models"):
+        if not wait_for_health(f"http://127.0.0.1:{raw_port}/v1/models", proc=server_proc):
             print(f"FAILED: backend never became healthy — check {log_file}")
+            return
+        if not assert_serving_expected_model(raw_port, model):
+            print(f"FAILED: refusing to continue against the wrong model — check {log_file} "
+                  f"and confirm no stale process survived unload_all.sh (e.g. `lsof -i :{raw_port}`).")
             return
 
         if needs_proxy:
             print("\n--- launch bench_local_proxy.py ---")
             parser = orch["proxy_parser"]
+            upstream = f"http://127.0.0.1:{raw_port}"
             proxy_log = f"/tmp/bench_proxy_{proxy_port}.log"
             env_cmd = (
                 f"BENCH_TOOL_PARSER={parser} "
-                f"BENCH_PROXY_UPSTREAM=http://127.0.0.1:{raw_port} "
+                f"BENCH_PROXY_UPSTREAM={upstream} "
                 f"BENCH_PROXY_PORT={proxy_port} "
                 f"{COCORE_PY} {REPO / 'runner' / 'bench_local_proxy.py'}"
             )
-            subprocess.Popen(
+            proxy_proc = subprocess.Popen(
                 env_cmd, shell=True, cwd=str(REPO),
                 stdout=open(proxy_log, "w"), stderr=subprocess.STDOUT,
             )
-            if not wait_for_health(f"http://127.0.0.1:{proxy_port}/healthz", timeout=30):
+            if not wait_for_health(f"http://127.0.0.1:{proxy_port}/healthz", timeout=30, proc=proxy_proc):
                 print(f"FAILED: proxy never became healthy — check {proxy_log}")
+                return
+            if not assert_proxy_matches(proxy_port, parser, upstream):
+                print(f"FAILED: refusing to continue against a proxy pointed at the wrong "
+                      f"parser/upstream — check {proxy_log} and confirm no stale proxy process "
+                      f"survived unload_all.sh (e.g. `lsof -i :{proxy_port}`).")
                 return
 
     base_url = api_base_url or f"http://127.0.0.1:{proxy_port if needs_proxy else raw_port}/v1"
