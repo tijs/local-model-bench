@@ -67,7 +67,22 @@ for mutant in "${mutants[@]}"; do
     echo "  SURVIVED (agent's tests did not catch this bug)"
     survived=$((survived + 1))
   else
-    echo "  killed"
+    # A nonzero exit here SHOULD mean "the agent's tests ran and caught a
+    # real behavioral difference" — but it's the same signal a mutant that
+    # doesn't even COMPILE would produce, which isn't the agent's tests
+    # catching anything (adversarial review finding M5). Heuristic check,
+    # not a hard gate (a genuine assertion failure can legitimately print
+    # something that looks like these patterns too): flag it loudly if the
+    # log shows compiler-error markers with no sign the test runner itself
+    # ever started, rather than silently trusting every nonzero exit.
+    if grep -qE 'error\[E[0-9]+\]|error TS[0-9]+|SyntaxError' /tmp/grade_mutation_mutant.log \
+       && ! grep -qE 'test result:|Test Files|running [0-9]+ test' /tmp/grade_mutation_mutant.log; then
+      echo "  killed — ⚠ WARNING: log looks like a COMPILE failure, not a test"
+      echo "    catching the bug — this mutant may be invalid rather than genuinely"
+      echo "    killed by the agent's tests. Check /tmp/grade_mutation_mutant.log."
+    else
+      echo "  killed"
+    fi
     killed=$((killed + 1))
   fi
   cp "$backup" "$full_source"
