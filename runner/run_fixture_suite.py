@@ -175,6 +175,27 @@ _HARNESS_MANIFEST_FILES = (
     "Package.swift", "Package.resolved",
 )
 
+# Files that have no legitimate reason to be CREATED FRESH by an agent
+# completing a feature/debug/test-writing task in this repo's fixtures, but
+# can each independently neuter a check regardless of the source/test files
+# themselves being correct — e.g. `.cargo/config.toml` can force every test
+# binary to report success (`[target.'cfg(all())'] runner = "true"`),
+# `build.rs` runs arbitrary code before the crate even compiles, a
+# `vitest.config.ts`/`deno.jsonc` can redirect which files a test command
+# actually collects. Found by a second independent adversarial review
+# (finding M-13): restore_harness_files() only ever restored TRACKED
+# manifest paths (existing at baseline); a brand-new file matching one of
+# these names was invisible to that logic entirely (and, before the M-11
+# fix, invisible in the recorded diff too). Deleted outright if not present
+# at baseline — unlike _HARNESS_MANIFEST_FILES, these aren't "restored" to
+# a prior version, since a legitimate fixture has none of them to restore.
+_DANGEROUS_NEW_FILES = {
+    ".cargo/config.toml", ".cargo/config",
+    "build.rs",
+    "vitest.config.ts", "vitest.config.js", "vitest.config.mjs",
+    "deno.jsonc",
+}
+
 
 def restore_harness_files(run_dir, check_dest=None):
     """Restore the grading harness to its baseline state before grading,
@@ -222,6 +243,26 @@ def restore_harness_files(run_dir, check_dest=None):
             ["git", "checkout", "-q", "baseline", "--", path],
             cwd=run_dir, capture_output=True,
         )  # best-effort: silently no-ops for a path baseline never had
+
+    # Delete any brand-new dangerous file (see _DANGEROUS_NEW_FILES above)
+    # that didn't exist at baseline — these have no "prior version" to
+    # restore to, so checkout can't help; only removal does.
+    current = subprocess.run(
+        ["git", "ls-files"], cwd=run_dir, capture_output=True, text=True,
+    ).stdout.splitlines()
+    for p in current:
+        name = Path(p).name
+        is_dangerous = name in _DANGEROUS_NEW_FILES or any(
+            p == d or p.endswith("/" + d) for d in _DANGEROUS_NEW_FILES if "/" in d
+        )
+        if not is_dangerous:
+            continue
+        at_baseline = subprocess.run(
+            ["git", "cat-file", "-e", f"baseline:{p}"],
+            cwd=run_dir, capture_output=True,
+        ).returncode == 0
+        if not at_baseline:
+            (run_dir / p).unlink(missing_ok=True)
     return diff
 
 
