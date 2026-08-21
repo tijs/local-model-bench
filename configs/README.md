@@ -12,7 +12,7 @@ just "chosen because it seemed right" without saying so explicitly.
 model: LiquidAI/LFM2.5-2.6B-MLX-bf16
 backend: mlx
 framework: vllm-mlx              # vllm-mlx | llama.cpp
-launch_command: |
+benchmark_launch_command: |
   python -m vllm_mlx.server --model LiquidAI/LFM2.5-2.6B-MLX-bf16 \
     --host 127.0.0.1 --port 8012 --max-request-tokens 4096 --max-tokens 4096
 
@@ -86,17 +86,23 @@ One directory per model family, `gguf.yaml`/`mlx.yaml` (or a variant name,
 e.g. `gguf-unsloth-ud-q4.yaml`, for a distinct quant/backend combo) inside:
 
 - `LiquidAI-LFM2.5-2.6B/` — gguf, mlx
-- `LiquidAI-LFM2.5-8B-A1B/` — gguf, mlx
+- `LiquidAI-LFM2.5-8B-A1B/` — gguf, mlx, gguf-dspark (speculative decoding,
+  needs `runner/setup_dspark_head.sh` — mainline llama.cpp built from
+  source, since the LFM2-specific support merged after the Homebrew bottle)
 - `Qwen3.8-27B/` — gguf, mlx, gguf-unsloth-ud-q4, gguf-unsloth-ud-q2,
   gguf-dflash2 (speculative decoding, needs `runner/setup_dflash2_fork.sh`)
+- `Qwen3.8-27B-Ridge/` — gguf (empero-ai's GDN-aware quant, a different
+  release from `Qwen3.8-27B/` above, not a variant of it)
 - `Qwen3.5-9B/` — gguf
 - `Qwen3-Coder-30B-A3B/` — gguf, mlx
 - `Ternary-Bonsai-27B/` — mlx (native 2-bit ternary training)
 - `Ornith-1.5-35B-A3B/` — gguf
-- `Muse-Glimmer-30B/` — gguf
+- `Muse-Glimmer-30B/` — gguf, gguf-dflash2 (speculative decoding, shares the
+  fork build with `Qwen3.8-27B/gguf-dflash2.yaml`)
 - `Laguna-XS-2.1/` — gguf (mlx is `viable: blocked` — see AGENTS.md)
-- `Luna/` — api (hosted, via hermes's `openai-codex` OAuth provider, not a
-  local server at all)
+- `Luna/` — api (hosted, via hermes's `openai-codex` OAuth provider — see
+  AGENTS.md for why this path is ToS-sensitive), openrouter (the preferred
+  path going forward: a real API key, full suite coverage, cost tracking)
 
 See the top-level `README.md` for how to run any/all of these, and
 `AGENTS.md` for the reasoning behind every non-obvious setting.

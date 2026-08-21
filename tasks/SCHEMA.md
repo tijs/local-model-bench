@@ -1,6 +1,10 @@
 # Task file schema
 
-One YAML file per suite in `tasks/`. Loaded by `runner/run_suite.sh`. Two
+One YAML file per suite in `tasks/`. Loaded by `runner/run_fixture_suite.py`
+(fixture-based suites) or `runner/run_prompt_suite.py` (prompt-based suites) —
+`runner/run_bench.py` is the actual single entry point that drives either,
+per config (adversarial review finding M7: this doc previously named a
+`runner/run_suite.sh` that has never existed in this repo). Two
 families, distinguished by the top-level `runner:` field:
 
 - **`runner: fixture`** (or omitted, the default) — `kiem_mini`, `hearth_mini`,
@@ -66,7 +70,14 @@ Graded via `runner/grade_mutation.sh <run-dir> <source_file> <test_command>
 <mutant...>` for `type: mutation` tasks — see that script for the exact
 semantics.
 
-## Run lifecycle (see `runner/new_run.sh` / `runner/grade_run.sh`)
+## Run lifecycle
+
+Implemented as functions inside `runner/run_fixture_suite.py` —
+`reset_fixture()` / `overlay_check_files()` / `grade_command()` /
+`grade_mutation()`. (This section previously named `runner/new_run.sh` /
+`runner/grade_run.sh`, neither of which has ever existed in this repo — the
+lifecycle has always lived as functions in run_fixture_suite.py itself, not
+separate scripts. Corrected 2026-08-21, adversarial review finding M7.)
 
 1. **Reset**: copy `fixtures/<suite>/` to a scratch run dir, `git init -q &&
    git add -A && git commit -q -m baseline` there — this is the fixed,
@@ -161,9 +172,14 @@ respects the server's launch flags. Don't attribute a sanity/hermes_ops
 result to a sampling-settings change without checking this first (a
 2026-08-19 result was initially mis-attributed this way — see kiem notes).
 
-**Endpoint matters more than it looks**: always point `--base-url` at the
-proxy layer a real backend needs (e.g. `mara_local_proxy` on port 8013 for
-MLX, not `vllm_mlx.server` directly on 8012 — see AGENTS.md "Backends"). The
-raw engine can return a tool call as unparsed text instead of a real
-`tool_calls` array, which would silently and unfairly fail every tool-call
-check.
+**Endpoint matters more than it looks**: for an MLX config whose model needs
+translation (`orchestration.needs_proxy: true`), always point `--base-url` at
+**this repo's own `runner/bench_local_proxy.py`, port 8015** — never
+`vllm_mlx.server` directly on 8012 (raw engine, can return a tool call as
+unparsed text instead of a real `tool_calls` array) and never port 8013
+(`mara_local_proxy.py`, the "fitness" hermes profile's OWN proxy — it
+unconditionally filters every caller's `tools` array down to its own ~12-tool
+allowlist, which silently produced false-passing tool-selection results
+before this was caught; see AGENTS.md "Backends"). This doc previously named
+8013 as the example to follow, which was exactly backwards — corrected
+2026-08-21 (adversarial review finding M6).
