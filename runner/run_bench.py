@@ -271,6 +271,17 @@ def run_one(config_path: Path, trials: int = 1, coding_suites=None):
         print("\n--- unload any existing candidate backend ---")
         run(["bash", str(REPO / "runner" / "unload_all.sh")])
 
+        # reset_bench_profile.sh exists specifically to prevent session/
+        # memory state leaking from one candidate model's test batch into
+        # the next, but was never actually called anywhere (3rd
+        # adversarial review, low finding) — the exact "starting a new
+        # candidate model's test batch" moment its own header describes.
+        # Best-effort like unload_all.sh above (not gating this run on its
+        # exit code) since a missing bench profile shouldn't abort an
+        # otherwise-working config.
+        print("\n--- reset bench hermes profile session/memory state ---")
+        run(["bash", str(REPO / "runner" / "reset_bench_profile.sh")])
+
         print("\n--- launch candidate server ---")
         alias = f"bench-{config_hash}" if backend == "gguf" else None
         cmd = server_command(cfg, alias=alias)
