@@ -44,6 +44,7 @@ Prints a single JSON result to stdout:
   }
 """
 import argparse
+import http.client
 import json
 import os
 import sys
@@ -325,6 +326,15 @@ def main():
         error = f"request failed: {e}"
     except (KeyError, IndexError, json.JSONDecodeError) as e:
         error = f"unexpected response shape: {e}"
+    except (TimeoutError, http.client.HTTPException, OSError) as e:
+        # A read timeout (socket.timeout IS TimeoutError, but is NOT a
+        # urllib.error.URLError subclass, so it fell straight through the
+        # handler above uncaught) or a stream cut short mid-response
+        # (http.client.IncompleteRead) used to crash this process entirely
+        # — adversarial review finding M3. run_prompt_suite.py's JSON-decode
+        # of empty stdout then silently produced `pass: false, run_error:
+        # null`, indistinguishable from a genuine graded model failure.
+        error = f"connection error mid-request: {type(e).__name__}: {e}"
 
     # Tool-call parsing here is regex/text-based, not schema-validated — a
     # model can emit a call to a name it was never actually offered (and a

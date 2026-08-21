@@ -116,22 +116,46 @@ def main():
                 run = subprocess.run(cmd, capture_output=True, text=True)
                 result_path.write_text(run.stdout)
 
-                grade = subprocess.run(
-                    [
-                        sys.executable,
-                        str(REPO / "runner" / "grade_prompt.py"),
-                        "--result", str(result_path),
-                        "--check", str(check_path),
-                    ],
-                    capture_output=True,
-                    text=True,
-                )
-                passed = grade.returncode == 0
-
+                # run_prompt.py crashing uncaught (e.g. a read timeout that
+                # wasn't a caught exception type — see run_prompt.py's own
+                # fix for this, finding M3) used to leave stdout empty;
+                # grade_prompt.py would then ALSO crash trying to json.loads
+                # an empty result file, and `grade.returncode == 0` being
+                # False produced an indistinguishable "pass: false,
+                # run_error: null" row — no different from a genuine graded
+                # model failure. Detect this BEFORE grading and tag it
+                # explicitly instead. NOTE: run_prompt.py's own returncode is
+                # NOT the right signal here — it legitimately exits 1 (with
+                # perfectly valid, parseable JSON) whenever it reports a real
+                # run_error (e.g. "exceeded max_turns"), so returncode alone
+                # can't distinguish that from an actual crash. Only a failure
+                # to parse stdout as JSON at all means the process died
+                # before reaching its own final print/exit.
+                harness_crashed = False
+                parsed = {}
                 try:
                     parsed = json.loads(run.stdout)
                 except json.JSONDecodeError:
-                    parsed = {}
+                    harness_crashed = True
+
+                if harness_crashed:
+                    passed = False
+                    grade_output = "HARNESS ERROR (not a graded model result): " + (
+                        run.stderr.strip()[-1000:] or "run_prompt.py produced no parseable output"
+                    )
+                else:
+                    grade = subprocess.run(
+                        [
+                            sys.executable,
+                            str(REPO / "runner" / "grade_prompt.py"),
+                            "--result", str(result_path),
+                            "--check", str(check_path),
+                        ],
+                        capture_output=True,
+                        text=True,
+                    )
+                    passed = grade.returncode == 0
+                    grade_output = grade.stdout.strip()
 
                 row = {
                     "suite": args.suite,
@@ -142,10 +166,11 @@ def main():
                     "quant": args.quant,
                     "config_path": config_path,
                     "config_hash": config_hash,
+                    "harness_error": harness_crashed,
                     "runner_git_sha": git_sha(),
                     "trial": trial,
                     "pass": passed,
-                    "grade_output": grade.stdout.strip(),
+                    "grade_output": grade_output,
                     "prompt_tokens": parsed.get("prompt_tokens"),
                     "completion_tokens": parsed.get("completion_tokens"),
                     "tokens_per_second": parsed.get("tokens_per_second"),
@@ -159,7 +184,7 @@ def main():
                 }
                 rows.append(row)
                 trial_label = f" (trial {trial}/{args.trials})" if args.trials > 1 else ""
-                print(f"{task['id']}{trial_label}: {'PASS' if passed else 'FAIL'} — {grade.stdout.strip()}")
+                print(f"{task['id']}{trial_label}: {'PASS' if passed else 'FAIL'} — {grade_output}")
 
     with open(log_path, "a") as f:
         for row in rows:
