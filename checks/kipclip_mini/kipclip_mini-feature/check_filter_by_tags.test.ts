@@ -33,3 +33,17 @@ Deno.test("filterByTags returns nothing when no bookmark has all tags", () => {
   const bookmarks = [bookmark({ id: "a", tags: ["news"] })];
   assertEquals(filterByTags(bookmarks, ["news", "tech"]), []);
 });
+
+// Added 2026-08-21 (3rd adversarial review, low finding): confirmed live
+// that an implementation matching tags by STRING SUBSTRING
+// (`t.includes(tag)`) instead of exact equality passed every test above
+// — none of them exercise a tag that's a substring of a different real
+// tag. "news" and "newsletter" share that relationship; exact matching
+// must tell them apart.
+Deno.test("filterByTags requires an EXACT tag match, not a substring", () => {
+  const bookmarks = [
+    bookmark({ id: "a", tags: ["newsletter"] }),
+    bookmark({ id: "b", tags: ["news"] }),
+  ];
+  assertEquals(filterByTags(bookmarks, ["news"]).map((b) => b.id), ["b"]);
+});
