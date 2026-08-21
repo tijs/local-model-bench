@@ -95,12 +95,42 @@ def main():
         key = (r["model"], r["backend"], r.get("quant"), r.get("config_hash"), r.get("runner_git_sha"))
         groups[key].append(r)
 
+    stale_rows = [r for r in rows if not r.get("runner_git_sha")]
     lines = [
         "# Leaderboard",
         "",
         "Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not",
         "hand-edit rows below, edit the log and regenerate instead.",
         "",
+    ]
+    if stale_rows:
+        lines += [
+            f"> **⚠ {len(stale_rows)}/{len(rows)} rows below predate the 2026-08-21",
+            "> adversarial-review grading fixes** (no `runner_git_sha` at all — that",
+            "> field didn't exist yet when they were produced). A second independent",
+            "> review found the first review's own fixes still left real bugs (see",
+            "> AGENTS.md), so **do not treat any pre-2026-08-21 PASS/FAIL as final",
+            "> signal** until re-run under current grading. Known-affected checks,",
+            "> confirmed to have changed real outcomes:",
+            "> - `kiem_mini-feature` (all rows before the C1 fix): graded only the",
+            "> library function, never the CLI wiring — one logged PASS is known to",
+            "> have a compiler warning proving the CLI half was never implemented.",
+            "> - `hermes_ops-error-recovery` (all rows before this session's fixes,",
+            "> including a since-fixed regression where the word \"error\" itself",
+            "> became an auto-fail): rewarded fabricated file contents as long as",
+            "> an unrelated word like \"error\" appeared anywhere in the answer.",
+            "> - `hermes_ops-selection` (all rows before the L4 fix): `response_contains:",
+            "> \"18\"` matched \"18\" as a substring of any number, including \"2018\".",
+            "> - `hermes_ops-chaining` (all rows before the L5 fix): only checked the",
+            "> written number appeared somewhere in the file, not that it was the",
+            "> ONLY content, despite the prompt saying \"just that number\".",
+            "> - `sanity-tool` (all rows): graded with multiset argument matching,",
+            "> not exact key/value matching — could pass wrong argument names.",
+            "> Re-running is the only way to get current, trustworthy rows for these",
+            "> tasks; regenerating this file alone does not re-grade anything.",
+            "",
+        ]
+    lines += [
         "Grouped by (model, backend, quant, config_hash, runner_git_sha) — never",
         "averaged across different configs OR different harness/grading code",
         "versions, even for the same model+backend, since either would mix",
