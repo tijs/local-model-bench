@@ -86,134 +86,153 @@ def main():
         if args.only_task and task["id"] != args.only_task:
             continue
         for trial in range(1, args.trials + 1):
-            with tempfile.TemporaryDirectory() as td:
-                td = Path(td)
-                spec_path = td / "spec.json"
-                check_path = td / "check.json"
-                result_path = td / "result.json"
-                prompt_spec = dict(task["prompt_spec"])
-                if "system_prompt_file" in prompt_spec:
-                    prompt_spec["system_prompt"] = (REPO / prompt_spec.pop("system_prompt_file")).read_text()
-                if "tools_file" in prompt_spec:
-                    prompt_spec["tools"] = json.loads((REPO / prompt_spec.pop("tools_file")).read_text())
-                if system_prompt_suffix:
-                    prompt_spec["system_prompt"] = (
-                        prompt_spec.get("system_prompt", "") + "\n\n" + system_prompt_suffix
-                    )
-                spec_path.write_text(json.dumps(prompt_spec))
-                check_path.write_text(json.dumps(task["check"]))
+            result_path_rel = None
+            parsed = {}
+            try:
+                with tempfile.TemporaryDirectory() as td:
+                    td = Path(td)
+                    spec_path = td / "spec.json"
+                    check_path = td / "check.json"
+                    result_path = td / "result.json"
+                    prompt_spec = dict(task["prompt_spec"])
+                    if "system_prompt_file" in prompt_spec:
+                        prompt_spec["system_prompt"] = (REPO / prompt_spec.pop("system_prompt_file")).read_text()
+                    if "tools_file" in prompt_spec:
+                        prompt_spec["tools"] = json.loads((REPO / prompt_spec.pop("tools_file")).read_text())
+                    if system_prompt_suffix:
+                        prompt_spec["system_prompt"] = (
+                            prompt_spec.get("system_prompt", "") + "\n\n" + system_prompt_suffix
+                        )
+                    spec_path.write_text(json.dumps(prompt_spec))
+                    check_path.write_text(json.dumps(task["check"]))
 
-                cmd = [
-                    sys.executable,
-                    str(REPO / "runner" / "run_prompt.py"),
-                    "--base-url", args.base_url,
-                    "--model", args.model,
-                    "--spec", str(spec_path),
-                    "--timeout", str(timeout),
-                    "--max-turns", str(max_turns),
-                ]
-                if api_key_env:
-                    cmd += ["--api-key-env", api_key_env]
-                run = subprocess.run(cmd, capture_output=True, text=True)
-                result_path.write_text(run.stdout)
+                    cmd = [
+                        sys.executable,
+                        str(REPO / "runner" / "run_prompt.py"),
+                        "--base-url", args.base_url,
+                        "--model", args.model,
+                        "--spec", str(spec_path),
+                        "--timeout", str(timeout),
+                        "--max-turns", str(max_turns),
+                    ]
+                    if api_key_env:
+                        cmd += ["--api-key-env", api_key_env]
+                    run = subprocess.run(cmd, capture_output=True, text=True)
+                    result_path.write_text(run.stdout)
 
-                # Full result (messages, tool_calls, final_text — everything
-                # run_prompt.py actually produced) persisted durably, not
-                # just inside the TemporaryDirectory that's deleted when
-                # this `with` block exits — found by a second independent
-                # adversarial review (finding H-4): the coding suite got
-                # durable transcripts on 2026-08-20 specifically because an
-                # un-investigable result was too costly to leave unverified;
-                # the prompt suites (sanity/hermes_ops) never got the same
-                # treatment, so none of this session's FOUR grading-logic
-                # changes (C2, M4, L4, L5) could ever be checked against
-                # what a model actually said — the answers were already gone.
-                result_dir = REPO / "results" / "prompt_results" / args.suite / task["id"]
-                result_dir.mkdir(parents=True, exist_ok=True)
-                model_slug = re.sub(r"[^A-Za-z0-9._-]+", "_", args.model)
-                trial_suffix = f"_trial{trial}" if args.trials > 1 else ""
-                durable_result_path = result_dir / f"{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}_{model_slug}{trial_suffix}.json"
-                durable_result_path.write_text(run.stdout or "{}")
-                result_path_rel = str(durable_result_path.relative_to(REPO))
+                    # Full result (messages, tool_calls, final_text — everything
+                    # run_prompt.py actually produced) persisted durably, not
+                    # just inside the TemporaryDirectory that's deleted when
+                    # this `with` block exits — found by a second independent
+                    # adversarial review (finding H-4): the coding suite got
+                    # durable transcripts on 2026-08-20 specifically because an
+                    # un-investigable result was too costly to leave unverified;
+                    # the prompt suites (sanity/hermes_ops) never got the same
+                    # treatment, so none of this session's FOUR grading-logic
+                    # changes (C2, M4, L4, L5) could ever be checked against
+                    # what a model actually said — the answers were already gone.
+                    result_dir = REPO / "results" / "prompt_results" / args.suite / task["id"]
+                    result_dir.mkdir(parents=True, exist_ok=True)
+                    model_slug = re.sub(r"[^A-Za-z0-9._-]+", "_", args.model)
+                    trial_suffix = f"_trial{trial}" if args.trials > 1 else ""
+                    durable_result_path = result_dir / f"{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}_{model_slug}{trial_suffix}.json"
+                    durable_result_path.write_text(run.stdout or "{}")
+                    result_path_rel = str(durable_result_path.relative_to(REPO))
 
-                # run_prompt.py crashing uncaught (e.g. a read timeout that
-                # wasn't a caught exception type — see run_prompt.py's own
-                # fix for this, finding M3) used to leave stdout empty;
-                # grade_prompt.py would then ALSO crash trying to json.loads
-                # an empty result file, and `grade.returncode == 0` being
-                # False produced an indistinguishable "pass: false,
-                # run_error: null" row — no different from a genuine graded
-                # model failure. Detect this BEFORE grading and tag it
-                # explicitly instead. NOTE: run_prompt.py's own returncode is
-                # NOT the right signal here — it legitimately exits 1 (with
-                # perfectly valid, parseable JSON) whenever it reports a real
-                # run_error (e.g. "exceeded max_turns"), so returncode alone
-                # can't distinguish that from an actual crash. Only a failure
-                # to parse stdout as JSON at all means the process died
-                # before reaching its own final print/exit.
-                harness_crashed = False
-                parsed = {}
-                try:
-                    parsed = json.loads(run.stdout)
-                except json.JSONDecodeError:
-                    harness_crashed = True
+                    # run_prompt.py crashing uncaught (e.g. a read timeout that
+                    # wasn't a caught exception type — see run_prompt.py's own
+                    # fix for this, finding M3) used to leave stdout empty;
+                    # grade_prompt.py would then ALSO crash trying to json.loads
+                    # an empty result file, and `grade.returncode == 0` being
+                    # False produced an indistinguishable "pass: false,
+                    # run_error: null" row — no different from a genuine graded
+                    # model failure. Detect this BEFORE grading and tag it
+                    # explicitly instead. NOTE: run_prompt.py's own returncode is
+                    # NOT the right signal here — it legitimately exits 1 (with
+                    # perfectly valid, parseable JSON) whenever it reports a real
+                    # run_error (e.g. "exceeded max_turns"), so returncode alone
+                    # can't distinguish that from an actual crash. Only a failure
+                    # to parse stdout as JSON at all means the process died
+                    # before reaching its own final print/exit.
+                    harness_crashed = False
+                    try:
+                        parsed = json.loads(run.stdout)
+                    except json.JSONDecodeError:
+                        harness_crashed = True
 
-                if harness_crashed:
-                    passed = False
-                    grade_output = "HARNESS ERROR (not a graded model result): " + (
-                        run.stderr.strip()[-1000:] or "run_prompt.py produced no parseable output"
-                    )
-                else:
-                    grade = subprocess.run(
-                        [
-                            sys.executable,
-                            str(REPO / "runner" / "grade_prompt.py"),
-                            "--result", str(result_path),
-                            "--check", str(check_path),
-                        ],
-                        capture_output=True,
-                        text=True,
-                    )
-                    passed = grade.returncode == 0
-                    grade_output = grade.stdout.strip()
+                    if harness_crashed:
+                        passed = False
+                        grade_output = "HARNESS ERROR (not a graded model result): " + (
+                            run.stderr.strip()[-1000:] or "run_prompt.py produced no parseable output"
+                        )
+                    else:
+                        grade = subprocess.run(
+                            [
+                                sys.executable,
+                                str(REPO / "runner" / "grade_prompt.py"),
+                                "--result", str(result_path),
+                                "--check", str(check_path),
+                            ],
+                            capture_output=True,
+                            text=True,
+                        )
+                        passed = grade.returncode == 0
+                        grade_output = grade.stdout.strip()
+            except Exception as exc:
+                # A crash ANYWHERE above (a missing tools_file, a malformed
+                # check dict, an OSError writing the durable result) used to
+                # propagate straight out of main() and abort the WHOLE
+                # task×trial loop — this file got the "write each row
+                # immediately" half of run_fixture_suite.py's H-3 fix but
+                # never the try/except half, so it never actually survived
+                # a mid-loop crash. Found by a third independent
+                # adversarial review (finding CR3-13); confirmed live with
+                # a task pointing at a nonexistent tools_file: the whole
+                # process died with an uncaught traceback and ZERO rows
+                # were logged, including for a second, perfectly valid task
+                # that never even got a chance to run. Record this trial as
+                # a harness error and move on, same pattern as
+                # run_fixture_suite.py's own except branch.
+                passed, harness_crashed = False, True
+                grade_output = f"HARNESS ERROR: {type(exc).__name__}: {exc}"
 
-                row = {
-                    "suite": args.suite,
-                    "task_id": task["id"],
-                    "task_type": task.get("type"),
-                    "model": args.model,
-                    "backend": args.backend,
-                    "quant": args.quant,
-                    "config_path": config_path,
-                    "config_hash": config_hash,
-                    "harness_error": harness_crashed,
-                    "result_path": result_path_rel,
-                    "runner_git_sha": git_sha(),
-                    "trial": trial,
-                    "pass": passed,
-                    "grade_output": grade_output,
-                    "prompt_tokens": parsed.get("prompt_tokens"),
-                    "completion_tokens": parsed.get("completion_tokens"),
-                    "tokens_per_second": parsed.get("tokens_per_second"),
-                    "ttft_seconds": parsed.get("ttft_seconds"),
-                    "wall_seconds": parsed.get("wall_seconds"),
-                    "total_cost_usd": parsed.get("total_cost_usd"),
-                    "run_error": parsed.get("error"),
-                    "usage_estimated": parsed.get("usage_estimated", False),
-                    "ttft_measurable": ttft_measurable,
-                    "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                }
-                rows.append(row)
-                # Written immediately, not batched (adversarial review
-                # finding H-3, same fix as run_fixture_suite.py) — a
-                # multi-task/multi-trial run used to lose every
-                # already-completed row if anything crashed later in the
-                # loop.
-                with open(log_path, "a") as f:
-                    f.write(json.dumps(row) + "\n")
-                    f.flush()
-                trial_label = f" (trial {trial}/{args.trials})" if args.trials > 1 else ""
-                print(f"{task['id']}{trial_label}: {'PASS' if passed else 'FAIL'} — {grade_output}")
+            row = {
+                "suite": args.suite,
+                "task_id": task["id"],
+                "task_type": task.get("type"),
+                "model": args.model,
+                "backend": args.backend,
+                "quant": args.quant,
+                "config_path": config_path,
+                "config_hash": config_hash,
+                "harness_error": harness_crashed,
+                "result_path": result_path_rel,
+                "runner_git_sha": git_sha(),
+                "trial": trial,
+                "pass": passed,
+                "grade_output": grade_output,
+                "prompt_tokens": parsed.get("prompt_tokens"),
+                "completion_tokens": parsed.get("completion_tokens"),
+                "tokens_per_second": parsed.get("tokens_per_second"),
+                "ttft_seconds": parsed.get("ttft_seconds"),
+                "wall_seconds": parsed.get("wall_seconds"),
+                "total_cost_usd": parsed.get("total_cost_usd"),
+                "run_error": parsed.get("error"),
+                "usage_estimated": parsed.get("usage_estimated", False),
+                "ttft_measurable": ttft_measurable,
+                "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            }
+            rows.append(row)
+            # Written immediately, not batched (adversarial review
+            # finding H-3, same fix as run_fixture_suite.py) — a
+            # multi-task/multi-trial run used to lose every
+            # already-completed row if anything crashed later in the
+            # loop.
+            with open(log_path, "a") as f:
+                f.write(json.dumps(row) + "\n")
+                f.flush()
+            trial_label = f" (trial {trial}/{args.trials})" if args.trials > 1 else ""
+            print(f"{task['id']}{trial_label}: {'PASS' if passed else 'FAIL'} — {grade_output}")
 
     if args.summary_out:
         Path(args.summary_out).write_text(json.dumps(rows))
