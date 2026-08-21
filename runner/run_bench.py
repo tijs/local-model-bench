@@ -50,6 +50,7 @@ steps 1-4 entirely.
 import argparse
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -208,10 +209,16 @@ def run_one(config_path: Path, trials: int = 1, coding_suites=None):
         cmd = server_command(cfg)
         log_file = f"/tmp/bench_{config_path.parent.name}_{config_path.stem}_server.log"
         print(f"(backgrounded, log: {log_file})")
-        server_proc = subprocess.Popen(
-            cmd, shell=True, cwd=str(REPO),
-            stdout=open(log_file, "w"), stderr=subprocess.STDOUT,
-        )
+        # The file object is closed right after Popen() returns (adversarial
+        # review finding L2: these were never closed at all) — safe to do
+        # immediately since Popen dup()s the fd into the child before
+        # returning; the child keeps its own copy independent of this
+        # process's handle.
+        with open(log_file, "w") as f:
+            server_proc = subprocess.Popen(
+                cmd, shell=True, cwd=str(REPO),
+                stdout=f, stderr=subprocess.STDOUT,
+            )
 
         if not wait_for_health(f"http://127.0.0.1:{raw_port}/v1/models", proc=server_proc):
             print(f"FAILED: backend never became healthy — check {log_file}")
@@ -232,10 +239,11 @@ def run_one(config_path: Path, trials: int = 1, coding_suites=None):
                 f"BENCH_PROXY_PORT={proxy_port} "
                 f"{COCORE_PY} {REPO / 'runner' / 'bench_local_proxy.py'}"
             )
-            proxy_proc = subprocess.Popen(
-                env_cmd, shell=True, cwd=str(REPO),
-                stdout=open(proxy_log, "w"), stderr=subprocess.STDOUT,
-            )
+            with open(proxy_log, "w") as f:
+                proxy_proc = subprocess.Popen(
+                    env_cmd, shell=True, cwd=str(REPO),
+                    stdout=f, stderr=subprocess.STDOUT,
+                )
             if not wait_for_health(f"http://127.0.0.1:{proxy_port}/healthz", timeout=30, proc=proxy_proc):
                 print(f"FAILED: proxy never became healthy — check {proxy_log}")
                 return
@@ -332,7 +340,26 @@ def _leaderboard():
     run([COCORE_PY, str(REPO / "runner" / "build_leaderboard.py")])
 
 
+def sweep_stale_run_dirs(min_age_seconds=3600):
+    """Remove leftover runner/runs/tmp*/ directories from a killed run
+    (adversarial review finding L1) — found one live: a full git-initialized
+    fixture copy from a task that never got to clean up its own
+    TemporaryDirectory context manager. Harmless (gitignored) but
+    accumulates indefinitely otherwise. Only sweeps directories older than
+    min_age_seconds (default 1h, comfortably longer than any real task
+    takes) so this can never race a genuinely concurrent run's own
+    in-progress temp dir."""
+    runs_root = REPO / "runner" / "runs"
+    if not runs_root.is_dir():
+        return
+    now = time.time()
+    for child in runs_root.iterdir():
+        if child.is_dir() and (now - child.stat().st_mtime) > min_age_seconds:
+            shutil.rmtree(child, ignore_errors=True)
+
+
 def main():
+    sweep_stale_run_dirs()
     ap = argparse.ArgumentParser()
     group = ap.add_mutually_exclusive_group(required=True)
     group.add_argument("--config", help="path to one configs/<model>/<backend>.yaml")
