@@ -121,6 +121,23 @@ new session that opens this repo.
   and the automated pass/fail check command
 - `runner/` — orchestration scripts (fixture reset/teardown, backend
   load/unload, hermes provider swap, per-task driver, metrics extraction)
+- `runner/tests/` — automated regression tests for the harness itself
+  (not the model-facing task suites below). Added 2026-08-21, after a
+  third independent adversarial review found every one of its Critical/
+  High findings by directly exercising a harness function against a
+  synthetic input in minutes — something this repo had zero automated
+  coverage for until then, despite two prior review rounds' worth of
+  fixes. Run with:
+  `uv run --with pyyaml python3 -m unittest discover -s runner/tests -v`
+  Covers: grade_prompt.py's check-grading logic (strip_reasoning,
+  normalize_punctuation, the error-recovery forbidden-phrase regex, the
+  tool-call-argument combined-predicate fix), run_fixture_suite.py's
+  restore_harness_files/grade_mutation guards, build_leaderboard.py's
+  harness_error exclusion, bench_common.py's git_sha dirty-check paths,
+  and a real (not mocked) smoke test of grade_mutation.sh's backup/
+  restore correctness against kiem_mini's actual rust fixture. Extend
+  this file, don't just fix-and-move-on, the next time a review finds a
+  bug in harness code these tests touch.
 - `results/` — `log.jsonl` (raw) + `LEADERBOARD.md` (rollup)
 
 ## Test suites
