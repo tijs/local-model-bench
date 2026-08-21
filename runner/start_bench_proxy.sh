@@ -22,9 +22,26 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # nothing if they'd started the proxy via this script instead.
 LOG_FILE="/tmp/bench_proxy_${PROXY_PORT}.log"
 
-if curl -s -m 2 "http://127.0.0.1:${PROXY_PORT}/healthz" > /dev/null 2>&1; then
-  echo "Already running and healthy on port ${PROXY_PORT}."
-  exit 0
+EXPECTED_UPSTREAM="http://127.0.0.1:${UPSTREAM_PORT}"
+# Parses /healthz's JSON and compares tool_call_parser/upstream before
+# reusing it (3rd adversarial review, finding CR3-17) — this used to
+# early-exit on a bare 200, the same identity gap run_bench.py's own
+# assert_proxy_matches() exists to close for its own proxy-launch path.
+# Confirmed live: starting a proxy for upstream=19012/parser=lfm, then
+# re-invoking this script for a DIFFERENT upstream=19099/parser=hermes on
+# the same port, printed "Already running and healthy" and left the
+# stale lfm/19012 proxy running untouched — a leftover proxy from a
+# different config would have been silently reused instead of restarted
+# for the config actually being launched now.
+HEALTH_JSON="$(curl -s -m 2 "http://127.0.0.1:${PROXY_PORT}/healthz" 2>/dev/null || true)"
+if [ -n "${HEALTH_JSON}" ]; then
+  ACTUAL_PARSER="$(echo "${HEALTH_JSON}" | jq -r '.tool_call_parser // empty' 2>/dev/null || true)"
+  ACTUAL_UPSTREAM="$(echo "${HEALTH_JSON}" | jq -r '.upstream // empty' 2>/dev/null || true)"
+  if [ "${ACTUAL_PARSER}" = "${PARSER}" ] && [ "${ACTUAL_UPSTREAM}" = "${EXPECTED_UPSTREAM}" ]; then
+    echo "Already running and healthy on port ${PROXY_PORT} (parser=${PARSER} upstream=${EXPECTED_UPSTREAM})."
+    exit 0
+  fi
+  echo "Proxy on port ${PROXY_PORT} is healthy but points at parser=${ACTUAL_PARSER:-?} upstream=${ACTUAL_UPSTREAM:-?}, expected parser=${PARSER} upstream=${EXPECTED_UPSTREAM} — restarting it for this config instead of reusing it."
 fi
 
 pkill -f "runner/bench_local_proxy.py" 2>/dev/null || true
