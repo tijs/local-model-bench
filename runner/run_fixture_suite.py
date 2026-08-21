@@ -388,42 +388,59 @@ def main():
             ensure_proxy_idle()
             with tempfile.TemporaryDirectory(dir=str(runs_root)) as td:
                 run_dir = Path(td) / "run"
-                reset_fixture(args.suite, run_dir)
+                task_start = time.time()
+                transcript_rel = None
+                try:
+                    reset_fixture(args.suite, run_dir)
 
-                prompt = task["prompt"]
-                if system_prompt_suffix:
-                    prompt = f"[Operating instruction: {system_prompt_suffix}]\n\n{prompt}"
-                stdout, stderr, rc, wall = run_hermes(
-                    prompt, run_dir, args.hermes_provider, args.hermes_model,
-                    max_turns=args.max_turns, timeout=timeout,
-                )
+                    prompt = task["prompt"]
+                    if system_prompt_suffix:
+                        prompt = f"[Operating instruction: {system_prompt_suffix}]\n\n{prompt}"
+                    stdout, stderr, rc, wall = run_hermes(
+                        prompt, run_dir, args.hermes_provider, args.hermes_model,
+                        max_turns=args.max_turns, timeout=timeout,
+                    )
 
-                # Full transcript, saved and committed (not just the last 500
-                # chars of grade_output) — discovered live 2026-08-20 that no
-                # coding-suite run had ever saved its actual transcript
-                # anywhere, which made a genuinely-suspicious result (Luna
-                # failing a task it should have handled easily) impossible to
-                # verify without a slow, manual live rerun. Every PASS/FAIL
-                # this session before this fix was judged on exit code + the
-                # final grade_output only, never the agent's actual behavior.
-                transcript_dir = REPO / "results" / "transcripts" / args.suite / task["id"]
-                transcript_dir.mkdir(parents=True, exist_ok=True)
-                model_slug = re.sub(r"[^A-Za-z0-9._-]+", "_", args.hermes_model)
-                trial_suffix = f"_trial{trial}" if args.trials > 1 else ""
-                transcript_path = transcript_dir / f"{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}_{model_slug}{trial_suffix}.log"
-                transcript_path.write_text(
-                    f"$ hermes chat --profile bench --provider {args.hermes_provider} "
-                    f"-m {args.hermes_model} --max-turns {args.max_turns}\n\n"
-                    f"--- stdout ---\n{stdout}\n\n--- stderr ---\n{stderr}\n"
-                )
-                transcript_rel = str(transcript_path.relative_to(REPO))
+                    # Full transcript, saved and committed (not just the last 500
+                    # chars of grade_output) — discovered live 2026-08-20 that no
+                    # coding-suite run had ever saved its actual transcript
+                    # anywhere, which made a genuinely-suspicious result (Luna
+                    # failing a task it should have handled easily) impossible to
+                    # verify without a slow, manual live rerun. Every PASS/FAIL
+                    # this session before this fix was judged on exit code + the
+                    # final grade_output only, never the agent's actual behavior.
+                    transcript_dir = REPO / "results" / "transcripts" / args.suite / task["id"]
+                    transcript_dir.mkdir(parents=True, exist_ok=True)
+                    model_slug = re.sub(r"[^A-Za-z0-9._-]+", "_", args.hermes_model)
+                    trial_suffix = f"_trial{trial}" if args.trials > 1 else ""
+                    transcript_path = transcript_dir / f"{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}_{model_slug}{trial_suffix}.log"
+                    transcript_path.write_text(
+                        f"$ hermes chat --profile bench --provider {args.hermes_provider} "
+                        f"-m {args.hermes_model} --max-turns {args.max_turns}\n\n"
+                        f"--- stdout ---\n{stdout}\n\n--- stderr ---\n{stderr}\n"
+                    )
+                    transcript_rel = str(transcript_path.relative_to(REPO))
 
-                if rc == -1:
-                    passed, grade_output = False, f"TIMEOUT after {timeout}s"
-                elif task["check"]["type"] == "mutation":
-                    passed, grade_output = grade_mutation(task, run_dir)
-                else:
-                    passed, grade_output = grade_command(args.suite, task, run_dir)
+                    if rc == -1:
+                        passed, grade_output = False, f"TIMEOUT after {timeout}s"
+                    elif task["check"]["type"] == "mutation":
+                        passed, grade_output = grade_mutation(task, run_dir)
+                    else:
+                        passed, grade_output = grade_command(args.suite, task, run_dir)
+                except Exception as exc:
+                    # A crash ANYWHERE above (reset_fixture's `npm ci`
+                    # hitting a network blip, overlay_check_files's
+                    # FileNotFoundError from the H4 fix, any other bug) used
+                    # to propagate straight out of main() and abort the
+                    # WHOLE task×trial loop, discarding every row already
+                    # written in memory — found by a second independent
+                    # adversarial review (finding H-3), made materially
+                    # worse by this session's own --trials/--coding-suites
+                    # additions turning a single run into potentially hours
+                    # of work. Record this task as a harness error and move
+                    # on to the next one instead.
+                    passed, grade_output = False, f"HARNESS ERROR: {type(exc).__name__}: {exc}"
+                    rc, wall = -2, time.time() - task_start
 
                 row = {
                     "suite": args.suite,
@@ -444,12 +461,18 @@ def main():
                     "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                 }
                 rows.append(row)
+                # Written immediately, not batched until the whole task×trial
+                # loop finishes — found by a second independent adversarial
+                # review (finding H-3): `--trials`/`--coding-suites` (added
+                # this same session) turned a multi-hour, all-tasks run into
+                # a single unit that loses EVERY already-completed result if
+                # anything later in the loop crashes (a network blip during
+                # `npm ci`, a genuine grading exception, a killed process).
+                with open(log_path, "a") as f:
+                    f.write(json.dumps(row) + "\n")
+                    f.flush()
                 trial_label = f" (trial {trial}/{args.trials})" if args.trials > 1 else ""
                 print(f"{task['id']}{trial_label}: {'PASS' if passed else 'FAIL'} ({wall:.0f}s)")
-
-    with open(log_path, "a") as f:
-        for row in rows:
-            f.write(json.dumps(row) + "\n")
 
     n_pass = sum(r["pass"] for r in rows)
     print(f"\n{n_pass}/{len(rows)} passed. Appended to {log_path}")

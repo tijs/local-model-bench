@@ -183,12 +183,16 @@ def main():
                     "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                 }
                 rows.append(row)
+                # Written immediately, not batched (adversarial review
+                # finding H-3, same fix as run_fixture_suite.py) — a
+                # multi-task/multi-trial run used to lose every
+                # already-completed row if anything crashed later in the
+                # loop.
+                with open(log_path, "a") as f:
+                    f.write(json.dumps(row) + "\n")
+                    f.flush()
                 trial_label = f" (trial {trial}/{args.trials})" if args.trials > 1 else ""
                 print(f"{task['id']}{trial_label}: {'PASS' if passed else 'FAIL'} — {grade_output}")
-
-    with open(log_path, "a") as f:
-        for row in rows:
-            f.write(json.dumps(row) + "\n")
 
     if args.summary_out:
         Path(args.summary_out).write_text(json.dumps(rows))
