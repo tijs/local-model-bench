@@ -185,7 +185,13 @@ def restore_harness_files(run_dir, check_dest=None):
     """
     # Diff stat captured BEFORE restoring, so it reflects everything the
     # agent touched (including any harness tampering this is about to
-    # revert) — visible in the log even though it gets undone.
+    # revert) — visible in the log even though it gets undone. `git add -A`
+    # first — found by a second independent adversarial review (finding
+    # M-11): plain `git diff --stat` never lists untracked files at all,
+    # so a NEW file the agent created (exactly the deliverable for a
+    # *-testwrite task) recorded as "the agent changed nothing". Staging
+    # doesn't commit anything and doesn't affect what actually gets graded.
+    subprocess.run(["git", "add", "-A"], cwd=run_dir, capture_output=True)
     diff = subprocess.run(
         ["git", "diff", "--stat", "baseline"],
         cwd=run_dir, capture_output=True, text=True,
