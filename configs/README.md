@@ -11,15 +11,35 @@ just "chosen because it seemed right" without saying so explicitly.
 ```yaml
 model: LiquidAI/LFM2.5-2.6B-MLX-bf16
 backend: mlx
+# temperature/reasoning_mode: read by build_leaderboard.py and shown as
+# their own columns (adversarial review finding H7 — two configs that
+# differ in these, not just quant, used to look like a same-conditions
+# comparison). Keep in sync with benchmark_launch_command by hand.
+# NOTE: for sanity/hermes_ops specifically, temperature is IGNORED —
+# run_prompt.py hardcodes temperature=0 for those two suites regardless of
+# this value (see tasks/SCHEMA.md "Temperature is deliberately fixed at
+# 0"); this field only reflects what the CODING suite (hermes chat)
+# actually runs at.
+temperature: 0.1
+reasoning_mode: n/a   # thinking | instruct | n/a (no thinking-mode concept) | unspecified
 framework: vllm-mlx              # vllm-mlx | llama.cpp
 benchmark_launch_command: |
   python -m vllm_mlx.server --model LiquidAI/LFM2.5-2.6B-MLX-bf16 \
     --host 127.0.0.1 --port 8012 --max-request-tokens 4096 --max-tokens 4096
 
+system_prompt_suffix: null   # optional — a model-specific operating
+  # instruction appended (never replacing) the suite's fixed system prompt,
+  # e.g. Muse-Glimmer's "Reasoning strength: high". NOT a way to hint at
+  # task content. Applied to sanity/hermes_ops via a real system-prompt
+  # append; applied to the coding suite by prepending to the task prompt
+  # instead, since hermes chat's CLI has no system-prompt-append flag —
+  # see configs/Muse-Glimmer-30B/gguf.yaml for the full reasoning.
+
 # Machine-readable — this is what runner/run_bench.py actually reads to
 # drive a run. Everything else in this file is human-facing documentation.
 orchestration:
-  raw_port: 8012          # port benchmark_launch_command binds to
+  raw_port: 8012          # port benchmark_launch_command binds to; null for
+                           # a hosted/API model with no local server at all
   needs_proxy: true        # does bench_local_proxy.py need to sit in front?
   proxy_parser: lfm        # required if needs_proxy: true — must match a
                            # name in runner/bench_local_proxy.py's PARSERS
@@ -28,6 +48,16 @@ orchestration:
                                # ~/.hermes/profiles/bench/config.yaml,
                                # or null if no coding-suite spot-check
                                # was ever run for this config
+  server_binary: null      # optional — a non-default binary path (e.g.
+                           # runner/.dflash2-fork/build/bin/llama-server for
+                           # a custom-built fork), documentation only; the
+                           # actual path used is whatever
+                           # benchmark_launch_command invokes
+  api_base_url: null       # hosted/API models only (e.g. Luna) — the
+                           # provider's base URL instead of a local raw_port
+  api_key_env: null        # hosted/API models only — the NAME of an env var
+                           # holding the key; the key itself is never written
+                           # to this file or passed as a CLI arg anywhere
   viable: full             # full | sanity_and_hermes_ops_only |
                            # sanity_only | coding_only | blocked
                            # — see runner/run_bench.py's docstring for
@@ -38,9 +68,6 @@ settings:
     value: 4096
     source: "chosen at launch time, not model-card-derived — flagged as a
       possible bottleneck, revisit"
-  - name: temperature
-    value: 0
-    source: "https://huggingface.co/LiquidAI/..."   # a real URL, not a guess
   - name: tool_call_parser
     value: lfm    # must match a parser registered in runner/bench_local_proxy.py's PARSERS dict
     source: "https://..."   # the model's raw tool-call text format, from its model
