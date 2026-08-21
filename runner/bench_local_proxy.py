@@ -46,6 +46,19 @@ from urllib.request import Request, urlopen
 
 UPSTREAM = os.environ.get("BENCH_PROXY_UPSTREAM", "http://127.0.0.1:8012")
 LISTEN = ("127.0.0.1", int(os.environ.get("BENCH_PROXY_PORT", "8015")))
+# Default raised from a hardcoded 300 (3rd adversarial review, finding
+# CR3-12): this is the ceiling on how long the proxy will wait for the
+# REAL upstream model server to respond to one request, but every client
+# calling through the proxy is configured with a much larger timeout of
+# its own (hermes_ops: 1000s, kiem_mini/hearth_mini/kipclip_mini: 1500s,
+# via each suite's timeout_seconds in tasks/*.yaml). A slow-but-alive
+# model's turn could hit this 300s ceiling first and get reported to the
+# client as a dead upstream (502), misattributing a generous-timeout-
+# eligible slow response as a hard failure. 1800 stays comfortably above
+# every timeout_seconds value in this repo as of this fix; configurable
+# via env var so a future task with an even longer budget doesn't need a
+# code change.
+UPSTREAM_TIMEOUT = float(os.environ.get("BENCH_PROXY_UPSTREAM_TIMEOUT", "1800"))
 THINK_BLOCK = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
 STRAY_TOOL_CALL_TAG = re.compile(r"</?tool_call>", re.IGNORECASE)
 LOG = logging.getLogger("bench_local_proxy")
@@ -490,12 +503,25 @@ def upstream(method: str, path: str, body: bytes | None = None) -> tuple[int, di
     headers = {"Content-Type": "application/json"}
     request = Request(UPSTREAM + path, data=body, headers=headers, method=method)
     try:
-        with urlopen(request, timeout=300) as response:
+        with urlopen(request, timeout=UPSTREAM_TIMEOUT) as response:
             raw = response.read()
             return response.status, dict(response.headers), raw
     except HTTPError as error:
         return error.code, dict(error.headers), error.read()
-    except URLError:
+    except (URLError, TimeoutError):
+        # TimeoutError added alongside the CR3-12 timeout fix, found while
+        # verifying it live: `socket.timeout` IS `TimeoutError` (aliased
+        # since Python 3.10) but is NOT a subclass of URLError, so a
+        # genuine upstream read timeout raised straight past this except
+        # clause uncaught — reproduced with a deliberately slow mock
+        # upstream and a short BENCH_PROXY_UPSTREAM_TIMEOUT override. An
+        # uncaught exception here crashes the request-handling thread
+        # instead of degrading to the same clean 502 a connection-refused
+        # upstream already gets, which is strictly worse: a slow-but-alive
+        # model (exactly what the CR3-12 timeout raise is FOR) would crash
+        # the proxy's handling of that request rather than eventually
+        # returning a diagnosable response.
+        #
         # Avoid passing exception text through logs or responses.
         return 502, {"Content-Type": "application/json"}, b'{"error":"local upstream unavailable"}'
 
