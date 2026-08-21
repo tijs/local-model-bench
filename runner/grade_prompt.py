@@ -137,9 +137,19 @@ def _forbidden_hit(text, check):
     insensitive) or `must_not_match` (regex) as a hard veto, independent of
     whether the positive condition also matched.
     """
+    # normalize_punctuation applied to each CHECK phrase too, not just the
+    # model's text (3rd adversarial review, low finding): the original
+    # 2026-08-20 fix only normalized final_text, so a check phrase written
+    # with a curly quote/dash would never match plain-ASCII model prose —
+    # the same typography-fairness gap this normalization exists to
+    # prevent, just on the other side of the comparison. Confirmed live:
+    # a phrase "couldn't find" (curly apostrophe) failed to match "I
+    # couldn't find the file." (plain ASCII). No current task's check
+    # phrases actually use smart punctuation, so this was latent, not yet
+    # exploited.
     lowered = text.lower()
     for phrase in check.get("must_not_contain_any", ()):
-        if phrase.lower() in lowered:
+        if normalize_punctuation(phrase).lower() in lowered:
             return f"final_text {text!r} contains forbidden phrase {phrase!r}"
     pattern = check.get("must_not_match")
     if pattern and re.search(pattern, text, re.IGNORECASE):
@@ -176,7 +186,7 @@ def grade(result, check):
         return False, f"final_text {text!r} did not match pattern {check['pattern']!r}"
 
     if kind == "contains":
-        if check["text"] in text:
+        if normalize_punctuation(check["text"]) in text:
             return True, ""
         return False, f"final_text {text!r} did not contain {check['text']!r}"
 
@@ -191,7 +201,7 @@ def grade(result, check):
     # one that does).
     if kind == "contains_any":
         lowered = text.lower()
-        if any(phrase.lower() in lowered for phrase in check["phrases"]):
+        if any(normalize_punctuation(phrase).lower() in lowered for phrase in check["phrases"]):
             return True, ""
         return False, f"final_text {text!r} did not contain any of {check['phrases']}"
 
