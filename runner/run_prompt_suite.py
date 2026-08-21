@@ -32,6 +32,16 @@ def main():
     ap.add_argument("--quant", default=None, help="quant level, for gguf log rows")
     ap.add_argument("--config", default=None, help="path to configs/<model>/<backend>.yaml used for this run")
     ap.add_argument("--only-task", default=None, help="run just this one task id (e.g. to rerun a single fixed/flaky task)")
+    ap.add_argument("--trials", type=int, default=1,
+                     help="run each task N times (default 1) — see run_fixture_suite.py's "
+                          "--trials help for why single-trial temperature=0 results aren't "
+                          "trustworthy on their own (adversarial review finding C5)")
+    ap.add_argument("--summary-out", default=None,
+                     help="write this invocation's own rows as JSON here — lets a caller "
+                          "(run_bench.py) read exactly what THIS run produced instead of "
+                          "reaching into the shared log by position (adversarial review "
+                          "finding H3: a crashed/empty subprocess used to make the caller "
+                          "silently read the PREVIOUS config's rows instead)")
     args = ap.parse_args()
 
     task_file = REPO / "tasks" / f"{args.suite}.yaml"
@@ -66,81 +76,87 @@ def main():
     for task in task_spec["tasks"]:
         if args.only_task and task["id"] != args.only_task:
             continue
-        with tempfile.TemporaryDirectory() as td:
-            td = Path(td)
-            spec_path = td / "spec.json"
-            check_path = td / "check.json"
-            result_path = td / "result.json"
-            prompt_spec = dict(task["prompt_spec"])
-            if "system_prompt_file" in prompt_spec:
-                prompt_spec["system_prompt"] = (REPO / prompt_spec.pop("system_prompt_file")).read_text()
-            if "tools_file" in prompt_spec:
-                prompt_spec["tools"] = json.loads((REPO / prompt_spec.pop("tools_file")).read_text())
-            if system_prompt_suffix:
-                prompt_spec["system_prompt"] = (
-                    prompt_spec.get("system_prompt", "") + "\n\n" + system_prompt_suffix
-                )
-            spec_path.write_text(json.dumps(prompt_spec))
-            check_path.write_text(json.dumps(task["check"]))
+        for trial in range(1, args.trials + 1):
+            with tempfile.TemporaryDirectory() as td:
+                td = Path(td)
+                spec_path = td / "spec.json"
+                check_path = td / "check.json"
+                result_path = td / "result.json"
+                prompt_spec = dict(task["prompt_spec"])
+                if "system_prompt_file" in prompt_spec:
+                    prompt_spec["system_prompt"] = (REPO / prompt_spec.pop("system_prompt_file")).read_text()
+                if "tools_file" in prompt_spec:
+                    prompt_spec["tools"] = json.loads((REPO / prompt_spec.pop("tools_file")).read_text())
+                if system_prompt_suffix:
+                    prompt_spec["system_prompt"] = (
+                        prompt_spec.get("system_prompt", "") + "\n\n" + system_prompt_suffix
+                    )
+                spec_path.write_text(json.dumps(prompt_spec))
+                check_path.write_text(json.dumps(task["check"]))
 
-            cmd = [
-                sys.executable,
-                str(REPO / "runner" / "run_prompt.py"),
-                "--base-url", args.base_url,
-                "--model", args.model,
-                "--spec", str(spec_path),
-                "--timeout", str(timeout),
-                "--max-turns", str(max_turns),
-            ]
-            if api_key_env:
-                cmd += ["--api-key-env", api_key_env]
-            run = subprocess.run(cmd, capture_output=True, text=True)
-            result_path.write_text(run.stdout)
-
-            grade = subprocess.run(
-                [
+                cmd = [
                     sys.executable,
-                    str(REPO / "runner" / "grade_prompt.py"),
-                    "--result", str(result_path),
-                    "--check", str(check_path),
-                ],
-                capture_output=True,
-                text=True,
-            )
-            passed = grade.returncode == 0
+                    str(REPO / "runner" / "run_prompt.py"),
+                    "--base-url", args.base_url,
+                    "--model", args.model,
+                    "--spec", str(spec_path),
+                    "--timeout", str(timeout),
+                    "--max-turns", str(max_turns),
+                ]
+                if api_key_env:
+                    cmd += ["--api-key-env", api_key_env]
+                run = subprocess.run(cmd, capture_output=True, text=True)
+                result_path.write_text(run.stdout)
 
-            try:
-                parsed = json.loads(run.stdout)
-            except json.JSONDecodeError:
-                parsed = {}
+                grade = subprocess.run(
+                    [
+                        sys.executable,
+                        str(REPO / "runner" / "grade_prompt.py"),
+                        "--result", str(result_path),
+                        "--check", str(check_path),
+                    ],
+                    capture_output=True,
+                    text=True,
+                )
+                passed = grade.returncode == 0
 
-            row = {
-                "suite": args.suite,
-                "task_id": task["id"],
-                "task_type": task.get("type"),
-                "model": args.model,
-                "backend": args.backend,
-                "quant": args.quant,
-                "config_path": config_path,
-                "config_hash": config_hash,
-                "runner_git_sha": git_sha(),
-                "pass": passed,
-                "grade_output": grade.stdout.strip(),
-                "prompt_tokens": parsed.get("prompt_tokens"),
-                "completion_tokens": parsed.get("completion_tokens"),
-                "tokens_per_second": parsed.get("tokens_per_second"),
-                "ttft_seconds": parsed.get("ttft_seconds"),
-                "wall_seconds": parsed.get("wall_seconds"),
-                "total_cost_usd": parsed.get("total_cost_usd"),
-                "run_error": parsed.get("error"),
-                "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            }
-            rows.append(row)
-            print(f"{task['id']}: {'PASS' if passed else 'FAIL'} — {grade.stdout.strip()}")
+                try:
+                    parsed = json.loads(run.stdout)
+                except json.JSONDecodeError:
+                    parsed = {}
+
+                row = {
+                    "suite": args.suite,
+                    "task_id": task["id"],
+                    "task_type": task.get("type"),
+                    "model": args.model,
+                    "backend": args.backend,
+                    "quant": args.quant,
+                    "config_path": config_path,
+                    "config_hash": config_hash,
+                    "runner_git_sha": git_sha(),
+                    "trial": trial,
+                    "pass": passed,
+                    "grade_output": grade.stdout.strip(),
+                    "prompt_tokens": parsed.get("prompt_tokens"),
+                    "completion_tokens": parsed.get("completion_tokens"),
+                    "tokens_per_second": parsed.get("tokens_per_second"),
+                    "ttft_seconds": parsed.get("ttft_seconds"),
+                    "wall_seconds": parsed.get("wall_seconds"),
+                    "total_cost_usd": parsed.get("total_cost_usd"),
+                    "run_error": parsed.get("error"),
+                    "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                }
+                rows.append(row)
+                trial_label = f" (trial {trial}/{args.trials})" if args.trials > 1 else ""
+                print(f"{task['id']}{trial_label}: {'PASS' if passed else 'FAIL'} — {grade.stdout.strip()}")
 
     with open(log_path, "a") as f:
         for row in rows:
             f.write(json.dumps(row) + "\n")
+
+    if args.summary_out:
+        Path(args.summary_out).write_text(json.dumps(rows))
 
     n_pass = sum(r["pass"] for r in rows)
     print(f"\n{n_pass}/{len(rows)} passed. Appended to {log_path}")

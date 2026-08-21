@@ -110,6 +110,32 @@ def main():
         )
 
     lines.append("")
+    lines.append("## Flaky tasks (mixed pass/fail across trials)")
+    lines.append("")
+    lines.append("A task run more than once (`--trials N`) under the identical")
+    lines.append("model/config/runner that comes back with SOME passes and some fails is")
+    lines.append("not \"probably fine\" — it's proof this one task's result isn't safe to")
+    lines.append("treat as a boolean for this model (adversarial review finding C5:")
+    lines.append("temperature=0 measurably does not make MLX/Metal generation")
+    lines.append("deterministic across runs). Tasks run only once never appear here —")
+    lines.append("that is NOT the same as confirmed-stable, just untested for flakiness.")
+    lines.append("")
+    task_groups = defaultdict(list)
+    for r in rows:
+        key = (r["model"], r["backend"], r.get("config_hash"), r.get("runner_git_sha"), r["suite"], r["task_id"])
+        task_groups[key].append(r)
+    flaky = {k: v for k, v in task_groups.items() if 0 < sum(1 for r in v if r.get("pass")) < len(v)}
+    if not flaky:
+        lines.append("None observed (or no task has been run with `--trials` > 1 yet).")
+    else:
+        lines.append("| model | backend | config | suite | task | pass/trials |")
+        lines.append("|---|---|---|---|---|---|")
+        for (model, backend, config_hash, runner_sha, suite, task_id), group in sorted(flaky.items()):
+            n = len(group)
+            n_pass = sum(1 for r in group if r.get("pass"))
+            lines.append(f"| {model} | {backend} | {config_hash or '—'} | {suite} | {task_id} | {n_pass}/{n} |")
+
+    lines.append("")
     lines.append("## By suite")
     lines.append("")
     lines.append("| model | backend | config | runner | suite | pass rate |")

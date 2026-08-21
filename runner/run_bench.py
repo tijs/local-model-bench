@@ -52,6 +52,7 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -104,13 +105,7 @@ def server_command(cfg):
     return text
 
 
-def last_n_rows(n):
-    log_path = REPO / "results" / "log.jsonl"
-    lines = log_path.read_text().splitlines()
-    return [json.loads(l) for l in lines[-n:]]
-
-
-def run_one(config_path: Path):
+def run_one(config_path: Path, trials: int = 1):
     cfg = yaml.safe_load(config_path.read_text())
     orch = cfg.get("orchestration")
     if not orch:
@@ -178,17 +173,37 @@ def run_one(config_path: Path):
 
     if viable in ("full", "sanity_and_hermes_ops_only", "sanity_only"):
         print("\n--- sanity (fail-fast gate) ---")
-        run([COCORE_PY, str(REPO / "runner" / "run_prompt_suite.py"),
-             "--suite", "sanity", "--base-url", base_url, "--model", model,
-             "--backend", backend, "--config", str(config_path)])
-        sanity_rows = last_n_rows(2)
-        basic = next((r for r in sanity_rows if r["task_id"] == "sanity-basic"), None)
-        if basic and not basic["pass"]:
+        with tempfile.TemporaryDirectory() as td:
+            summary_path = Path(td) / "sanity_summary.json"
+            proc = run([COCORE_PY, str(REPO / "runner" / "run_prompt_suite.py"),
+                        "--suite", "sanity", "--base-url", base_url, "--model", model,
+                        "--backend", backend, "--config", str(config_path),
+                        "--trials", str(trials), "--summary-out", str(summary_path)])
+            # Read THIS invocation's own rows, not "whatever's at the tail
+            # of the shared log" — a crashed/misconfigured subprocess used
+            # to leave last_n_rows(2) silently reading the PREVIOUS
+            # config's rows, which could pass a gate for a model that
+            # never actually answered a prompt (adversarial review finding
+            # H3). A missing/unparseable summary is treated the same as a
+            # sanity-basic failure: stop, don't guess.
+            if proc.returncode != 0 or not summary_path.exists():
+                print(f"\n!!! sanity suite subprocess failed (returncode={proc.returncode}) "
+                      f"— not viable. Stopping here.")
+                _leaderboard()
+                return
+            try:
+                sanity_rows = json.loads(summary_path.read_text())
+            except (json.JSONDecodeError, OSError) as e:
+                print(f"\n!!! could not read sanity summary ({e}) — not viable. Stopping here.")
+                _leaderboard()
+                return
+        basic_rows = [r for r in sanity_rows if r["task_id"] == "sanity-basic"]
+        if not basic_rows or not all(r["pass"] for r in basic_rows):
             print(f"\n!!! {model} FAILED sanity-basic — not viable. Stopping here.")
             _leaderboard()
             return
-        tool_row = next((r for r in sanity_rows if r["task_id"] == "sanity-tool"), None)
-        if viable == "sanity_only" or (tool_row and not tool_row["pass"]):
+        tool_rows = [r for r in sanity_rows if r["task_id"] == "sanity-tool"]
+        if viable == "sanity_only" or not tool_rows or not all(r["pass"] for r in tool_rows):
             print("\nsanity-tool failed (or this config is sanity_only) — skipping hermes_ops/coding.")
             _leaderboard()
             return
@@ -197,14 +212,16 @@ def run_one(config_path: Path):
         print("\n--- hermes_ops ---")
         run([COCORE_PY, str(REPO / "runner" / "run_prompt_suite.py"),
              "--suite", "hermes_ops", "--base-url", base_url, "--model", model,
-             "--backend", backend, "--config", str(config_path)])
+             "--backend", backend, "--config", str(config_path),
+             "--trials", str(trials)])
 
     if viable in ("full", "coding_only") and hermes_provider:
         print(f"\n--- coding spot-check ({CODING_SPOTCHECK_TASK}) ---")
         run([COCORE_PY, str(REPO / "runner" / "run_fixture_suite.py"),
              "--suite", CODING_SPOTCHECK_SUITE, "--only-task", CODING_SPOTCHECK_TASK,
              "--hermes-provider", hermes_provider, "--hermes-model", model,
-             "--backend", backend, "--config", str(config_path)])
+             "--backend", backend, "--config", str(config_path),
+             "--trials", str(trials)])
     elif viable in ("full", "coding_only"):
         print("\n(coding spot-check skipped — no hermes_provider registered for this config)")
 
@@ -229,16 +246,33 @@ def main():
     group = ap.add_mutually_exclusive_group(required=True)
     group.add_argument("--config", help="path to one configs/<model>/<backend>.yaml")
     group.add_argument("--all", action="store_true", help="run every configs/*/*.yaml in sequence")
+    ap.add_argument("--trials", type=int, default=1,
+                     help="run each task N times per config (default 1) — see "
+                          "run_fixture_suite.py's --trials help (adversarial review "
+                          "finding C5: single-trial temperature=0 results aren't reliably "
+                          "reproducible on MLX/Metal)")
     args = ap.parse_args()
 
     if args.all:
-        configs = sorted(REPO.glob("configs/*/*.yaml"))
+        # Only files with an orchestration: block are real benchmark
+        # configs — a stray non-config .yaml dropped into a model
+        # directory used to become a silent, unintended benchmark run
+        # (adversarial review finding L3).
+        candidates = sorted(REPO.glob("configs/*/*.yaml"))
+        configs = []
+        for c in candidates:
+            try:
+                loaded = yaml.safe_load(c.read_text())
+            except yaml.YAMLError:
+                continue
+            if isinstance(loaded, dict) and "orchestration" in loaded:
+                configs.append(c)
         print(f"Running {len(configs)} configs...")
         for i, config_path in enumerate(configs, 1):
             print(f"\n\n########## [{i}/{len(configs)}] {config_path} ##########")
-            run_one(config_path)
+            run_one(config_path, trials=args.trials)
     else:
-        run_one(Path(args.config))
+        run_one(Path(args.config), trials=args.trials)
 
 
 if __name__ == "__main__":

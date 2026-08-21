@@ -151,6 +151,12 @@ def main():
     ap.add_argument("--only-task", default=None, help="run just this one task id")
     ap.add_argument("--max-turns", type=int, default=40)
     ap.add_argument("--config", default=None, help="path to configs/<model>/<backend>.yaml used for this run")
+    ap.add_argument("--trials", type=int, default=1,
+                     help="run each task N times (default 1) — adversarial review "
+                          "finding C5: temperature=0 does NOT make MLX/Metal generation "
+                          "deterministic across runs (confirmed live: same model/config/"
+                          "task flipped pass<->fail across two runs), so a single trial "
+                          "is not enough to trust a pass/fail as the model's real behavior")
     args = ap.parse_args()
 
     task_file = REPO / "tasks" / f"{args.suite}.yaml"
@@ -159,21 +165,29 @@ def main():
 
     config_path = None
     config_hash = None
+    proxy_port = None
     if args.config:
         config_hash, config_path = snapshot_config(args.config)
         cfg = yaml.safe_load(Path(args.config).read_text())
         orch = cfg.get("orchestration") or {}
         if orch.get("needs_proxy"):
             proxy_port = orch.get("proxy_port", 8015)
-            print(f"Checking bench_local_proxy.py (port {proxy_port}) is idle "
-                  f"before starting (killed-task retry hazard, see AGENTS.md)...")
-            if not wait_for_proxy_idle(proxy_port):
-                sys.exit(
-                    f"proxy on port {proxy_port} still has an active/queued "
-                    f"request after 60s — a previous run may have been killed "
-                    f"without its in-flight request finishing. Check "
-                    f"/tmp/bench_proxy_{proxy_port}.log before retrying."
-                )
+
+    def ensure_proxy_idle():
+        # Checked before EVERY hermes invocation, not just once before the
+        # whole loop (that was the bug: a timeout on task N left an
+        # in-flight request that could still collide with task N+1 within
+        # the same invocation — the "killed-task retry hazard" wasn't
+        # actually fully closed by a single upfront check).
+        if not proxy_port:
+            return
+        if not wait_for_proxy_idle(proxy_port):
+            sys.exit(
+                f"proxy on port {proxy_port} still has an active/queued "
+                f"request after 60s — a previous run may have been killed "
+                f"without its in-flight request finishing. Check "
+                f"/tmp/bench_proxy_{proxy_port}.log before retrying."
+            )
 
     log_path = REPO / "results" / "log.jsonl"
     rows = []
@@ -193,60 +207,65 @@ def main():
     for task in spec["tasks"]:
         if args.only_task and task["id"] != args.only_task:
             continue
-        with tempfile.TemporaryDirectory(dir=str(runs_root)) as td:
-            run_dir = Path(td) / "run"
-            reset_fixture(args.suite, run_dir)
+        for trial in range(1, args.trials + 1):
+            ensure_proxy_idle()
+            with tempfile.TemporaryDirectory(dir=str(runs_root)) as td:
+                run_dir = Path(td) / "run"
+                reset_fixture(args.suite, run_dir)
 
-            stdout, stderr, rc, wall = run_hermes(
-                task["prompt"], run_dir, args.hermes_provider, args.hermes_model,
-                max_turns=args.max_turns, timeout=timeout,
-            )
+                stdout, stderr, rc, wall = run_hermes(
+                    task["prompt"], run_dir, args.hermes_provider, args.hermes_model,
+                    max_turns=args.max_turns, timeout=timeout,
+                )
 
-            # Full transcript, saved and committed (not just the last 500
-            # chars of grade_output) — discovered live 2026-08-20 that no
-            # coding-suite run had ever saved its actual transcript
-            # anywhere, which made a genuinely-suspicious result (Luna
-            # failing a task it should have handled easily) impossible to
-            # verify without a slow, manual live rerun. Every PASS/FAIL
-            # this session before this fix was judged on exit code + the
-            # final grade_output only, never the agent's actual behavior.
-            transcript_dir = REPO / "results" / "transcripts" / args.suite / task["id"]
-            transcript_dir.mkdir(parents=True, exist_ok=True)
-            model_slug = re.sub(r"[^A-Za-z0-9._-]+", "_", args.hermes_model)
-            transcript_path = transcript_dir / f"{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}_{model_slug}.log"
-            transcript_path.write_text(
-                f"$ hermes chat --profile bench --provider {args.hermes_provider} "
-                f"-m {args.hermes_model} --max-turns {args.max_turns}\n\n"
-                f"--- stdout ---\n{stdout}\n\n--- stderr ---\n{stderr}\n"
-            )
-            transcript_rel = str(transcript_path.relative_to(REPO))
+                # Full transcript, saved and committed (not just the last 500
+                # chars of grade_output) — discovered live 2026-08-20 that no
+                # coding-suite run had ever saved its actual transcript
+                # anywhere, which made a genuinely-suspicious result (Luna
+                # failing a task it should have handled easily) impossible to
+                # verify without a slow, manual live rerun. Every PASS/FAIL
+                # this session before this fix was judged on exit code + the
+                # final grade_output only, never the agent's actual behavior.
+                transcript_dir = REPO / "results" / "transcripts" / args.suite / task["id"]
+                transcript_dir.mkdir(parents=True, exist_ok=True)
+                model_slug = re.sub(r"[^A-Za-z0-9._-]+", "_", args.hermes_model)
+                trial_suffix = f"_trial{trial}" if args.trials > 1 else ""
+                transcript_path = transcript_dir / f"{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}_{model_slug}{trial_suffix}.log"
+                transcript_path.write_text(
+                    f"$ hermes chat --profile bench --provider {args.hermes_provider} "
+                    f"-m {args.hermes_model} --max-turns {args.max_turns}\n\n"
+                    f"--- stdout ---\n{stdout}\n\n--- stderr ---\n{stderr}\n"
+                )
+                transcript_rel = str(transcript_path.relative_to(REPO))
 
-            if rc == -1:
-                passed, grade_output = False, f"TIMEOUT after {timeout}s"
-            elif task["check"]["type"] == "mutation":
-                passed, grade_output = grade_mutation(task, run_dir)
-            else:
-                passed, grade_output = grade_command(args.suite, task, run_dir)
+                if rc == -1:
+                    passed, grade_output = False, f"TIMEOUT after {timeout}s"
+                elif task["check"]["type"] == "mutation":
+                    passed, grade_output = grade_mutation(task, run_dir)
+                else:
+                    passed, grade_output = grade_command(args.suite, task, run_dir)
 
-            row = {
-                "suite": args.suite,
-                "task_id": task["id"],
-                "task_type": task.get("type"),
-                "model": args.hermes_model,
-                "backend": args.backend,
-                "config_path": config_path,
-                "config_hash": config_hash,
-                "runner_git_sha": git_sha(),
-                "quant": args.quant,
-                "pass": passed,
-                "hermes_exit_code": rc,
-                "wall_seconds": round(wall, 1),
-                "grade_output": grade_output.strip()[-500:],
-                "transcript_path": transcript_rel,
-                "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            }
-            rows.append(row)
-            print(f"{task['id']}: {'PASS' if passed else 'FAIL'} ({wall:.0f}s)")
+                row = {
+                    "suite": args.suite,
+                    "task_id": task["id"],
+                    "task_type": task.get("type"),
+                    "model": args.hermes_model,
+                    "backend": args.backend,
+                    "config_path": config_path,
+                    "config_hash": config_hash,
+                    "runner_git_sha": git_sha(),
+                    "quant": args.quant,
+                    "trial": trial,
+                    "pass": passed,
+                    "hermes_exit_code": rc,
+                    "wall_seconds": round(wall, 1),
+                    "grade_output": grade_output.strip()[-500:],
+                    "transcript_path": transcript_rel,
+                    "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                }
+                rows.append(row)
+                trial_label = f" (trial {trial}/{args.trials})" if args.trials > 1 else ""
+                print(f"{task['id']}{trial_label}: {'PASS' if passed else 'FAIL'} ({wall:.0f}s)")
 
     with open(log_path, "a") as f:
         for row in rows:
