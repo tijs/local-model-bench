@@ -125,6 +125,15 @@ def grade(result, check):
             return True, ""
         return False, f"final_text {text!r} did not contain {check['text']!r}"
 
+    # `contains`/`regex` above are deliberately case-sensitive (an exact
+    # literal/pattern check shouldn't silently accept a differently-cased
+    # answer); `contains_any` below is deliberately NOT, since it exists
+    # for natural-language phrase matching where case carries no meaning.
+    # Flagged as an inconsistency in an adversarial review — noted here as
+    # intentional rather than "fixed" into uniformity, since no check in
+    # this repo currently uses `contains`/`regex` on non-numeric text where
+    # case sensitivity could matter (verify this still holds before adding
+    # one that does).
     if kind == "contains_any":
         text = normalize_punctuation(strip_reasoning(result.get("final_text", "")))
         forbidden = _forbidden_hit(text, check)
@@ -203,6 +212,16 @@ def grade(result, check):
             text = normalize_punctuation(strip_reasoning(result.get("final_text", "")))
             if check["response_contains"] not in text:
                 return False, f"tool was called correctly but final response {text!r} did not contain {check['response_contains']!r}"
+
+        if "response_matches" in check:
+            # Regex alternative to response_contains, for values a plain
+            # substring check can't safely verify (adversarial review
+            # finding L4): "18" as a bare substring matches "2018" or "180"
+            # just as well as the real answer. A task checking a specific
+            # number should use this with a boundary, e.g. r"(?<!\d)18(?!\d)".
+            text = normalize_punctuation(strip_reasoning(result.get("final_text", "")))
+            if not re.search(check["response_matches"], text):
+                return False, f"tool was called correctly but final response {text!r} did not match pattern {check['response_matches']!r}"
 
         return True, ""
 
