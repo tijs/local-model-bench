@@ -93,7 +93,7 @@ def guardrail_warning(tool_history, name, args_key, warned):
     return None
 
 
-def call_backend_streaming(base_url, model, messages, tools, temperature, timeout, api_key=None):
+def call_backend_streaming(base_url, model, messages, tools, temperature, timeout, max_tokens, api_key=None):
     """Streams the response so we can measure real time-to-first-token
     (TTFT) — separate from total wall time, since a big fixed system prompt
     mostly costs prefill time, not generation time. Reassembles the stream
@@ -106,7 +106,7 @@ def call_backend_streaming(base_url, model, messages, tools, temperature, timeou
         "model": model,
         "messages": messages,
         "temperature": temperature,
-        "max_tokens": 1024,
+        "max_tokens": max_tokens,
         "stream": True,
         "stream_options": {"include_usage": True},
     }
@@ -200,6 +200,12 @@ def main():
     ap.add_argument("--max-turns", type=int, default=6)
     ap.add_argument("--temperature", type=float, default=0)
     ap.add_argument("--timeout", type=float, default=120)
+    ap.add_argument("--max-tokens", type=int, default=4096,
+                     help="per-turn completion cap sent as the request's max_tokens "
+                          "(default 4096, matching the bench profile's own cap in "
+                          "~/.hermes/profiles/bench/config.yaml) — was hardcoded to 1024 "
+                          "until adversarial review finding M1, which silently truncated "
+                          "longer reasoning-mode responses before a real answer")
     ap.add_argument("--api-key-env", default=None,
                      help="name of an env var holding a Bearer token for hosted "
                           "APIs (e.g. OPENROUTER_API_KEY) — the value is read from "
@@ -237,7 +243,7 @@ def main():
         for turns in range(1, args.max_turns + 1):
             resp, turn_ttft = call_backend_streaming(
                 args.base_url, args.model, messages, tools, args.temperature, args.timeout,
-                api_key=api_key,
+                args.max_tokens, api_key=api_key,
             )
             if ttft_seconds is None:
                 ttft_seconds = turn_ttft
@@ -255,6 +261,21 @@ def main():
 
             tool_calls = msg.get("tool_calls") or []
             if not tool_calls:
+                if choice.get("finish_reason") == "length":
+                    # A response cut off mid-generation (hit max_tokens) is
+                    # NOT the model's real final answer — grading it as one
+                    # silently penalizes exactly the models this benchmark
+                    # deliberately runs in high-reasoning/thinking mode
+                    # (adversarial review finding M1): a longer reasoning
+                    # trace is more likely to hit the ceiling before
+                    # reaching a real answer. Surface it as a run error
+                    # instead of a graded (near-certainly wrong) response.
+                    error = (
+                        f"response truncated (finish_reason=length) before a final "
+                        f"answer — max_tokens={args.max_tokens} was likely too low for "
+                        f"this turn, not a real answer to grade"
+                    )
+                    break
                 final_text = msg.get("content") or ""
                 break
 

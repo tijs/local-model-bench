@@ -32,6 +32,16 @@ THINK_BLOCK = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
 # including the first lone closing tag too, or reasoning leaks into graded
 # output.
 LONE_CLOSE_THINK = re.compile(r"^.*?</think>", re.DOTALL | re.IGNORECASE)
+# An OPENED-but-never-closed think block (adversarial review finding M2) —
+# distinct from the lone-close case above. run_prompt.py now refuses to
+# treat a finish_reason=length response as a real answer at all (finding
+# M1), which prevents the specific failure mode the review demonstrated
+# (a truncated-mid-reasoning response with raw reasoning graded as the
+# answer) — but a model could in principle emit this shape for some other
+# reason, so strip defensively too: an unclosed <think> means everything
+# from that point on is an incomplete reasoning trace, not an answer, so
+# drop it rather than grade it.
+UNCLOSED_OPEN_THINK = re.compile(r"<think>.*$", re.DOTALL | re.IGNORECASE)
 
 
 def strip_reasoning(text):
@@ -39,6 +49,8 @@ def strip_reasoning(text):
     stripped = THINK_BLOCK.sub("", text)
     if stripped == text and "</think>" in text and "<think>" not in text:
         stripped = LONE_CLOSE_THINK.sub("", text)
+    elif "<think>" in stripped and "</think>" not in stripped:
+        stripped = UNCLOSED_OPEN_THINK.sub("", stripped)
     return stripped.strip()
 
 
