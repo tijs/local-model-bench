@@ -37,7 +37,12 @@ def git_sha():
     except (subprocess.CalledProcessError, FileNotFoundError):
         return "unknown"
     dirty = subprocess.run(
-        ["git", "status", "--porcelain", "--", "runner/", "tasks/", "checks/"],
+        # fixtures/ added after a second independent adversarial review
+        # (finding M-10): the fixture IS the graded artifact — an
+        # uncommitted edit to e.g. fixtures/kiem_mini/rust/src/lib.rs
+        # changes what the task actually is, and was invisible in
+        # runner_git_sha before this fix.
+        ["git", "status", "--porcelain", "--", "runner/", "tasks/", "checks/", "fixtures/"],
         cwd=REPO, capture_output=True, text=True,
     ).stdout.strip()
     return f"{sha}+dirty" if dirty else sha
