@@ -142,6 +142,20 @@ to pass against a correct fix, and every `test-writing` mutation check was
 verified against both a real test file (passes, kills all mutants) and a
 trivial one (correctly fails).
 
+**Caveat, corrected 2026-08-21 (3rd adversarial review, low finding):**
+"passes against a correct fix" is necessary but not sufficient — a THIRD
+independent adversarial review found two `feature` checks (hearth_mini's
+storehouse-affordability check, kipclip_mini's tag-filter check) that also
+passed against an INCORRECT fix (one ignoring `canAfford` for one resource,
+one matching tags by substring instead of exact equality), because no test
+case happened to distinguish correct from incorrect behavior on that
+specific dimension. Both were strengthened and re-verified against a
+deliberately-wrong implementation, not just a correct one. Spot-checking
+only the correct-fix direction leaves this exact class of gap; a check is
+only as strong as its weakest untested edge case, and "passes against
+correct" proves nothing about whether it "fails against incorrect" unless
+that's checked too.
+
 **Swift/Xcode note**: Xcode.app lives at `/Applications/Xcode.app` (moved
 there from `~/Applications/Xcode.app`, which was a stray install location —
 every other app on this machine is in the system-wide folder). The system
