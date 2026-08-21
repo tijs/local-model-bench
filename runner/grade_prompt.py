@@ -63,11 +63,25 @@ UNCLOSED_OPEN_THINK = re.compile(r"<think>.*$", re.DOTALL | re.IGNORECASE)
 
 
 def strip_reasoning(text):
+    """Applies each pattern independently in sequence, not as mutually
+    exclusive if/elif branches (a second independent adversarial review,
+    finding L-1, found two real leaks in the previous if/elif version):
+    a complete block followed by a STRAY extra closer
+    ("<think>a</think>x</think>42" left "x</think>42" — the closer-leak
+    check only ran when the FIRST sub() made no change at all, so it never
+    fired here even though a stray closer remained), and a closer
+    appearing BEFORE an (unrelated) later opener
+    ("</think> answer <think>more" — the lone-closer branch explicitly
+    required NO "<think>" anywhere in the text, so a later, unrelated
+    opener suppressed it entirely, leaking everything through unstripped).
+    Now: strip complete blocks, then strip a remaining leading lone-closer,
+    then strip a remaining trailing unclosed opener — each independently,
+    so any combination of the three shapes in one string is handled."""
     text = text or ""
     stripped = THINK_BLOCK.sub("", text)
-    if stripped == text and "</think>" in text and "<think>" not in text:
-        stripped = LONE_CLOSE_THINK.sub("", text)
-    elif "<think>" in stripped and "</think>" not in stripped:
+    if "</think>" in stripped and "<think>" not in stripped.split("</think>", 1)[0]:
+        stripped = LONE_CLOSE_THINK.sub("", stripped)
+    if "<think>" in stripped and "</think>" not in stripped.split("<think>", 1)[1]:
         stripped = UNCLOSED_OPEN_THINK.sub("", stripped)
     return stripped.strip()
 
