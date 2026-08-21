@@ -48,6 +48,7 @@ A `raw_port: null` config (api backend, no local server, e.g. Luna) skips
 steps 1-4 entirely.
 """
 import argparse
+import hashlib
 import json
 import os
 import shutil
@@ -109,12 +110,22 @@ def _base_repo_name(model_id):
     return model_id.split(":")[0]
 
 
-def assert_serving_expected_model(raw_port, expected_model):
+def assert_serving_expected_model(raw_port, expected_model, alias=None):
     """Confirm the server actually answering raw_port is serving the model
     THIS config expects, not a stale process left over from a previous
     config (adversarial review finding H2: wait_for_health only checks
     that *something* answers 200 — a leftover server on the same port
-    would pass that check while silently serving the wrong model)."""
+    would pass that check while silently serving the wrong model).
+
+    When *alias* is given (gguf configs — see server_command()), this
+    checks for an EXACT match against it instead of a repo-name substring
+    match. Confirmed live: llama-server's --alias fully replaces /v1/models'
+    "id" field with the given string. Needed because a repo-name substring
+    match can't distinguish a config from its own speculative-decoding
+    sibling (adversarial review finding H-5) — three pairs in this repo
+    share both a base repo id and raw_port (e.g. Qwen3.8-27B/gguf.yaml vs.
+    gguf-dflash2.yaml), so a stale sibling server answers with the
+    identical id and would silently pass a substring check."""
     url = f"http://127.0.0.1:{raw_port}/v1/models"
     try:
         with urllib.request.urlopen(url, timeout=5) as resp:
@@ -123,6 +134,13 @@ def assert_serving_expected_model(raw_port, expected_model):
         print(f"FAILED: could not verify served model via {url}: {e}")
         return False
     served_ids = [m.get("id", "") for m in data.get("data", [])]
+    if alias:
+        if alias in served_ids:
+            return True
+        print(f"FAILED: {url} is serving {served_ids!r}, expected exact alias {alias!r} "
+              f"— a stale sibling-config server (e.g. the plain vs. speculative-decoding "
+              f"variant) may still be bound to this port.")
+        return False
     expected = _base_repo_name(expected_model)
     if any(expected in sid or sid in expected for sid in served_ids if sid):
         return True
@@ -154,11 +172,21 @@ def assert_proxy_matches(proxy_port, expected_parser, expected_upstream):
     return False
 
 
-def server_command(cfg):
+def server_command(cfg, alias=None):
     """benchmark_launch_command sometimes documents a follow-up proxy step
     inline (as literal shell text, not a shell comment) — that's for a
     human reading the file, not something to execute as one blob. Only
-    take the lines up to the first mention of bench_local_proxy.py."""
+    take the lines up to the first mention of bench_local_proxy.py.
+
+    *alias*, when given, is appended as `--alias <alias>` on llama-server's
+    own command line (adversarial review finding H-5): three config pairs
+    in this repo share both a base HF repo id and raw_port (a plain config
+    and its speculative-decoding sibling, e.g. Qwen3.8-27B/gguf.yaml vs.
+    gguf-dflash2.yaml) — /v1/models reports the same `id` for both, so the
+    repo-name identity check couldn't tell a stale sibling server from the
+    one actually requested. llama-server (and both forked binaries used
+    for DFlash2/DSpark) support --alias; vllm-mlx (the MLX backend) does
+    not, so this only applies to gguf configs."""
     text = cfg["benchmark_launch_command"].strip()
     marker = "bench_local_proxy.py"
     if marker in text:
@@ -169,6 +197,8 @@ def server_command(cfg):
         comment_start = text.rfind("\n#", 0, idx)
         cut = comment_start if comment_start != -1 else prior_newline
         text = text[:cut].strip()
+    if alias and cfg.get("backend") == "gguf":
+        text += f" --alias {alias}"
     return text
 
 
@@ -180,6 +210,7 @@ def run_one(config_path: Path, trials: int = 1, coding_suites=None):
 
     model = cfg["model"]
     backend = cfg["backend"]
+    config_hash = hashlib.sha256(config_path.read_bytes()).hexdigest()[:12]
     viable = orch.get("viable", "full")
 
     print(f"\n{'=' * 70}\n{model} ({backend}) — {config_path}\nviable={viable}\n{'=' * 70}")
@@ -206,7 +237,8 @@ def run_one(config_path: Path, trials: int = 1, coding_suites=None):
         run(["bash", str(REPO / "runner" / "unload_all.sh")])
 
         print("\n--- launch candidate server ---")
-        cmd = server_command(cfg)
+        alias = f"bench-{config_hash}" if backend == "gguf" else None
+        cmd = server_command(cfg, alias=alias)
         log_file = f"/tmp/bench_{config_path.parent.name}_{config_path.stem}_server.log"
         print(f"(backgrounded, log: {log_file})")
         # The file object is closed right after Popen() returns (adversarial
@@ -223,7 +255,7 @@ def run_one(config_path: Path, trials: int = 1, coding_suites=None):
         if not wait_for_health(f"http://127.0.0.1:{raw_port}/v1/models", proc=server_proc):
             print(f"FAILED: backend never became healthy — check {log_file}")
             return
-        if not assert_serving_expected_model(raw_port, model):
+        if not assert_serving_expected_model(raw_port, model, alias=alias):
             print(f"FAILED: refusing to continue against the wrong model — check {log_file} "
                   f"and confirm no stale process survived unload_all.sh (e.g. `lsof -i :{raw_port}`).")
             return
