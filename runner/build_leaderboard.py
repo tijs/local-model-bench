@@ -17,12 +17,21 @@ def _fairness_fields(config_hash, config_path):
     this group — surfaced as their own columns so two configs that differ
     in these (not just quant) can't be silently read as an apples-to-apples
     comparison (adversarial review finding H7). Prefers the exact snapshot
-    (what was actually run) over the live file (which may have changed)."""
+    (what was actually run) over the live file (which may have changed) —
+    and, found by a second independent adversarial review (finding M-8):
+    when falling back to the live file, only trusts it if its CURRENT hash
+    still matches this row's config_hash. Confirmed live: without this
+    check, a synthetic row carrying an unrelated config_hash rendered
+    fairness values sourced entirely from today's live config content —
+    which is what every pre-snapshot row in this repo currently does."""
     if not config_hash:
         return "—", "—"
     snapshot = REPO / "results" / "configs" / f"{config_hash}.yaml"
-    src = snapshot if snapshot.exists() else (REPO / config_path if config_path else None)
-    if not src or not src.exists():
+    if snapshot.exists():
+        src = snapshot
+    elif config_path and _current_config_hash(config_path) == config_hash:
+        src = REPO / config_path
+    else:
         return "?", "?"
     try:
         cfg = yaml.safe_load(src.read_text()) or {}
