@@ -332,7 +332,16 @@ def grade(result, check):
             # just as well as the real answer. A task checking a specific
             # number should use this with a boundary, e.g. r"(?<!\d)18(?!\d)".
             text = normalize_punctuation(strip_reasoning(result.get("final_text", "")))
-            if not re.search(check["response_matches"], text):
+            # re.IGNORECASE added (3rd adversarial review, finding CR3-10):
+            # this was the only case-sensitive text-matching check kind in
+            # the file (contains/regex are deliberately case-sensitive for
+            # exact-literal checks; contains_any and expected_args_match
+            # already fold case) — confirmed live that a correct lowercase
+            # "18c" answer failed hermes_ops-selection's response_matches
+            # check purely on casing, the same fairness gap the
+            # smart-quote normalization elsewhere in this file exists to
+            # prevent.
+            if not re.search(check["response_matches"], text, re.IGNORECASE):
                 return False, f"tool was called correctly but final response {text!r} did not match pattern {check['response_matches']!r}"
 
         return True, ""
