@@ -15,6 +15,7 @@ Usage:
 """
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -29,7 +30,9 @@ import yaml
 
 from bench_common import REPO, git_sha, snapshot_config
 
-HERMES_BIN = Path.home() / ".hermes/hermes-agent/venv/bin/hermes"
+HERMES_BIN = Path(os.environ.get(
+    "BENCH_HERMES_BIN", str(Path.home() / ".hermes/hermes-agent/venv/bin/hermes")
+))  # override via env var instead of editing this file (adversarial review finding M8)
 
 
 def run_hermes(prompt, cwd, provider, model, max_turns, timeout):

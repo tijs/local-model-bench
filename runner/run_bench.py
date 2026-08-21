@@ -61,7 +61,14 @@ from pathlib import Path
 import yaml
 
 REPO = Path(__file__).resolve().parent.parent
-COCORE_PY = "/Users/tijs/.cocore/python/bin/python"
+COCORE_PY = os.environ.get("BENCH_PYTHON", "/Users/tijs/.cocore/python/bin/python")
+# Adversarial review finding M8: this path (and the same hardcoded default
+# in bench_local_proxy.py's shebang, start_bench_proxy.sh, and
+# run_fixture_suite.py's HERMES_BIN) is machine-specific to the original
+# author's setup. README.md always said "swap in your own", but doing that
+# used to mean editing four separate files by hand. Set BENCH_PYTHON (must
+# have PyYAML) in the environment instead — every constant here defaults to
+# the original value so nothing changes for an unset environment.
 CODING_SPOTCHECK_SUITE = "kiem_mini"
 CODING_SPOTCHECK_TASK = "kiem_mini-feature"
 

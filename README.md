@@ -20,8 +20,13 @@ every non-obvious gotcha discovered while running this are in
 - **A Python with PyYAML** for the orchestration/runner scripts
   (`pip install -r runner/requirements.txt`, or point at an existing env
   that has it — this repo's own commands use
-  `/Users/tijs/.cocore/python/bin/python`, a machine-specific path; swap
-  in your own).
+  `/Users/tijs/.cocore/python/bin/python`, a machine-specific path). Set
+  `export BENCH_PYTHON=/path/to/your/python` before running anything —
+  every runner script falls back to the hardcoded path only when this is
+  unset, so this one variable is enough (fixed 2026-08-21; used to require
+  editing four separate files by hand). Similarly, `export
+  BENCH_HERMES_BIN=/path/to/hermes` if your Hermes install isn't at
+  `~/.hermes/hermes-agent/venv/bin/hermes`.
 - **`llama.cpp`** (`brew install llama.cpp`) for the GGUF backend.
 - **`vllm-mlx`** (`pip install vllm-mlx`) for the MLX backend — needs
   **0.4.1 or newer** for native tool-call parsing to be available at all

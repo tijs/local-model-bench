@@ -1,4 +1,4 @@
-#!/Users/tijs/.cocore/python/bin/python
+#!/usr/bin/env python3
 """local-model-bench's own copy of the LFM2.5 textual-tool-call OpenAI-
 compatibility shim (forked from ~/.hermes/profiles/fitness/mara_local_proxy.py
 2026-08-19). Deliberately separate from that file, and NOT the fitness

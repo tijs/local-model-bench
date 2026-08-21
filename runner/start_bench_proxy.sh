@@ -27,7 +27,7 @@ sleep 1
 BENCH_PROXY_UPSTREAM="http://127.0.0.1:${UPSTREAM_PORT}" \
 BENCH_PROXY_PORT="${PROXY_PORT}" \
 BENCH_TOOL_PARSER="${PARSER}" \
-nohup /Users/tijs/.cocore/python/bin/python "${REPO_DIR}/runner/bench_local_proxy.py" \
+nohup "${BENCH_PYTHON:-/Users/tijs/.cocore/python/bin/python}" "${REPO_DIR}/runner/bench_local_proxy.py" \
   > "${LOG_FILE}" 2>&1 &
 disown
 
