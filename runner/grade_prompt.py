@@ -76,11 +76,27 @@ def strip_reasoning(text):
     opener suppressed it entirely, leaking everything through unstripped).
     Now: strip complete blocks, then strip a remaining leading lone-closer,
     then strip a remaining trailing unclosed opener — each independently,
-    so any combination of the three shapes in one string is handled."""
+    so any combination of the three shapes in one string is handled.
+
+    Two more gaps closed here (3rd adversarial review, low findings):
+    (1) LONE_CLOSE_THINK's `^.*?</think>` anchor only ever fires ONCE per
+    `.sub()` call (it can only match at the true start of the string), so
+    TWO stray closers after one complete block
+    ("<think>a</think>x</think>y</think>42") left "y</think>42" leaking
+    through — confirmed live. Now loops, stripping one leading stray
+    closer at a time until none remain. (2) Some models emit reasoning
+    delimiters as ◁think▷/◁/think▷ (U+25C1/U+25B7 glyphs) instead of angle
+    brackets — confirmed live that this passed through completely
+    unstripped. Normalized to the standard spelling up front so every
+    pattern below handles both without duplicating each regex."""
     text = text or ""
+    text = text.replace("◁think▷", "<think>").replace("◁/think▷", "</think>")
     stripped = THINK_BLOCK.sub("", text)
-    if "</think>" in stripped and "<think>" not in stripped.split("</think>", 1)[0]:
-        stripped = LONE_CLOSE_THINK.sub("", stripped)
+    while "</think>" in stripped and "<think>" not in stripped.split("</think>", 1)[0]:
+        new_stripped = LONE_CLOSE_THINK.sub("", stripped, count=1)
+        if new_stripped == stripped:
+            break
+        stripped = new_stripped
     if "<think>" in stripped and "</think>" not in stripped.split("<think>", 1)[1]:
         stripped = UNCLOSED_OPEN_THINK.sub("", stripped)
     return stripped.strip()
