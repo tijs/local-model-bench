@@ -179,6 +179,16 @@ _HARNESS_MANIFEST_FILES = (
     "package.json", "package-lock.json",
     "deno.json", "deno.lock",
     "Package.swift", "Package.resolved",
+    "tsconfig.json",
+    # ".gitignore" added 2026-08-21 (3rd adversarial review, finding
+    # CR3-5): restoring it undoes an agent editing it to HIDE a dangerous
+    # file (see _DANGEROUS_NEW_FILES below) from git's normal view. The
+    # dangerous-file sweep below no longer actually depends on this for
+    # correctness (it now walks the filesystem directly, gitignore or not)
+    # but restoring it is still the right thing to do — it's a harness file
+    # like any other manifest here, and leaving an agent's tampered version
+    # in place would be inconsistent with the rest of this list.
+    ".gitignore",
 )
 
 # Files that have no legitimate reason to be CREATED FRESH by an agent
@@ -199,6 +209,16 @@ _DANGEROUS_NEW_FILES = {
     ".cargo/config.toml", ".cargo/config",
     "build.rs",
     "vitest.config.ts", "vitest.config.js", "vitest.config.mjs",
+    "vitest.config.mts", "vitest.config.cts",
+    "vitest.workspace.ts", "vitest.workspace.js",
+    # "vite.config.*" added 2026-08-21 (3rd adversarial review, finding
+    # CR3-4): vite's own config file can redirect test collection exactly
+    # like vitest.config.* can (a project using Vitest via `vite.config.ts`
+    # + a `test:` block, rather than a separate vitest.config.ts, is a
+    # completely normal setup) — the old list only ever covered the
+    # vitest-specific filename, missing this equally-capable variant.
+    "vite.config.ts", "vite.config.js", "vite.config.mjs",
+    "vite.config.mts", "vite.config.cts",
     "deno.jsonc",
 }
 
@@ -253,11 +273,27 @@ def restore_harness_files(run_dir, check_dest=None):
     # Delete any brand-new dangerous file (see _DANGEROUS_NEW_FILES above)
     # that didn't exist at baseline — these have no "prior version" to
     # restore to, so checkout can't help; only removal does.
-    current = subprocess.run(
-        ["git", "ls-files"], cwd=run_dir, capture_output=True, text=True,
-    ).stdout.splitlines()
-    for p in current:
-        name = Path(p).name
+    #
+    # Walks the filesystem directly rather than `git ls-files` (3rd
+    # adversarial review, finding CR3-5): `git ls-files` only lists TRACKED
+    # files, and `git add -A` above silently skips anything matched by
+    # .gitignore — so an agent editing .gitignore to exclude its own
+    # vitest.config.ts (or any other _DANGEROUS_NEW_FILES entry) made that
+    # file invisible to the old sweep entirely, regardless of the
+    # .gitignore-restore fix above (this runs BEFORE that restore would
+    # even matter, and a fixture with no baseline .gitignore at all has
+    # nothing to restore to anyway). Confirmed live: a scratch repo with a
+    # baseline package.json, an agent-added .gitignore excluding
+    # vitest.config.ts, and a resulting vitest.config.ts survived the old
+    # `git ls-files`-based sweep untouched.
+    for full_path in run_dir.rglob("*"):
+        if not full_path.is_file():
+            continue
+        rel = full_path.relative_to(run_dir)
+        if rel.parts[0] == ".git":
+            continue
+        p = rel.as_posix()
+        name = full_path.name
         is_dangerous = name in _DANGEROUS_NEW_FILES or any(
             p == d or p.endswith("/" + d) for d in _DANGEROUS_NEW_FILES if "/" in d
         )
@@ -268,7 +304,7 @@ def restore_harness_files(run_dir, check_dest=None):
             cwd=run_dir, capture_output=True,
         ).returncode == 0
         if not at_baseline:
-            (run_dir / p).unlink(missing_ok=True)
+            full_path.unlink(missing_ok=True)
     return diff
 
 
