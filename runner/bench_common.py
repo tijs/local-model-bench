@@ -42,7 +42,19 @@ def git_sha():
         # uncommitted edit to e.g. fixtures/kiem_mini/rust/src/lib.rs
         # changes what the task actually is, and was invisible in
         # runner_git_sha before this fix.
-        ["git", "status", "--porcelain", "--", "runner/", "tasks/", "checks/", "fixtures/"],
+        #
+        # configs/ added after a third independent adversarial review
+        # (finding CR3-11): snapshot_config() only hashes the single .yaml
+        # passed via --config, but configs/<model>/ can contain SIBLING
+        # files that materially affect what's actually served and aren't
+        # captured by that hash — most consequential,
+        # configs/Qwen3.8-27B/chat_template.jinja, which is copied
+        # straight into the live HF cache on every MLX launch (see that
+        # config's own settings block) and passed directly via
+        # --chat-template-file for its GGUF siblings. Confirmed live: an
+        # uncommitted edit to that file was completely invisible in
+        # runner_git_sha before this fix.
+        ["git", "status", "--porcelain", "--", "runner/", "tasks/", "checks/", "fixtures/", "configs/"],
         cwd=REPO, capture_output=True, text=True,
     ).stdout.strip()
     return f"{sha}+dirty" if dirty else sha
