@@ -208,30 +208,38 @@ def main():
         )
 
     lines.append("")
-    lines.append("## Flaky tasks (mixed pass/fail across trials)")
+    lines.append("## Flaky tasks (mixed pass/fail under identical conditions)")
     lines.append("")
-    lines.append("A task run more than once (`--trials N`) under the identical")
-    lines.append("model/config/runner that comes back with SOME passes and some fails is")
-    lines.append("not \"probably fine\" — it's proof this one task's result isn't safe to")
-    lines.append("treat as a boolean for this model (adversarial review finding C5:")
-    lines.append("temperature=0 measurably does not make MLX/Metal generation")
-    lines.append("deterministic across runs). Tasks run only once never appear here —")
-    lines.append("that is NOT the same as confirmed-stable, just untested for flakiness.")
+    lines.append("Any task with the SAME (model, backend, quant, config_hash,")
+    lines.append("runner_git_sha, suite, task_id) that comes back with SOME passes and")
+    lines.append("some fails is not \"probably fine\" — it's proof this one task's result")
+    lines.append("isn't safe to treat as a boolean for this model (adversarial review")
+    lines.append("finding C5: temperature=0 measurably does not make MLX/Metal generation")
+    lines.append("deterministic across runs). This catches flakiness from an explicit")
+    lines.append("`--trials N` run AND from two separate invocations that happen to share")
+    lines.append("every one of those fields (found live: a real historical entry below")
+    lines.append("came from two independent runs, not --trials, which didn't exist yet).")
+    lines.append("Tasks run only once never appear here — that is NOT the same as")
+    lines.append("confirmed-stable, just untested for flakiness.")
     lines.append("")
+    # quant added to the key (adversarial review finding L-5) — the main
+    # table above groups on it too; omitting it here meant two genuinely
+    # different quants of the same model/config could be misread as one
+    # flaky result instead of two separate, single-quant ones.
     task_groups = defaultdict(list)
     for r in rows:
-        key = (r["model"], r["backend"], r.get("config_hash"), r.get("runner_git_sha"), r["suite"], r["task_id"])
+        key = (r["model"], r["backend"], r.get("quant"), r.get("config_hash"), r.get("runner_git_sha"), r["suite"], r["task_id"])
         task_groups[key].append(r)
     flaky = {k: v for k, v in task_groups.items() if 0 < sum(1 for r in v if r.get("pass")) < len(v)}
     if not flaky:
         lines.append("None observed (or no task has been run with `--trials` > 1 yet).")
     else:
-        lines.append("| model | backend | config | suite | task | pass/trials |")
-        lines.append("|---|---|---|---|---|---|")
-        for (model, backend, config_hash, runner_sha, suite, task_id), group in sorted(flaky.items()):
+        lines.append("| model | backend | quant | config | suite | task | pass/trials |")
+        lines.append("|---|---|---|---|---|---|---|")
+        for (model, backend, quant, config_hash, runner_sha, suite, task_id), group in sorted(flaky.items(), key=lambda kv: tuple(str(x) for x in kv[0])):
             n = len(group)
             n_pass = sum(1 for r in group if r.get("pass"))
-            lines.append(f"| {model} | {backend} | {config_hash or '—'} | {suite} | {task_id} | {n_pass}/{n} |")
+            lines.append(f"| {model} | {backend} | {quant or '—'} | {config_hash or '—'} | {suite} | {task_id} | {n_pass}/{n} |")
 
     lines.append("")
     lines.append("## By suite")

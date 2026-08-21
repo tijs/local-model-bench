@@ -101,19 +101,23 @@ not currently its own column since no other config sets this flag.
 | unsloth/Qwen3.8-27B-GGUF:UD-Q2_K_XL | gguf | UD-Q2_K_XL | ? | ? | [2233edb1c4f2](configs/Qwen3.8-27B/gguf-unsloth-ud-q2.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 5 | 100% | 6.3 | 55.08 | 0 |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q4_K_M | gguf | — | ? | ? | [89f4d8d04793](configs/Qwen3.8-27B/gguf-unsloth-ud-q4.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 5 | 100% | 6.4 | 55.57 | 0 |
 
-## Flaky tasks (mixed pass/fail across trials)
+## Flaky tasks (mixed pass/fail under identical conditions)
 
-A task run more than once (`--trials N`) under the identical
-model/config/runner that comes back with SOME passes and some fails is
-not "probably fine" — it's proof this one task's result isn't safe to
-treat as a boolean for this model (adversarial review finding C5:
-temperature=0 measurably does not make MLX/Metal generation
-deterministic across runs). Tasks run only once never appear here —
-that is NOT the same as confirmed-stable, just untested for flakiness.
+Any task with the SAME (model, backend, quant, config_hash,
+runner_git_sha, suite, task_id) that comes back with SOME passes and
+some fails is not "probably fine" — it's proof this one task's result
+isn't safe to treat as a boolean for this model (adversarial review
+finding C5: temperature=0 measurably does not make MLX/Metal generation
+deterministic across runs). This catches flakiness from an explicit
+`--trials N` run AND from two separate invocations that happen to share
+every one of those fields (found live: a real historical entry below
+came from two independent runs, not --trials, which didn't exist yet).
+Tasks run only once never appear here — that is NOT the same as
+confirmed-stable, just untested for flakiness.
 
-| model | backend | config | suite | task | pass/trials |
-|---|---|---|---|---|---|
-| mlx-community/Qwen3.8-27B-4bit | mlx | f894953f1f80 | hermes_ops | hermes_ops-selection | 1/2 |
+| model | backend | quant | config | suite | task | pass/trials |
+|---|---|---|---|---|---|---|
+| mlx-community/Qwen3.8-27B-4bit | mlx | — | f894953f1f80 | hermes_ops | hermes_ops-selection | 1/2 |
 
 ## By suite
 
