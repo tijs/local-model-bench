@@ -260,6 +260,30 @@ def grade(result, check):
             if matched is None:
                 return False, f"'{check['expected_tool']}' was called but never with (at least) arguments {expected_args} (saw: {[c['arguments'] for c in calls]})"
 
+        if "expected_args_match" in check:
+            # Per-argument regex assertions (adversarial review finding
+            # M-3): mock_tool_responses is keyed by TOOL NAME only, and
+            # `expected_args: {}` (falsy) skips argument checking entirely
+            # — so hermes_ops-selection, a task titled "Pick the right tool
+            # out of 41 available", never verified the model searched for
+            # anything relevant. A model calling web_search(query="best
+            # pizza") got the mocked Amsterdam-weather result back and
+            # passed as long as "18" appeared somewhere in its answer. This
+            # grades tool USE, not just tool SELECTION.
+            patterns = check["expected_args_match"]
+            matches = [
+                c for c in calls
+                if all(
+                    re.search(pattern, str(c["arguments"].get(k, "")), re.IGNORECASE)
+                    for k, pattern in patterns.items()
+                )
+            ]
+            if not matches:
+                return False, (
+                    f"'{check['expected_tool']}' was called but no call had arguments "
+                    f"matching {patterns} (saw: {[c['arguments'] for c in calls]})"
+                )
+
         if "response_contains" in check:
             text = normalize_punctuation(strip_reasoning(result.get("final_text", "")))
             if check["response_contains"] not in text:
