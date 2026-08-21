@@ -67,8 +67,13 @@ tasks:
 ```
 
 Graded via `runner/grade_mutation.sh <run-dir> <source_file> <test_command>
-<mutant...>` for `type: mutation` tasks — see that script for the exact
-semantics.
+<cwd> <mutant...>` for `type: mutation` tasks — see that script for the
+exact semantics. `<cwd>` (relative to run-dir, e.g. "rust" for a Cargo
+project living under run-dir/rust/) was added 2026-08-21 (1st adversarial
+review, finding H1); this doc previously still showed the old 4-argument
+form missing it, which would produce a confusing "test cwd not found"
+error for anyone invoking the script by hand per these docs (3rd
+adversarial review, finding CR3-16).
 
 ## Run lifecycle
 
