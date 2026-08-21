@@ -181,10 +181,20 @@ def main():
     for (model, backend, quant, config_hash, runner_sha), group in sorted(
         groups.items(), key=lambda kv: (kv[0][0], kv[0][1], kv[0][2] or "", kv[0][3] or "", kv[0][4] or "")
     ):
-        n = len(group)
-        n_pass = sum(1 for r in group if r.get("pass"))
-        pass_rate = f"{100 * n_pass / n:.0f}%"
-        tps_values = [r["tokens_per_second"] for r in group if r.get("tokens_per_second") is not None]
+        # harness_error rows excluded from n/n_pass (3rd adversarial
+        # review, finding CR3-6): a harness crash (npm ci network blip, a
+        # missing tools_file, etc.) is not a model failure — counting it in
+        # `n` deflated pass_rate for reasons unrelated to the model, and
+        # counting it as a "trial" polluted the flaky-task detection below
+        # too. Confirmed live: a synthetic 2-pass/1-harness-crash group
+        # showed 67% before this fix (should read 100%, 2/2 real trials).
+        # Surfaced separately in their own "Harness errors" section instead
+        # of being silently dropped.
+        scored = [r for r in group if not r.get("harness_error")]
+        n = len(scored)
+        n_pass = sum(1 for r in scored if r.get("pass"))
+        pass_rate = f"{100 * n_pass / n:.0f}%" if n else "n/a (all harness errors)"
+        tps_values = [r["tokens_per_second"] for r in scored if r.get("tokens_per_second") is not None]
         avg_tps = f"{mean(tps_values):.1f}" if tps_values else "—"
         # bench_local_proxy.py buffers the whole response into one SSE
         # chunk, so "ttft_seconds" for any proxied config structurally
@@ -193,12 +203,12 @@ def main():
         # mixed two different measurements (adversarial review finding
         # H6). Any row explicitly marked unmeasurable blanks the whole
         # group's cell instead.
-        if any(r.get("ttft_measurable") is False for r in group):
+        if any(r.get("ttft_measurable") is False for r in scored):
             avg_ttft = "n/a (proxied — not real TTFT)"
         else:
-            ttft_values = [r["ttft_seconds"] for r in group if r.get("ttft_seconds") is not None]
+            ttft_values = [r["ttft_seconds"] for r in scored if r.get("ttft_seconds") is not None]
             avg_ttft = f"{mean(ttft_values):.2f}" if ttft_values else "—"
-        n_hallucinated = sum(1 for r in group if r.get("grade_output", "").startswith("FAIL: model called tool"))
+        n_hallucinated = sum(1 for r in scored if r.get("grade_output", "").startswith("FAIL: model called tool"))
         config_path = next((r.get("config_path") for r in group if r.get("config_path")), None)
         config_label = _config_label(config_hash, config_path)
         temp, reasoning_mode = _fairness_fields(config_hash, config_path)
@@ -226,8 +236,17 @@ def main():
     # table above groups on it too; omitting it here meant two genuinely
     # different quants of the same model/config could be misread as one
     # flaky result instead of two separate, single-quant ones.
+    # harness_error rows excluded up front (3rd adversarial review, finding
+    # CR3-6): a harness crash mixed in with real passes used to get
+    # flagged as MODEL flakiness (a task showing 2/3 when it's really a
+    # clean 2/2 plus one unrelated npm-ci network blip) — this section is
+    # specifically about non-determinism in the model's own behavior, not
+    # infrastructure hiccups, so those rows are dropped before grouping
+    # rather than counted as a trial either way.
     task_groups = defaultdict(list)
     for r in rows:
+        if r.get("harness_error"):
+            continue
         key = (r["model"], r["backend"], r.get("quant"), r.get("config_hash"), r.get("runner_git_sha"), r["suite"], r["task_id"])
         task_groups[key].append(r)
     flaky = {k: v for k, v in task_groups.items() if 0 < sum(1 for r in v if r.get("pass")) < len(v)}
@@ -248,6 +267,8 @@ def main():
     lines.append("|---|---|---|---|---|---|")
     suite_groups = defaultdict(list)
     for r in rows:
+        if r.get("harness_error"):  # CR3-6: same exclusion as the main table
+            continue
         key = (r["model"], r["backend"], r.get("config_hash"), r.get("runner_git_sha"), r["suite"])
         suite_groups[key].append(r)
     for (model, backend, config_hash, runner_sha, suite), group in sorted(
@@ -257,6 +278,27 @@ def main():
         n_pass = sum(1 for r in group if r.get("pass"))
         runner_label = runner_sha or "*(predates tracking)*"
         lines.append(f"| {model} | {backend} | {config_hash or '—'} | {runner_label} | {suite} | {n_pass}/{n} |")
+
+    harness_error_rows = [r for r in rows if r.get("harness_error")]
+    lines.append("")
+    lines.append("## Harness errors (excluded from every table above)")
+    lines.append("")
+    if not harness_error_rows:
+        lines.append("None observed.")
+    else:
+        lines.append(
+            f"{len(harness_error_rows)} row(s) where the harness itself crashed "
+            "(e.g. a network blip during `npm ci`, a malformed task spec) rather "
+            "than the model producing a graded result — added 2026-08-21 (3rd "
+            "adversarial review, finding CR3-6) so these are visible instead of "
+            "silently deflating pass rates or masquerading as model flakiness."
+        )
+        lines.append("")
+        lines.append("| model | backend | suite | task | grade_output (truncated) |")
+        lines.append("|---|---|---|---|---|")
+        for r in sorted(harness_error_rows, key=lambda r: (r["model"], r["backend"], r["suite"], r["task_id"])):
+            snippet = r.get("grade_output", "")[:120].replace("|", "\\|").replace("\n", " ")
+            lines.append(f"| {r['model']} | {r['backend']} | {r['suite']} | {r['task_id']} | {snippet} |")
 
     Path(REPO / "results" / "LEADERBOARD.md").write_text("\n".join(lines) + "\n")
     print(f"Wrote results/LEADERBOARD.md from {len(rows)} rows.")

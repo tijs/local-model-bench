@@ -348,12 +348,18 @@ def run_one(config_path: Path, trials: int = 1, coding_suites=None):
                 print(f"\n!!! could not read sanity summary ({e}) — not viable. Stopping here.")
                 _leaderboard()
                 return
-        basic_rows = [r for r in sanity_rows if r["task_id"] == "sanity-basic"]
+        # harness_error rows excluded here (3rd adversarial review, finding
+        # CR3-6): a harness crash (e.g. an npm ci network blip) is not
+        # evidence about the MODEL at all, but before this fix it was
+        # indistinguishable from a genuine failed trial to _majority_pass —
+        # a flaky CI-adjacent hiccup could flip a viable model's gate to
+        # "not viable" for a reason that has nothing to do with it.
+        basic_rows = [r for r in sanity_rows if r["task_id"] == "sanity-basic" and not r.get("harness_error")]
         if not basic_rows or not _majority_pass(basic_rows):
             print(f"\n!!! {model} FAILED sanity-basic — not viable. Stopping here.")
             _leaderboard()
             return
-        tool_rows = [r for r in sanity_rows if r["task_id"] == "sanity-tool"]
+        tool_rows = [r for r in sanity_rows if r["task_id"] == "sanity-tool" and not r.get("harness_error")]
         if viable == "sanity_only" or not tool_rows or not _majority_pass(tool_rows):
             print("\nsanity-tool failed (or this config is sanity_only) — skipping hermes_ops/coding.")
             _leaderboard()

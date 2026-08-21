@@ -479,6 +479,7 @@ def main():
                 run_dir = Path(td) / "run"
                 task_start = time.time()
                 transcript_rel = None
+                harness_error = False
                 try:
                     reset_fixture(args.suite, run_dir)
 
@@ -530,6 +531,7 @@ def main():
                     # on to the next one instead.
                     passed, grade_output = False, f"HARNESS ERROR: {type(exc).__name__}: {exc}"
                     rc, wall = -2, time.time() - task_start
+                    harness_error = True
 
                 row = {
                     "suite": args.suite,
@@ -543,6 +545,16 @@ def main():
                     "quant": args.quant,
                     "trial": trial,
                     "pass": passed,
+                    # Set only in the `except` branch above (3rd adversarial
+                    # review, finding CR3-6): this field was written by
+                    # run_prompt_suite.py's own H-3 fix but nothing here
+                    # produced the equivalent, so a fixture-suite harness
+                    # crash (e.g. `npm ci` hitting a network blip) was
+                    # indistinguishable from a genuine model failure to
+                    # every downstream consumer (_majority_pass's sanity
+                    # gate, build_leaderboard.py's pass-rate/flaky-task
+                    # logic) — all of which now check this field.
+                    "harness_error": harness_error,
                     "hermes_exit_code": rc,
                     "wall_seconds": round(wall, 1),
                     "grade_output": grade_output.strip()[-500:],
