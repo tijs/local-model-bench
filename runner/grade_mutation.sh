@@ -34,6 +34,21 @@ if [ ${#mutants[@]} -eq 0 ]; then
   exit 2
 fi
 
+# Fail up front if any mutant path doesn't exist (third independent
+# adversarial review, finding CR3-1's companion guard) — same category as
+# H4's fix for overlay_check_files's missing-checks-dir case, never
+# extended to mutants until now. Without this, a typo'd/renamed/deleted
+# mutant path would make the `cp "$mutant" "$full_source"` inside the loop
+# below fail silently (set -uo pipefail does not catch a failed `cp`), and
+# — combined with the backup bug this commit also fixes — the PREVIOUS
+# iteration's leftover file would be tested instead, with no visible error.
+for m in "${mutants[@]}"; do
+  if [ ! -f "$m" ]; then
+    echo "grade_mutation: mutant file not found: $m" >&2
+    exit 2
+  fi
+done
+
 full_source="$run_dir/$source_file"
 if [ ! -f "$full_source" ]; then
   echo "grade_mutation: source file not found: $full_source" >&2
@@ -46,6 +61,19 @@ if [ ! -d "$full_test_cwd" ]; then
 fi
 
 backup=$(mktemp)
+# CRITICAL BUG, found by a third independent adversarial review
+# (finding CR3-1): the round-2 L-3+L-4 commit rewrote this block and
+# dropped the line that actually backs up the source file — `backup` was
+# left as an empty mktemp file with nothing ever copied into it. Every
+# `cp "$backup" "$full_source"` below (after each mutant, and in the EXIT
+# trap) was overwriting the real implementation with an EMPTY file.
+# Confirmed live: after a clean run, the source file was left 0 bytes.
+# The per-mutant verdicts themselves were usually still correct (each
+# mutant's own content overwrites whatever was there before it runs), but
+# a missing/unreadable mutant path (now guarded above) would have tested
+# the previous iteration's emptied file instead of failing loudly, and the
+# source file was corrupted in the run dir regardless of outcome.
+cp "$full_source" "$backup"
 # Per-process-unique log paths (adversarial review finding L-4) — the
 # previous fixed /tmp/grade_mutation_{baseline,mutant}.log names would
 # collide if two grading runs ever overlapped (e.g. --trials running
