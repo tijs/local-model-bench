@@ -646,6 +646,19 @@ class Handler(BaseHTTPRequestHandler):
             {**chunk_base, "choices": [{"index": 0, "delta": delta, "finish_reason": None}]},
             {**chunk_base, "choices": [{"index": 0, "delta": {}, "finish_reason": choice.get("finish_reason", "stop")}]},
         ]
+        if data.get("usage"):
+            # The proxy has the upstream's REAL usage in hand (non-streaming
+            # request under the hood, always includes it) but never sent it
+            # to the client — run_prompt.py then fell back to its ~4-chars-
+            # per-token estimate for every proxied config, and that estimate
+            # got averaged into the leaderboard's "avg tok/s" column
+            # alongside genuinely measured numbers from non-proxied configs
+            # with no distinction (adversarial review finding H-7 — H6 fixed
+            # the identical problem for TTFT and missed this one). A
+            # {"usage": ..., "choices": []} chunk is read correctly by
+            # run_prompt.py's existing parser (it captures `usage` from any
+            # chunk before checking whether `choices` is non-empty).
+            chunks.append({**chunk_base, "usage": data["usage"], "choices": []})
         payload = b"".join(
             b"data: " + json.dumps(chunk, ensure_ascii=False).encode() + b"\n\n"
             for chunk in chunks
