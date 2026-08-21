@@ -12,6 +12,7 @@ Usage:
 """
 import argparse
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -116,6 +117,25 @@ def main():
                 run = subprocess.run(cmd, capture_output=True, text=True)
                 result_path.write_text(run.stdout)
 
+                # Full result (messages, tool_calls, final_text — everything
+                # run_prompt.py actually produced) persisted durably, not
+                # just inside the TemporaryDirectory that's deleted when
+                # this `with` block exits — found by a second independent
+                # adversarial review (finding H-4): the coding suite got
+                # durable transcripts on 2026-08-20 specifically because an
+                # un-investigable result was too costly to leave unverified;
+                # the prompt suites (sanity/hermes_ops) never got the same
+                # treatment, so none of this session's FOUR grading-logic
+                # changes (C2, M4, L4, L5) could ever be checked against
+                # what a model actually said — the answers were already gone.
+                result_dir = REPO / "results" / "prompt_results" / args.suite / task["id"]
+                result_dir.mkdir(parents=True, exist_ok=True)
+                model_slug = re.sub(r"[^A-Za-z0-9._-]+", "_", args.model)
+                trial_suffix = f"_trial{trial}" if args.trials > 1 else ""
+                durable_result_path = result_dir / f"{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}_{model_slug}{trial_suffix}.json"
+                durable_result_path.write_text(run.stdout or "{}")
+                result_path_rel = str(durable_result_path.relative_to(REPO))
+
                 # run_prompt.py crashing uncaught (e.g. a read timeout that
                 # wasn't a caught exception type — see run_prompt.py's own
                 # fix for this, finding M3) used to leave stdout empty;
@@ -167,6 +187,7 @@ def main():
                     "config_path": config_path,
                     "config_hash": config_hash,
                     "harness_error": harness_crashed,
+                    "result_path": result_path_rel,
                     "runner_git_sha": git_sha(),
                     "trial": trial,
                     "pass": passed,
