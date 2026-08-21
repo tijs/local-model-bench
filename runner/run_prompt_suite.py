@@ -56,9 +56,17 @@ def main():
     config_path = config_hash = None
     system_prompt_suffix = None
     api_key_env = None
+    ttft_measurable = True
     if args.config:
         config_hash, config_path = snapshot_config(args.config)
         config_yaml = yaml.safe_load(Path(args.config).read_text())
+        # bench_local_proxy.py buffers the whole upstream response into ONE
+        # SSE chunk (see its _send_stream()), so for any proxied config
+        # "ttft_seconds" structurally equals total generation time, not a
+        # real time-to-first-token — confirmed live (adversarial review
+        # finding H6). Flagged in the log row rather than left to look like
+        # every other model's real TTFT in the same leaderboard column.
+        ttft_measurable = not (config_yaml.get("orchestration") or {}).get("needs_proxy")
         # A model-specific operating instruction the model needs to run as
         # intended (e.g. Muse-Glimmer's "Reasoning strength: high" toggle) —
         # NOT a way to hint at task content. This appends to the suite's
@@ -145,6 +153,8 @@ def main():
                     "wall_seconds": parsed.get("wall_seconds"),
                     "total_cost_usd": parsed.get("total_cost_usd"),
                     "run_error": parsed.get("error"),
+                    "usage_estimated": parsed.get("usage_estimated", False),
+                    "ttft_measurable": ttft_measurable,
                     "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                 }
                 rows.append(row)

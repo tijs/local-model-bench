@@ -88,6 +88,17 @@ def main():
         "flagged \"config since changed\" for rows predating that snapshot.",
         "`runner_git_sha` rows marked `+dirty` were graded by uncommitted code.",
         "",
+        "**`avg tok/s` caveat** (adversarial review finding H6, not fully closed):",
+        "this is `completion_tokens / wall_seconds` across the ENTIRE multi-turn",
+        "loop, including every prefill of the suite's system prompt — it's a",
+        "prefill-dominated-workload throughput number, not a pure decode rate, and",
+        "it's averaged across `sanity` (tiny prompt) and `hermes_ops` (large,",
+        "repeated system prompt) rows in one cell. Treat it as a rough signal,",
+        "not a precise generation-speed comparison; a real prefill/decode split",
+        "is a follow-up, not yet implemented. `avg TTFT` is blanked instead of",
+        "silently mislabeled for proxied configs (see below), but is still a",
+        "single combined average across suites where it IS real.",
+        "",
         "| model | backend | quant | config | runner | tasks | pass rate | avg tok/s | avg TTFT (s) | hallucinated tools |",
         "|---|---|---|---|---|---|---|---|---|---|",
     ]
@@ -99,8 +110,18 @@ def main():
         pass_rate = f"{100 * n_pass / n:.0f}%"
         tps_values = [r["tokens_per_second"] for r in group if r.get("tokens_per_second") is not None]
         avg_tps = f"{mean(tps_values):.1f}" if tps_values else "—"
-        ttft_values = [r["ttft_seconds"] for r in group if r.get("ttft_seconds") is not None]
-        avg_ttft = f"{mean(ttft_values):.2f}" if ttft_values else "—"
+        # bench_local_proxy.py buffers the whole response into one SSE
+        # chunk, so "ttft_seconds" for any proxied config structurally
+        # equals total generation time, not real time-to-first-token —
+        # showing it in the same column as genuine TTFT numbers silently
+        # mixed two different measurements (adversarial review finding
+        # H6). Any row explicitly marked unmeasurable blanks the whole
+        # group's cell instead.
+        if any(r.get("ttft_measurable") is False for r in group):
+            avg_ttft = "n/a (proxied — not real TTFT)"
+        else:
+            ttft_values = [r["ttft_seconds"] for r in group if r.get("ttft_seconds") is not None]
+            avg_ttft = f"{mean(ttft_values):.2f}" if ttft_values else "—"
         n_hallucinated = sum(1 for r in group if r.get("grade_output", "").startswith("FAIL: model called tool"))
         config_path = next((r.get("config_path") for r in group if r.get("config_path")), None)
         config_label = _config_label(config_hash, config_path)

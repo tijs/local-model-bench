@@ -13,6 +13,17 @@ live (possibly since-edited) config file — see `config_hash` values
 flagged "config since changed" for rows predating that snapshot.
 `runner_git_sha` rows marked `+dirty` were graded by uncommitted code.
 
+**`avg tok/s` caveat** (adversarial review finding H6, not fully closed):
+this is `completion_tokens / wall_seconds` across the ENTIRE multi-turn
+loop, including every prefill of the suite's system prompt — it's a
+prefill-dominated-workload throughput number, not a pure decode rate, and
+it's averaged across `sanity` (tiny prompt) and `hermes_ops` (large,
+repeated system prompt) rows in one cell. Treat it as a rough signal,
+not a precise generation-speed comparison; a real prefill/decode split
+is a follow-up, not yet implemented. `avg TTFT` is blanked instead of
+silently mislabeled for proxied configs (see below), but is still a
+single combined average across suites where it IS real.
+
 | model | backend | quant | config | runner | tasks | pass rate | avg tok/s | avg TTFT (s) | hallucinated tools |
 |---|---|---|---|---|---|---|---|---|---|
 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | gguf | — | [011816a7d0df](configs/LiquidAI-LFM2.5-2.6B/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) | *(predates tracking)* | 1 | 100% | — | — | 0 |
