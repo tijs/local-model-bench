@@ -46,24 +46,30 @@ if [ ! -d "$full_test_cwd" ]; then
 fi
 
 backup=$(mktemp)
-cp "$full_source" "$backup"
-cleanup() { cp "$backup" "$full_source"; rm -f "$backup"; }
+# Per-process-unique log paths (adversarial review finding L-4) — the
+# previous fixed /tmp/grade_mutation_{baseline,mutant}.log names would
+# collide if two grading runs ever overlapped (e.g. --trials running
+# concurrently, or two configs' mutation tasks racing).
+baseline_log=$(mktemp)
+mutant_log=$(mktemp)
+cleanup() { cp "$backup" "$full_source"; rm -f "$backup" "$baseline_log" "$mutant_log"; }
 trap cleanup EXIT
 
 echo "== baseline (correct implementation) =="
-if ! (cd "$full_test_cwd" && eval "$test_command") > /tmp/grade_mutation_baseline.log 2>&1; then
+if ! (cd "$full_test_cwd" && eval "$test_command") > "$baseline_log" 2>&1; then
   echo "FAIL: agent's tests do not pass against the correct implementation"
-  tail -20 /tmp/grade_mutation_baseline.log
+  tail -20 "$baseline_log"
   exit 1
 fi
 echo "  passed"
 
 killed=0
 survived=0
+suspect_mutants=()
 for mutant in "${mutants[@]}"; do
   cp "$mutant" "$full_source"
   echo "== mutant: $(basename "$mutant") =="
-  if (cd "$full_test_cwd" && eval "$test_command") > /tmp/grade_mutation_mutant.log 2>&1; then
+  if (cd "$full_test_cwd" && eval "$test_command") > "$mutant_log" 2>&1; then
     echo "  SURVIVED (agent's tests did not catch this bug)"
     survived=$((survived + 1))
   else
@@ -75,11 +81,12 @@ for mutant in "${mutants[@]}"; do
     # something that looks like these patterns too): flag it loudly if the
     # log shows compiler-error markers with no sign the test runner itself
     # ever started, rather than silently trusting every nonzero exit.
-    if grep -qE 'error\[E[0-9]+\]|error TS[0-9]+|SyntaxError' /tmp/grade_mutation_mutant.log \
-       && ! grep -qE 'test result:|Test Files|running [0-9]+ test' /tmp/grade_mutation_mutant.log; then
+    if grep -qE 'error\[E[0-9]+\]|error TS[0-9]+|SyntaxError' "$mutant_log" \
+       && ! grep -qE 'test result:|Test Files|running [0-9]+ test' "$mutant_log"; then
       echo "  killed — ⚠ WARNING: log looks like a COMPILE failure, not a test"
       echo "    catching the bug — this mutant may be invalid rather than genuinely"
-      echo "    killed by the agent's tests. Check /tmp/grade_mutation_mutant.log."
+      echo "    killed by the agent's tests. Check $mutant_log."
+      suspect_mutants+=("$(basename "$mutant")")
     else
       echo "  killed"
     fi
@@ -89,6 +96,17 @@ for mutant in "${mutants[@]}"; do
 done
 
 echo "== result: $killed/${#mutants[@]} mutants killed =="
+# Compile-failure warnings restated here, at the very end (adversarial
+# review finding L-3) — the per-mutant warning above can end up far
+# earlier in the output than the caller's final truncation window (this
+# script's own caller slices to the last 2000 chars, and THAT gets sliced
+# again to the last 500 for the log row) — with enough mutants or verbose
+# test output, an early mutant's warning could be pushed out entirely
+# before ever reaching the log. A short summary at the very end survives
+# any reasonable truncation, since truncation always keeps the tail.
+if [ ${#suspect_mutants[@]} -gt 0 ]; then
+  echo "⚠ COMPILE-FAILURE SUSPECTED (not necessarily a genuine test-catch) for: ${suspect_mutants[*]}"
+fi
 if [ "$survived" -eq 0 ]; then
   echo "PASS"
   exit 0
