@@ -151,6 +151,21 @@ def call_backend_streaming(base_url, model, messages, tools, temperature, timeou
             if delta.get("content"):
                 content_parts.append(delta["content"])
             for tc_delta in delta.get("tool_calls") or []:
+                # Flagged by a 3rd adversarial review (low finding): if a
+                # backend ever streamed TWO parallel tool calls without an
+                # "index" field on either delta, both would collapse into
+                # tool_calls_acc[0] and their names/arguments would
+                # concatenate into one garbled call. Accepted as a known
+                # limitation rather than patched: "index" is part of
+                # OpenAI's streaming tool_calls delta spec and every
+                # backend actually configured in this repo
+                # (llama-server/vllm-mlx, proxied or not) includes it —
+                # confirmed by inspecting live streamed responses during
+                # this session, no index-less parallel-call case observed.
+                # A backend that genuinely omits it would ALSO be giving
+                # this code no way to tell two calls apart after the fact,
+                # so there's no purely-code fix that recovers information
+                # the stream never sent.
                 idx = tc_delta.get("index", 0)
                 if idx not in tool_calls_acc:
                     tool_calls_acc[idx] = {"id": tc_delta.get("id"), "type": "function", "function": {"name": "", "arguments": ""}}
@@ -316,7 +331,17 @@ def main():
                 messages.append(
                     {
                         "role": "tool",
-                        "tool_call_id": tc.get("id", fn["name"]),
+                        # `tc.get("id", fn["name"])` (3rd adversarial
+                        # review, low finding): tool_calls_acc's streaming
+                        # accumulation always sets the "id" KEY, even when
+                        # no chunk ever carried a real id (it defaults to
+                        # None at index-creation time and is only
+                        # overwritten if a later delta has a truthy one) —
+                        # so the key was never actually MISSING, just None,
+                        # and dict.get's default only fires on a missing
+                        # key, not a None value. `or` falls back correctly
+                        # on both.
+                        "tool_call_id": tc.get("id") or fn["name"],
                         "content": result_text,
                     }
                 )
