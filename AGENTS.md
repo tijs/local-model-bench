@@ -337,14 +337,30 @@ fought and respawned):
   pre-installed; version pinned in `runner/requirements.txt`
   (`pip install -r runner/requirements.txt` into any other interpreter if
   cocore's python ever goes away).
-- **Every logged result** carries `config_path` + `config_hash` (a sha256
-  prefix of the exact config file content at run time) — so even if a
-  `configs/<model>/*.yaml` file is edited later, historical `results/
-  log.jsonl` rows stay traceable to exactly what settings produced them.
+- **Every logged result** carries `config_path`, `config_hash` (a sha256
+  prefix of the exact config content at run time), and `runner_git_sha`
+  (the harness's own git sha, `+dirty` if graded by uncommitted code).
+  **Fixed 2026-08-21** (adversarial review, finding C3): `config_hash`
+  alone did NOT make a row traceable — every config gets edited after
+  being run, so the hash in an old row stopped matching the live file, and
+  the leaderboard linked to settings that no longer existed. `runner/
+  bench_common.py`'s `snapshot_config()` now saves a verbatim copy of the
+  exact config content to `results/configs/<hash>.yaml` on every run (not
+  just the hash), and the leaderboard links there instead; rows from
+  before this fix are flagged "unsnapshotted, predates 2026-08-21 fix" and
+  "config since changed" rather than silently presented as trustworthy.
+  Similarly, `runner_git_sha` joined the leaderboard's grouping key
+  (finding C4) — the max_turns=6 bug, the mock-wording leak, the
+  stale-cache bug, and other runner/grading fixes all changed the
+  *meaning* of a result without changing any config, so pre-fix and
+  post-fix runs used to get silently averaged into the same leaderboard
+  cell purely because they shared a config_hash.
 - Hermes routes to whichever is live via a dedicated `custom_providers: bench`
   entry in `~/.hermes/config.yaml`, toggled for the duration of a run and
-  restored after. **Unloading/swapping backends is not yet validated live —
-  do this supervised on the first real run before trusting it unattended.**
+  restored after. Validated end-to-end live 2026-08-20 (see commit
+  `c716b3a`): `run_bench.py`'s full unload → launch → health-check →
+  sanity → hermes_ops → coding spot-check → leaderboard sequence ran
+  unattended and matched historical data exactly.
 - Hugging Face auth is configured for higher-rate model downloads (both this
   session and any hermes-spawned agent session): token in
   `~/.cache/huggingface/token` and `HF_TOKEN` exported in `~/.zshrc`.
@@ -358,22 +374,27 @@ fought and respawned):
   this next time there's room for a new backend, not a blocker for
   filling out the current model list.
 
-## Killed-task retry hazard (found live 2026-08-20)
+## Killed-task retry hazard (found live 2026-08-20, auto-fixed 2026-08-21)
 
 If a `run_fixture_suite.py` invocation gets killed (e.g. a backgrounded
-shell task terminated externally), **do not immediately relaunch the same
-task** — killing the client process does not cancel its already-in-flight
-request server-side (`bench_local_proxy.py`'s queue has no way to abort an
-in-progress `urllib` call). That orphaned request keeps generating and can
-collide with the retry's first request: the retry queues behind it, `hermes
-chat`'s own client-side timeout fires while waiting, the proxy logs a
-`cancelled` queue event, hermes silently retries — and in the one case
+shell task terminated externally), killing the client process does not
+cancel its already-in-flight request server-side (`bench_local_proxy.py`'s
+queue has no way to abort an in-progress `urllib` call — see
+`GenerationQueue`'s own docstring). That orphaned request keeps generating
+and can collide with a retry's first request: the retry queues behind it,
+`hermes chat`'s own client-side timeout fires while waiting, the proxy logs
+a `cancelled` queue event, hermes silently retries — and in the one case
 observed live, that cancel+retry cycle was enough to produce a spurious
 FAIL (a `filter_by_tag` patch that should have applied cleanly appeared not
-to). A clean rerun against an *idle* server (verified via the proxy log
-showing `active_requests=0`, not just a passing `/healthz`) passed with no
-issue. **Before retrying a killed run, confirm the proxy/server is actually
-idle — check the proxy log for a recent `completed` with
-`active_requests=0`, not just that the port answers.** If in doubt, wait a
-beat or check `ps`/`lsof` for the old client's absence plus a quiet proxy
-log before resubmitting.
+to). A clean rerun against an *idle* proxy passed with no issue.
+
+**Fixed 2026-08-21**: `run_fixture_suite.py` now reads the config's
+`orchestration.needs_proxy`/`proxy_port` itself and calls
+`wait_for_proxy_idle()` before the task loop starts — it polls `/healthz`
+(which already reports `generation_queue.active`/`.queued`, no proxy
+changes needed) and refuses to proceed until both read zero, exiting with
+a clear message after 60s if they never do. This is automatic now, not a
+manual discipline to remember — but the underlying cause (urllib can't
+cancel an in-flight request) is unfixable short of a different HTTP client,
+so the hazard itself still exists; this just stops it from silently
+producing a bad result.

@@ -11,7 +11,6 @@ Usage:
       --model LiquidAI/LFM2.5-2.6B-MLX-bf16 --backend mlx [--quant Q4_K_M]
 """
 import argparse
-import hashlib
 import json
 import subprocess
 import sys
@@ -21,7 +20,7 @@ from pathlib import Path
 
 import yaml
 
-REPO = Path(__file__).resolve().parent.parent
+from bench_common import REPO, git_sha, snapshot_config
 
 
 def main():
@@ -48,8 +47,7 @@ def main():
     system_prompt_suffix = None
     api_key_env = None
     if args.config:
-        config_path = str(Path(args.config).resolve().relative_to(REPO))
-        config_hash = hashlib.sha256(Path(args.config).read_bytes()).hexdigest()[:12]
+        config_hash, config_path = snapshot_config(args.config)
         config_yaml = yaml.safe_load(Path(args.config).read_text())
         # A model-specific operating instruction the model needs to run as
         # intended (e.g. Muse-Glimmer's "Reasoning strength: high" toggle) —
@@ -125,6 +123,7 @@ def main():
                 "quant": args.quant,
                 "config_path": config_path,
                 "config_hash": config_hash,
+                "runner_git_sha": git_sha(),
                 "pass": passed,
                 "grade_output": grade.stdout.strip(),
                 "prompt_tokens": parsed.get("prompt_tokens"),

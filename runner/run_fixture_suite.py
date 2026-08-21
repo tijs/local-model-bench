@@ -14,7 +14,6 @@ Usage:
       --backend mlx [--quant Q4_K_M] [--only-task kiem_mini-feature]
 """
 import argparse
-import hashlib
 import json
 import re
 import shutil
@@ -22,11 +21,14 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 import yaml
 
-REPO = Path(__file__).resolve().parent.parent
+from bench_common import REPO, git_sha, snapshot_config
+
 HERMES_BIN = Path.home() / ".hermes/hermes-agent/venv/bin/hermes"
 
 
@@ -109,6 +111,36 @@ def grade_mutation(task, run_dir):
     return proc.returncode == 0, proc.stdout[-2000:]
 
 
+def wait_for_proxy_idle(proxy_port, timeout=60):
+    """Block until bench_local_proxy.py's generation queue is genuinely idle.
+
+    Killed-task retry hazard, found live 2026-08-20: killing a
+    run_fixture_suite.py subprocess does NOT cancel its already-in-flight
+    request server-side (the proxy's queue has no way to abort an
+    in-progress urllib call, by design — see bench_local_proxy.py's
+    GenerationQueue docstring). A quick retry can then queue behind that
+    orphaned request, trip hermes chat's own client-side timeout, and
+    produce a spurious FAIL — reproduced live on Qwen3-Coder-30B-A3B MLX.
+    /healthz already reports `generation_queue.active` / `.queued`
+    (bench_local_proxy.py's Handler.do_GET) — this just waits for both to
+    read zero before letting the caller proceed, instead of relying on a
+    human remembering to check the proxy log first.
+    """
+    url = f"http://127.0.0.1:{proxy_port}/healthz"
+    start = time.time()
+    while time.time() - start < timeout:
+        try:
+            with urllib.request.urlopen(url, timeout=3) as resp:
+                data = json.loads(resp.read())
+            queue = data.get("generation_queue", {})
+            if queue.get("active", 0) == 0 and queue.get("queued", 0) == 0:
+                return True
+        except (urllib.error.URLError, TimeoutError, ValueError):
+            pass
+        time.sleep(1)
+    return False
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--suite", required=True)
@@ -128,8 +160,20 @@ def main():
     config_path = None
     config_hash = None
     if args.config:
-        config_path = str(Path(args.config).resolve().relative_to(REPO))
-        config_hash = hashlib.sha256(Path(args.config).read_bytes()).hexdigest()[:12]
+        config_hash, config_path = snapshot_config(args.config)
+        cfg = yaml.safe_load(Path(args.config).read_text())
+        orch = cfg.get("orchestration") or {}
+        if orch.get("needs_proxy"):
+            proxy_port = orch.get("proxy_port", 8015)
+            print(f"Checking bench_local_proxy.py (port {proxy_port}) is idle "
+                  f"before starting (killed-task retry hazard, see AGENTS.md)...")
+            if not wait_for_proxy_idle(proxy_port):
+                sys.exit(
+                    f"proxy on port {proxy_port} still has an active/queued "
+                    f"request after 60s — a previous run may have been killed "
+                    f"without its in-flight request finishing. Check "
+                    f"/tmp/bench_proxy_{proxy_port}.log before retrying."
+                )
 
     log_path = REPO / "results" / "log.jsonl"
     rows = []
@@ -192,6 +236,7 @@ def main():
                 "backend": args.backend,
                 "config_path": config_path,
                 "config_hash": config_hash,
+                "runner_git_sha": git_sha(),
                 "quant": args.quant,
                 "pass": passed,
                 "hermes_exit_code": rc,

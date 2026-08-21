@@ -72,10 +72,13 @@ last_verified_against_docs: 2026-08-20   # bump when re-checked — configs go s
 3. Fill in `settings:` with real citations (URLs). If nothing authoritative
    exists for a setting, say so explicitly (`source: "framework default, no
    model-specific guidance found"`) rather than inventing a plausible value.
-4. Every `results/log.jsonl` row records `config_path` (and a content hash
-   of that file) for the config used, so any result is traceable back to
-   exactly what settings produced it — even if the config file is edited
-   later.
+4. Every `results/log.jsonl` row records `config_path`, a content hash of
+   that file (`config_hash`), and the harness's own git sha (`runner_git_sha`)
+   for the run. The exact config content is also snapshotted verbatim to
+   `results/configs/<config_hash>.yaml` at run time (`runner/
+   bench_common.py:snapshot_config()`) — the hash alone is not enough to
+   reconstruct what was run, since the live config file gets edited again
+   afterward; the snapshot is what actually stays traceable.
 
 ## Config files
 
