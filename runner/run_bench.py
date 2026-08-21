@@ -215,7 +215,25 @@ def server_command(cfg, alias=None):
         cut = comment_start if comment_start != -1 else prior_newline
         text = text[:cut].strip()
     if alias and cfg.get("backend") == "gguf":
-        text += f" --alias {alias}"
+        # A third independent adversarial review (finding CR3-2) found this
+        # used to blindly string-append to the END of `text` — but
+        # Qwen3.5-9B/gguf.yaml's launch block ends with a trailing shell
+        # COMMENT (explaining a --ctx-size choice), so the alias landed
+        # inside it and was never actually passed to llama-server at all.
+        # /v1/models then reported the real repo id, assert_serving_
+        # expected_model's exact-alias check failed, and that config was
+        # silently skipped on every --all sweep. Walk backward past any
+        # trailing blank/comment-only lines to find the actual last
+        # command line, and append there instead.
+        lines = text.split("\n")
+        i = len(lines) - 1
+        while i >= 0 and (not lines[i].strip() or lines[i].lstrip().startswith("#")):
+            i -= 1
+        if i < 0:
+            text += f" --alias {alias}"  # entire block was comments/blank — fall back
+        else:
+            lines[i] = lines[i] + f" --alias {alias}"
+            text = "\n".join(lines)
     return text
 
 
