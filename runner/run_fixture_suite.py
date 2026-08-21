@@ -57,14 +57,20 @@ def run_hermes(prompt, cwd, provider, model, max_turns, timeout):
     )
     try:
         stdout, stderr = proc.communicate(timeout=timeout)
-        return stdout, stderr, proc.returncode, time.time() - start
+        return stdout, stderr, proc.returncode, time.time() - start, False
     except subprocess.TimeoutExpired:
         try:
             os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
         except ProcessLookupError:
             pass  # already exited between the timeout firing and this kill
         proc.communicate()  # reap the process, avoid a zombie
-        return "", "TIMEOUT", -1, time.time() - start
+        # A distinct boolean, not `rc == -1` (adversarial review finding
+        # L-2): a real hermes process killed by e.g. SIGHUP also exits with
+        # returncode -1 (negative = "terminated by signal N", and SIGHUP is
+        # signal 1) — that would have been misreported as "TIMEOUT after
+        # {timeout}s" by the caller even when the actual timeout was never
+        # reached.
+        return "", "TIMEOUT", -1, time.time() - start, True
 
 
 # Build-cache directories that must NEVER be copied into a run — discovered
@@ -443,7 +449,7 @@ def main():
                     prompt = task["prompt"]
                     if system_prompt_suffix:
                         prompt = f"[Operating instruction: {system_prompt_suffix}]\n\n{prompt}"
-                    stdout, stderr, rc, wall = run_hermes(
+                    stdout, stderr, rc, wall, timed_out = run_hermes(
                         prompt, run_dir, args.hermes_provider, args.hermes_model,
                         max_turns=args.max_turns, timeout=timeout,
                     )
@@ -468,7 +474,7 @@ def main():
                     )
                     transcript_rel = str(transcript_path.relative_to(REPO))
 
-                    if rc == -1:
+                    if timed_out:
                         passed, grade_output = False, f"TIMEOUT after {timeout}s"
                     elif task["check"]["type"] == "mutation":
                         passed, grade_output = grade_mutation(task, run_dir)
