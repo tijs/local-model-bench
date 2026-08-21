@@ -14,7 +14,13 @@ UPSTREAM_PORT="${1:-8012}"
 PROXY_PORT="${2:-8015}"
 PARSER="${3:-lfm}"
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-LOG_FILE="/tmp/bench_local_proxy_${PROXY_PORT}.log"
+# Matches run_bench.py/run_fixture_suite.py's own naming (adversarial
+# review finding L-4, remaining half) — this used to be
+# bench_local_proxy_{port}.log, a different name than either of those two
+# files use/reference, so a user following an error message from
+# run_fixture_suite.py pointing at "bench_proxy_{port}.log" would find
+# nothing if they'd started the proxy via this script instead.
+LOG_FILE="/tmp/bench_proxy_${PROXY_PORT}.log"
 
 if curl -s -m 2 "http://127.0.0.1:${PROXY_PORT}/healthz" > /dev/null 2>&1; then
   echo "Already running and healthy on port ${PROXY_PORT}."
