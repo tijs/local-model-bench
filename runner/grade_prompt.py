@@ -214,15 +214,31 @@ def grade(result, check):
             # the same value multiset but a different, wrong, result).
             # Still order-agnostic on which KEY the check dict lists first,
             # per the module docstring's documented contract.
-            expected_str = {k: str(v) for k, v in expected_args.items()}
+            #
+            # Two regressions found by a second independent adversarial
+            # review (finding H-6), fixed here: (1) plain str() comparison
+            # made 15.0 != "15" != 15 — a model emitting schema-valid JSON
+            # floats (perfectly normal for a `type: number` parameter) now
+            # failed a check that passed ints. Compare numerically when
+            # both sides parse as numbers. (2) full dict equality required
+            # the call to have EXACTLY these keys and no others — a model
+            # passing an extra optional argument (also schema-valid) now
+            # hard-failed. expected_args is a required SUBSET of the
+            # actual call's arguments, not the complete set.
+            def _values_equal(expected_v, actual_v):
+                try:
+                    return float(expected_v) == float(actual_v)
+                except (TypeError, ValueError):
+                    return str(expected_v) == str(actual_v)
+
             matched = None
             for c in calls:
-                actual_str = {k: str(v) for k, v in c["arguments"].items()}
-                if actual_str == expected_str:
+                actual = c["arguments"]
+                if all(k in actual and _values_equal(v, actual[k]) for k, v in expected_args.items()):
                     matched = c
                     break
             if matched is None:
-                return False, f"'{check['expected_tool']}' was called but never with arguments {expected_str} (saw: {[c['arguments'] for c in calls]})"
+                return False, f"'{check['expected_tool']}' was called but never with (at least) arguments {expected_args} (saw: {[c['arguments'] for c in calls]})"
 
         if "response_contains" in check:
             text = normalize_punctuation(strip_reasoning(result.get("final_text", "")))
