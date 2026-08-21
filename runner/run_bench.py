@@ -408,7 +408,6 @@ def sweep_stale_run_dirs(min_age_seconds=3600):
 
 
 def main():
-    sweep_stale_run_dirs()
     ap = argparse.ArgumentParser()
     group = ap.add_mutually_exclusive_group(required=True)
     group.add_argument("--config", help="path to one configs/<model>/<backend>.yaml")
@@ -428,6 +427,11 @@ def main():
                           "--all's runtime and existing results' comparability unchanged.")
     args = ap.parse_args()
     coding_suites = [s.strip() for s in args.coding_suites.split(",")] if args.coding_suites else None
+
+    # After parse_args(), not before (adversarial review finding L-7) — this
+    # used to run before argument parsing at all, so it fired on --help and
+    # on invalid arguments too, not just a real invocation.
+    sweep_stale_run_dirs()
 
     if args.all:
         # Only files with an orchestration: block are real benchmark
