@@ -117,7 +117,23 @@ def main():
                     ]
                     if api_key_env:
                         cmd += ["--api-key-env", api_key_env]
-                    run = subprocess.run(cmd, capture_output=True, text=True)
+                    # Wall-clock bound added (3rd adversarial review, low
+                    # finding): this subprocess.run() had no timeout= at
+                    # all, so a run_prompt.py that hung for any reason
+                    # run_prompt.py's own per-call --timeout doesn't cover
+                    # (a genuine bug, a hung child process it spawns)
+                    # would block this ENTIRE task×trial loop forever, with
+                    # no recovery short of manual intervention — this
+                    # suite's own theoretical ceiling is already
+                    # max_turns * timeout_seconds (each turn's own client-
+                    # side timeout, per call_backend_streaming), so bound
+                    # the subprocess to comfortably above that instead of
+                    # not bounding it at all. TimeoutExpired is a normal
+                    # Exception subclass, so this is already caught by the
+                    # try/except around this whole block (finding CR3-13)
+                    # and recorded as a harness_error row, same as any
+                    # other crash.
+                    run = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout * max_turns + 60)
                     result_path.write_text(run.stdout)
 
                     # Full result (messages, tool_calls, final_text — everything
