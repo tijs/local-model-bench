@@ -76,6 +76,9 @@ def reset_fixture(suite, run_dir):
         ["git", "-c", "user.email=bench@local", "-c", "user.name=bench", "commit", "-q", "-m", "baseline"],
         cwd=run_dir, check=True,
     )
+    # Tagged (not just committed) so grading can restore/diff against it by
+    # name later — "baseline" the commit MESSAGE isn't a resolvable git ref.
+    subprocess.run(["git", "tag", "baseline"], cwd=run_dir, check=True)
 
 
 def overlay_check_files(suite, task_id, run_dir, check_dest):
@@ -115,20 +118,93 @@ def overlay_check_files(suite, task_id, run_dir, check_dest):
     return copied
 
 
+_HARNESS_MANIFEST_FILES = (
+    # Build/dependency manifests and lockfiles across every ecosystem this
+    # repo's fixtures use — restored from the baseline commit before
+    # grading, regardless of which suite is running (a no-op for files that
+    # don't exist in a given fixture). Nothing stopped an agent from
+    # editing these to make its own tests pass, or to disable a check
+    # (adversarial review finding H5) — e.g. adding a Cargo.toml
+    # [[test]] override, or deleting an inconvenient npm test script.
+    "Cargo.toml", "Cargo.lock",
+    "package.json", "package-lock.json",
+    "deno.json", "deno.lock",
+    "Package.swift", "Package.resolved",
+)
+
+
+def restore_harness_files(run_dir, check_dest=None):
+    """Restore the grading harness to its baseline state before grading,
+    undoing anything the agent did to the files it's graded BY rather than
+    the files it was asked to edit (adversarial review finding H5). Returns
+    a `git diff --stat` of what the agent actually changed (against the
+    now-restored tree, i.e. excluding harness files) for the log row.
+    """
+    # Diff stat captured BEFORE restoring, so it reflects everything the
+    # agent touched (including any harness tampering this is about to
+    # revert) — visible in the log even though it gets undone.
+    diff = subprocess.run(
+        ["git", "diff", "--stat", "baseline"],
+        cwd=run_dir, capture_output=True, text=True,
+    ).stdout.strip()
+
+    restore_paths = list(_HARNESS_MANIFEST_FILES)
+    if check_dest:
+        restore_paths.append(check_dest)
+    for path in restore_paths:
+        if (run_dir / path).exists() or subprocess.run(
+            ["git", "cat-file", "-e", f"baseline:{path}"],
+            cwd=run_dir, capture_output=True,
+        ).returncode == 0:
+            subprocess.run(
+                ["git", "checkout", "-q", "baseline", "--", path],
+                cwd=run_dir, capture_output=True,
+            )  # best-effort: silently no-ops for a path baseline never had
+    return diff
+
+
 def grade_command(suite, task, run_dir):
     check = task["check"]
+    diff_stat = restore_harness_files(run_dir, check.get("check_dest"))
     if "check_dest" in check:
         overlay_check_files(suite, task["id"], run_dir, check["check_dest"])
     cwd = run_dir / check.get("cwd", ".")
     proc = subprocess.run(check["command"], shell=True, cwd=str(cwd), capture_output=True, text=True)
     expect = check.get("expect_exit_code", 0)
     passed = proc.returncode == expect
-    return passed, (proc.stdout + proc.stderr)[-2000:]
+    output = (proc.stdout + proc.stderr)[-2000:]
+    if diff_stat:
+        output = f"agent diff vs baseline (harness files already restored below):\n{diff_stat}\n\n{output}"
+    return passed, output
 
 
 def grade_mutation(task, run_dir):
     check = task["check"]
-    cmd = [str(REPO / "runner" / "grade_mutation.sh"), str(run_dir), check["source_file"], check["test_command"]]
+    source_file = check["source_file"]
+
+    # Test-writing tasks explicitly instruct "Do not modify <source_file>"
+    # — the whole point is to grade tests written against the REAL
+    # implementation. grade_mutation.sh used to `cp` whatever was
+    # currently on disk (i.e. whatever the agent left behind, tampered
+    # with or not) and call it "the correct implementation" for both the
+    # baseline check and every mutant swap (adversarial review finding
+    # H5). Hard-fail here, before any of that, if the agent touched it.
+    diff = subprocess.run(
+        ["git", "diff", "--name-only", "baseline", "--", source_file],
+        cwd=run_dir, capture_output=True, text=True,
+    ).stdout.strip()
+    if diff:
+        return False, (
+            f"agent modified {source_file}, which this task's prompt explicitly "
+            f"says not to touch — grading a test-writing task against a "
+            f"self-modified implementation would prove nothing. Diff:\n"
+            + subprocess.run(
+                ["git", "diff", "baseline", "--", source_file],
+                cwd=run_dir, capture_output=True, text=True,
+            ).stdout[-1500:]
+        )
+
+    cmd = [str(REPO / "runner" / "grade_mutation.sh"), str(run_dir), source_file, check["test_command"]]
     cmd += [str(REPO / m) for m in check["mutants"]]
     proc = subprocess.run(cmd, capture_output=True, text=True)
     return proc.returncode == 0, proc.stdout[-2000:]
