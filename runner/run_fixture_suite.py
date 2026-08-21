@@ -109,9 +109,21 @@ def reset_fixture(suite, run_dir):
     # commit (git-ignored before the first `git add`) — installed fresh
     # from the tracked package-lock.json instead, so every run is
     # self-sufficient rather than depending on ambient host state.
+    #
+    # Every _STALE_BUILD_CACHE_DIRS entry gitignored here, not just
+    # node_modules (3rd adversarial review, finding CR3-9): these dirs are
+    # excluded from the INITIAL copy so the run starts fresh, but nothing
+    # stopped the AGENT'S OWN `cargo test`/`swift test` invocation from
+    # creating a brand-new rust/target/ (or .build/) mid-run — since that
+    # wasn't gitignored, restore_harness_files()'s `git add -A` staged it
+    # in full. Confirmed live: a single `cargo test` in kiem_mini's rust/
+    # produced a target/ dir that alone added 356 files (mostly binary
+    # build artifacts) to the diff --stat — on every kiem_mini run, not a
+    # hypothetical, completely burying whatever the agent actually
+    # changed, which is the entire point of M-11's diff-stat feature.
     (run_dir / ".gitignore").write_text(
-        (run_dir / ".gitignore").read_text() + "\nnode_modules/\n"
-        if (run_dir / ".gitignore").exists() else "node_modules/\n"
+        ((run_dir / ".gitignore").read_text() + "\n" if (run_dir / ".gitignore").exists() else "")
+        + "\n".join(f"{d}/" for d in _STALE_BUILD_CACHE_DIRS) + "\n"
     )
     subprocess.run(["git", "init", "-q"], cwd=run_dir, check=True)
     subprocess.run(["git", "add", "-A"], cwd=run_dir, check=True)
@@ -318,9 +330,15 @@ def grade_command(suite, task, run_dir):
     expect = check.get("expect_exit_code", 0)
     passed = proc.returncode == expect
     output = (proc.stdout + proc.stderr)[-2000:]
-    if diff_stat:
-        output = f"agent diff vs baseline (harness files already restored below):\n{diff_stat}\n\n{output}"
-    return passed, output
+    # Returned as its OWN value now, not prepended into `output` (3rd
+    # adversarial review, finding CR3-9): the caller truncates grade_output
+    # to its last 500 chars for the log row — prepending the diff stat to
+    # the FRONT of `output` put it in exactly the position that truncation
+    # destroys, while L-3's fix for grade_mutation.sh's compile-failure
+    # warning explicitly restated ITS summary at the END specifically
+    # because "truncation always keeps the tail". Same bug, opposite end.
+    # A dedicated field survives regardless of grade_output's length.
+    return passed, output, diff_stat
 
 
 def grade_mutation(task, run_dir):
@@ -335,7 +353,7 @@ def grade_mutation(task, run_dir):
     # test file, or accidentally disabling a lint), and this path had zero
     # protection against that beyond the single-file source_file check
     # below.
-    restore_harness_files(run_dir)
+    diff_stat = restore_harness_files(run_dir)
 
     # Test-writing tasks explicitly instruct "Do not modify <source_file>"
     # — the whole point is to grade tests written against the REAL
@@ -357,13 +375,13 @@ def grade_mutation(task, run_dir):
                 ["git", "diff", "baseline", "--", source_file],
                 cwd=run_dir, capture_output=True, text=True,
             ).stdout[-1500:]
-        )
+        ), diff_stat
 
     cmd = [str(REPO / "runner" / "grade_mutation.sh"), str(run_dir), source_file,
            check["test_command"], check.get("cwd", ".")]
     cmd += [str(REPO / m) for m in check["mutants"]]
     proc = subprocess.run(cmd, capture_output=True, text=True)
-    return proc.returncode == 0, proc.stdout[-2000:]
+    return proc.returncode == 0, proc.stdout[-2000:], diff_stat
 
 
 def wait_for_proxy_idle(proxy_port, timeout=60):
@@ -480,6 +498,7 @@ def main():
                 task_start = time.time()
                 transcript_rel = None
                 harness_error = False
+                diff_stat = None
                 try:
                     reset_fixture(args.suite, run_dir)
 
@@ -514,9 +533,9 @@ def main():
                     if timed_out:
                         passed, grade_output = False, f"TIMEOUT after {timeout}s"
                     elif task["check"]["type"] == "mutation":
-                        passed, grade_output = grade_mutation(task, run_dir)
+                        passed, grade_output, diff_stat = grade_mutation(task, run_dir)
                     else:
-                        passed, grade_output = grade_command(args.suite, task, run_dir)
+                        passed, grade_output, diff_stat = grade_command(args.suite, task, run_dir)
                 except Exception as exc:
                     # A crash ANYWHERE above (reset_fixture's `npm ci`
                     # hitting a network blip, overlay_check_files's
@@ -558,6 +577,17 @@ def main():
                     "hermes_exit_code": rc,
                     "wall_seconds": round(wall, 1),
                     "grade_output": grade_output.strip()[-500:],
+                    # Own dedicated field, not prepended into grade_output
+                    # (3rd adversarial review, finding CR3-9): grade_output
+                    # above is truncated to its LAST 500 chars — M-11's
+                    # diff-stat used to be prepended to the FRONT of that
+                    # same string, guaranteeing it got cut whenever the
+                    # actual command output was long, the exact class of
+                    # bug L-3's fix for grade_mutation.sh called out
+                    # ("truncation always keeps the tail"). Capped
+                    # independently here so it survives regardless of
+                    # grade_output's length.
+                    "diff_stat": (diff_stat or "").strip()[-1000:] or None,
                     "transcript_path": transcript_rel,
                     "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                 }
