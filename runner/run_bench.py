@@ -164,7 +164,7 @@ def server_command(cfg):
     return text
 
 
-def run_one(config_path: Path, trials: int = 1):
+def run_one(config_path: Path, trials: int = 1, coding_suites=None):
     cfg = yaml.safe_load(config_path.read_text())
     orch = cfg.get("orchestration")
     if not orch:
@@ -285,12 +285,27 @@ def run_one(config_path: Path, trials: int = 1):
              "--trials", str(trials)])
 
     if viable in ("full", "coding_only") and hermes_provider:
-        print(f"\n--- coding spot-check ({CODING_SPOTCHECK_TASK}) ---")
-        run([COCORE_PY, str(REPO / "runner" / "run_fixture_suite.py"),
-             "--suite", CODING_SPOTCHECK_SUITE, "--only-task", CODING_SPOTCHECK_TASK,
-             "--hermes-provider", hermes_provider, "--hermes-model", model,
-             "--backend", backend, "--config", str(config_path),
-             "--trials", str(trials)])
+        if coding_suites:
+            # Adversarial review finding H1: the coding "suite" was
+            # structurally just ONE task (kiem_mini-feature) — hearth_mini,
+            # kipclip_mini, and every debug/test-writing task never ran
+            # against any model. Opt-in via --coding-suites so the default
+            # --all sweep's runtime/historical comparability doesn't change
+            # underneath existing results.
+            for suite in coding_suites:
+                print(f"\n--- coding suite: {suite} (every task) ---")
+                run([COCORE_PY, str(REPO / "runner" / "run_fixture_suite.py"),
+                     "--suite", suite,
+                     "--hermes-provider", hermes_provider, "--hermes-model", model,
+                     "--backend", backend, "--config", str(config_path),
+                     "--trials", str(trials)])
+        else:
+            print(f"\n--- coding spot-check ({CODING_SPOTCHECK_TASK}) ---")
+            run([COCORE_PY, str(REPO / "runner" / "run_fixture_suite.py"),
+                 "--suite", CODING_SPOTCHECK_SUITE, "--only-task", CODING_SPOTCHECK_TASK,
+                 "--hermes-provider", hermes_provider, "--hermes-model", model,
+                 "--backend", backend, "--config", str(config_path),
+                 "--trials", str(trials)])
     elif viable in ("full", "coding_only"):
         print("\n(coding spot-check skipped — no hermes_provider registered for this config)")
 
@@ -320,7 +335,16 @@ def main():
                           "run_fixture_suite.py's --trials help (adversarial review "
                           "finding C5: single-trial temperature=0 results aren't reliably "
                           "reproducible on MLX/Metal)")
+    ap.add_argument("--coding-suites", default=None,
+                     help="comma-separated tasks/<suite>.yaml names (e.g. "
+                          "'kiem_mini,hearth_mini,kipclip_mini') to run EVERY task from, "
+                          "instead of the single kiem_mini-feature spot-check this repo has "
+                          "run by default until now (adversarial review finding H1: "
+                          "hearth_mini/kipclip_mini and every debug/test-writing task had "
+                          "never been run against any model). Opt-in — omitting this leaves "
+                          "--all's runtime and existing results' comparability unchanged.")
     args = ap.parse_args()
+    coding_suites = [s.strip() for s in args.coding_suites.split(",")] if args.coding_suites else None
 
     if args.all:
         # Only files with an orchestration: block are real benchmark
@@ -339,9 +363,9 @@ def main():
         print(f"Running {len(configs)} configs...")
         for i, config_path in enumerate(configs, 1):
             print(f"\n\n########## [{i}/{len(configs)}] {config_path} ##########")
-            run_one(config_path, trials=args.trials)
+            run_one(config_path, trials=args.trials, coding_suites=coding_suites)
     else:
-        run_one(Path(args.config), trials=args.trials)
+        run_one(Path(args.config), trials=args.trials, coding_suites=coding_suites)
 
 
 if __name__ == "__main__":

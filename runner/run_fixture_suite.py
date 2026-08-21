@@ -61,6 +61,14 @@ _STALE_BUILD_CACHE_DIRS = {
                     # same risk, never yet triggered only because no
                     # swift-language task had been run against a model yet
     ".dart_tool", "__pycache__",  # defensive, not yet confirmed present
+    "node_modules",  # npm/vitest (hearth_mini) — found 2026-08-21
+                     # (adversarial review finding H1): fixtures/hearth_mini/
+                     # node_modules/ is gitignored but was present on this
+                     # machine from ambient local dev, so every run silently
+                     # depended on it — a fresh clone has no node_modules at
+                     # all and `npm test` would fail for every model, for a
+                     # reason that has nothing to do with the model. `npm
+                     # ci` below makes each run self-sufficient instead.
 }
 
 
@@ -69,6 +77,14 @@ def reset_fixture(suite, run_dir):
     shutil.copytree(
         src, run_dir,
         ignore=shutil.ignore_patterns(*_STALE_BUILD_CACHE_DIRS),
+    )
+    # node_modules is never in the copy (excluded above) or the baseline
+    # commit (git-ignored before the first `git add`) — installed fresh
+    # from the tracked package-lock.json instead, so every run is
+    # self-sufficient rather than depending on ambient host state.
+    (run_dir / ".gitignore").write_text(
+        (run_dir / ".gitignore").read_text() + "\nnode_modules/\n"
+        if (run_dir / ".gitignore").exists() else "node_modules/\n"
     )
     subprocess.run(["git", "init", "-q"], cwd=run_dir, check=True)
     subprocess.run(["git", "add", "-A"], cwd=run_dir, check=True)
@@ -79,6 +95,12 @@ def reset_fixture(suite, run_dir):
     # Tagged (not just committed) so grading can restore/diff against it by
     # name later — "baseline" the commit MESSAGE isn't a resolvable git ref.
     subprocess.run(["git", "tag", "baseline"], cwd=run_dir, check=True)
+
+    if (run_dir / "package-lock.json").exists():
+        # `npm ci` (not `npm install`) — deterministic, uses the tracked
+        # lockfile exactly, fails loudly instead of silently drifting if
+        # the lockfile and package.json ever disagree.
+        subprocess.run(["npm", "ci", "--silent"], cwd=run_dir, check=True)
 
 
 def overlay_check_files(suite, task_id, run_dir, check_dest):
@@ -204,7 +226,8 @@ def grade_mutation(task, run_dir):
             ).stdout[-1500:]
         )
 
-    cmd = [str(REPO / "runner" / "grade_mutation.sh"), str(run_dir), source_file, check["test_command"]]
+    cmd = [str(REPO / "runner" / "grade_mutation.sh"), str(run_dir), source_file,
+           check["test_command"], check.get("cwd", ".")]
     cmd += [str(REPO / m) for m in check["mutants"]]
     proc = subprocess.run(cmd, capture_output=True, text=True)
     return proc.returncode == 0, proc.stdout[-2000:]
