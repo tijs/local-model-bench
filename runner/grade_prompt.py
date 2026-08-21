@@ -196,6 +196,23 @@ def grade(result, check):
             if not matches:
                 return False, f"no write_file call had a 'content' argument equal to {expected!r} (calls: {[c['arguments'] for c in calls if c['name']=='write_file']})"
 
+        if "write_file_arg_path" in check:
+            # Suffix match on the path argument (adversarial review finding
+            # M-2): write_file_arg_equals/_contains checked the CONTENT but
+            # neither ever checked the path — a prompt asking to write to
+            # "population.txt" specifically was satisfied by a write_file
+            # call to any path at all, as long as the content matched.
+            # Suffix (not exact) match since a model may reasonably use an
+            # absolute path ("/tmp/population.txt") or a relative one.
+            expected_path = check["write_file_arg_path"]
+            matches = [
+                c for c in calls
+                if c["name"] == "write_file"
+                and str(c["arguments"].get("path", "")).endswith(expected_path)
+            ]
+            if not matches:
+                return False, f"no write_file call had a 'path' argument ending in {expected_path!r} (calls: {[c['arguments'] for c in calls if c['name']=='write_file']})"
+
         return True, ""
 
     if kind == "tool_call_then_response":
