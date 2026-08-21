@@ -18,6 +18,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -42,10 +43,27 @@ def run_hermes(prompt, cwd, provider, model, max_turns, timeout):
         "--max-turns", str(max_turns),
     ]
     start = time.time()
+    # start_new_session=True + killpg on timeout (adversarial review finding
+    # M9): plain subprocess.run(timeout=...) only kills the DIRECT hermes
+    # child on TimeoutExpired — any grandchildren it spawned while running
+    # (cargo/npm/swift test, a subagent process) are left running, and the
+    # in-flight backend request keeps generating, which is exactly the
+    # killed-task retry hazard documented elsewhere in this file. Killing
+    # the whole process group closes that at the source instead of relying
+    # on the caller to notice and wait it out.
+    proc = subprocess.Popen(
+        cmd, cwd=str(cwd), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        text=True, start_new_session=True,
+    )
     try:
-        proc = subprocess.run(cmd, cwd=str(cwd), capture_output=True, text=True, timeout=timeout)
-        return proc.stdout, proc.stderr, proc.returncode, time.time() - start
+        stdout, stderr = proc.communicate(timeout=timeout)
+        return stdout, stderr, proc.returncode, time.time() - start
     except subprocess.TimeoutExpired:
+        try:
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+        except ProcessLookupError:
+            pass  # already exited between the timeout firing and this kill
+        proc.communicate()  # reap the process, avoid a zombie
         return "", "TIMEOUT", -1, time.time() - start
 
 
