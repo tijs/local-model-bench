@@ -116,19 +116,55 @@ tasks:
     check:
       type: tool_call_then_response   # regex | contains | contains_any | tool_call_then_response | chained_tool_calls
       expected_tool: add_numbers
-      expected_args: { a: 15, b: 27 }  # optional — omit/empty to accept any arguments; order-agnostic on values otherwise
-      response_contains: "42"
+      expected_args: { a: 15, b: 27 }  # optional — omit/empty to accept any arguments.
+        # A REQUIRED SUBSET of the actual call's arguments (extra args the
+        # model passes are fine), numeric-aware value comparison (15 == 15.0),
+        # order-agnostic on which key the dict lists first — but keys must
+        # match exactly (add_numbers(x=15,y=27) does NOT satisfy {a:15,b:27}).
+        # This is NOT "order-agnostic on values" (a value multiset match) —
+        # that was the ORIGINAL, exploitable behavior, replaced 2026-08-21;
+        # this doc is corrected to match, not describing an aspiration.
+      expected_args_match: { query: "(?i)amsterdam" }  # optional — per-argument
+        # regex, checked against whichever call(s) also satisfy expected_args
+        # (or any call to expected_tool if expected_args is omitted/empty).
+        # Needed because mock_tool_responses is keyed by TOOL NAME ONLY — an
+        # empty/omitted expected_args accepts a call with ANY arguments, so a
+        # task that cares WHAT the model searched/asked for (not just which
+        # tool it picked) needs this to actually verify that.
+      response_contains: "42"   # or response_matches: "regex" for a value that
+        # needs a boundary a bare substring can't express (e.g. "18" must not
+        # match inside "2018" — use response_matches: "(?<!\d)18(?!\d)")
 ```
 
-Check types: `regex`/`contains` match `final_text` directly. `contains_any` takes
-`phrases: [...]` and passes if any appear (case-insensitive) — used for
-error-recovery tasks where several acceptable phrasings exist.
-`tool_call_then_response` requires a specific tool was called (optionally
-with specific argument values) and the final response contains a string.
+Any check dict, regardless of `type`, may also carry — checked BEFORE the
+type-specific logic, against `final_text`:
+```yaml
+      must_not_contain_any: ["it says", "the file contains"]  # hard veto: a
+        # match here fails the check even if the positive condition ALSO
+        # matched — for ruling out a specific wrong-but-plausible-looking
+        # answer (e.g. a model fabricating file contents it was never given)
+      must_not_match: "some regex"   # same, as a regex
+```
+
 `chained_tool_calls` takes `expected_sequence: [tool_a, tool_b, ...]` (each
 must appear in order, not necessarily contiguous) and optionally
-`write_file_arg_contains` to check a later call used an earlier call's
-result. `large fixture files` (a full real tool manifest, a large system
+`write_file_arg_contains` (substring match on the `content` argument
+specifically, not any argument), `write_file_arg_equals` (exact match,
+whitespace-stripped — for a prompt asking to write JUST a value, where
+`_contains` would also accept a sentence wrapped around it), and
+`write_file_arg_path` (suffix match on the `path` argument — neither of the
+two content checks above verifies WHERE the model wrote to).
+
+Check types: `regex`/`contains` match `final_text` directly and are
+case-sensitive (an exact literal/pattern check shouldn't silently accept
+a differently-cased answer). `contains_any` takes `phrases: [...]` and
+passes if any appear, case-INsensitively — used for error-recovery tasks
+where several acceptable phrasings exist; deliberately not the same case
+sensitivity as `contains`/`regex`, since it's for natural-language phrase
+matching where case carries no meaning. `tool_call_then_response` requires
+a specific tool was called (optionally with specific/regex-matched
+argument values) and the final response contains/matches a string.
+`large fixture files` (a full real tool manifest, a large system
 prompt) go in `prompt_spec` as `tools_file`/`system_prompt_file` (paths
 relative to repo root) instead of inlining huge JSON/text into the YAML —
 `run_prompt_suite.py` resolves and merges them before calling

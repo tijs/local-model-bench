@@ -13,10 +13,28 @@ Usage:
 check_spec.json, one of:
   {"type": "regex", "pattern": "^42$"}
   {"type": "contains", "text": "42"}
+  {"type": "contains_any", "phrases": ["couldn't find", "not found"]}
   {"type": "tool_call_then_response",
    "expected_tool": "add_numbers",
-   "expected_args": {"a": 15, "b": 27},   // order-agnostic on values
-   "response_contains": "42"}
+   "expected_args": {"a": 15, "b": 27},        // required SUBSET of the actual
+                                                // call's args, order-agnostic on
+                                                // which key the dict lists first,
+                                                // numeric-aware value comparison
+                                                // (15 == 15.0), extra args allowed
+   "expected_args_match": {"query": "(?i)amsterdam"},  // optional: per-arg regex
+   "response_contains": "42",                  // or "response_matches": "regex"
+  }
+  {"type": "chained_tool_calls",
+   "expected_sequence": ["web_search", "write_file"],
+   "write_file_arg_contains": "912046",        // substring match on "content" arg
+   "write_file_arg_equals": "912046",          // exact match (whitespace-stripped)
+   "write_file_arg_path": "population.txt"}    // suffix match on "path" arg
+
+Any check dict may also carry, checked BEFORE the kind-specific logic,
+against final_text, regardless of kind:
+  "must_not_contain_any": ["fabricated content marker", ...]  // hard veto —
+     a match here fails the check even if the positive condition also matched
+  "must_not_match": "regex"                                   // same, as a regex
 
 Prints "PASS" or "FAIL: <reason>" and exits 0/1 accordingly.
 """
