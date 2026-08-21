@@ -105,22 +105,29 @@ def grade(result, check):
     if result.get("hallucinated_tool_calls"):
         return False, f"model called tool(s) never declared in this task's manifest: {result['hallucinated_tool_calls']} — check the proxy isn't filtering tools, or the model is confabulating"
 
+    # Applied ONCE, universally, against final_text — regardless of check
+    # kind. Used to only run inside the regex/contains/contains_any
+    # branches, silently doing nothing for chained_tool_calls or
+    # tool_call_then_response (found by a second independent adversarial
+    # review, finding M-1): a must_not_contain_any on either of those kinds
+    # was accepted by the check spec but never actually enforced. Not
+    # currently exploitable by any check in this repo (only
+    # hermes_ops-error-recovery uses it, and that's a contains_any check),
+    # but a future check author reasonably expecting this to work uniformly
+    # would have been silently wrong.
+    text = normalize_punctuation(strip_reasoning(result.get("final_text", "")))
+    forbidden = _forbidden_hit(text, check)
+    if forbidden:
+        return False, forbidden
+
     kind = check["type"]
 
     if kind == "regex":
-        text = normalize_punctuation(strip_reasoning(result.get("final_text", "")))
-        forbidden = _forbidden_hit(text, check)
-        if forbidden:
-            return False, forbidden
         if re.search(check["pattern"], text):
             return True, ""
         return False, f"final_text {text!r} did not match pattern {check['pattern']!r}"
 
     if kind == "contains":
-        text = normalize_punctuation(strip_reasoning(result.get("final_text", "")))
-        forbidden = _forbidden_hit(text, check)
-        if forbidden:
-            return False, forbidden
         if check["text"] in text:
             return True, ""
         return False, f"final_text {text!r} did not contain {check['text']!r}"
@@ -135,10 +142,6 @@ def grade(result, check):
     # case sensitivity could matter (verify this still holds before adding
     # one that does).
     if kind == "contains_any":
-        text = normalize_punctuation(strip_reasoning(result.get("final_text", "")))
-        forbidden = _forbidden_hit(text, check)
-        if forbidden:
-            return False, forbidden
         lowered = text.lower()
         if any(phrase.lower() in lowered for phrase in check["phrases"]):
             return True, ""
