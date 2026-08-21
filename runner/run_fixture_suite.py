@@ -81,15 +81,38 @@ def reset_fixture(suite, run_dir):
 def overlay_check_files(suite, task_id, run_dir, check_dest):
     """Copies the held-out grading file(s) into the run dir — only at grading
     time, after the agent has already finished, matching SCHEMA.md's
-    lifecycle. check_dest is relative to the run dir."""
+    lifecycle. check_dest is relative to the run dir.
+
+    Raises if the checks/ dir is missing or empty, instead of silently
+    no-op'ing (adversarial review finding H4): a task whose check spec sets
+    `check_dest` is declaring that it NEEDS an overlay to be graded
+    correctly — a missing/renamed/typo'd checks/ dir used to mean the
+    grading command just ran the fixture's OWN already-passing tests and
+    exited 0, a guaranteed false PASS for every model on a task that was
+    never actually graded. Returns the copied filenames so the caller can
+    record what was actually graded against.
+    """
     src_dir = REPO / "checks" / suite / task_id
     if not src_dir.exists():
-        return
+        raise FileNotFoundError(
+            f"checks/{suite}/{task_id}/ does not exist, but this task's check "
+            f"spec sets check_dest — grading would silently run only the "
+            f"fixture's own pre-existing tests and report a false PASS. "
+            f"Fix the path or the task/check spec, don't skip this."
+        )
+    copied = []
     dest_dir = run_dir / check_dest
     dest_dir.mkdir(parents=True, exist_ok=True)
     for item in src_dir.iterdir():
         if item.is_file():
             shutil.copy2(item, dest_dir / item.name)
+            copied.append(item.name)
+    if not copied:
+        raise FileNotFoundError(
+            f"checks/{suite}/{task_id}/ exists but contains no files to overlay "
+            f"— same false-PASS risk as a missing directory."
+        )
+    return copied
 
 
 def grade_command(suite, task, run_dir):
