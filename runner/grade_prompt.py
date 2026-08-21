@@ -154,13 +154,19 @@ def grade(result, check):
 
         if "write_file_arg_contains" in check:
             needle = check["write_file_arg_contains"]
+            # Scoped to the "content" argument specifically (adversarial
+            # review finding M4) — scanning every argument value used to
+            # let write_file(path="/tmp/912046.txt", content="wrong
+            # answer") pass a check meant to verify the FILE'S CONTENT,
+            # just because the needle happened to appear in the path
+            # instead.
             matches = [
                 c for c in calls
                 if c["name"] == "write_file"
-                and any(needle in str(v) for v in c["arguments"].values())
+                and needle in str(c["arguments"].get("content", ""))
             ]
             if not matches:
-                return False, f"no write_file call had an argument containing {needle!r} (calls: {[c['arguments'] for c in calls if c['name']=='write_file']})"
+                return False, f"no write_file call had a 'content' argument containing {needle!r} (calls: {[c['arguments'] for c in calls if c['name']=='write_file']})"
 
         return True, ""
 
@@ -174,15 +180,24 @@ def grade(result, check):
             # no specific arguments required — any call to the right tool counts
             matched = calls[0]
         else:
-            expected_values = sorted(map(str, expected_args.values()))
+            # Exact key->value matching (adversarial review finding M4) —
+            # comparing a sorted multiset of VALUES ONLY (the previous
+            # behavior) ignored keys entirely: add_numbers(x=15, y=27)
+            # passed a check written for {"a": 15, "b": 27}, and argument
+            # order/identity is unverifiable at all for a non-commutative
+            # tool (e.g. subtract(a=27, b=15) vs subtract(a=15, b=27) have
+            # the same value multiset but a different, wrong, result).
+            # Still order-agnostic on which KEY the check dict lists first,
+            # per the module docstring's documented contract.
+            expected_str = {k: str(v) for k, v in expected_args.items()}
             matched = None
             for c in calls:
-                actual_values = sorted(map(str, c["arguments"].values()))
-                if actual_values == expected_values:
+                actual_str = {k: str(v) for k, v in c["arguments"].items()}
+                if actual_str == expected_str:
                     matched = c
                     break
             if matched is None:
-                return False, f"'{check['expected_tool']}' was called but never with argument values {expected_values} (saw: {[c['arguments'] for c in calls]})"
+                return False, f"'{check['expected_tool']}' was called but never with arguments {expected_str} (saw: {[c['arguments'] for c in calls]})"
 
         if "response_contains" in check:
             text = normalize_punctuation(strip_reasoning(result.get("final_text", "")))
