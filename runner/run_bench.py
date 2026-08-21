@@ -109,6 +109,19 @@ def wait_for_health(url, timeout=600, proc=None):
     return False
 
 
+def _majority_pass(rows):
+    """More than half of *rows* passed. Used for the sanity fail-fast gate
+    instead of requiring ALL rows to pass (adversarial review finding
+    M-12): with --trials N, the flag added specifically to MEASURE
+    flakiness made a single flaky failure among N trials abort hermes_ops
+    AND the coding suite too — the more trials you run to detect
+    flakiness, the more likely one of them randomly fails and the more
+    destructive that single failure becomes. A flaky sanity result is
+    still recorded (see the "Flaky tasks" leaderboard section) even when
+    the majority passes and the run continues."""
+    return sum(1 for r in rows if r["pass"]) * 2 > len(rows)
+
+
 def _base_repo_name(model_id):
     """Strip a ':quant' suffix, e.g. 'foo/Bar-GGUF:Q4_K_M' -> 'foo/Bar-GGUF'."""
     return model_id.split(":")[0]
@@ -318,12 +331,12 @@ def run_one(config_path: Path, trials: int = 1, coding_suites=None):
                 _leaderboard()
                 return
         basic_rows = [r for r in sanity_rows if r["task_id"] == "sanity-basic"]
-        if not basic_rows or not all(r["pass"] for r in basic_rows):
+        if not basic_rows or not _majority_pass(basic_rows):
             print(f"\n!!! {model} FAILED sanity-basic — not viable. Stopping here.")
             _leaderboard()
             return
         tool_rows = [r for r in sanity_rows if r["task_id"] == "sanity-tool"]
-        if viable == "sanity_only" or not tool_rows or not all(r["pass"] for r in tool_rows):
+        if viable == "sanity_only" or not tool_rows or not _majority_pass(tool_rows):
             print("\nsanity-tool failed (or this config is sanity_only) — skipping hermes_ops/coding.")
             _leaderboard()
             return
