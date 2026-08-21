@@ -488,10 +488,22 @@ def main():
         # in-flight request that could still collide with task N+1 within
         # the same invocation — the "killed-task retry hazard" wasn't
         # actually fully closed by a single upfront check).
+        #
+        # Raises a plain RuntimeError, not sys.exit() (3rd adversarial
+        # review, finding CR3-... low): this used to be called BEFORE the
+        # per-task try/except block even existed positionally, and
+        # sys.exit() raises SystemExit — a BaseException, not an
+        # Exception subclass, so it would have kept sailing straight past
+        # `except Exception` even if it HAD been moved inside. Either gap
+        # alone was enough to abort the entire remaining task×trial loop
+        # on a single stuck proxy. Confirmed live: a mocked always-stuck
+        # wait_for_proxy_idle killed main() outright via SystemExit with
+        # ZERO rows written, not even a harness-error row for the first
+        # task, and a second task never got a chance to run at all.
         if not proxy_port:
             return
         if not wait_for_proxy_idle(proxy_port):
-            sys.exit(
+            raise RuntimeError(
                 f"proxy on port {proxy_port} still has an active/queued "
                 f"request after 60s — a previous run may have been killed "
                 f"without its in-flight request finishing. Check "
@@ -517,7 +529,6 @@ def main():
         if args.only_task and task["id"] != args.only_task:
             continue
         for trial in range(1, args.trials + 1):
-            ensure_proxy_idle()
             with tempfile.TemporaryDirectory(dir=str(runs_root)) as td:
                 run_dir = Path(td) / "run"
                 task_start = time.time()
@@ -525,6 +536,7 @@ def main():
                 harness_error = False
                 diff_stat = None
                 try:
+                    ensure_proxy_idle()
                     reset_fixture(args.suite, run_dir)
 
                     prompt = task["prompt"]
