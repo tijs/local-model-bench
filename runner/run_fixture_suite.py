@@ -345,6 +345,31 @@ def grade_mutation(task, run_dir):
     check = task["check"]
     source_file = check["source_file"]
 
+    # agent_test_file/require_kill enforcement added (3rd adversarial
+    # review, finding CR3-15): tasks/SCHEMA.md documents both as part of
+    # a mutation check's contract, but nothing in this function (or
+    # grade_mutation.sh) ever read either field — for THIS repo's three
+    # existing testwrite tasks that's harmless by construction (each
+    # task's test_command already hardcodes the exact same path as its
+    # own agent_test_file, and grade_mutation.sh's kill-rate logic already
+    # only implements "require every mutant killed", matching the only
+    # value require_kill has ever been set to), but nothing would have
+    # caught a FUTURE task author setting either field to something that
+    # silently doesn't match reality. Made real instead of decorative:
+    if check.get("require_kill", "all") != "all":
+        return False, (
+            f"task declares require_kill: {check['require_kill']!r}, but "
+            f"grade_mutation.sh only ever implements 'require every mutant "
+            f"killed' — this value would have been silently ignored."
+        ), None
+    agent_test_file = check.get("agent_test_file")
+    if agent_test_file and not (run_dir / agent_test_file).exists():
+        return False, (
+            f"agent_test_file {agent_test_file!r} does not exist in the run "
+            f"dir — the agent never created its test file at the path this "
+            f"task's prompt names, regardless of what test_command reports."
+        ), None
+
     # Restore build manifests/lockfiles before grading, same as
     # grade_command() already did — this call was missing entirely until a
     # second independent adversarial review (finding H-2): mutation-graded
