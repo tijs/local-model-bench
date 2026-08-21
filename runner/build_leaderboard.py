@@ -7,7 +7,30 @@ from collections import defaultdict
 from pathlib import Path
 from statistics import mean
 
+import yaml
+
 REPO = Path(__file__).resolve().parent.parent
+
+
+def _fairness_fields(config_hash, config_path):
+    """temperature/reasoning_mode as declared in the config that produced
+    this group — surfaced as their own columns so two configs that differ
+    in these (not just quant) can't be silently read as an apples-to-apples
+    comparison (adversarial review finding H7). Prefers the exact snapshot
+    (what was actually run) over the live file (which may have changed)."""
+    if not config_hash:
+        return "—", "—"
+    snapshot = REPO / "results" / "configs" / f"{config_hash}.yaml"
+    src = snapshot if snapshot.exists() else (REPO / config_path if config_path else None)
+    if not src or not src.exists():
+        return "?", "?"
+    try:
+        cfg = yaml.safe_load(src.read_text()) or {}
+    except yaml.YAMLError:
+        return "?", "?"
+    temp = cfg.get("temperature", "?")
+    mode = cfg.get("reasoning_mode", "?")
+    return str(temp), str(mode)
 
 
 def _current_config_hash(config_path):
@@ -99,8 +122,8 @@ def main():
         "silently mislabeled for proxied configs (see below), but is still a",
         "single combined average across suites where it IS real.",
         "",
-        "| model | backend | quant | config | runner | tasks | pass rate | avg tok/s | avg TTFT (s) | hallucinated tools |",
-        "|---|---|---|---|---|---|---|---|---|---|",
+        "| model | backend | quant | temp | reasoning | config | runner | tasks | pass rate | avg tok/s | avg TTFT (s) | hallucinated tools |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for (model, backend, quant, config_hash, runner_sha), group in sorted(
         groups.items(), key=lambda kv: (kv[0][0], kv[0][1], kv[0][2] or "", kv[0][3] or "", kv[0][4] or "")
@@ -125,9 +148,10 @@ def main():
         n_hallucinated = sum(1 for r in group if r.get("grade_output", "").startswith("FAIL: model called tool"))
         config_path = next((r.get("config_path") for r in group if r.get("config_path")), None)
         config_label = _config_label(config_hash, config_path)
+        temp, reasoning_mode = _fairness_fields(config_hash, config_path)
         runner_label = runner_sha or "*(predates tracking)*"
         lines.append(
-            f"| {model} | {backend} | {quant or '—'} | {config_label} | {runner_label} | {n} | {pass_rate} | {avg_tps} | {avg_ttft} | {n_hallucinated} |"
+            f"| {model} | {backend} | {quant or '—'} | {temp} | {reasoning_mode} | {config_label} | {runner_label} | {n} | {pass_rate} | {avg_tps} | {avg_ttft} | {n_hallucinated} |"
         )
 
     lines.append("")
