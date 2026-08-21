@@ -191,18 +191,31 @@ def restore_harness_files(run_dir, check_dest=None):
         cwd=run_dir, capture_output=True, text=True,
     ).stdout.strip()
 
-    restore_paths = list(_HARNESS_MANIFEST_FILES)
+    # Found by a second independent adversarial review (finding H-1): this
+    # used to check bare basenames ("Cargo.toml") against run_dir's TOP
+    # level only — a no-op for kiem_mini, the only suite this repo has ever
+    # actually run against a model, since its Cargo.toml lives at
+    # rust/Cargo.toml, not the fixture root (hearth_mini/kipclip_mini are
+    # flat, single-root fixtures, so the bug never showed up on those).
+    # Confirmed live: an agent-tampered rust/Cargo.toml survived the old
+    # restore untouched. Fixed by asking git itself for every baseline path
+    # whose basename matches, anywhere in the tree, instead of assuming a
+    # fixed depth.
+    tracked = subprocess.run(
+        ["git", "ls-tree", "-r", "--name-only", "baseline"],
+        cwd=run_dir, capture_output=True, text=True,
+    ).stdout.splitlines()
+    restore_paths = [
+        p for p in tracked
+        if Path(p).name in _HARNESS_MANIFEST_FILES
+    ]
     if check_dest:
         restore_paths.append(check_dest)
     for path in restore_paths:
-        if (run_dir / path).exists() or subprocess.run(
-            ["git", "cat-file", "-e", f"baseline:{path}"],
+        subprocess.run(
+            ["git", "checkout", "-q", "baseline", "--", path],
             cwd=run_dir, capture_output=True,
-        ).returncode == 0:
-            subprocess.run(
-                ["git", "checkout", "-q", "baseline", "--", path],
-                cwd=run_dir, capture_output=True,
-            )  # best-effort: silently no-ops for a path baseline never had
+        )  # best-effort: silently no-ops for a path baseline never had
     return diff
 
 
@@ -224,6 +237,16 @@ def grade_command(suite, task, run_dir):
 def grade_mutation(task, run_dir):
     check = task["check"]
     source_file = check["source_file"]
+
+    # Restore build manifests/lockfiles before grading, same as
+    # grade_command() already did — this call was missing entirely until a
+    # second independent adversarial review (finding H-2): mutation-graded
+    # test-writing tasks are exactly where an agent is most likely to touch
+    # Cargo.toml/package.json/deno.json (adding a dependency for its new
+    # test file, or accidentally disabling a lint), and this path had zero
+    # protection against that beyond the single-file source_file check
+    # below.
+    restore_harness_files(run_dir)
 
     # Test-writing tasks explicitly instruct "Do not modify <source_file>"
     # — the whole point is to grade tests written against the REAL
