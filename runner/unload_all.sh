@@ -30,7 +30,12 @@ cocore agent models set "" 2>&1 | grep -v "pinned process signing identity" || t
 sleep 3
 
 echo "--- Stopping hermes's independent mara-mlx LaunchAgent (fitness profile's local fallback) ---"
-launchctl bootout gui/501/ai.hermes.mara-mlx 2>/dev/null || true
+# gui/$(id -u), not a hardcoded gui/501 (3rd adversarial review, low
+# finding, same spirit as M8's fix for the hardcoded cocore python path):
+# 501 happens to be this machine's uid, but nothing computed it — a
+# hardcoded launchctl domain target is exactly the kind of
+# machine-specific fragility M8 fixed elsewhere.
+launchctl bootout "gui/$(id -u)/ai.hermes.mara-mlx" 2>/dev/null || true
 sleep 1
 
 echo "--- Cleaning up any orphaned processes (cocore's own bounce leaves one) ---"

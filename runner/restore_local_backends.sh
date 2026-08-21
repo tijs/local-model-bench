@@ -10,11 +10,13 @@ cocore agent models set "LiquidAI/LFM2.5-2.6B-MLX-bf16" 2>&1 | grep -v "pinned p
 sleep 2
 # The models-set bounce fully unloads the LaunchAgent rather than reloading
 # it cleanly (observed live 2026-08-19) — re-bootstrap explicitly.
-launchctl bootstrap gui/501 ~/Library/LaunchAgents/dev.cocore.provider.plist 2>&1 || true
+launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/dev.cocore.provider.plist 2>&1 || true
 sleep 2
 
 echo "--- Restoring hermes's mara-mlx LaunchAgent (fitness profile's local fallback) ---"
-launchctl bootstrap gui/501 ~/Library/LaunchAgents/ai.hermes.mara-mlx.plist 2>&1 || true
+# gui/$(id -u), not a hardcoded gui/501 — same fix as unload_all.sh (3rd
+# adversarial review, low finding).
+launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/ai.hermes.mara-mlx.plist 2>&1 || true
 
 sleep 3
 echo "--- Verifying ---"
