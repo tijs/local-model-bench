@@ -276,22 +276,32 @@ def main():
             messages.append(msg)
 
             tool_calls = msg.get("tool_calls") or []
+            if choice.get("finish_reason") == "length":
+                # A response cut off mid-generation (hit max_tokens) is NOT
+                # the model's real final answer — grading it as one
+                # silently penalizes exactly the models this benchmark
+                # deliberately runs in high-reasoning/thinking mode
+                # (adversarial review finding M1): a longer reasoning
+                # trace is more likely to hit the ceiling before reaching
+                # a real answer. Surface it as a run error instead of a
+                # graded (near-certainly wrong) response.
+                #
+                # Checked BEFORE `if not tool_calls`, not just inside it
+                # (3rd adversarial review, low finding): a tool call can
+                # ALSO be truncated mid-arguments by hitting max_tokens —
+                # the old code only ever checked this when tool_calls was
+                # empty, so a cut-off tool call's mangled JSON arguments
+                # (caught downstream as {"_raw": ...} on a JSONDecodeError)
+                # got graded as a real, if malformed, tool call — the same
+                # unfairness M1 was written to prevent, just one branch
+                # over.
+                error = (
+                    f"response truncated (finish_reason=length) before a final "
+                    f"answer — max_tokens={args.max_tokens} was likely too low for "
+                    f"this turn, not a real answer to grade"
+                )
+                break
             if not tool_calls:
-                if choice.get("finish_reason") == "length":
-                    # A response cut off mid-generation (hit max_tokens) is
-                    # NOT the model's real final answer — grading it as one
-                    # silently penalizes exactly the models this benchmark
-                    # deliberately runs in high-reasoning/thinking mode
-                    # (adversarial review finding M1): a longer reasoning
-                    # trace is more likely to hit the ceiling before
-                    # reaching a real answer. Surface it as a run error
-                    # instead of a graded (near-certainly wrong) response.
-                    error = (
-                        f"response truncated (finish_reason=length) before a final "
-                        f"answer — max_tokens={args.max_tokens} was likely too low for "
-                        f"this turn, not a real answer to grade"
-                    )
-                    break
                 final_text = msg.get("content") or ""
                 break
 
