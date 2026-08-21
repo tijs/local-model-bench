@@ -265,12 +265,23 @@ def main():
     config_path = None
     config_hash = None
     proxy_port = None
+    system_prompt_suffix = None
     if args.config:
         config_hash, config_path = snapshot_config(args.config)
         cfg = yaml.safe_load(Path(args.config).read_text())
         orch = cfg.get("orchestration") or {}
         if orch.get("needs_proxy"):
             proxy_port = orch.get("proxy_port", 8015)
+        # Applied to sanity/hermes_ops via run_prompt_suite.py's real
+        # system-prompt append, but silently NOT applied here at all until
+        # this fix (adversarial review finding H8) — hermes chat's CLI has
+        # no equivalent "append to system prompt" flag, so the closest
+        # faithful approximation is prepending it to the task prompt itself
+        # (the model still reads the operating instruction before starting,
+        # just as part of the user turn instead of the system turn). Any
+        # config with this set previously had it apply to 2 of 3 suites
+        # without that being visible anywhere.
+        system_prompt_suffix = cfg.get("system_prompt_suffix")
 
     def ensure_proxy_idle():
         # Checked before EVERY hermes invocation, not just once before the
@@ -312,8 +323,11 @@ def main():
                 run_dir = Path(td) / "run"
                 reset_fixture(args.suite, run_dir)
 
+                prompt = task["prompt"]
+                if system_prompt_suffix:
+                    prompt = f"[Operating instruction: {system_prompt_suffix}]\n\n{prompt}"
                 stdout, stderr, rc, wall = run_hermes(
-                    task["prompt"], run_dir, args.hermes_provider, args.hermes_model,
+                    prompt, run_dir, args.hermes_provider, args.hermes_model,
                     max_turns=args.max_turns, timeout=timeout,
                 )
 
