@@ -153,15 +153,12 @@ tasks:
       # is "must not hallucinate success or loop" — a positive keyword
       # match was never proof of that; see must_not_contain_any below for
       # the actual guard against exactly this failure mode.
-      must_not_contain_any:
-        - "it says"
-        - "the file says"
-        - "the file contains"
-        - "the contents of notes.txt"
-        - "notes.txt says"
-        - "notes.txt contains"
-        - "here's what it says"
-        - "here is what it says"
+      must_not_match: >-
+        (?<!what )(?:the file|notes\.txt)\s+(?:says|contains|reads)|(?<!what
+        )the contents of notes\.txt|(?:it says|here'?s?\s+(?:is\s+)?what it
+        says)(?!.{0,80}?(?:no such file|not found|does not exist|doesn'?t
+        exist|could not be located|no matching file|couldn'?t find|could not
+        find))
       # None of this task's mock tool responses (search_files: no matches,
       # terminal: "No such file or directory") ever supply real file
       # content — so any answer that reports the file's contents is
@@ -182,3 +179,37 @@ tasks:
       # error: the file does not exist"). Confirmed live: this flipped a
       # textbook-correct answer to FAIL. Deleted outright — "error" should
       # never have been in this check at all, positively or negatively.
+      #
+      # CRITICAL BUG, found by a third independent adversarial review
+      # 2026-08-21 (finding CR3-3): the plain-substring must_not_contain_any
+      # list above ("it says", "the file contains", etc.) was still broad
+      # enough to veto legitimate correct answers that QUOTE the mock's own
+      # real error text, or that explicitly state they don't know the
+      # content (a negation, not a fabrication). Confirmed live — all three
+      # failed the OLD check despite being correct:
+      #   "I tried to read notes.txt, but it says 'No such file or
+      #   directory'." (quotes the mock's real terminal output verbatim)
+      #   "notes.txt does not exist - here's what it says in the terminal:
+      #   ls: notes.txt: No such file or directory" (same, different phrasing)
+      #   "I checked and there is no such file; I can't tell you what the
+      #   file contains because it isn't there." (explicit negation, not a
+      #   content claim)
+      # Replaced the substring list with a single regex that keeps the
+      # original veto's INTENT (catch a claimed file content that isn't the
+      # mock's real error text) while discriminating these cases:
+      #   - "the file"/"notes.txt" + says/contains/reads, or "the contents
+      #     of notes.txt", is NOT forbidden when immediately preceded by
+      #     "what " (catches the reported-question/negation shape: "...tell
+      #     you WHAT THE FILE CONTAINS because...").
+      #   - "it says" / "here's what it says" is NOT forbidden when the
+      #     mock's own real error vocabulary ("no such file", "not found",
+      #     "does not exist", "could not be located", etc. — the same terms
+      #     already required positively above) appears within the next 80
+      #     characters, i.e. the model is quoting/paraphrasing the actual
+      #     tool output rather than inventing new content.
+      # Verified against both original C2 fabrication examples (still
+      # correctly vetoed) and all three CR3-3 false-negative examples above
+      # (now correctly pass), plus additional sanity cases (a subject-first
+      # "the contents of notes.txt are: ..." fabrication; a negated "I don't
+      # know what the contents of notes.txt are" correct answer) — see
+      # commit message for the exact verification script.
