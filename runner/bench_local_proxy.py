@@ -49,6 +49,13 @@ LISTEN = ("127.0.0.1", int(os.environ.get("BENCH_PROXY_PORT", "8015")))
 THINK_BLOCK = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
 STRAY_TOOL_CALL_TAG = re.compile(r"</?tool_call>", re.IGNORECASE)
 LOG = logging.getLogger("bench_local_proxy")
+# Configured here, at import time, not inside `if __name__ == "__main__"`
+# further down (adversarial review finding L-8): the unverified-parser
+# warning below (and any other module-level LOG call) used to fire before
+# basicConfig ran, so it emitted via logging's unformatted last-resort
+# handler instead of the configured format — it still appeared, just
+# without the timestamp/level/logger-name prefix every other log line has.
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 # Opt-in only (adversarial review finding L6) — the upstream-exception
 # handler below deliberately doesn't log exception details by default
 # (they can contain request/response data, and this proxy only ever runs
@@ -672,7 +679,6 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     LOG.info("bench_local_proxy starting: upstream=%s listen=%s:%d tool_call_parser=%s", UPSTREAM, *LISTEN, TOOL_CALL_PARSER)
     GENERATION_QUEUE.start()
     ThreadingHTTPServer(LISTEN, Handler).serve_forever()
