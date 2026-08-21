@@ -3,9 +3,13 @@
 The single entry point for this whole benchmark: run one model+backend
 config, or every config in the repo, unattended.
 
-Requires PyYAML — run with cocore's python:
+Requires PyYAML — run with cocore's python (or export BENCH_PYTHON=/your/
+python first; see README.md — every command below and the MLX configs'
+own benchmark_launch_command read that env var, falling back to this
+hardcoded path only when it's unset):
   /Users/tijs/.cocore/python/bin/python runner/run_bench.py --config configs/<model>/<backend>.yaml
   /Users/tijs/.cocore/python/bin/python runner/run_bench.py --all
+  /Users/tijs/.cocore/python/bin/python runner/run_bench.py --all --trials 3 --coding-suites kiem_mini,hearth_mini,kipclip_mini
 
 Reads the `orchestration:` block each configs/<model>/<backend>.yaml file
 carries (see configs/README.md for the schema) — that block is the single

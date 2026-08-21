@@ -67,6 +67,20 @@ docstring at the top of `runner/run_bench.py` for exactly what each
 `viable` value means). Regenerates `results/LEADERBOARD.md` after every
 model, tears down the server, and moves to the next.
 
+**Optional flags** (either invocation form above):
+- `--trials N` — run each task N times instead of once. A single trial's
+  pass/fail is not reliably reproducible (confirmed live: the identical
+  model/config/task flipped pass↔fail across two separate runs at
+  temperature=0 — MLX/Metal generation isn't bit-deterministic run to run).
+  `build_leaderboard.py` surfaces any task with a mixed pass/fail across
+  its rows in a dedicated "Flaky tasks" section.
+- `--coding-suites kiem_mini,hearth_mini,kipclip_mini` — run EVERY task
+  (feature/debug/test-writing) in the named suites, instead of just the
+  single historical `kiem_mini-feature` spot-check. Omitting this leaves
+  the default single-spot-check behavior (and `--all`'s runtime)
+  unchanged — this can turn one config's coding evaluation into 9 tasks
+  instead of 1, so it's opt-in, not the default.
+
 **Config-driven, not hardcoded**: every port, launch flag, proxy
 requirement, and hermes provider name lives in that model's
 `configs/<model>/<backend>.yaml`, not in the runner code. See
