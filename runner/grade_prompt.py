@@ -196,54 +196,46 @@ def grade(result, check):
             if not found:
                 return False, f"expected sequence {expected} not found in actual calls {names_in_order}"
 
-        if "write_file_arg_contains" in check:
-            needle = check["write_file_arg_contains"]
-            # Scoped to the "content" argument specifically (adversarial
-            # review finding M4) — scanning every argument value used to
-            # let write_file(path="/tmp/912046.txt", content="wrong
-            # answer") pass a check meant to verify the FILE'S CONTENT,
-            # just because the needle happened to appear in the path
-            # instead.
-            matches = [
-                c for c in calls
-                if c["name"] == "write_file"
-                and needle in str(c["arguments"].get("content", ""))
-            ]
-            if not matches:
-                return False, f"no write_file call had a 'content' argument containing {needle!r} (calls: {[c['arguments'] for c in calls if c['name']=='write_file']})"
+        # write_file_arg_contains/_equals/_path are ANDed on the SAME call
+        # (3rd adversarial review, finding CR3-7) — each used to be checked
+        # independently against ALL write_file calls, so a model making
+        # multiple write_file calls could satisfy each condition with a
+        # DIFFERENT call and still pass, e.g. one call with the right
+        # content but wrong path, and a second with the right path but
+        # wrong content: neither call alone is correct, but the check
+        # (checking "does ANY call have the right content" and separately
+        # "does ANY call have the right path") passed anyway. Confirmed
+        # live with exactly that two-call case against
+        # hermes_ops-chaining's real check. A prompt asking for one
+        # correct write_file call requires ONE call to satisfy every
+        # declared condition together.
+        write_file_checks = {
+            k: check[k] for k in
+            ("write_file_arg_contains", "write_file_arg_equals", "write_file_arg_path")
+            if k in check
+        }
+        if write_file_checks:
+            def _call_satisfies(c):
+                if c["name"] != "write_file":
+                    return False
+                args = c["arguments"]
+                if "write_file_arg_contains" in write_file_checks and \
+                        write_file_checks["write_file_arg_contains"] not in str(args.get("content", "")):
+                    return False
+                if "write_file_arg_equals" in write_file_checks and \
+                        str(args.get("content", "")).strip() != str(write_file_checks["write_file_arg_equals"]):
+                    return False
+                if "write_file_arg_path" in write_file_checks and \
+                        not str(args.get("path", "")).endswith(write_file_checks["write_file_arg_path"]):
+                    return False
+                return True
 
-        if "write_file_arg_equals" in check:
-            # Exact-match alternative (adversarial review finding L5): a
-            # prompt asking to write JUST a value (e.g. "write just that
-            # number to a file") is satisfied by write_file_arg_contains
-            # even if the model also wrote a sentence around the number —
-            # this checks the content is the expected value and nothing
-            # else (stripped of surrounding whitespace only).
-            expected = str(check["write_file_arg_equals"])
-            matches = [
-                c for c in calls
-                if c["name"] == "write_file"
-                and str(c["arguments"].get("content", "")).strip() == expected
-            ]
-            if not matches:
-                return False, f"no write_file call had a 'content' argument equal to {expected!r} (calls: {[c['arguments'] for c in calls if c['name']=='write_file']})"
-
-        if "write_file_arg_path" in check:
-            # Suffix match on the path argument (adversarial review finding
-            # M-2): write_file_arg_equals/_contains checked the CONTENT but
-            # neither ever checked the path — a prompt asking to write to
-            # "population.txt" specifically was satisfied by a write_file
-            # call to any path at all, as long as the content matched.
-            # Suffix (not exact) match since a model may reasonably use an
-            # absolute path ("/tmp/population.txt") or a relative one.
-            expected_path = check["write_file_arg_path"]
-            matches = [
-                c for c in calls
-                if c["name"] == "write_file"
-                and str(c["arguments"].get("path", "")).endswith(expected_path)
-            ]
-            if not matches:
-                return False, f"no write_file call had a 'path' argument ending in {expected_path!r} (calls: {[c['arguments'] for c in calls if c['name']=='write_file']})"
+            if not any(_call_satisfies(c) for c in calls):
+                write_file_calls = [c["arguments"] for c in calls if c["name"] == "write_file"]
+                return False, (
+                    f"no single write_file call satisfied all of {write_file_checks} "
+                    f"together (calls: {write_file_calls})"
+                )
 
         return True, ""
 
@@ -253,10 +245,21 @@ def grade(result, check):
             return False, f"tool '{check['expected_tool']}' was never called (called: {[c['name'] for c in result.get('tool_calls', [])]})"
 
         expected_args = check.get("expected_args")
-        if not expected_args:
-            # no specific arguments required — any call to the right tool counts
-            matched = calls[0]
-        else:
+        patterns = check.get("expected_args_match")
+
+        # expected_args and expected_args_match are ANDed on the SAME call
+        # (3rd adversarial review, finding CR3-7) — each used to narrow
+        # `calls` independently, so a model making multiple calls to the
+        # right tool could satisfy expected_args with one call and
+        # expected_args_match with a DIFFERENT call, and still pass, even
+        # though no single call actually had both the right argument value
+        # and the right argument content. Confirmed live: web_search calls
+        # {category: weather, query: "best pizza"} and {category: news,
+        # query: "amsterdam weather"} together passed a check requiring
+        # {category: weather} AND query matching "amsterdam", despite
+        # neither call alone satisfying both. Combined into one predicate
+        # so a single call must satisfy everything declared.
+        def _values_equal(expected_v, actual_v):
             # Exact key->value matching (adversarial review finding M4) —
             # comparing a sorted multiset of VALUES ONLY (the previous
             # behavior) ignored keys entirely: add_numbers(x=15, y=27)
@@ -277,43 +280,44 @@ def grade(result, check):
             # passing an extra optional argument (also schema-valid) now
             # hard-failed. expected_args is a required SUBSET of the
             # actual call's arguments, not the complete set.
-            def _values_equal(expected_v, actual_v):
-                try:
-                    return float(expected_v) == float(actual_v)
-                except (TypeError, ValueError):
-                    return str(expected_v) == str(actual_v)
+            try:
+                return float(expected_v) == float(actual_v)
+            except (TypeError, ValueError):
+                return str(expected_v) == str(actual_v)
 
-            matched = None
-            for c in calls:
-                actual = c["arguments"]
-                if all(k in actual and _values_equal(v, actual[k]) for k, v in expected_args.items()):
-                    matched = c
-                    break
+        def _call_ok(c):
+            actual = c["arguments"]
+            if expected_args and not all(
+                k in actual and _values_equal(v, actual[k]) for k, v in expected_args.items()
+            ):
+                return False
+            if patterns and not all(
+                # Per-argument regex assertions (adversarial review finding
+                # M-3): mock_tool_responses is keyed by TOOL NAME only, and
+                # `expected_args: {}` (falsy) skips argument checking
+                # entirely — so hermes_ops-selection, a task titled "Pick
+                # the right tool out of 41 available", never verified the
+                # model searched for anything relevant. A model calling
+                # web_search(query="best pizza") got the mocked
+                # Amsterdam-weather result back and passed as long as "18"
+                # appeared somewhere in its answer. This grades tool USE,
+                # not just tool SELECTION.
+                re.search(pattern, str(actual.get(k, "")), re.IGNORECASE)
+                for k, pattern in patterns.items()
+            ):
+                return False
+            return True
+
+        if not expected_args and not patterns:
+            # no specific arguments required — any call to the right tool counts
+            matched = calls[0]
+        else:
+            matched = next((c for c in calls if _call_ok(c)), None)
             if matched is None:
-                return False, f"'{check['expected_tool']}' was called but never with (at least) arguments {expected_args} (saw: {[c['arguments'] for c in calls]})"
-
-        if "expected_args_match" in check:
-            # Per-argument regex assertions (adversarial review finding
-            # M-3): mock_tool_responses is keyed by TOOL NAME only, and
-            # `expected_args: {}` (falsy) skips argument checking entirely
-            # — so hermes_ops-selection, a task titled "Pick the right tool
-            # out of 41 available", never verified the model searched for
-            # anything relevant. A model calling web_search(query="best
-            # pizza") got the mocked Amsterdam-weather result back and
-            # passed as long as "18" appeared somewhere in its answer. This
-            # grades tool USE, not just tool SELECTION.
-            patterns = check["expected_args_match"]
-            matches = [
-                c for c in calls
-                if all(
-                    re.search(pattern, str(c["arguments"].get(k, "")), re.IGNORECASE)
-                    for k, pattern in patterns.items()
-                )
-            ]
-            if not matches:
                 return False, (
-                    f"'{check['expected_tool']}' was called but no call had arguments "
-                    f"matching {patterns} (saw: {[c['arguments'] for c in calls]})"
+                    f"'{check['expected_tool']}' was called but no single call satisfied "
+                    f"expected_args={expected_args} and expected_args_match={patterns} together "
+                    f"(saw: {[c['arguments'] for c in calls]})"
                 )
 
         if "response_contains" in check:
