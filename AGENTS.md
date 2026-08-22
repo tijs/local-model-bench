@@ -128,7 +128,7 @@ new session that opens this repo.
   synthetic input in minutes — something this repo had zero automated
   coverage for until then, despite two prior review rounds' worth of
   fixes. Run with:
-  `uv run --with pyyaml python3 -m unittest discover -s runner/tests -v`
+  `uv run --locked python -m unittest discover -s runner/tests -v`
   Covers: grade_prompt.py's check-grading logic (strip_reasoning,
   normalize_punctuation, the error-recovery forbidden-phrase regex, the
   tool-call-argument combined-predicate fix), run_fixture_suite.py's
@@ -363,11 +363,17 @@ fought and respawned):
   `deno.lock` (kipclip_mini) are all tracked in git — a benchmark run should
   be byte-for-byte reproducible, not dependent on whatever happens to be
   latest on a registry that day.
-- **Runner scripts** (Python): run with `/Users/tijs/.cocore/python/bin/
-  python` (3.12.13) — the only local interpreter confirmed to have PyYAML
-  pre-installed; version pinned in `runner/requirements.txt`
-  (`pip install -r runner/requirements.txt` into any other interpreter if
-  cocore's python ever goes away).
+- **Runner scripts** (Python): `pyproject.toml` declares the control-plane
+  dependencies and supported Python range; `uv.lock` pins those plus the
+  optional `mlx` serving extra. Use `uv sync --locked` for normal orchestration
+  and tests, or add `--extra mlx` when serving vllm-mlx from the project
+  `.venv`. Invoke scripts with `uv run --locked python ...`.
+  `runner/requirements.txt` keeps the control-plane pins for non-uv
+  compatibility. Leave `BENCH_PYTHON` unset normally; set it explicitly to an
+  existing model-serving interpreter (for example
+  `$HOME/.cocore/python/bin/python`) when using CoCore instead of the `mlx`
+  extra. The CLI-based Laguna config exposes `BENCH_VLLM_COMMAND` for the same
+  purpose.
 - **Every logged result** carries `config_path`, `config_hash` (a sha256
   prefix of the exact config content at run time), and `runner_git_sha`
   (the harness's own git sha, `+dirty` if graded by uncommitted code).
@@ -396,14 +402,34 @@ fought and respawned):
   session and any hermes-spawned agent session): token in
   `~/.cache/huggingface/token` and `HF_TOKEN` exported in `~/.zshrc`.
 
-## Follow-up ideas (not yet investigated)
+## Isolated oMLX backend (added 2026-08-21)
 
-- **oMLX** as a possible additional runner/backend to evaluate alongside
-  MLX (vllm-mlx) and llama.cpp/GGUF — raised by Tijs 2026-08-20, not yet
-  looked into (what it is exactly, whether it's a meaningfully distinct
-  backend for this benchmark's purposes, tool-calling support). Look into
-  this next time there's room for a new backend, not a blocker for
-  filling out the current model list.
+oMLX is a third, first-class framework, not another spelling of `mlx`.
+The pinned 0.6.2 checkout lives under
+`~/.local/share/local-model-bench/omlx-src` at commit
+`f2d36f3d25a7e7a2401a92eecafc28b8f8968ec7`; `runner/bootstrap_omlx.sh` uses
+uv to create/update its dedicated virtualenv. Its model root, base path, port
+8020, logs, and caches do not overlap CoCore, Mara, vllm-mlx, llama.cpp,
+`~/.omlx`, or the project's uv `.venv`. Do not add oMLX or its patched pinned
+MLX stack to `pyproject.toml`; the isolated runtime is intentional.
+
+- Start through `runner/start_omlx_server.sh`; it requires an exact local
+  served-directory ID, disables implicit Hugging Face cache discovery, writes
+  validated global/per-model settings, and distinguishes cold, hot-only, and
+  SSD cache modes plus Lightning MTP off/on.
+- Stop through `runner/stop_omlx_server.sh`. `run_bench.py` invokes it in a
+  `finally` path, including identity/load/sanity failures, so no stale Metal
+  model is left on port 8020.
+- A successful `/v1/models` catalog response is not readiness. Require exact
+  served-ID membership, a real plain completion, and
+  `runner/probe_omlx.py`'s streaming/non-streaming schema validation before
+  recording tool-use results.
+- The Qwen/LFM `oQ4e-fp16` / `oQ4-fp16` artifacts are mixed-precision 4-bit
+  oQ models with FP16-preserved tensors, not full-FP16 controls. Keep
+  `quant_family`, `cache_mode`, and `mtp_mode` explicit in every config.
+- Use `uv run --locked python runner/run_bench.py --all --framework omlx` for
+  the sequential oMLX-only matrix. Never launch two local model servers
+  concurrently.
 
 ## Killed-task retry hazard (found live 2026-08-20, auto-fixed 2026-08-21)
 

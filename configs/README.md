@@ -1,7 +1,7 @@
 # Run configs
 
 One file per model+backend combo: `configs/<model-slug>/<backend>.yaml`
-(`backend` is `mlx` or `gguf`). Documents the exact serving/inference
+(`backend` is `mlx`, `gguf`, or isolated `omlx`). Documents the exact serving/inference
 settings used for benchmark runs against that model — each setting with a
 citation, so results are auditable and reproducible, and so a value is never
 just "chosen because it seemed right" without saying so explicitly.
@@ -22,7 +22,7 @@ backend: mlx
 # actually runs at.
 temperature: 0.1
 reasoning_mode: n/a   # thinking | instruct | n/a (no thinking-mode concept) | unspecified
-framework: vllm-mlx              # vllm-mlx | llama.cpp
+framework: vllm-mlx              # vllm-mlx | llama.cpp | omlx
 benchmark_launch_command: |
   python -m vllm_mlx.server --model LiquidAI/LFM2.5-2.6B-MLX-bf16 \
     --host 127.0.0.1 --port 8012 --max-request-tokens 4096 --max-tokens 4096
@@ -63,6 +63,20 @@ orchestration:
                            # — see runner/run_bench.py's docstring for
                            # exactly what each value skips and why
 
+# Required when framework: omlx. These are first-class experiment factors,
+# snapshotted with the config and rendered by build_leaderboard.py so cache /
+# acceleration variants cannot be silently averaged or mislabeled.
+omlx_version: 0.6.2
+omlx_commit: f2d36f3d25a7e7a2401a92eecafc28b8f8968ec7
+source_revision: <full Hugging Face revision>
+quant_family: oQ4e-fp16 mixed precision  # never shorten this to "FP16"
+context_cap: 65536
+cache_mode: cold                         # cold | hot | ssd
+mtp_mode: off                            # off | lightning
+tool_call_path: native_omlx_validated    # only after stream + non-stream probes
+# orchestration.served_model_id is the exact local directory/API identity.
+# oMLX does not necessarily expose the source repository ID in /v1/models.
+
 settings:
   - name: max_tokens
     value: 4096
@@ -92,8 +106,9 @@ last_verified_against_docs: 2026-08-20   # bump when re-checked — configs go s
 1. Check the model's HuggingFace model card / creator blog / GitHub README
    for recommended inference settings (temperature, top_p, chat template,
    tool-call format, context length).
-2. Check the serving framework's own docs (`vllm-mlx` README/PyPI, or
-   `llama.cpp` server docs / `llama-server --help`) for available tuning
+2. Check the serving framework's own docs (`vllm-mlx` README/PyPI,
+   `llama.cpp` server docs / `llama-server --help`, or the pinned oMLX
+   checkout plus `omlx serve --help`) for available tuning
    flags — don't assume the currently-running launch command is already
    optimal, it may just be whatever was convenient to start with.
 3. Fill in `settings:` with real citations (URLs). If nothing authoritative
@@ -106,6 +121,10 @@ last_verified_against_docs: 2026-08-20   # bump when re-checked — configs go s
    bench_common.py:snapshot_config()`) — the hash alone is not enough to
    reconstruct what was run, since the live config file gets edited again
    afterward; the snapshot is what actually stays traceable.
+5. For oMLX, run `runner/probe_omlx.py` before accepting benchmark rows. It
+   proves exact identity, cold generation, native streaming/non-streaming
+   structured calls against the benchmark's `add_numbers` schema, exact
+   65,536-token success plus over-cap rejection, and cache/timing metrics.
 
 ## Config files
 

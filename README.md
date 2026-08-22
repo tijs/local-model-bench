@@ -4,7 +4,7 @@ A benchmark harness for picking the best local LLM to run as the inference
 backend for [Hermes](https://hermes-agent.nousresearch.com/docs) (a local
 agent framework) for agentic coding work — JS/TS, Rust, Swift, a large
 system prompt, and a large tool manifest. Compares candidate models across
-two backends (MLX and GGUF/llama.cpp) on three axes: raw quality, speed,
+three backends (vllm-mlx, isolated oMLX, and GGUF/llama.cpp) on three axes: raw quality, speed,
 and tool-use reliability under realistic agentic conditions.
 
 Results: [`results/LEADERBOARD.md`](results/LEADERBOARD.md) (human-readable
@@ -17,20 +17,28 @@ every non-obvious gotcha discovered while running this are in
 
 - **macOS on Apple Silicon.** MLX only runs there; GGUF/llama.cpp would
   work elsewhere but this repo's launch commands assume Metal.
-- **A Python with PyYAML** for the orchestration/runner scripts
-  (`pip install -r runner/requirements.txt`, or point at an existing env
-  that has it — this repo's own commands use
-  `/Users/tijs/.cocore/python/bin/python`, a machine-specific path). Set
-  `export BENCH_PYTHON=/path/to/your/python` before running anything —
-  every runner script falls back to the hardcoded path only when this is
-  unset, so this one variable is enough (fixed 2026-08-21; used to require
-  editing four separate files by hand). Similarly, `export
-  BENCH_HERMES_BIN=/path/to/hermes` if your Hermes install isn't at
+- **[uv](https://docs.astral.sh/uv/)** for the Python orchestration scripts.
+  Run `uv sync --locked` for the control-plane and oMLX helper dependencies,
+  or `uv sync --locked --extra mlx` when this checkout will also serve
+  vllm-mlx models. `pyproject.toml` and `uv.lock` pin both workflows in the
+  repo-local `.venv`; `runner/requirements.txt` preserves non-uv compatibility
+  for the control-plane dependencies. `BENCH_PYTHON` remains an explicit
+  override for an existing model-serving environment such as CoCore:
+  `export BENCH_PYTHON="$HOME/.cocore/python/bin/python"`. Leave it unset for
+  the normal uv-based workflow. For the CLI-based Laguna config, the equivalent
+  override is `BENCH_VLLM_COMMAND=/path/to/vllm-mlx`. Similarly, set
+  `BENCH_HERMES_BIN=/path/to/hermes` if your Hermes install isn't at
   `~/.hermes/hermes-agent/venv/bin/hermes`.
 - **`llama.cpp`** (`brew install llama.cpp`) for the GGUF backend.
-- **`vllm-mlx`** (`pip install vllm-mlx`) for the MLX backend — needs
-  **0.4.1 or newer** for native tool-call parsing to be available at all
-  (see AGENTS.md's "vllm-mlx version note" if you're on an older install).
+- **`vllm-mlx` 0.4.1 or newer** for the MLX backend, provided by the pinned
+  `mlx` extra above (or by `BENCH_PYTHON`). See AGENTS.md's "vllm-mlx version
+  note".
+- **oMLX 0.6.2** for the isolated oMLX backend. Bootstrap it with
+  `runner/bootstrap_omlx.sh`; that script creates/manages the separate
+  environment under `~/.local/share/local-model-bench/`, pins source commit
+  `f2d36f3d25a7e7a2401a92eecafc28b8f8968ec7`, and never installs oMLX into
+  the project `.venv`, `~/.omlx`, or the CoCore Python environment. See
+  `runner/start_omlx_server.sh`.
 - **[Hermes](https://hermes-agent.nousresearch.com/docs)** installed
   locally, with an isolated `bench` profile
   (`~/.hermes/profiles/bench/config.yaml`) — this is what the coding-suite
@@ -45,7 +53,7 @@ every non-obvious gotcha discovered while running this are in
 
 **Everything, one command:**
 ```
-python runner/run_bench.py --all
+uv run --locked python runner/run_bench.py --all
 ```
 Iterates every `configs/*/*.yaml`, one at a time (strict one-server-at-a-
 time — see AGENTS.md's process-discipline note on why running multiple
@@ -55,7 +63,7 @@ its config, prints why, and moves on.
 
 **One model:**
 ```
-python runner/run_bench.py --config configs/Qwen3-Coder-30B-A3B/gguf.yaml
+uv run --locked python runner/run_bench.py --config configs/Qwen3-Coder-30B-A3B/gguf.yaml
 ```
 
 Either way, this launches the candidate server (and a tool-call-parsing
@@ -66,6 +74,11 @@ a fail-fast gate, then `hermes_ops`, then one coding-suite spot-check
 docstring at the top of `runner/run_bench.py` for exactly what each
 `viable` value means). Regenerates `results/LEADERBOARD.md` after every
 model, tears down the server, and moves to the next.
+
+Run only the sequential isolated oMLX matrix (never concurrently):
+```
+uv run --locked python runner/run_bench.py --all --framework omlx
+```
 
 **Optional flags** (either invocation form above):
 - `--trials N` — run each task N times instead of once. A single trial's
@@ -90,7 +103,7 @@ requirement, and hermes provider name lives in that model's
 
 1. Copy the closest-matching existing `configs/<model-slug>/` directory as
    a starting point — GGUF and MLX are separate files
-   (`configs/<model-slug>/gguf.yaml`, `.../mlx.yaml`).
+   (`configs/<model-slug>/gguf.yaml`, `.../mlx.yaml`, or `.../omlx.yaml`).
 2. Research the model's actual recommended settings — model card, release
    blog post, any linked deployment guide — and update
    `benchmark_launch_command`, `settings:` (with real citations, not
@@ -119,7 +132,7 @@ requirement, and hermes provider name lives in that model's
    prompt directive rather than a template kwarg (e.g. Muse-Glimmer's
    `"Reasoning strength: high"`). Record which value was used — it's not
    directly comparable across model families, so never leave it implicit.
-6. Run it: `python runner/run_bench.py --config configs/<model>/<backend>.yaml`.
+6. Run it: `uv run --locked python runner/run_bench.py --config configs/<model>/<backend>.yaml`.
 
 **When a model underperforms expectations**, don't accept the result at
 face value — do deeper research first (a dedicated deployment guide, a

@@ -1,6 +1,6 @@
 """Regression tests for runner/build_leaderboard.py.
 
-Run: uv run --with pyyaml python3 -m unittest discover -s runner/tests -v
+Run: uv run --locked python -m unittest discover -s runner/tests -v
 """
 import json
 import shutil
@@ -100,6 +100,24 @@ class HarnessErrorExclusionTests(unittest.TestCase):
         flaky_section = text[text.index("## Flaky tasks"):text.index("## By suite")]
         self.assertIn("hermes_ops-selection", flaky_section)
         self.assertIn("1/2", flaky_section)
+
+    def test_omlx_factors_are_visible_and_not_called_full_fp16(self):
+        cfg = self.repo / "configs" / "qwen" / "omlx-mtp.yaml"
+        cfg.parent.mkdir(parents=True)
+        cfg.write_text(
+            "framework: omlx\nquant_family: oQ4e-fp16 mixed precision\n"
+            "cache_mode: ssd-warm\nmtp_mode: lightning\n"
+            "temperature: 1\nreasoning_mode: medium\n"
+        )
+        import hashlib
+        config_hash = hashlib.sha256(cfg.read_bytes()).hexdigest()[:12]
+        self._write_log([self._base_row(
+            model="qwen", backend="omlx", config_path="configs/qwen/omlx-mtp.yaml",
+            config_hash=config_hash,
+        )])
+        bl.main()
+        text = (self.repo / "results" / "LEADERBOARD.md").read_text()
+        self.assertIn("| omlx | oQ4e-fp16 mixed precision | ssd-warm | lightning |", text)
 
 
 if __name__ == "__main__":

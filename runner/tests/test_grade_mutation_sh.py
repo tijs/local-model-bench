@@ -3,7 +3,7 @@ fixture (kiem_mini's rust/ crate) — not a mock, since the bug this pins
 down (CR3-1) was in the script's own backup/restore shell logic, which a
 mocked subprocess call would never exercise.
 
-Run: uv run --with pyyaml python3 -m unittest discover -s runner/tests -v
+Run: uv run --locked python -m unittest discover -s runner/tests -v
 """
 import hashlib
 import shutil

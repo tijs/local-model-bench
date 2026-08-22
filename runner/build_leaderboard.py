@@ -42,6 +42,31 @@ def _fairness_fields(config_hash, config_path):
     return str(temp), str(mode)
 
 
+def _experiment_fields(config_hash, config_path):
+    """Backend factors that must remain visible for oMLX comparisons.
+
+    The config hash already prevents accidental averaging, but a reader should
+    not need to open every snapshot to discover that two rows differ by cache,
+    MTP, framework, or mixed-precision quant family.
+    """
+    if not config_hash:
+        return "—", "—", "—", "—"
+    snapshot = REPO / "results" / "configs" / f"{config_hash}.yaml"
+    if snapshot.exists():
+        src = snapshot
+    elif config_path and _current_config_hash(config_path) == config_hash:
+        src = REPO / config_path
+    else:
+        return "?", "?", "?", "?"
+    try:
+        cfg = yaml.safe_load(src.read_text()) or {}
+    except (OSError, yaml.YAMLError):
+        return "?", "?", "?", "?"
+    return tuple(str(cfg.get(name, "—")) for name in (
+        "framework", "quant_family", "cache_mode", "mtp_mode"
+    ))
+
+
 def _current_config_hash(config_path):
     """The live file's hash right now — compared against a row's stored
     config_hash to tell whether the config has been edited since that row
@@ -175,8 +200,8 @@ def main():
         "reasoning-mode when comparing it against `configs/Qwen3.8-27B/gguf.yaml`,",
         "not currently its own column since no other config sets this flag.",
         "",
-        "| model | backend | quant | temp (coding only)¹ | reasoning | config | runner | tasks | pass rate | avg tok/s | avg TTFT (s) | hallucinated tools |",
-        "|---|---|---|---|---|---|---|---|---|---|---|---|",
+        "| model | backend | quant | temp (coding only)¹ | reasoning | config | runner | tasks | pass rate | avg tok/s | avg TTFT (s) | hallucinated tools | framework | quant family | cache | MTP |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for (model, backend, quant, config_hash, runner_sha), group in sorted(
         groups.items(), key=lambda kv: (kv[0][0], kv[0][1], kv[0][2] or "", kv[0][3] or "", kv[0][4] or "")
@@ -212,9 +237,10 @@ def main():
         config_path = next((r.get("config_path") for r in group if r.get("config_path")), None)
         config_label = _config_label(config_hash, config_path)
         temp, reasoning_mode = _fairness_fields(config_hash, config_path)
+        framework, quant_family, cache_mode, mtp_mode = _experiment_fields(config_hash, config_path)
         runner_label = runner_sha or "*(predates tracking)*"
         lines.append(
-            f"| {model} | {backend} | {quant or '—'} | {temp} | {reasoning_mode} | {config_label} | {runner_label} | {n} | {pass_rate} | {avg_tps} | {avg_ttft} | {n_hallucinated} |"
+            f"| {model} | {backend} | {quant or '—'} | {temp} | {reasoning_mode} | {config_label} | {runner_label} | {n} | {pass_rate} | {avg_tps} | {avg_ttft} | {n_hallucinated} | {framework} | {quant_family} | {cache_mode} | {mtp_mode} |"
         )
 
     lines.append("")

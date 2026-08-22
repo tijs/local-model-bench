@@ -5,8 +5,8 @@ the isolated "bench" hermes profile, in a fresh copy of the suite's fixture
 per task (copy -> git init -> baseline commit -> hermes works here ->
 grade -> discard). Appends one row per task to results/log.jsonl.
 
-Requires PyYAML — run with a python that has it, e.g. cocore's:
-  /Users/tijs/.cocore/python/bin/python runner/run_fixture_suite.py ...
+Requires PyYAML. Run through the repository's locked uv environment:
+  uv run --locked python runner/run_fixture_suite.py ...
 
 Usage:
   run_fixture_suite.py --suite kiem_mini \
@@ -14,6 +14,7 @@ Usage:
       --backend mlx [--quant Q4_K_M] [--only-task kiem_mini-feature]
 """
 import argparse
+import contextlib
 import json
 import os
 import re
@@ -71,6 +72,124 @@ def run_hermes(prompt, cwd, provider, model, max_turns, timeout):
         # {timeout}s" by the caller even when the actual timeout was never
         # reached.
         return "", "TIMEOUT", -1, time.time() - start, True
+
+
+def isolated_agent_prompt(prompt, run_dir):
+    """Anchor agent file tools to the disposable copy, not the source fixture.
+
+    Hermes subprocess cwd is correct, but profile tools/plugins can retain a
+    repository workspace root.  An absolute, repeated boundary is therefore
+    required in the user prompt as well as in ``Popen(cwd=...)``.
+    """
+    root = Path(run_dir).resolve()
+    return (
+        "[BENCHMARK WORKSPACE ISOLATION]\n"
+        f"Work ONLY inside this disposable run root: {root}\n"
+        f"Resolve every relative project path beneath {root}.\n"
+        "Do not edit the source fixture, benchmark repository, or any sibling "
+        "checkout. Use absolute paths under the disposable run root whenever a "
+        "file tool could otherwise be ambiguous.\n"
+        "[END BENCHMARK WORKSPACE ISOLATION]\n\n"
+        f"{prompt}"
+    )
+
+
+@contextlib.contextmanager
+def preserve_tree(root, state):
+    """Restore a source fixture byte-for-byte if a child agent escapes cwd.
+
+    This is a safety net, not the normal execution path.  ``state['changed']``
+    lets the caller classify the run as a harness error instead of crediting a
+    model that edited the grading source outside its disposable copy.
+    """
+    root = Path(root)
+    backup_parent = Path(tempfile.mkdtemp(prefix="bench-fixture-guard-"))
+    backup = backup_parent / "tree"
+    shutil.copytree(root, backup, symlinks=True)
+    state["changed"] = False
+    try:
+        yield
+    finally:
+        def manifest(path):
+            rows = []
+            for item in sorted(path.rglob("*")):
+                rel = str(item.relative_to(path))
+                if item.is_symlink():
+                    rows.append((rel, "link", os.readlink(item)))
+                elif item.is_file():
+                    rows.append((rel, "file", item.read_bytes()))
+                elif item.is_dir():
+                    rows.append((rel, "dir", b""))
+            return rows
+
+        state["changed"] = manifest(root) != manifest(backup)
+        if state["changed"]:
+            shutil.rmtree(root)
+            shutil.copytree(backup, root, symlinks=True)
+        shutil.rmtree(backup_parent, ignore_errors=True)
+
+
+def _repository_entries(root):
+    """Return protected repository entries, pruning intentional run outputs."""
+    root = Path(root)
+    entries = {}
+    for current, dirs, files in os.walk(root):
+        current_path = Path(current)
+        rel_dir = current_path.relative_to(root)
+        if rel_dir == Path("."):
+            dirs[:] = [d for d in dirs if d not in {".git", "results"}]
+        elif rel_dir == Path("runner"):
+            dirs[:] = [d for d in dirs if d != "runs"]
+        entries[str(rel_dir)] = ("dir", None)
+        for name in files:
+            path = current_path / name
+            rel = str(path.relative_to(root))
+            if path.is_symlink():
+                entries[rel] = ("link", os.readlink(path))
+            else:
+                entries[rel] = ("file", path.read_bytes())
+    return entries
+
+
+@contextlib.contextmanager
+def preserve_repository(root, state):
+    """Protect the real benchmark checkout while allowing run/results output."""
+    root = Path(root)
+    baseline = _repository_entries(root)
+    state["changed"] = False
+    try:
+        yield
+    finally:
+        current = _repository_entries(root)
+        state["changed"] = current != baseline
+        if state["changed"]:
+            # Remove paths created by the child, deepest first. Intentional
+            # results/ and runner/runs/ output is absent from both manifests.
+            for rel in sorted(set(current) - set(baseline), key=lambda x: x.count("/"), reverse=True):
+                if rel == ".":
+                    continue
+                path = root / rel
+                if path.is_symlink() or path.is_file():
+                    path.unlink(missing_ok=True)
+                elif path.is_dir():
+                    shutil.rmtree(path)
+
+            # Restore every pre-existing file/link byte-for-byte. Recreating all
+            # files is simpler and safer than trying to classify each mutation.
+            for rel, (kind, payload) in sorted(baseline.items(), key=lambda item: item[0].count("/")):
+                if rel == ".":
+                    continue
+                path = root / rel
+                if kind == "dir":
+                    path.mkdir(parents=True, exist_ok=True)
+                elif kind == "link":
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    if path.exists() or path.is_symlink():
+                        path.unlink()
+                    path.symlink_to(payload)
+                else:
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_bytes(payload)
 
 
 # Build-cache directories that must NEVER be copied into a run — discovered
@@ -444,7 +563,9 @@ def main():
     ap.add_argument("--suite", required=True)
     ap.add_argument("--hermes-provider", required=True)
     ap.add_argument("--hermes-model", required=True)
-    ap.add_argument("--backend", required=True, help="mlx | gguf, recorded in the log")
+    ap.add_argument("--log-model", default=None,
+                    help="source model ID to record when --hermes-model is a stable served alias")
+    ap.add_argument("--backend", required=True, help="mlx | gguf | omlx, recorded in the log")
     ap.add_argument("--quant", default=None)
     ap.add_argument("--only-task", default=None, help="run just this one task id")
     ap.add_argument("--max-turns", type=int, default=40)
@@ -542,10 +663,13 @@ def main():
                     prompt = task["prompt"]
                     if system_prompt_suffix:
                         prompt = f"[Operating instruction: {system_prompt_suffix}]\n\n{prompt}"
-                    stdout, stderr, rc, wall, timed_out = run_hermes(
-                        prompt, run_dir, args.hermes_provider, args.hermes_model,
-                        max_turns=args.max_turns, timeout=timeout,
-                    )
+                    prompt = isolated_agent_prompt(prompt, run_dir)
+                    fixture_guard = {}
+                    with preserve_repository(REPO, fixture_guard):
+                        stdout, stderr, rc, wall, timed_out = run_hermes(
+                            prompt, run_dir, args.hermes_provider, args.hermes_model,
+                            max_turns=args.max_turns, timeout=timeout,
+                        )
 
                     # Full transcript, saved and committed (not just the last 500
                     # chars of grade_output) — discovered live 2026-08-20 that no
@@ -573,6 +697,13 @@ def main():
                         passed, grade_output, diff_stat = grade_mutation(task, run_dir)
                     else:
                         passed, grade_output, diff_stat = grade_command(args.suite, task, run_dir)
+                    if fixture_guard["changed"]:
+                        passed = False
+                        harness_error = True
+                        grade_output = (
+                            "HARNESS ERROR: agent escaped the disposable run root and edited "
+                            "the benchmark checkout; source bytes were restored.\n" + grade_output
+                        )
                 except Exception as exc:
                     # A crash ANYWHERE above (reset_fixture's `npm ci`
                     # hitting a network blip, overlay_check_files's
@@ -593,7 +724,7 @@ def main():
                     "suite": args.suite,
                     "task_id": task["id"],
                     "task_type": task.get("type"),
-                    "model": args.hermes_model,
+                    "model": args.log_model or args.hermes_model,
                     "backend": args.backend,
                     "config_path": config_path,
                     "config_hash": config_hash,

@@ -3,8 +3,8 @@
 Drives every `runner: prompt` task in a tasks/<suite>.yaml file against one
 model backend, grades each, and appends a row per task to results/log.jsonl.
 
-Requires PyYAML — run with a Python that has it, e.g. cocore's:
-  /Users/tijs/.cocore/python/bin/python runner/run_prompt_suite.py ...
+Requires PyYAML. Run through the repository's locked uv environment:
+  uv run --locked python runner/run_prompt_suite.py ...
 
 Usage:
   run_prompt_suite.py --suite sanity --base-url http://127.0.0.1:8013/v1 \
@@ -29,7 +29,9 @@ def main():
     ap.add_argument("--suite", required=True)
     ap.add_argument("--base-url", required=True)
     ap.add_argument("--model", required=True)
-    ap.add_argument("--backend", required=True, help="mlx | gguf, recorded in the log")
+    ap.add_argument("--request-model", default=None,
+                    help="endpoint model ID when it differs from the source model recorded in --model")
+    ap.add_argument("--backend", required=True, help="mlx | gguf | omlx, recorded in the log")
     ap.add_argument("--quant", default=None, help="quant level, for gguf log rows")
     ap.add_argument("--config", default=None, help="path to configs/<model>/<backend>.yaml used for this run")
     ap.add_argument("--only-task", default=None, help="run just this one task id (e.g. to rerun a single fixed/flaky task)")
@@ -110,7 +112,7 @@ def main():
                         sys.executable,
                         str(REPO / "runner" / "run_prompt.py"),
                         "--base-url", args.base_url,
-                        "--model", args.model,
+                        "--model", args.request_model or args.model,
                         "--spec", str(spec_path),
                         "--timeout", str(timeout),
                         "--max-turns", str(max_turns),

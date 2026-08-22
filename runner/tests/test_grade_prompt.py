@@ -6,7 +6,7 @@ three rounds of adversarial review — added 2026-08-21 specifically so a
 one of these without a test catching it immediately, instead of requiring
 another live reproduction from scratch.
 
-Run: uv run --with pyyaml python3 -m unittest discover -s runner/tests -v
+Run: uv run --locked python -m unittest discover -s runner/tests -v
 """
 import sys
 import unittest

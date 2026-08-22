@@ -3,13 +3,14 @@
 The single entry point for this whole benchmark: run one model+backend
 config, or every config in the repo, unattended.
 
-Requires PyYAML — run with cocore's python (or export BENCH_PYTHON=/your/
-python first; see README.md — every command below and the MLX configs'
-own benchmark_launch_command read that env var, falling back to this
-hardcoded path only when it's unset):
-  /Users/tijs/.cocore/python/bin/python runner/run_bench.py --config configs/<model>/<backend>.yaml
-  /Users/tijs/.cocore/python/bin/python runner/run_bench.py --all
-  /Users/tijs/.cocore/python/bin/python runner/run_bench.py --all --trials 3 --coding-suites kiem_mini,hearth_mini,kipclip_mini
+Requires PyYAML. Use the repository's locked uv environment by default:
+  uv run --locked python runner/run_bench.py --config configs/<model>/<backend>.yaml
+  uv run --locked python runner/run_bench.py --all
+  uv run --locked python runner/run_bench.py --all --trials 3 --coding-suites kiem_mini,hearth_mini,kipclip_mini
+
+Set BENCH_PYTHON=/path/to/python when a model-serving environment such as
+CoCore must provide vllm-mlx. The override is inherited by config launch
+commands and is also used for runner subprocesses.
 
 Reads the `orchestration:` block each configs/<model>/<backend>.yaml file
 carries (see configs/README.md for the schema) — that block is the single
@@ -67,14 +68,11 @@ from pathlib import Path
 import yaml
 
 REPO = Path(__file__).resolve().parent.parent
-COCORE_PY = os.environ.get("BENCH_PYTHON", "/Users/tijs/.cocore/python/bin/python")
-# Adversarial review finding M8: this path (and the same hardcoded default
-# in bench_local_proxy.py's shebang, start_bench_proxy.sh, and
-# run_fixture_suite.py's HERMES_BIN) is machine-specific to the original
-# author's setup. README.md always said "swap in your own", but doing that
-# used to mean editing four separate files by hand. Set BENCH_PYTHON (must
-# have PyYAML) in the environment instead — every constant here defaults to
-# the original value so nothing changes for an unset environment.
+BENCH_PYTHON = os.environ.get("BENCH_PYTHON", sys.executable)
+# The locked uv environment is the machine-independent default. Keep
+# BENCH_PYTHON as an explicit escape hatch for model-serving environments
+# (for example CoCore's Python with vllm-mlx installed); child runner scripts
+# and model launch commands use the same override.
 CODING_SPOTCHECK_SUITE = "kiem_mini"
 CODING_SPOTCHECK_TASK = "kiem_mini-feature"
 
@@ -127,7 +125,7 @@ def _base_repo_name(model_id):
     return model_id.split(":")[0]
 
 
-def assert_serving_expected_model(raw_port, expected_model, alias=None):
+def assert_serving_expected_model(raw_port, expected_model, alias=None, served_model_id=None):
     """Confirm the server actually answering raw_port is serving the model
     THIS config expects, not a stale process left over from a previous
     config (adversarial review finding H2: wait_for_health only checks
@@ -151,6 +149,18 @@ def assert_serving_expected_model(raw_port, expected_model, alias=None):
         print(f"FAILED: could not verify served model via {url}: {e}")
         return False
     served_ids = [m.get("id", "") for m in data.get("data", [])]
+    # oMLX serves the local model-directory (or configured model-alias) ID,
+    # not necessarily the source HF repository recorded as `model:` in the
+    # benchmark config. A fuzzy source-ID match would accept an old oMLX
+    # directory that happens to share part of the source name, so oMLX config
+    # must supply a stable `orchestration.served_model_id` and match it exactly.
+    if served_model_id:
+        if served_model_id in served_ids:
+            return True
+        print(f"FAILED: {url} is serving {served_ids!r}, expected exact served_model_id "
+              f"{served_model_id!r} — a stale oMLX process or model directory may be bound "
+              "to this port.")
+        return False
     if alias:
         if alias in served_ids:
             return True
@@ -163,6 +173,38 @@ def assert_serving_expected_model(raw_port, expected_model, alias=None):
         return True
     print(f"FAILED: {url} is serving {served_ids!r}, expected something matching {expected!r} "
           f"— a stale server from a previous config may still be bound to this port.")
+    return False
+
+
+def assert_plain_completion(base_url, request_model, timeout=60):
+    """Prove the selected endpoint can generate ordinary assistant text.
+
+    A 200 /v1/models response only proves a process is listening. Before any
+    benchmark rows are recorded, make one minimal non-streaming completion on
+    the same served model ID that the suites will request.
+    """
+    url = f"{base_url.rstrip('/')}/chat/completions"
+    body = json.dumps({
+        "model": request_model,
+        "messages": [{"role": "user", "content": "Reply with exactly: ready"}],
+        "temperature": 0,
+        "max_tokens": 8,
+        "stream": False,
+    }).encode()
+    request = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"}, method="POST")
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as resp:
+            data = json.loads(resp.read())
+    except (urllib.error.URLError, OSError, ValueError) as e:
+        print(f"FAILED: plain completion probe at {url} failed: {e}")
+        return False
+    choices = data.get("choices") or []
+    message = (choices[0].get("message") or {}) if choices else {}
+    content = message.get("content")
+    if isinstance(content, str) and content.strip():
+        print("Plain completion probe passed.")
+        return True
+    print(f"FAILED: plain completion probe returned no assistant content for {request_model!r}.")
     return False
 
 
@@ -237,7 +279,7 @@ def server_command(cfg, alias=None):
     return text
 
 
-def run_one(config_path: Path, trials: int = 1, coding_suites=None):
+def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage="all"):
     cfg = yaml.safe_load(config_path.read_text())
     orch = cfg.get("orchestration")
     if not orch:
@@ -245,6 +287,13 @@ def run_one(config_path: Path, trials: int = 1, coding_suites=None):
 
     model = cfg["model"]
     backend = cfg["backend"]
+    served_model_id = orch.get("served_model_id")
+    if cfg.get("framework") == "omlx" and not served_model_id:
+        sys.exit(f"{config_path} is framework: omlx but has no orchestration.served_model_id")
+    # oMLX deliberately serves a stable local directory/alias ID while log
+    # rows retain the source artifact ID in `model`. Other frameworks request
+    # the model ID directly as before.
+    request_model = served_model_id or model
     config_hash = hashlib.sha256(config_path.read_bytes()).hexdigest()[:12]
     viable = orch.get("viable", "full")
 
@@ -268,6 +317,9 @@ def run_one(config_path: Path, trials: int = 1, coding_suites=None):
         return
 
     if raw_port is not None:
+        if cfg.get("framework") == "omlx":
+            print("\n--- stop any prior isolated oMLX server ---")
+            run(["bash", str(REPO / "runner" / "stop_omlx_server.sh")])
         print("\n--- unload any existing candidate backend ---")
         run(["bash", str(REPO / "runner" / "unload_all.sh")])
 
@@ -301,9 +353,12 @@ def run_one(config_path: Path, trials: int = 1, coding_suites=None):
         if not wait_for_health(f"http://127.0.0.1:{raw_port}/v1/models", proc=server_proc):
             print(f"FAILED: backend never became healthy — check {log_file}")
             return
-        if not assert_serving_expected_model(raw_port, model, alias=alias):
+        if not assert_serving_expected_model(raw_port, model, alias=alias, served_model_id=served_model_id):
             print(f"FAILED: refusing to continue against the wrong model — check {log_file} "
                   f"and confirm no stale process survived unload_all.sh (e.g. `lsof -i :{raw_port}`).")
+            return
+        if not assert_plain_completion(f"http://127.0.0.1:{raw_port}/v1", request_model, timeout=900):
+            print(f"FAILED: refusing to benchmark an endpoint that cannot complete a plain request — check {log_file}")
             return
 
         if needs_proxy:
@@ -315,7 +370,7 @@ def run_one(config_path: Path, trials: int = 1, coding_suites=None):
                 f"BENCH_TOOL_PARSER={parser} "
                 f"BENCH_PROXY_UPSTREAM={upstream} "
                 f"BENCH_PROXY_PORT={proxy_port} "
-                f"{COCORE_PY} {REPO / 'runner' / 'bench_local_proxy.py'}"
+                f"{BENCH_PYTHON} {REPO / 'runner' / 'bench_local_proxy.py'}"
             )
             with open(proxy_log, "w") as f:
                 proxy_proc = subprocess.Popen(
@@ -333,13 +388,13 @@ def run_one(config_path: Path, trials: int = 1, coding_suites=None):
 
     base_url = api_base_url or f"http://127.0.0.1:{proxy_port if needs_proxy else raw_port}/v1"
 
-    if viable in ("full", "sanity_and_hermes_ops_only", "sanity_only"):
+    if stage == "all" and viable in ("full", "sanity_and_hermes_ops_only", "sanity_only"):
         print("\n--- sanity (fail-fast gate) ---")
         with tempfile.TemporaryDirectory() as td:
             summary_path = Path(td) / "sanity_summary.json"
-            proc = run([COCORE_PY, str(REPO / "runner" / "run_prompt_suite.py"),
+            proc = run([BENCH_PYTHON, str(REPO / "runner" / "run_prompt_suite.py"),
                         "--suite", "sanity", "--base-url", base_url, "--model", model,
-                        "--backend", backend, "--config", str(config_path),
+                        "--request-model", request_model, "--backend", backend, "--config", str(config_path),
                         "--trials", str(trials), "--summary-out", str(summary_path)])
             # Read THIS invocation's own rows, not "whatever's at the tail
             # of the shared log" — a crashed/misconfigured subprocess used
@@ -376,14 +431,14 @@ def run_one(config_path: Path, trials: int = 1, coding_suites=None):
             _leaderboard()
             return
 
-    if viable in ("full", "sanity_and_hermes_ops_only"):
+    if stage == "all" and viable in ("full", "sanity_and_hermes_ops_only"):
         print("\n--- hermes_ops ---")
-        run([COCORE_PY, str(REPO / "runner" / "run_prompt_suite.py"),
+        run([BENCH_PYTHON, str(REPO / "runner" / "run_prompt_suite.py"),
              "--suite", "hermes_ops", "--base-url", base_url, "--model", model,
-             "--backend", backend, "--config", str(config_path),
+             "--request-model", request_model, "--backend", backend, "--config", str(config_path),
              "--trials", str(trials)])
 
-    if viable in ("full", "coding_only") and hermes_provider:
+    if stage in ("all", "coding") and viable in ("full", "coding_only") and hermes_provider:
         if coding_suites:
             # Adversarial review finding H1: the coding "suite" was
             # structurally just ONE task (kiem_mini-feature) — hearth_mini,
@@ -393,19 +448,19 @@ def run_one(config_path: Path, trials: int = 1, coding_suites=None):
             # underneath existing results.
             for suite in coding_suites:
                 print(f"\n--- coding suite: {suite} (every task) ---")
-                run([COCORE_PY, str(REPO / "runner" / "run_fixture_suite.py"),
+                run([BENCH_PYTHON, str(REPO / "runner" / "run_fixture_suite.py"),
                      "--suite", suite,
-                     "--hermes-provider", hermes_provider, "--hermes-model", model,
-                     "--backend", backend, "--config", str(config_path),
+                     "--hermes-provider", hermes_provider, "--hermes-model", request_model,
+                     "--log-model", model, "--backend", backend, "--config", str(config_path),
                      "--trials", str(trials)])
         else:
             print(f"\n--- coding spot-check ({CODING_SPOTCHECK_TASK}) ---")
-            run([COCORE_PY, str(REPO / "runner" / "run_fixture_suite.py"),
+            run([BENCH_PYTHON, str(REPO / "runner" / "run_fixture_suite.py"),
                  "--suite", CODING_SPOTCHECK_SUITE, "--only-task", CODING_SPOTCHECK_TASK,
-                 "--hermes-provider", hermes_provider, "--hermes-model", model,
-                 "--backend", backend, "--config", str(config_path),
+                 "--hermes-provider", hermes_provider, "--hermes-model", request_model,
+                 "--log-model", model, "--backend", backend, "--config", str(config_path),
                  "--trials", str(trials)])
-    elif viable in ("full", "coding_only"):
+    elif stage in ("all", "coding") and viable in ("full", "coding_only"):
         print("\n(coding spot-check skipped — no hermes_provider registered for this config)")
 
     # Deliberately no teardown here — the NEXT config's own run_one() (in
@@ -420,8 +475,29 @@ def run_one(config_path: Path, trials: int = 1, coding_suites=None):
     _leaderboard()
 
 
+def run_one(config_path: Path, trials: int = 1, coding_suites=None, stage="all"):
+    """Run one config and always tear down the isolated oMLX process.
+
+    The implementation has many deliberate fail-fast returns.  Keeping cleanup
+    in this outer wrapper ensures an identity, load, completion, sanity, or
+    tool failure cannot strand a Metal model or stale port 8020 process.
+    Historical backends retain their original single-config lifecycle.
+    """
+    try:
+        return _run_one_impl(
+            config_path, trials=trials, coding_suites=coding_suites, stage=stage
+        )
+    finally:
+        try:
+            cfg = yaml.safe_load(config_path.read_text()) or {}
+        except (OSError, yaml.YAMLError):
+            cfg = {}
+        if cfg.get("framework") == "omlx":
+            run(["bash", str(REPO / "runner" / "stop_omlx_server.sh")])
+
+
 def _leaderboard():
-    run([COCORE_PY, str(REPO / "runner" / "build_leaderboard.py")])
+    run([BENCH_PYTHON, str(REPO / "runner" / "build_leaderboard.py")])
 
 
 def sweep_stale_run_dirs(min_age_seconds=3600):
@@ -460,6 +536,14 @@ def main():
                           "hearth_mini/kipclip_mini and every debug/test-writing task had "
                           "never been run against any model). Opt-in — omitting this leaves "
                           "--all's runtime and existing results' comparability unchanged.")
+    ap.add_argument("--framework", default=None,
+                    help="with --all, run only configs whose top-level framework matches "
+                         "this value (for example: omlx); keeps an oMLX sweep from "
+                         "re-running every historical llama.cpp/vllm-mlx config")
+    ap.add_argument("--stage", choices=("all", "coding"), default="all",
+                    help="run the normal full config matrix (all), or only the coding "
+                         "fixture stage after a harness repair (coding); identity, cold "
+                         "load, and plain-completion gates still run")
     args = ap.parse_args()
     coding_suites = [s.strip() for s in args.coding_suites.split(",")] if args.coding_suites else None
 
@@ -480,14 +564,21 @@ def main():
                 loaded = yaml.safe_load(c.read_text())
             except yaml.YAMLError:
                 continue
-            if isinstance(loaded, dict) and "orchestration" in loaded:
+            if (isinstance(loaded, dict) and "orchestration" in loaded
+                    and (args.framework is None or loaded.get("framework") == args.framework)):
                 configs.append(c)
         print(f"Running {len(configs)} configs...")
         for i, config_path in enumerate(configs, 1):
             print(f"\n\n########## [{i}/{len(configs)}] {config_path} ##########")
-            run_one(config_path, trials=args.trials, coding_suites=coding_suites)
+            run_one(
+                config_path, trials=args.trials, coding_suites=coding_suites,
+                stage=args.stage,
+            )
     else:
-        run_one(Path(args.config), trials=args.trials, coding_suites=coding_suites)
+        run_one(
+            Path(args.config), trials=args.trials, coding_suites=coding_suites,
+            stage=args.stage,
+        )
 
 
 if __name__ == "__main__":

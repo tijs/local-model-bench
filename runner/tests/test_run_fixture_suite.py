@@ -4,7 +4,7 @@ These build a real, throwaway git repo per test (not a mock) since the
 functions under test shell out to `git` directly — a mocked git would not
 have caught any of the bugs these tests pin down.
 
-Run: uv run --with pyyaml python3 -m unittest discover -s runner/tests -v
+Run: uv run --locked python -m unittest discover -s runner/tests -v
 """
 import shutil
 import subprocess
@@ -161,6 +161,54 @@ class StaleBuildCacheGitignoreTests(unittest.TestCase):
                 self.assertIn(f"{d}/", gitignore, f"{d}/ missing from .gitignore")
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
+
+
+class AgentWorkspaceIsolationTests(unittest.TestCase):
+    def test_prompt_names_absolute_ephemeral_run_root(self):
+        run_dir = Path("/tmp/bench-run-123/run")
+        prompt = rfs.isolated_agent_prompt("Implement it", run_dir)
+        self.assertIn(str(run_dir), prompt)
+        self.assertIn("ONLY inside", prompt)
+        self.assertIn("Do not edit the source fixture", prompt)
+
+    def test_preserve_tree_restores_agent_side_effects(self):
+        root = Path(tempfile.mkdtemp())
+        try:
+            (root / "src").mkdir()
+            original = root / "src" / "lib.rs"
+            original.write_text("baseline\n")
+            state = {}
+            with rfs.preserve_tree(root, state):
+                original.write_text("contaminated\n")
+                (root / "new.txt").write_text("new\n")
+            self.assertEqual(original.read_text(), "baseline\n")
+            self.assertFalse((root / "new.txt").exists())
+            self.assertTrue(state["changed"])
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+    def test_repository_guard_removes_escape_but_keeps_result_artifacts(self):
+        root = Path(tempfile.mkdtemp())
+        try:
+            (root / "runner" / "runs").mkdir(parents=True)
+            (root / "results").mkdir()
+            (root / "fixtures").mkdir()
+            baseline = root / "fixtures" / "base.txt"
+            baseline.write_text("baseline\n")
+            state = {}
+            with rfs.preserve_repository(root, state):
+                baseline.write_text("contaminated\n")
+                (root / "src").mkdir()
+                (root / "src" / "lib.rs").write_text("escaped\n")
+                (root / "results" / "transcript.log").write_text("keep\n")
+                (root / "runner" / "runs" / "work.txt").write_text("keep\n")
+            self.assertEqual(baseline.read_text(), "baseline\n")
+            self.assertFalse((root / "src").exists())
+            self.assertTrue((root / "results" / "transcript.log").exists())
+            self.assertTrue((root / "runner" / "runs" / "work.txt").exists())
+            self.assertTrue(state["changed"])
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
 
 
 if __name__ == "__main__":

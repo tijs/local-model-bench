@@ -1,6 +1,6 @@
 """Regression tests for runner/bench_common.py.
 
-Run: uv run --with pyyaml python3 -m unittest discover -s runner/tests -v
+Run: uv run --locked python -m unittest discover -s runner/tests -v
 """
 import shutil
 import sys
