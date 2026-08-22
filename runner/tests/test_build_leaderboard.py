@@ -333,5 +333,78 @@ class CompositeRankingTests(unittest.TestCase):
         self.assertNotIn("all-harness-errors", section)
 
 
+class BlockedConfigsSectionTests(unittest.TestCase):
+    """A config marked `orchestration.viable: blocked` (a model+backend ruled
+    out as non-viable, e.g. Qwen3.8-27B after a live pilot showed it too slow
+    to ever finish a task) must be surfaced in the leaderboard, and — since
+    such a config can be blocked before it was ever run — this must come
+    from scanning configs/**/*.yaml directly, not from log.jsonl rows."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.repo = Path(self.tmp)
+        (self.repo / "results").mkdir()
+        self._orig_repo = bl.REPO
+        bl.REPO = self.repo
+
+    def tearDown(self):
+        bl.REPO = self._orig_repo
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _write_log(self, rows):
+        (self.repo / "results" / "log.jsonl").write_text(
+            "\n".join(json.dumps(r) for r in rows) + "\n"
+        )
+
+    def _write_config(self, rel_path, content):
+        p = self.repo / rel_path
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(content)
+
+    def _blocked_section(self, text):
+        return text[text.index("## Blocked configs"):]
+
+    def test_blocked_config_with_no_log_rows_still_appears(self):
+        # Some other, unrelated model's row must exist so main() doesn't
+        # take the "no runs yet" early-return path — the blocked config
+        # itself has NO row of its own, which is the whole point of the test.
+        self._write_log([{
+            "suite": "hermes_ops", "task_id": "hermes_ops-selection", "task_type": "tool-selection",
+            "model": "unrelated-model", "backend": "mlx", "quant": None, "config_path": None,
+            "config_hash": None, "runner_git_sha": "abc", "trial": 1, "pass": True,
+            "grade_output": "PASS",
+        }])
+        self._write_config(
+            "configs/NeverRun-Model/gguf.yaml",
+            "model: some-org/NeverRun-Model-GGUF\n"
+            "backend: gguf\n"
+            "orchestration:\n"
+            "  viable: blocked\n"
+            "  blocked_reason: \"Marked non-viable before this config was ever run.\"\n",
+        )
+        bl.main()
+        text = (self.repo / "results" / "LEADERBOARD.md").read_text()
+        section = self._blocked_section(text)
+        self.assertIn("NeverRun-Model", section)
+        self.assertIn("Marked non-viable before this config was ever run.", section)
+
+    def test_non_blocked_config_not_listed(self):
+        self._write_log([{
+            "suite": "hermes_ops", "task_id": "hermes_ops-selection", "task_type": "tool-selection",
+            "model": "unrelated-model", "backend": "mlx", "quant": None, "config_path": None,
+            "config_hash": None, "runner_git_sha": "abc", "trial": 1, "pass": True,
+            "grade_output": "PASS",
+        }])
+        self._write_config(
+            "configs/StillFine-Model/mlx.yaml",
+            "model: some-org/StillFine-Model\nbackend: mlx\norchestration:\n  viable: full\n",
+        )
+        bl.main()
+        text = (self.repo / "results" / "LEADERBOARD.md").read_text()
+        section = self._blocked_section(text)
+        self.assertNotIn("StillFine-Model", section)
+        self.assertIn("None currently blocked.", section)
+
+
 if __name__ == "__main__":
     unittest.main()

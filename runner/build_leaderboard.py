@@ -79,6 +79,33 @@ def _experiment_fields(config_hash, config_path):
     ))
 
 
+def _blocked_configs():
+    """Configs marked `orchestration.viable: blocked` (a model+backend ruled
+    out as non-viable on this hardware, e.g. after a live pilot showed it
+    too slow to ever finish a task). Scanned directly from `configs/**/*.yaml`
+    rather than derived from log.jsonl rows, because a config can be blocked
+    BEFORE it was ever run (e.g. mid-pilot, once one backend's result was
+    bad enough to stop testing the model's other backends/quants too) — such
+    a config has no log row at all, and would silently vanish from every
+    other section in this file with no trace of why."""
+    found = []
+    for path in sorted((REPO / "configs").glob("**/*.yaml")):
+        try:
+            cfg = yaml.safe_load(path.read_text()) or {}
+        except yaml.YAMLError:
+            continue
+        orch = cfg.get("orchestration") or {}
+        if orch.get("viable") != "blocked":
+            continue
+        found.append({
+            "model": cfg.get("model", "—"),
+            "backend": cfg.get("backend", "—"),
+            "config_path": str(path.relative_to(REPO)),
+            "blocked_reason": orch.get("blocked_reason", "(no blocked_reason set)"),
+        })
+    return found
+
+
 def _current_config_hash(config_path):
     """The live file's hash right now — compared against a row's stored
     config_hash to tell whether the config has been edited since that row
@@ -525,6 +552,25 @@ def main():
         for r in sorted(harness_error_rows, key=lambda r: (r["model"], r["backend"], r["suite"], r["task_id"])):
             snippet = r.get("grade_output", "")[:120].replace("|", "\\|").replace("\n", " ")
             lines.append(f"| {r['model']} | {r['backend']} | {r['suite']} | {r['task_id']} | {snippet} |")
+
+    blocked = _blocked_configs()
+    lines.append("")
+    lines.append("## Blocked configs (marked non-viable, excluded from every table above)")
+    lines.append("")
+    lines.append("Scanned directly from `configs/**/*.yaml` (`orchestration.viable: blocked`),")
+    lines.append("not from log rows — a config can be blocked before it was ever run (e.g.")
+    lines.append("a whole quant ladder ruled out once one sibling backend's live pilot showed")
+    lines.append("the model too slow to be worth testing further), so it would otherwise")
+    lines.append("vanish from this file with no trace of why.")
+    lines.append("")
+    if not blocked:
+        lines.append("None currently blocked.")
+    else:
+        lines.append("| model | backend | config | blocked_reason |")
+        lines.append("|---|---|---|---|")
+        for b in blocked:
+            reason = b["blocked_reason"].replace("|", "\\|").replace("\n", " ")
+            lines.append(f"| {b['model']} | {b['backend']} | {b['config_path']} | {reason} |")
 
     Path(REPO / "results" / "LEADERBOARD.md").write_text("\n".join(lines) + "\n")
     print(f"Wrote results/LEADERBOARD.md from {len(rows)} rows.")

@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/218 rows below predate the 2026-08-21
+> **⚠ 138/223 rows below predate the 2026-08-21
 > adversarial-review grading fixes** (no `runner_git_sha` at all — that
 > field didn't exist yet when they were produced). A second independent
 > review found the first review's own fixes still left real bugs (see
@@ -144,9 +144,10 @@ errors) doesn't cover this specific question either.
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | mlx | — | ? | ? | — | [92c4b9be230e](configs/Qwen3-Coder-30B-A3B/mlx.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 1 | 100% | 0 | — | — | 0 | — | 0 | — | ? | ? | ? | ? |
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | omlx | — | 0.7 | instruct | 1/2 | [08e51e50397d](configs/08e51e50397d.yaml) | fc71ba2c66f8+dirty | 0 | n/a (all harness errors) | 0 | 13.1 | 0.80 | 0 | — | 0 | — | omlx | MLX 4-bit | cold | off |
 | mlx-community/Qwen3.8-27B-4bit | mlx | — | ? | ? | 2/2 | [152424abaa13](configs/Qwen3.8-27B/mlx.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 100% | 0 | 3.1 | 198.83 | 0 | — | 0 | — | ? | ? | ? | ? |
+| mlx-community/Qwen3.8-27B-4bit | mlx | — | 1.0 | thinking | 2/2 | [968652aede2d](configs/968652aede2d.yaml) — *config since changed* | 69e4b1fd937f | 3 | 67% | 2 | 3.6 | 198.67 | 1 | — | 0 | 1.6 | vllm-mlx | — | — | — |
 | mlx-community/Qwen3.8-27B-4bit | mlx | — | ? | ? | 2/2 | [bbaa3dfa1953](configs/Qwen3.8-27B/mlx.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 0 | n/a (all harness errors) | 0 | 8.6 | 3.76 | 0 | — | 0 | — | ? | ? | ? | ? |
 | mlx-community/Qwen3.8-27B-4bit | mlx | — | ? | ? | — | [f894953f1f80](configs/Qwen3.8-27B/mlx.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 4 | 75% | 0 | 0.3 | 337.71 | 0 | — | 0 | — | ? | ? | ? | ? |
-| mlx-community/Qwen3.8-27B-4bit | omlx | — | 1.0 | thinking | 2/2 | [1eec0081c5d6](configs/1eec0081c5d6.yaml) | fc71ba2c66f8+dirty | 3 | 0% | 0 | 3.4 | 5.65 | 0 | — | 0 | — | omlx | MLX 4-bit | cold | off |
+| mlx-community/Qwen3.8-27B-4bit | omlx | — | 1.0 | thinking | 2/2 | [1eec0081c5d6](configs/1eec0081c5d6.yaml) — *config since changed* | fc71ba2c66f8+dirty | 3 | 0% | 0 | 3.4 | 5.65 | 0 | — | 0 | — | omlx | MLX 4-bit | cold | off |
 | openai/gpt-5.6-luna | api | — | ? | ? | 2/2 | [1f7b55bd4401](configs/Luna/openrouter.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 100% | 0 | 15.2 | 4.30 | 0 | — | 0 | — | ? | ? | ? | ? |
 | openai/gpt-5.6-luna | api | — | ? | ? | — | [bc97807766bc](configs/Luna/openrouter.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 1 | 100% | 0 | — | — | 0 | — | 0 | — | ? | ? | ? | ? |
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | gguf | — | ? | ? | 2/2 | [3047922de5b7](configs/Ornith-1.5-35B-A3B/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 4 | 100% | 0 | 34.7 | 1.90 | 0 | — | 0 | — | ? | ? | ? | ? |
@@ -210,27 +211,28 @@ are omitted entirely rather than shown with a misleading score.
 | 31 | mlx-community/Qwen3.8-27B-4bit | mlx | — | f894953f1f80 | 0.45 | 2 | — | 75% (4) | 0.3 tok/s |
 | 32 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | gguf | — | 3f3368f78d8d | 0.43 | 2 | — | 67% (3) | 7.7 tok/s |
 | 33 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | mlx | — | 8b3cbca5d1b1 | 0.42 | 2 | — | 67% (3) | 4.6 tok/s |
-| 34 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ DSpark F16 drafter) | gguf | — | 85636a621ce0 | 0.36 | 3 | 0% (1) | 100% (3) | 29.3 tok/s |
-| 35 | scottlowry/Ornith-1.5-9B-oQ4e-fp16 | omlx | — | afecbd0a9f5f | 0.33 | 3 | 0% (1) | 100% (3) | 13.9 tok/s |
-| 36 | scottlowry/Ornith-1.5-9B-oQ4e-fp16 | omlx | — | 520aba6e3536 | 0.31 | 1 | — | — | 32.8 tok/s |
-| 37 | scottlowry/Ornith-1.5-9B-oQ4e-fp16 | omlx | — | 7bceae5b4c3c | 0.31 | 1 | — | — | 32.3 tok/s |
-| 38 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | — | 00fc47aef271 | 0.28 | 3 | 0% (3) | 67% (6) | 42.3 tok/s |
-| 39 | mlx-community/Laguna-XS-2.1-4bit | omlx | — | f1037eaa5995 | 0.24 | 3 | 0% (2) | 67% (3) | 18.8 tok/s |
-| 40 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M (+ incoai/Muse-Glimmer-30B-DFlash2-GGUF:Q4_K_M drafter) | gguf | — | fd29e9c067f8 | 0.23 | 2 | — | 33% (3) | 8.3 tok/s |
-| 41 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | omlx | — | 08e51e50397d | 0.12 | 1 | — | — | 13.1 tok/s |
-| 42 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | 6f8f1c7b8d48 | 0.10 | 1 | — | — | 11.0 tok/s |
-| 43 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | f9648093327f | 0.10 | 1 | — | — | 11.0 tok/s |
-| 44 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | b6112a82c243 | 0.10 | 1 | — | — | 10.6 tok/s |
-| 45 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | 3618a30940bc | 0.09 | 1 | — | — | 9.0 tok/s |
-| 46 | mlx-community/Qwen3.8-27B-4bit | mlx | — | bbaa3dfa1953 | 0.08 | 1 | — | — | 8.6 tok/s |
-| 47 | mlx-community/Qwen3.8-27B-4bit | omlx | — | 1eec0081c5d6 | 0.01 | 2 | — | 0% (3) | 3.4 tok/s |
-| 48 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | b7b32d0eb150 | 0.01 | 3 | 0% (1) | 0% (3) | 4.4 tok/s |
-| 49 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | a7867bea182c | 0.01 | 3 | 0% (2) | 0% (3) | 3.9 tok/s |
-| 50 | poolside/Laguna-XS-2.1-GGUF:Q4_K_M | gguf | — | e427e7a50b14 | 0.00 | 1 | — | — | 0.1 tok/s |
-| 51 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | mlx | — | 57734ec83d1b | 0.00 | 1 | 0% (1) | — | — |
-| 52 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | gguf | — | f4620fe8538d | 0.00 | 1 | 0% (1) | — | — |
-| 53 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | mlx | — | 5fd02e54bb9d | 0.00 | 1 | 0% (1) | — | — |
-| 54 | prism-ml/Ternary-Bonsai-27B-mlx-2bit | mlx | — | 8e85abe37e32 | 0.00 | 1 | 0% (1) | — | — |
+| 34 | mlx-community/Qwen3.8-27B-4bit | mlx | — | 968652aede2d | 0.41 | 2 | — | 67% (3) | 3.6 tok/s |
+| 35 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ DSpark F16 drafter) | gguf | — | 85636a621ce0 | 0.36 | 3 | 0% (1) | 100% (3) | 29.3 tok/s |
+| 36 | scottlowry/Ornith-1.5-9B-oQ4e-fp16 | omlx | — | afecbd0a9f5f | 0.33 | 3 | 0% (1) | 100% (3) | 13.9 tok/s |
+| 37 | scottlowry/Ornith-1.5-9B-oQ4e-fp16 | omlx | — | 520aba6e3536 | 0.31 | 1 | — | — | 32.8 tok/s |
+| 38 | scottlowry/Ornith-1.5-9B-oQ4e-fp16 | omlx | — | 7bceae5b4c3c | 0.31 | 1 | — | — | 32.3 tok/s |
+| 39 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | — | 00fc47aef271 | 0.28 | 3 | 0% (3) | 67% (6) | 42.3 tok/s |
+| 40 | mlx-community/Laguna-XS-2.1-4bit | omlx | — | f1037eaa5995 | 0.24 | 3 | 0% (2) | 67% (3) | 18.8 tok/s |
+| 41 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M (+ incoai/Muse-Glimmer-30B-DFlash2-GGUF:Q4_K_M drafter) | gguf | — | fd29e9c067f8 | 0.23 | 2 | — | 33% (3) | 8.3 tok/s |
+| 42 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | omlx | — | 08e51e50397d | 0.12 | 1 | — | — | 13.1 tok/s |
+| 43 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | 6f8f1c7b8d48 | 0.10 | 1 | — | — | 11.0 tok/s |
+| 44 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | f9648093327f | 0.10 | 1 | — | — | 11.0 tok/s |
+| 45 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | b6112a82c243 | 0.10 | 1 | — | — | 10.6 tok/s |
+| 46 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | 3618a30940bc | 0.09 | 1 | — | — | 9.0 tok/s |
+| 47 | mlx-community/Qwen3.8-27B-4bit | mlx | — | bbaa3dfa1953 | 0.08 | 1 | — | — | 8.6 tok/s |
+| 48 | mlx-community/Qwen3.8-27B-4bit | omlx | — | 1eec0081c5d6 | 0.01 | 2 | — | 0% (3) | 3.4 tok/s |
+| 49 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | b7b32d0eb150 | 0.01 | 3 | 0% (1) | 0% (3) | 4.4 tok/s |
+| 50 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | a7867bea182c | 0.01 | 3 | 0% (2) | 0% (3) | 3.9 tok/s |
+| 51 | poolside/Laguna-XS-2.1-GGUF:Q4_K_M | gguf | — | e427e7a50b14 | 0.00 | 1 | — | — | 0.1 tok/s |
+| 52 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | mlx | — | 57734ec83d1b | 0.00 | 1 | 0% (1) | — | — |
+| 53 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | gguf | — | f4620fe8538d | 0.00 | 1 | 0% (1) | — | — |
+| 54 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | mlx | — | 5fd02e54bb9d | 0.00 | 1 | 0% (1) | — | — |
+| 55 | prism-ml/Ternary-Bonsai-27B-mlx-2bit | mlx | — | 8e85abe37e32 | 0.00 | 1 | 0% (1) | — | — |
 
 ## Flaky tasks (mixed pass/fail under identical conditions)
 
@@ -319,6 +321,8 @@ confirmed-stable, just untested for flakiness.
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | omlx | 08e51e50397d | fc71ba2c66f8+dirty | sanity | 1/2 |
 | mlx-community/Qwen3.8-27B-4bit | mlx | 152424abaa13 | *(predates tracking)* | hermes_ops | 3/3 |
 | mlx-community/Qwen3.8-27B-4bit | mlx | 152424abaa13 | *(predates tracking)* | sanity | 2/2 |
+| mlx-community/Qwen3.8-27B-4bit | mlx | 968652aede2d | 69e4b1fd937f | hermes_ops | 2/3 |
+| mlx-community/Qwen3.8-27B-4bit | mlx | 968652aede2d | 69e4b1fd937f | sanity | 2/2 |
 | mlx-community/Qwen3.8-27B-4bit | mlx | bbaa3dfa1953 | *(predates tracking)* | sanity | 2/2 |
 | mlx-community/Qwen3.8-27B-4bit | mlx | f894953f1f80 | *(predates tracking)* | hermes_ops | 3/4 |
 | mlx-community/Qwen3.8-27B-4bit | omlx | 1eec0081c5d6 | fc71ba2c66f8+dirty | hermes_ops | 0/3 |
@@ -359,3 +363,22 @@ confirmed-stable, just untested for flakiness.
 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | kiem_mini | kiem_mini-feature | HARNESS ERROR: child agent escaped the disposable workspace and modified the source fixture; result invalidated and sour |
 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | kiem_mini | kiem_mini-feature | HARNESS ERROR: child agent escaped the disposable workspace and created repository-root src/lib.rs; result invalidated a |
 | scottlowry/Ornith-1.5-9B-oQ4e-fp16 | omlx | kiem_mini | kiem_mini-feature | HARNESS ERROR: child agent escaped the disposable workspace and modified the source fixture; result invalidated and sour |
+
+## Blocked configs (marked non-viable, excluded from every table above)
+
+Scanned directly from `configs/**/*.yaml` (`orchestration.viable: blocked`),
+not from log rows — a config can be blocked before it was ever run (e.g.
+a whole quant ladder ruled out once one sibling backend's live pilot showed
+the model too slow to be worth testing further), so it would otherwise
+vanish from this file with no trace of why.
+
+| model | backend | config | blocked_reason |
+|---|---|---|---|
+| mlx-community/Laguna-XS-2.1-4bit | mlx | configs/Laguna-XS-2.1/mlx.yaml | (no blocked_reason set) |
+| bartowski/Qwen3.8-27B-GGUF:Q4_K_M (+ incoai/Qwen3.8-27B-DFlash2-GGUF:Q4_K_M drafter) | gguf | configs/Qwen3.8-27B/gguf-dflash2.yaml | Marked non-viable 2026-08-22: MLX leg (mlx.yaml, config_hash 968652aede2d) completed sanity + all 3 hermes_ops tasks (2/3 pass) but decode throughput collapsed as prompt size grew — 12.37 tok/s at 29 prompt tokens down to 0.18/0.36/0.83 tok/s at 43312/65273/177877 prompt tokens, taking 668s/1021s/2904s (~77 min combined) for those 3 hermes_ops tasks alone (~1.5h total wall clock incl. load+sanity). Every hermes_ops row is flagged within_budget: false. Pilot stopped before the coding suite (even larger prompts) or the GGUF/oMLX legs were reached. |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q2_K_XL | gguf | configs/Qwen3.8-27B/gguf-unsloth-ud-q2.yaml | Marked non-viable 2026-08-22: MLX leg (mlx.yaml, config_hash 968652aede2d) completed sanity + all 3 hermes_ops tasks (2/3 pass) but decode throughput collapsed as prompt size grew — 12.37 tok/s at 29 prompt tokens down to 0.18/0.36/0.83 tok/s at 43312/65273/177877 prompt tokens, taking 668s/1021s/2904s (~77 min combined) for those 3 hermes_ops tasks alone (~1.5h total wall clock incl. load+sanity). Every hermes_ops row is flagged within_budget: false. Pilot stopped before the coding suite (even larger prompts) or the GGUF/oMLX legs were reached. |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q4_K_M | gguf | configs/Qwen3.8-27B/gguf-unsloth-ud-q4.yaml | Marked non-viable 2026-08-22: MLX leg (mlx.yaml, config_hash 968652aede2d) completed sanity + all 3 hermes_ops tasks (2/3 pass) but decode throughput collapsed as prompt size grew — 12.37 tok/s at 29 prompt tokens down to 0.18/0.36/0.83 tok/s at 43312/65273/177877 prompt tokens, taking 668s/1021s/2904s (~77 min combined) for those 3 hermes_ops tasks alone (~1.5h total wall clock incl. load+sanity). Every hermes_ops row is flagged within_budget: false. Pilot stopped before the coding suite (even larger prompts) or the GGUF/oMLX legs were reached. |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | gguf | configs/Qwen3.8-27B/gguf-unsloth-ud-q5-64k.yaml | Marked non-viable 2026-08-22: MLX leg (mlx.yaml, config_hash 968652aede2d) completed sanity + all 3 hermes_ops tasks (2/3 pass) but decode throughput collapsed as prompt size grew — 12.37 tok/s at 29 prompt tokens down to 0.18/0.36/0.83 tok/s at 43312/65273/177877 prompt tokens, taking 668s/1021s/2904s (~77 min combined) for those 3 hermes_ops tasks alone (~1.5h total wall clock incl. load+sanity). Every hermes_ops row is flagged within_budget: false. Pilot stopped before the coding suite (even larger prompts) or the GGUF/oMLX legs were reached. |
+| bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | configs/Qwen3.8-27B/gguf.yaml | Marked non-viable 2026-08-22: MLX leg (mlx.yaml, config_hash 968652aede2d) completed sanity + all 3 hermes_ops tasks (2/3 pass) but decode throughput collapsed as prompt size grew — 12.37 tok/s at 29 prompt tokens down to 0.18/0.36/0.83 tok/s at 43312/65273/177877 prompt tokens, taking 668s/1021s/2904s (~77 min combined) for those 3 hermes_ops tasks alone (~1.5h total wall clock incl. load+sanity). Every hermes_ops row is flagged within_budget: false. Pilot stopped before the coding suite (even larger prompts) or the GGUF/oMLX legs were reached. |
+| mlx-community/Qwen3.8-27B-4bit | mlx | configs/Qwen3.8-27B/mlx.yaml | Marked non-viable 2026-08-22: MLX leg (mlx.yaml, config_hash 968652aede2d) completed sanity + all 3 hermes_ops tasks (2/3 pass) but decode throughput collapsed as prompt size grew — 12.37 tok/s at 29 prompt tokens down to 0.18/0.36/0.83 tok/s at 43312/65273/177877 prompt tokens, taking 668s/1021s/2904s (~77 min combined) for those 3 hermes_ops tasks alone (~1.5h total wall clock incl. load+sanity). Every hermes_ops row is flagged within_budget: false. Pilot stopped before the coding suite (even larger prompts) or the GGUF/oMLX legs were reached. |
+| mlx-community/Qwen3.8-27B-4bit | omlx | configs/Qwen3.8-27B/omlx.yaml | Marked non-viable 2026-08-22: MLX leg (mlx.yaml, config_hash 968652aede2d) completed sanity + all 3 hermes_ops tasks (2/3 pass) but decode throughput collapsed as prompt size grew — 12.37 tok/s at 29 prompt tokens down to 0.18/0.36/0.83 tok/s at 43312/65273/177877 prompt tokens, taking 668s/1021s/2904s (~77 min combined) for those 3 hermes_ops tasks alone (~1.5h total wall clock incl. load+sanity). Every hermes_ops row is flagged within_budget: false. Pilot stopped before the coding suite (even larger prompts) or the GGUF/oMLX legs were reached. |
