@@ -364,16 +364,12 @@ fought and respawned):
   be byte-for-byte reproducible, not dependent on whatever happens to be
   latest on a registry that day.
 - **Runner scripts** (Python): `pyproject.toml` declares the control-plane
-  dependencies and supported Python range; `uv.lock` pins those plus the
-  optional `mlx` serving extra. Use `uv sync --locked` for normal orchestration
-  and tests, or add `--extra mlx` when serving vllm-mlx from the project
-  `.venv`. Invoke scripts with `uv run --locked python ...`.
-  `runner/requirements.txt` keeps the control-plane pins for non-uv
-  compatibility. Leave `BENCH_PYTHON` unset normally; set it explicitly to an
-  existing model-serving interpreter (for example
-  `$HOME/.cocore/python/bin/python`) when using CoCore instead of the `mlx`
-  extra. The CLI-based Laguna config exposes `BENCH_VLLM_COMMAND` for the same
-  purpose.
+  dependencies plus the pinned MLX serving stack; `uv.lock` pins the resolved
+  environment. Set up the project with `uv sync --locked`; uv is the sole
+  benchmark Python workflow, so invoke runner/proxy scripts and vllm-mlx with
+  `uv run --locked ...`. Do not reuse CoCore's Python environment for benchmark
+  processes. Hermes remains an intentionally
+  external CLI and may be selected with `BENCH_HERMES_BIN=/path/to/hermes`.
 - **Every logged result** carries `config_path`, `config_hash` (a sha256
   prefix of the exact config content at run time), and `runner_git_sha`
   (the harness's own git sha, `+dirty` if graded by uncommitted code).

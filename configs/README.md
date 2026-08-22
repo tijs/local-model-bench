@@ -24,7 +24,8 @@ temperature: 0.1
 reasoning_mode: n/a   # thinking | instruct | n/a (no thinking-mode concept) | unspecified
 framework: vllm-mlx              # vllm-mlx | llama.cpp | omlx
 benchmark_launch_command: |
-  python -m vllm_mlx.server --model LiquidAI/LFM2.5-2.6B-MLX-bf16 \
+  uv run --locked python -m vllm_mlx.server \
+    --model LiquidAI/LFM2.5-2.6B-MLX-bf16 \
     --host 127.0.0.1 --port 8012 --max-request-tokens 4096 --max-tokens 4096
 
 system_prompt_suffix: null   # optional — a model-specific operating

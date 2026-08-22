@@ -14,11 +14,7 @@ UPSTREAM_PORT="${1:-8012}"
 PROXY_PORT="${2:-8015}"
 PARSER="${3:-lfm}"
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-if [ -n "${BENCH_PYTHON:-}" ]; then
-  PYTHON_CMD=("${BENCH_PYTHON}")
-else
-  PYTHON_CMD=(uv run --project "${REPO_DIR}" --locked python)
-fi
+PYTHON_CMD=(uv run --project "${REPO_DIR}" --locked python)
 # Matches run_bench.py/run_fixture_suite.py's own naming (adversarial
 # review finding L-4, remaining half) — this used to be
 # bench_local_proxy_{port}.log, a different name than either of those two

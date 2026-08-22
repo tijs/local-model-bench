@@ -18,21 +18,15 @@ every non-obvious gotcha discovered while running this are in
 - **macOS on Apple Silicon.** MLX only runs there; GGUF/llama.cpp would
   work elsewhere but this repo's launch commands assume Metal.
 - **[uv](https://docs.astral.sh/uv/)** for the Python orchestration scripts.
-  Run `uv sync --locked` for the control-plane and oMLX helper dependencies,
-  or `uv sync --locked --extra mlx` when this checkout will also serve
-  vllm-mlx models. `pyproject.toml` and `uv.lock` pin both workflows in the
-  repo-local `.venv`; `runner/requirements.txt` preserves non-uv compatibility
-  for the control-plane dependencies. `BENCH_PYTHON` remains an explicit
-  override for an existing model-serving environment such as CoCore:
-  `export BENCH_PYTHON="$HOME/.cocore/python/bin/python"`. Leave it unset for
-  the normal uv-based workflow. For the CLI-based Laguna config, the equivalent
-  override is `BENCH_VLLM_COMMAND=/path/to/vllm-mlx`. Similarly, set
-  `BENCH_HERMES_BIN=/path/to/hermes` if your Hermes install isn't at
-  `~/.hermes/hermes-agent/venv/bin/hermes`.
+  Run `uv sync --locked` to install all project dependencies, including the
+  vllm-mlx serving stack. uv is the sole workflow for every benchmark Python
+  process: invoke runner and proxy scripts with `uv run --locked python ...`,
+  and vllm-mlx serving with `uv run --locked ...`. Set
+  `BENCH_HERMES_BIN=/path/to/hermes` only if your external Hermes install
+  isn't at `~/.hermes/hermes-agent/venv/bin/hermes`.
 - **`llama.cpp`** (`brew install llama.cpp`) for the GGUF backend.
-- **`vllm-mlx` 0.4.1 or newer** for the MLX backend, provided by the pinned
-  `mlx` extra above (or by `BENCH_PYTHON`). See AGENTS.md's "vllm-mlx version
-  note".
+- **`vllm-mlx` 0.4.1 or newer** for the MLX backend, included in the locked
+  project environment. See AGENTS.md's "vllm-mlx version note".
 - **oMLX 0.6.2** for the isolated oMLX backend. Bootstrap it with
   `runner/bootstrap_omlx.sh`; that script creates/manages the separate
   environment under `~/.local/share/local-model-bench/`, pins source commit

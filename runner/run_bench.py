@@ -3,14 +3,11 @@
 The single entry point for this whole benchmark: run one model+backend
 config, or every config in the repo, unattended.
 
-Requires PyYAML. Use the repository's locked uv environment by default:
+Requires PyYAML. Run benchmark orchestration through the repository's locked
+uv environment:
   uv run --locked python runner/run_bench.py --config configs/<model>/<backend>.yaml
   uv run --locked python runner/run_bench.py --all
   uv run --locked python runner/run_bench.py --all --trials 3 --coding-suites kiem_mini,hearth_mini,kipclip_mini
-
-Set BENCH_PYTHON=/path/to/python when a model-serving environment such as
-CoCore must provide vllm-mlx. The override is inherited by config launch
-commands and is also used for runner subprocesses.
 
 Reads the `orchestration:` block each configs/<model>/<backend>.yaml file
 carries (see configs/README.md for the schema) — that block is the single
@@ -68,11 +65,6 @@ from pathlib import Path
 import yaml
 
 REPO = Path(__file__).resolve().parent.parent
-BENCH_PYTHON = os.environ.get("BENCH_PYTHON", sys.executable)
-# The locked uv environment is the machine-independent default. Keep
-# BENCH_PYTHON as an explicit escape hatch for model-serving environments
-# (for example CoCore's Python with vllm-mlx installed); child runner scripts
-# and model launch commands use the same override.
 CODING_SPOTCHECK_SUITE = "kiem_mini"
 CODING_SPOTCHECK_TASK = "kiem_mini-feature"
 
@@ -366,15 +358,16 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
             parser = orch["proxy_parser"]
             upstream = f"http://127.0.0.1:{raw_port}"
             proxy_log = f"/tmp/bench_proxy_{proxy_port}.log"
-            env_cmd = (
-                f"BENCH_TOOL_PARSER={parser} "
-                f"BENCH_PROXY_UPSTREAM={upstream} "
-                f"BENCH_PROXY_PORT={proxy_port} "
-                f"{BENCH_PYTHON} {REPO / 'runner' / 'bench_local_proxy.py'}"
-            )
+            proxy_env = os.environ.copy()
+            proxy_env.update({
+                "BENCH_TOOL_PARSER": parser,
+                "BENCH_PROXY_UPSTREAM": upstream,
+                "BENCH_PROXY_PORT": str(proxy_port),
+            })
             with open(proxy_log, "w") as f:
                 proxy_proc = subprocess.Popen(
-                    env_cmd, shell=True, cwd=str(REPO),
+                    [sys.executable, str(REPO / "runner" / "bench_local_proxy.py")],
+                    cwd=str(REPO), env=proxy_env,
                     stdout=f, stderr=subprocess.STDOUT,
                 )
             if not wait_for_health(f"http://127.0.0.1:{proxy_port}/healthz", timeout=30, proc=proxy_proc):
@@ -392,7 +385,7 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
         print("\n--- sanity (fail-fast gate) ---")
         with tempfile.TemporaryDirectory() as td:
             summary_path = Path(td) / "sanity_summary.json"
-            proc = run([BENCH_PYTHON, str(REPO / "runner" / "run_prompt_suite.py"),
+            proc = run([sys.executable, str(REPO / "runner" / "run_prompt_suite.py"),
                         "--suite", "sanity", "--base-url", base_url, "--model", model,
                         "--request-model", request_model, "--backend", backend, "--config", str(config_path),
                         "--trials", str(trials), "--summary-out", str(summary_path)])
@@ -433,7 +426,7 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
 
     if stage == "all" and viable in ("full", "sanity_and_hermes_ops_only"):
         print("\n--- hermes_ops ---")
-        run([BENCH_PYTHON, str(REPO / "runner" / "run_prompt_suite.py"),
+        run([sys.executable, str(REPO / "runner" / "run_prompt_suite.py"),
              "--suite", "hermes_ops", "--base-url", base_url, "--model", model,
              "--request-model", request_model, "--backend", backend, "--config", str(config_path),
              "--trials", str(trials)])
@@ -448,14 +441,14 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
             # underneath existing results.
             for suite in coding_suites:
                 print(f"\n--- coding suite: {suite} (every task) ---")
-                run([BENCH_PYTHON, str(REPO / "runner" / "run_fixture_suite.py"),
+                run([sys.executable, str(REPO / "runner" / "run_fixture_suite.py"),
                      "--suite", suite,
                      "--hermes-provider", hermes_provider, "--hermes-model", request_model,
                      "--log-model", model, "--backend", backend, "--config", str(config_path),
                      "--trials", str(trials)])
         else:
             print(f"\n--- coding spot-check ({CODING_SPOTCHECK_TASK}) ---")
-            run([BENCH_PYTHON, str(REPO / "runner" / "run_fixture_suite.py"),
+            run([sys.executable, str(REPO / "runner" / "run_fixture_suite.py"),
                  "--suite", CODING_SPOTCHECK_SUITE, "--only-task", CODING_SPOTCHECK_TASK,
                  "--hermes-provider", hermes_provider, "--hermes-model", request_model,
                  "--log-model", model, "--backend", backend, "--config", str(config_path),
@@ -497,7 +490,7 @@ def run_one(config_path: Path, trials: int = 1, coding_suites=None, stage="all")
 
 
 def _leaderboard():
-    run([BENCH_PYTHON, str(REPO / "runner" / "build_leaderboard.py")])
+    run([sys.executable, str(REPO / "runner" / "build_leaderboard.py")])
 
 
 def sweep_stale_run_dirs(min_age_seconds=3600):
