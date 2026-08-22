@@ -95,7 +95,18 @@ instead. `pass rate` now covers only `hermes_ops` + coding-suite rows;
 folding sanity in used to compress real differences between models,
 since it sits at or near ceiling for nearly everything.
 
-| model | backend | quant | temp (coding only)¹ | reasoning | sanity gate⁴ | config | runner | tasks | pass rate⁴ | slow passes² | avg tok/s | avg TTFT (s) | hallucinated tools | avg coding turns³ | coding tool errors³ | peak RSS (GB) | framework | quant family | cache | MTP |
+**⁵ `hallucinated tools`** (methodology review, finding F14): this only
+fires in the two synthetic prompt suites (sanity/hermes_ops), whose fixed
+tool manifest makes "called a tool that doesn't exist in it" a clean,
+checkable signal. The coding suite has no equivalent check — a hermes
+chat session's real tool manifest isn't fixed/known the way hermes_ops's
+41-tool mock manifest is, so this reads 0 for every coding-suite row
+regardless of what actually happened. Read this column as "not observed
+on the two synthetic suites," not "never hallucinated a tool" — the
+coding-suite session data added for finding F6 (avg coding turns/tool
+errors) doesn't cover this specific question either.
+
+| model | backend | quant | temp (coding only)¹ | reasoning | sanity gate⁴ | config | runner | tasks | pass rate⁴ | slow passes² | avg tok/s | avg TTFT (s) | hallucinated tools⁵ | avg coding turns³ | coding tool errors³ | peak RSS (GB) | framework | quant family | cache | MTP |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | 1.0 | xhigh | 2/2 | [3618a30940bc](configs/3618a30940bc.yaml) | fc71ba2c66f8+dirty | 0 | n/a (all harness errors) | 0 | 9.0 | 4.15 | 0 | — | 0 | — | omlx | oQ4e-fp16 mixed precision + MTP tensors | cold | lightning |
 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | 1.0 | medium | 2/2 | [6f8f1c7b8d48](configs/6f8f1c7b8d48.yaml) | fc71ba2c66f8+dirty | 0 | n/a (all harness errors) | 0 | 11.0 | 3.67 | 0 | — | 0 | — | omlx | oQ4e-fp16 mixed precision + MTP tensors | ssd | off |
