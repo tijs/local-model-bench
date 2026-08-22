@@ -32,9 +32,7 @@ pub fn ordered_pinned_first(notes: &[Note]) -> Vec<&Note> {
     pinned
 }
 
-/// Extracts #tags from text. Currently only recognizes a tag when the
-/// whole whitespace-delimited token starts with '#' — punctuation directly
-/// touching a tag (e.g. "hello,#tag." or "(#tag)") is not recognized.
+/// Extracts #tags from a note's body text, in the order they appear.
 pub fn extract_tags(text: &str) -> Vec<String> {
     text.split_whitespace()
         .filter(|tok| tok.starts_with('#'))
