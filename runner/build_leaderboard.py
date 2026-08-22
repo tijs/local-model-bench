@@ -200,8 +200,8 @@ def main():
         "reasoning-mode when comparing it against `configs/Qwen3.8-27B/gguf.yaml`,",
         "not currently its own column since no other config sets this flag.",
         "",
-        "| model | backend | quant | temp (coding only)¹ | reasoning | config | runner | tasks | pass rate | avg tok/s | avg TTFT (s) | hallucinated tools | framework | quant family | cache | MTP |",
-        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+        "| model | backend | quant | temp (coding only)¹ | reasoning | config | runner | tasks | pass rate | avg tok/s | avg TTFT (s) | hallucinated tools | peak RSS (GB) | framework | quant family | cache | MTP |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for (model, backend, quant, config_hash, runner_sha), group in sorted(
         groups.items(), key=lambda kv: (kv[0][0], kv[0][1], kv[0][2] or "", kv[0][3] or "", kv[0][4] or "")
@@ -234,13 +234,20 @@ def main():
             ttft_values = [r["ttft_seconds"] for r in scored if r.get("ttft_seconds") is not None]
             avg_ttft = f"{mean(ttft_values):.2f}" if ttft_values else "—"
         n_hallucinated = sum(1 for r in scored if r.get("grade_output", "").startswith("FAIL: model called tool"))
+        # Peak, not average, across the group (methodology review, finding
+        # F7) — the 32GB unified-memory ceiling is a hard capacity limit,
+        # so the worst observed footprint is the number that actually
+        # matters for "does this fit," not a smoothed-out mean that could
+        # hide a run that came close to swapping.
+        rss_values = [r["peak_rss_gb"] for r in scored if r.get("peak_rss_gb") is not None]
+        peak_rss = f"{max(rss_values):.1f}" if rss_values else "—"
         config_path = next((r.get("config_path") for r in group if r.get("config_path")), None)
         config_label = _config_label(config_hash, config_path)
         temp, reasoning_mode = _fairness_fields(config_hash, config_path)
         framework, quant_family, cache_mode, mtp_mode = _experiment_fields(config_hash, config_path)
         runner_label = runner_sha or "*(predates tracking)*"
         lines.append(
-            f"| {model} | {backend} | {quant or '—'} | {temp} | {reasoning_mode} | {config_label} | {runner_label} | {n} | {pass_rate} | {avg_tps} | {avg_ttft} | {n_hallucinated} | {framework} | {quant_family} | {cache_mode} | {mtp_mode} |"
+            f"| {model} | {backend} | {quant or '—'} | {temp} | {reasoning_mode} | {config_label} | {runner_label} | {n} | {pass_rate} | {avg_tps} | {avg_ttft} | {n_hallucinated} | {peak_rss} | {framework} | {quant_family} | {cache_mode} | {mtp_mode} |"
         )
 
     lines.append("")

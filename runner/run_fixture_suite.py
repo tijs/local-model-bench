@@ -30,7 +30,7 @@ from pathlib import Path
 
 import yaml
 
-from bench_common import REPO, git_sha, snapshot_config
+from bench_common import REPO, PeakRSSSampler, git_sha, snapshot_config
 
 HERMES_BIN = Path(os.environ.get(
     "BENCH_HERMES_BIN", str(Path.home() / ".hermes/hermes-agent/venv/bin/hermes")
@@ -585,6 +585,7 @@ def main():
     config_path = None
     config_hash = None
     proxy_port = None
+    raw_port = None
     system_prompt_suffix = None
     if args.config:
         config_hash, config_path = snapshot_config(args.config)
@@ -592,6 +593,9 @@ def main():
         orch = cfg.get("orchestration") or {}
         if orch.get("needs_proxy"):
             proxy_port = orch.get("proxy_port", 8015)
+        raw_port = orch.get("raw_port")  # for PeakRSSSampler — the real
+            # server's port, not the proxy's (finding F7); None for a
+            # hosted/API config with no local server to sample.
         # Applied to sanity/hermes_ops via run_prompt_suite.py's real
         # system-prompt append, but silently NOT applied here at all until
         # this fix (adversarial review finding H8) — hermes chat's CLI has
@@ -656,6 +660,7 @@ def main():
                 transcript_rel = None
                 harness_error = False
                 diff_stat = None
+                peak_rss_gb = None
                 try:
                     ensure_proxy_idle()
                     reset_fixture(args.suite, run_dir)
@@ -665,11 +670,19 @@ def main():
                         prompt = f"[Operating instruction: {system_prompt_suffix}]\n\n{prompt}"
                     prompt = isolated_agent_prompt(prompt, run_dir)
                     fixture_guard = {}
+                    # Sampled continuously for the task's duration, not
+                    # snapshotted once at the end (methodology review,
+                    # finding F7) — a single end-of-task read would miss a
+                    # transient peak mid-generation. Targets the REAL
+                    # server's raw_port, not the proxy, since that's the
+                    # process actually holding the model weights + KV cache.
+                    rss_sampler = PeakRSSSampler(raw_port).start()
                     with preserve_repository(REPO, fixture_guard):
                         stdout, stderr, rc, wall, timed_out = run_hermes(
                             prompt, run_dir, args.hermes_provider, args.hermes_model,
                             max_turns=args.max_turns, timeout=timeout,
                         )
+                    peak_rss_gb = rss_sampler.stop()
 
                     # Full transcript, saved and committed (not just the last 500
                     # chars of grade_output) — discovered live 2026-08-20 that no
@@ -756,6 +769,7 @@ def main():
                     # independently here so it survives regardless of
                     # grade_output's length.
                     "diff_stat": (diff_stat or "").strip()[-1000:] or None,
+                    "peak_rss_gb": round(peak_rss_gb, 2) if peak_rss_gb is not None else None,
                     "transcript_path": transcript_rel,
                     "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                 }

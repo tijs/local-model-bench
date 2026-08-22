@@ -21,7 +21,7 @@ from pathlib import Path
 
 import yaml
 
-from bench_common import REPO, git_sha, snapshot_config
+from bench_common import REPO, PeakRSSSampler, git_sha, snapshot_config
 
 
 def main():
@@ -60,9 +60,13 @@ def main():
     system_prompt_suffix = None
     api_key_env = None
     ttft_measurable = True
+    raw_port = None
     if args.config:
         config_hash, config_path = snapshot_config(args.config)
         config_yaml = yaml.safe_load(Path(args.config).read_text())
+        raw_port = (config_yaml.get("orchestration") or {}).get("raw_port")  # for
+            # PeakRSSSampler (methodology review, finding F7) — the real
+            # server's port, not the proxy's; None for a hosted/API config.
         # bench_local_proxy.py buffers the whole upstream response into ONE
         # SSE chunk (see its _send_stream()), so for any proxied config
         # "ttft_seconds" structurally equals total generation time, not a
@@ -90,6 +94,7 @@ def main():
         for trial in range(1, args.trials + 1):
             result_path_rel = None
             parsed = {}
+            peak_rss_gb = None
             try:
                 with tempfile.TemporaryDirectory() as td:
                     td = Path(td)
@@ -135,7 +140,13 @@ def main():
                     # try/except around this whole block (finding CR3-13)
                     # and recorded as a harness_error row, same as any
                     # other crash.
+                    # Sampled continuously for the task's duration, not
+                    # snapshotted once at the end (methodology review,
+                    # finding F7) — a single end-of-task read would miss a
+                    # transient peak mid-generation.
+                    rss_sampler = PeakRSSSampler(raw_port).start()
                     run = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout * max_turns + 60)
+                    peak_rss_gb = rss_sampler.stop()
                     result_path.write_text(run.stdout)
 
                     # Full result (messages, tool_calls, final_text — everything
@@ -238,6 +249,7 @@ def main():
                 "run_error": parsed.get("error"),
                 "usage_estimated": parsed.get("usage_estimated", False),
                 "ttft_measurable": ttft_measurable,
+                "peak_rss_gb": round(peak_rss_gb, 2) if peak_rss_gb is not None else None,
                 "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             }
             rows.append(row)

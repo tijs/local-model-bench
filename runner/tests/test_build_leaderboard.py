@@ -120,5 +120,57 @@ class HarnessErrorExclusionTests(unittest.TestCase):
         self.assertIn("| omlx | oQ4e-fp16 mixed precision | ssd-warm | lightning |", text)
 
 
+class PeakRssColumnTests(unittest.TestCase):
+    """F7: peak RSS is reported as the MAX across a group's rows, not an
+    average — the 32GB unified-memory ceiling is a hard capacity limit,
+    so the worst observed footprint is what matters for "does this fit,"
+    not a smoothed mean that could hide a run that came close to
+    swapping."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.repo = Path(self.tmp)
+        (self.repo / "results").mkdir()
+        self._orig_repo = bl.REPO
+        bl.REPO = self.repo
+
+    def tearDown(self):
+        bl.REPO = self._orig_repo
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _write_log(self, rows):
+        (self.repo / "results" / "log.jsonl").write_text(
+            "\n".join(json.dumps(r) for r in rows) + "\n"
+        )
+
+    def _base_row(self, **overrides):
+        row = {
+            "suite": "hermes_ops", "task_id": "hermes_ops-selection",
+            "task_type": "tool-selection", "model": "test-model", "backend": "mlx",
+            "quant": None, "config_path": None, "config_hash": None,
+            "runner_git_sha": "abc123", "trial": 1, "pass": True, "grade_output": "PASS",
+        }
+        row.update(overrides)
+        return row
+
+    def test_peak_rss_reports_the_max_not_the_average(self):
+        self._write_log([
+            self._base_row(trial=1, peak_rss_gb=18.2),
+            self._base_row(trial=2, peak_rss_gb=25.9),
+        ])
+        bl.main()
+        text = (self.repo / "results" / "LEADERBOARD.md").read_text()
+        # 25.9 (the max) must appear; the average (22.05) must not be what's shown.
+        self.assertIn("25.9", text)
+        self.assertNotIn("22.1", text)
+
+    def test_peak_rss_blank_when_never_measured(self):
+        self._write_log([self._base_row(trial=1)])  # no peak_rss_gb key at all
+        bl.main()
+        text = (self.repo / "results" / "LEADERBOARD.md").read_text()
+        row_line = next(l for l in text.splitlines() if l.startswith("| test-model |"))
+        self.assertIn("| — |", row_line)
+
+
 if __name__ == "__main__":
     unittest.main()

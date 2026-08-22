@@ -18,9 +18,97 @@ the same way a config change already did).
 """
 import hashlib
 import subprocess
+import threading
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
+
+
+def _find_listening_pid(port):
+    """PID of whatever process is actually listening on *port*, or None.
+    Deliberately identity-agnostic about how many shell/uv wrapper layers
+    launched it (server_command()'s launch text can be `uv run ... python
+    -m vllm_mlx.server` under a shell=True Popen) — the one thing every
+    launch style has in common is that exactly one process ends up bound
+    to the port, so ask the OS which one that is rather than trying to
+    track through the process tree."""
+    try:
+        out = subprocess.run(
+            ["lsof", "-i", f":{port}", "-sTCP:LISTEN", "-t"],
+            capture_output=True, text=True, timeout=5,
+        ).stdout.strip()
+        pids = [p for p in out.splitlines() if p]
+        return int(pids[0]) if pids else None
+    except (subprocess.SubprocessError, ValueError, OSError):
+        return None
+
+
+def _rss_gb(pid):
+    """Current RSS of *pid* in GB, or None if the process/measurement is
+    unavailable (e.g. it just exited)."""
+    try:
+        out = subprocess.run(
+            ["ps", "-o", "rss=", "-p", str(pid)],
+            capture_output=True, text=True, timeout=5,
+        ).stdout.strip()
+        return int(out) / (1024 * 1024) if out else None  # ps rss is in KB
+    except (subprocess.SubprocessError, ValueError, OSError):
+        return None
+
+
+class PeakRSSSampler:
+    """Samples the RSS of whatever process is listening on *port* every
+    *interval* seconds in a background thread, tracking the maximum seen.
+
+    Added 2026-08-22 (methodology review, finding F7): the benchmark's
+    binding hardware constraint (32GB unified memory) was never actually
+    measured anywhere — footprints were argued only in config prose, so
+    there was no way to tell "this model genuinely runs at 0.3 tok/s" from
+    "this config was swapping." A single snapshot at the end of a task
+    wouldn't catch a transient peak mid-generation, so this samples
+    continuously for the duration of a task rather than once.
+
+    Usage:
+        sampler = PeakRSSSampler(raw_port).start()
+        ... run the task ...
+        peak_gb = sampler.stop()
+
+    *port* may be None (e.g. a hosted/API config with no local server) —
+    start()/stop() degrade to a no-op returning None in that case, rather
+    than requiring every call site to check first.
+    """
+
+    def __init__(self, port, interval=2.0):
+        self.port = port
+        self.interval = interval
+        self._peak_gb = None
+        self._stop_event = threading.Event()
+        self._thread = None
+
+    def _loop(self):
+        pid = None
+        while not self._stop_event.is_set():
+            if pid is None:
+                pid = _find_listening_pid(self.port)
+            if pid is not None:
+                rss = _rss_gb(pid)
+                if rss is not None:
+                    self._peak_gb = max(self._peak_gb or 0.0, rss)
+                else:
+                    pid = None  # process exited/restarted — re-resolve next tick
+            self._stop_event.wait(self.interval)
+
+    def start(self):
+        if self.port is not None:
+            self._thread = threading.Thread(target=self._loop, daemon=True)
+            self._thread.start()
+        return self
+
+    def stop(self):
+        self._stop_event.set()
+        if self._thread is not None:
+            self._thread.join(timeout=self.interval + 2)
+        return self._peak_gb
 
 
 def git_sha():
