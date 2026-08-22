@@ -25,14 +25,23 @@ What it does per config, in order:
   4. if orchestration.needs_proxy: launch bench_local_proxy.py with the
      right BENCH_TOOL_PARSER, wait for its health
   5. sanity suite — fail-fast: if sanity-basic fails, stop here
-  6. hermes_ops suite (unless orchestration.viable says to skip it)
-  7. the one coding-suite spot-check, kiem_mini-feature (unless
+  6. speed gate — fail-fast: probe hermes_ops-selection (the cheapest
+     hermes_ops task); if it comes in under
+     bench_common.MIN_HERMES_OPS_TOKENS_PER_SECOND twice in a row, stop
+     here rather than spend hours running the rest of hermes_ops and the
+     coding suite against a model that's already shown it's too slow to
+     be practical (see that constant's own comment for the reasoning and
+     the pilot run that prompted it)
+  7. hermes_ops suite (unless orchestration.viable says to skip it)
+  8. the one coding-suite spot-check, kiem_mini-feature (unless
      orchestration.viable says to skip it, or hermes_provider is unset)
-  8. regenerate results/LEADERBOARD.md
-  9. tear down (unload_all.sh again) before moving to the next config,
+  9. regenerate results/LEADERBOARD.md
+  10. tear down (unload_all.sh again) before moving to the next config,
      if running --all
 
-`orchestration.viable` controls which of steps 5-7 run:
+`orchestration.viable` controls which of steps 5-8 run (the speed gate at
+step 6 only runs when hermes_ops itself would — `full` or
+`sanity_and_hermes_ops_only`):
   full                       -> sanity, hermes_ops, coding
   sanity_and_hermes_ops_only -> sanity, hermes_ops (coding structurally
                                  blocked, e.g. hermes's 64K context
@@ -63,6 +72,8 @@ import urllib.request
 from pathlib import Path
 
 import yaml
+
+from bench_common import MIN_HERMES_OPS_TOKENS_PER_SECOND
 
 REPO = Path(__file__).resolve().parent.parent
 CODING_SPOTCHECK_SUITE = "kiem_mini"
@@ -271,6 +282,86 @@ def server_command(cfg, alias=None):
     return text
 
 
+def _run_hermes_ops_probe(base_url, model, request_model, backend, config_path):
+    """Run just hermes_ops-selection (the cheapest hermes_ops task — see
+    MIN_HERMES_OPS_TOKENS_PER_SECOND) via --only-task and return the
+    tokens_per_second values it measured, or None if the probe itself
+    didn't produce a trustworthy summary (same "don't guess" handling as
+    the sanity gate above: a harness crash on the probe isn't evidence the
+    MODEL is slow, so it doesn't gate on it either way — the real
+    hermes_ops run right after will surface whatever this actually is)."""
+    with tempfile.TemporaryDirectory() as td:
+        summary_path = Path(td) / "speed_probe_summary.json"
+        proc = run([sys.executable, str(REPO / "runner" / "run_prompt_suite.py"),
+                    "--suite", "hermes_ops", "--only-task", "hermes_ops-selection",
+                    "--base-url", base_url, "--model", model,
+                    "--request-model", request_model, "--backend", backend,
+                    "--config", str(config_path), "--trials", "1",
+                    "--summary-out", str(summary_path)])
+        if proc.returncode != 0 or not summary_path.exists():
+            return None
+        try:
+            rows = json.loads(summary_path.read_text())
+        except (json.JSONDecodeError, OSError):
+            return None
+    return [r["tokens_per_second"] for r in rows
+            if not r.get("harness_error") and r.get("tokens_per_second") is not None]
+
+
+def _check_speed_gate(base_url, model, request_model, backend, config_path):
+    """Probe hermes_ops-selection before committing to the rest of
+    hermes_ops + the coding suite, which can take hours against a
+    genuinely too-slow model (the Qwen3.8-27B/mlx.yaml pilot: 0.15-0.83
+    tok/s across 10 trials, ~77 minutes for 3 hermes_ops tasks alone).
+    Retries the probe ONCE if it comes in under threshold before treating
+    it as a real gate failure — this repo's own historical data shows a
+    single noisy trial can dip this low on an otherwise-fine model
+    (mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit logged one 0.15 tok/s
+    hermes_ops-selection outlier against a typical 7-8 tok/s on the same
+    task) — only a SECOND below-threshold result is acted on.
+
+    Returns (passed: bool, measured: list[float] | None) — measured is
+    every tok/s value actually observed across both attempts, kept for the
+    results/speed_gate.jsonl note if this trips; None if the probe itself
+    never produced trustworthy data (gate is skipped, not failed, in that
+    case)."""
+    measured = []
+    for attempt in (1, 2):
+        values = _run_hermes_ops_probe(base_url, model, request_model, backend, config_path)
+        if not values:
+            return True, None
+        measured.extend(values)
+        if max(values) >= MIN_HERMES_OPS_TOKENS_PER_SECOND:
+            return True, measured
+        print(f"  speed probe attempt {attempt}: {values} tok/s, below "
+              f"{MIN_HERMES_OPS_TOKENS_PER_SECOND} tok/s threshold"
+              + (" — retrying once before deciding" if attempt == 1 else " — failing the gate"))
+    return False, measured
+
+
+def _record_speed_gate_failure(model, backend, config_path, config_hash, measured):
+    """Append one row to results/speed_gate.jsonl — a dedicated, append-
+    only log kept separate from results/log.jsonl (whose task/suite-keyed
+    schema every other grouping/flakiness check in build_leaderboard.py
+    assumes) and separate from the config YAML files themselves (which
+    stay hand-authored/human-curated — see configs/README.md — not
+    something this script rewrites at run time). build_leaderboard.py
+    renders this as its own "Speed-gated configs" section."""
+    entry = {
+        "model": model,
+        "backend": backend,
+        "config_path": str(config_path),
+        "config_hash": config_hash,
+        "probe_task": "hermes_ops-selection",
+        "measured_tokens_per_second": measured,
+        "threshold_tokens_per_second": MIN_HERMES_OPS_TOKENS_PER_SECOND,
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+    path = REPO / "results" / "speed_gate.jsonl"
+    with open(path, "a") as f:
+        f.write(json.dumps(entry) + "\n")
+
+
 def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage="all"):
     cfg = yaml.safe_load(config_path.read_text())
     orch = cfg.get("orchestration")
@@ -421,6 +512,17 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
         tool_rows = [r for r in sanity_rows if r["task_id"] == "sanity-tool" and not r.get("harness_error")]
         if viable == "sanity_only" or not tool_rows or not _majority_pass(tool_rows):
             print("\nsanity-tool failed (or this config is sanity_only) — skipping hermes_ops/coding.")
+            _leaderboard()
+            return
+
+    if stage == "all" and viable in ("full", "sanity_and_hermes_ops_only"):
+        print("\n--- speed gate (hermes_ops-selection probe) ---")
+        gate_ok, measured = _check_speed_gate(base_url, model, request_model, backend, config_path)
+        if not gate_ok:
+            _record_speed_gate_failure(model, backend, config_path, config_hash, measured)
+            print(f"\n!!! {model} ({backend}) FAILED the speed gate ({measured} tok/s, "
+                  f"threshold {MIN_HERMES_OPS_TOKENS_PER_SECOND}) — too slow to be practical. "
+                  f"Skipping the rest of hermes_ops and the coding suite. Stopping here.")
             _leaderboard()
             return
 

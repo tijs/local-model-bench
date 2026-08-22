@@ -39,6 +39,26 @@ REPO = Path(__file__).resolve().parent.parent
 # runner.
 INTERACTIVE_BUDGET_SECONDS = 300
 
+# Added 2026-08-22, directly prompted by the Qwen3.8-27B MLX pilot: that
+# config DID complete hermes_ops-selection (a real PASS, not a crash) but
+# at 0.18 tok/s, taking 668s for a 118-token completion — and every other
+# hermes_ops row for it landed in the same 0.15-0.83 tok/s band (10 trials).
+# Running the rest of hermes_ops (2 more tasks, up to ~2900s each) and the
+# full coding suite against a config already showing this is pure wasted
+# wall-clock time; the outcome is not in doubt. 1.0 tok/s is a deliberately
+# low bar — grounded in this repo's own historical hermes_ops-selection
+# data (results/log.jsonl): every currently-non-blocked config's WORST
+# single trial on that task is >= 0.51 tok/s (bartowski/Muse-Glimmer-30B),
+# and most sit at 1+, while every trial of the model actually confirmed
+# non-viable (Qwen3.8-27B/mlx.yaml) sits at 0.15-0.42. Checked ONCE more
+# before acting on it (see run_bench.py's speed-gate retry) because the
+# same historical data also shows a single noisy trial can dip this low on
+# an otherwise-fine model — mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit
+# logged one 0.15 tok/s hermes_ops-selection trial against a typical 7-8
+# tok/s on the same task, almost certainly a one-off resource-contention
+# fluke, not a property of the model.
+MIN_HERMES_OPS_TOKENS_PER_SECOND = 1.0
+
 
 def _find_listening_pid(port):
     """PID of whatever process is actually listening on *port*, or None.

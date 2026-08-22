@@ -406,5 +406,67 @@ class BlockedConfigsSectionTests(unittest.TestCase):
         self.assertIn("None currently blocked.", section)
 
 
+class SpeedGatedConfigsSectionTests(unittest.TestCase):
+    """run_bench.py's speed gate (probes hermes_ops-selection, stops before
+    the rest of hermes_ops + coding if it's under
+    bench_common.MIN_HERMES_OPS_TOKENS_PER_SECOND twice in a row) writes to
+    results/speed_gate.jsonl, a dedicated log kept separate from log.jsonl.
+    build_leaderboard.py must render it as its own section, and must not
+    choke when the file doesn't exist at all (the common case, before any
+    config has ever tripped this gate)."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.repo = Path(self.tmp)
+        (self.repo / "results").mkdir()
+        self._orig_repo = bl.REPO
+        bl.REPO = self.repo
+
+    def tearDown(self):
+        bl.REPO = self._orig_repo
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _write_log(self, rows):
+        (self.repo / "results" / "log.jsonl").write_text(
+            "\n".join(json.dumps(r) for r in rows) + "\n"
+        )
+
+    def _speed_gate_section(self, text):
+        return text[text.index("## Speed-gated configs"):]
+
+    def test_missing_speed_gate_log_renders_none_gated(self):
+        self._write_log([{
+            "suite": "hermes_ops", "task_id": "hermes_ops-selection", "task_type": "tool-selection",
+            "model": "unrelated-model", "backend": "mlx", "quant": None, "config_path": None,
+            "config_hash": None, "runner_git_sha": "abc", "trial": 1, "pass": True,
+            "grade_output": "PASS",
+        }])
+        bl.main()
+        text = (self.repo / "results" / "LEADERBOARD.md").read_text()
+        self.assertIn("None gated on speed so far.", self._speed_gate_section(text))
+
+    def test_speed_gated_entry_is_rendered_with_its_measurements(self):
+        self._write_log([{
+            "suite": "hermes_ops", "task_id": "hermes_ops-selection", "task_type": "tool-selection",
+            "model": "unrelated-model", "backend": "mlx", "quant": None, "config_path": None,
+            "config_hash": None, "runner_git_sha": "abc", "trial": 1, "pass": True,
+            "grade_output": "PASS",
+        }])
+        (self.repo / "results" / "speed_gate.jsonl").write_text(json.dumps({
+            "model": "TooSlow/Model-4bit", "backend": "mlx",
+            "config_path": "configs/TooSlow-Model/mlx.yaml", "config_hash": "abc123",
+            "probe_task": "hermes_ops-selection",
+            "measured_tokens_per_second": [0.18, 0.22],
+            "threshold_tokens_per_second": 1.0,
+            "timestamp": "2026-08-22T12:00:00Z",
+        }) + "\n")
+        bl.main()
+        text = (self.repo / "results" / "LEADERBOARD.md").read_text()
+        section = self._speed_gate_section(text)
+        self.assertIn("TooSlow/Model-4bit", section)
+        self.assertIn("0.18, 0.22", section)
+        self.assertIn("configs/TooSlow-Model/mlx.yaml", section)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -106,6 +106,28 @@ def _blocked_configs():
     return found
 
 
+def _speed_gated_configs():
+    """Configs that run_bench.py itself stopped early because a probe of
+    hermes_ops-selection (the cheapest hermes_ops task) came in under
+    bench_common.MIN_HERMES_OPS_TOKENS_PER_SECOND twice in a row — see that
+    constant's own comment and run_bench.py's _check_speed_gate(). Read
+    from results/speed_gate.jsonl, a dedicated append-only log kept
+    separate from log.jsonl (whose task/suite-keyed schema every grouping/
+    flakiness check above assumes) and separate from the config YAML files
+    (which stay hand-authored, not rewritten by this automated check —
+    unlike `orchestration.viable: blocked`, which is a human judgment call
+    recorded in the config itself)."""
+    path = REPO / "results" / "speed_gate.jsonl"
+    if not path.exists():
+        return []
+    found = []
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if line:
+            found.append(json.loads(line))
+    return found
+
+
 def _current_config_hash(config_path):
     """The live file's hash right now — compared against a row's stored
     config_hash to tell whether the config has been edited since that row
@@ -571,6 +593,31 @@ def main():
         for b in blocked:
             reason = b["blocked_reason"].replace("|", "\\|").replace("\n", " ")
             lines.append(f"| {b['model']} | {b['backend']} | {b['config_path']} | {reason} |")
+
+    speed_gated = _speed_gated_configs()
+    lines.append("")
+    lines.append("## Speed-gated configs (stopped early — too slow to be practical)")
+    lines.append("")
+    lines.append("`run_bench.py` probes `hermes_ops-selection` (the cheapest hermes_ops")
+    lines.append("task) before committing to the rest of hermes_ops + the coding suite, which")
+    lines.append("can take hours against a genuinely too-slow model. Two consecutive")
+    lines.append("below-threshold probes stop the run there instead — the rows below ARE")
+    lines.append("also real log.jsonl rows (visible in every table above), this section just")
+    lines.append("makes the *reason the run stopped* explicit rather than something a reader")
+    lines.append("has to infer from a config with unusually few rows.")
+    lines.append("")
+    if not speed_gated:
+        lines.append("None gated on speed so far.")
+    else:
+        lines.append("| model | backend | config | measured tok/s | threshold | timestamp |")
+        lines.append("|---|---|---|---|---|---|")
+        for g in speed_gated:
+            measured = g.get("measured_tokens_per_second") or []
+            measured_disp = ", ".join(f"{v:.2f}" for v in measured) if measured else "—"
+            lines.append(
+                f"| {g.get('model', '—')} | {g.get('backend', '—')} | {g.get('config_path', '—')} | "
+                f"{measured_disp} | {g.get('threshold_tokens_per_second', '—')} | {g.get('timestamp', '—')} |"
+            )
 
     Path(REPO / "results" / "LEADERBOARD.md").write_text("\n".join(lines) + "\n")
     print(f"Wrote results/LEADERBOARD.md from {len(rows)} rows.")
