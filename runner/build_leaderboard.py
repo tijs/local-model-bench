@@ -107,16 +107,18 @@ def _blocked_configs():
 
 
 def _speed_gated_configs():
-    """Configs that run_bench.py itself stopped early because a probe of
-    hermes_ops-selection (the cheapest hermes_ops task) came in under
-    bench_common.MIN_HERMES_OPS_TOKENS_PER_SECOND twice in a row — see that
-    constant's own comment and run_bench.py's _check_speed_gate(). Read
-    from results/speed_gate.jsonl, a dedicated append-only log kept
-    separate from log.jsonl (whose task/suite-keyed schema every grouping/
-    flakiness check above assumes) and separate from the config YAML files
-    (which stay hand-authored, not rewritten by this automated check —
-    unlike `orchestration.viable: blocked`, which is a human judgment call
-    recorded in the config itself)."""
+    """Configs that run_bench.py itself stopped early because that
+    config's own hermes_ops run averaged under
+    bench_common.MIN_HERMES_OPS_TOKENS_PER_SECOND (10 tok/s, a practical
+    floor for interactive use — see that constant's own comment) across
+    every hermes_ops task — see run_bench.py's speed-gate block, right
+    after the hermes_ops suite call. Read from results/speed_gate.jsonl, a
+    dedicated append-only log kept separate from log.jsonl (whose task/
+    suite-keyed schema every grouping/flakiness check above assumes) and
+    separate from the config YAML files (which stay hand-authored, not
+    rewritten by this automated check — unlike `orchestration.viable:
+    blocked`, which is a human judgment call recorded in the config
+    itself)."""
     path = REPO / "results" / "speed_gate.jsonl"
     if not path.exists():
         return []
@@ -598,25 +600,28 @@ def main():
     lines.append("")
     lines.append("## Speed-gated configs (stopped early — too slow to be practical)")
     lines.append("")
-    lines.append("`run_bench.py` probes `hermes_ops-selection` (the cheapest hermes_ops")
-    lines.append("task) before committing to the rest of hermes_ops + the coding suite, which")
-    lines.append("can take hours against a genuinely too-slow model. Two consecutive")
-    lines.append("below-threshold probes stop the run there instead — the rows below ARE")
-    lines.append("also real log.jsonl rows (visible in every table above), this section just")
-    lines.append("makes the *reason the run stopped* explicit rather than something a reader")
-    lines.append("has to infer from a config with unusually few rows.")
+    lines.append("`run_bench.py` runs a config's full hermes_ops suite as normal, then checks")
+    lines.append("the average tokens_per_second across every task it just ran — the same")
+    lines.append("number the main table's `avg tok/s` column reports. Below threshold, it")
+    lines.append("skips the coding suite (typically far more expensive: real builds +")
+    lines.append("multi-turn agentic loops) rather than spend that time confirming an outcome")
+    lines.append("hermes_ops already answered. The hermes_ops rows themselves ARE still real")
+    lines.append("log.jsonl rows (visible in every table above) — this section just makes the")
+    lines.append("*reason the coding suite didn't run* explicit rather than something a reader")
+    lines.append("has to infer from a config missing coding rows.")
     lines.append("")
     if not speed_gated:
         lines.append("None gated on speed so far.")
     else:
-        lines.append("| model | backend | config | measured tok/s | threshold | timestamp |")
-        lines.append("|---|---|---|---|---|---|")
+        lines.append("| model | backend | config | avg tok/s | per-task tok/s | threshold | timestamp |")
+        lines.append("|---|---|---|---|---|---|---|")
         for g in speed_gated:
             measured = g.get("measured_tokens_per_second") or []
             measured_disp = ", ".join(f"{v:.2f}" for v in measured) if measured else "—"
+            avg_disp = f"{g['avg_tokens_per_second']:.2f}" if g.get("avg_tokens_per_second") is not None else "—"
             lines.append(
                 f"| {g.get('model', '—')} | {g.get('backend', '—')} | {g.get('config_path', '—')} | "
-                f"{measured_disp} | {g.get('threshold_tokens_per_second', '—')} | {g.get('timestamp', '—')} |"
+                f"{avg_disp} | {measured_disp} | {g.get('threshold_tokens_per_second', '—')} | {g.get('timestamp', '—')} |"
             )
 
     Path(REPO / "results" / "LEADERBOARD.md").write_text("\n".join(lines) + "\n")

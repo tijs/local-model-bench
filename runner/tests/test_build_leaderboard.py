@@ -455,16 +455,18 @@ class SpeedGatedConfigsSectionTests(unittest.TestCase):
         (self.repo / "results" / "speed_gate.jsonl").write_text(json.dumps({
             "model": "TooSlow/Model-4bit", "backend": "mlx",
             "config_path": "configs/TooSlow-Model/mlx.yaml", "config_hash": "abc123",
-            "probe_task": "hermes_ops-selection",
-            "measured_tokens_per_second": [0.18, 0.22],
-            "threshold_tokens_per_second": 1.0,
+            "suite": "hermes_ops",
+            "measured_tokens_per_second": [0.18, 0.22, 0.31],
+            "avg_tokens_per_second": 0.237,
+            "threshold_tokens_per_second": 10.0,
             "timestamp": "2026-08-22T12:00:00Z",
         }) + "\n")
         bl.main()
         text = (self.repo / "results" / "LEADERBOARD.md").read_text()
         section = self._speed_gate_section(text)
         self.assertIn("TooSlow/Model-4bit", section)
-        self.assertIn("0.18, 0.22", section)
+        self.assertIn("0.18, 0.22, 0.31", section)
+        self.assertIn("0.24", section)  # avg, rendered to 2 decimals
         self.assertIn("configs/TooSlow-Model/mlx.yaml", section)
 
 

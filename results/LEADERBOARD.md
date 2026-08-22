@@ -385,12 +385,14 @@ vanish from this file with no trace of why.
 
 ## Speed-gated configs (stopped early — too slow to be practical)
 
-`run_bench.py` probes `hermes_ops-selection` (the cheapest hermes_ops
-task) before committing to the rest of hermes_ops + the coding suite, which
-can take hours against a genuinely too-slow model. Two consecutive
-below-threshold probes stop the run there instead — the rows below ARE
-also real log.jsonl rows (visible in every table above), this section just
-makes the *reason the run stopped* explicit rather than something a reader
-has to infer from a config with unusually few rows.
+`run_bench.py` runs a config's full hermes_ops suite as normal, then checks
+the average tokens_per_second across every task it just ran — the same
+number the main table's `avg tok/s` column reports. Below threshold, it
+skips the coding suite (typically far more expensive: real builds +
+multi-turn agentic loops) rather than spend that time confirming an outcome
+hermes_ops already answered. The hermes_ops rows themselves ARE still real
+log.jsonl rows (visible in every table above) — this section just makes the
+*reason the coding suite didn't run* explicit rather than something a reader
+has to infer from a config missing coding rows.
 
 None gated on speed so far.
