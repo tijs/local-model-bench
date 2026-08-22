@@ -224,3 +224,88 @@ tasks:
       # "the contents of notes.txt are: ..." fabrication; a negated "I don't
       # know what the contents of notes.txt are" correct answer) — see
       # commit message for the exact verification script.
+
+  - id: hermes_ops-targeted-edit
+    title: Prefer a targeted patch over a full-file rewrite for a small change
+    type: tool-selection
+    difficulty: 3
+    prompt_spec:
+      system_prompt_file: fixtures/hermes_ops/system_prompt.txt
+      tools_file: fixtures/hermes_ops/tools.json
+      user_prompt: >-
+        The app config at ~/app/notes_config.json has auto_save set to
+        false. Change it to true — leave everything else in the file
+        exactly as it is.
+      mock_tool_responses:
+        read_file: '{"content": "{\n  \"user_id\": \"u_492\",\n  \"auto_save\": false,\n  \"theme\": \"dark\",\n  \"max_recent_files\": 20\n}\n"}'
+        patch: '{"status": "ok", "diff": "-  \"auto_save\": false,\n+  \"auto_save\": true,"}'
+        write_file: '{"status": "ok", "bytes_written": 92}'
+    check:
+      type: tool_call_then_response
+      expected_tool: patch
+      expected_args_match:
+        old_string: "(?i)auto_save"
+        new_string: "true"
+      # Added 2026-08-22 (methodology review, finding F8): none of the
+      # original 3 hermes_ops tasks ever tested a NEAR-MISS tool choice —
+      # web_search was the only plausible tool among 41 for the original
+      # selection task. This task has two genuinely plausible tools
+      # (patch vs. write_file) that could BOTH technically accomplish the
+      # user's request; the system prompt itself states the tie-breaker
+      # ("prefer small, reviewable diffs over large rewrites" —
+      # fixtures/hermes_ops/system_prompt.txt line ~208), so a model that
+      # reaches for a full write_file rewrite of a one-field change is
+      # making a real, gradeable mistake, not an equally-valid choice.
+      # expected_tool: patch alone already fails any run that only ever
+      # called write_file (the built-in "tool never called" check for
+      # tool_call_then_response) — no separate negative check needed.
+      # mode isn't checked explicitly since the schema defaults to
+      # 'replace' and a model may reasonably omit an unneeded default arg;
+      # old_string/new_string being present already proves replace-style
+      # usage (patch-mode calls have no such keys).
+
+  - id: hermes_ops-noisy-result
+    title: Find the right answer inside a large, noisy tool result
+    type: tool-chaining
+    difficulty: 3
+    prompt_spec:
+      system_prompt_file: fixtures/hermes_ops/system_prompt.txt
+      tools_file: fixtures/hermes_ops/tools.json
+      user_prompt: >-
+        Search the codebase for the function that actually handles
+        logging a user out (not the UI button, not analytics, the real
+        logic), and tell me which file it's defined in.
+      mock_tool_responses:
+        search_files: |
+          {"matches": [
+            "src/ui/LogoutButton.tsx:12:export function LogoutButton() {",
+            "src/ui/LogoutButton.tsx:18:  // renders the logout button, does not handle the logout itself",
+            "src/analytics/events.ts:44:export const LOGOUT_EVENT = \"user_logout\";",
+            "src/analytics/events.ts:61:function trackLogoutEvent(userId: string) {",
+            "src/api/routes/logout.ts:5:router.post(\"/logout\", (req, res) => {",
+            "src/api/routes/logout.ts:6:  // delegates to the session module -- see auth/session.ts",
+            "src/auth/session.ts:88:function refreshSession(sessionId: string) {",
+            "src/auth/session.ts:142:export function handleLogout(sessionId: string) {",
+            "src/auth/session.ts:143:  sessions.delete(sessionId);",
+            "src/auth/session.ts:144:  auditLog.record(\"logout\", sessionId);",
+            "src/legacy/oldAuth.ts:9:// deprecated -- logout is now handled in auth/session.ts",
+            "tests/logout.test.ts:3:describe('logout', () => {",
+            "tests/logout.test.ts:14:  it('calls handleLogout on session end', () => {"
+          ]}
+    check:
+      type: tool_call_then_response
+      expected_tool: search_files
+      response_matches: "session\\.ts"
+      # Added 2026-08-22 (methodology review, finding F8): the original 3
+      # tasks' mock tool responses were all one-line JSON — nothing
+      # exercised whether a model can actually find the answer inside a
+      # realistically noisy result (real search_files/terminal output is
+      # often dozens of lines with the answer buried in the middle, not
+      # handed to the model as the ONLY thing in the response). This mock
+      # has 6 different files mentioned across 13 lines, 5 of them
+      # plausible-looking decoys (a UI button, an analytics tracker, a
+      # route handler that just delegates, a deprecated file, a test
+      # file) — "session.ts" is a substring unique to the one file that
+      # actually defines handleLogout, so this checks the model read past
+      # the more surface-level hits rather than pattern-matching the
+      # first or last line.
