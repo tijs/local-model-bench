@@ -1,0 +1,84 @@
+model: mlx-community/Qwen2.5-Coder-14B-Instruct-4bit
+backend: mlx
+# Added 2026-08-22 (methodology review, finding F12) — see gguf.yaml in
+# this same directory for the full rationale (fills the "dense 12-20B"
+# model-list gap).
+temperature: 0.7
+reasoning_mode: n/a
+framework: vllm-mlx
+
+benchmark_launch_command: |
+  # CONTEXT-EXTENSION MECHANISM UNVERIFIED — see known_gaps. This model's
+  # native max_position_embeddings is 32768 (confirmed via config.json);
+  # the GGUF leg (gguf.yaml) extends to 64K via llama-server's
+  # --rope-scaling/--rope-scale/--yarn-orig-ctx CLI flags, but no
+  # equivalent flag was confirmed to exist in vllm-mlx as of authoring
+  # (could not check --help locally — the serving environment was mid-
+  # migration to a uv-managed python at the time). If vllm-mlx has no
+  # such flag, the fallback is patching a local copy of config.json to
+  # add a "rope_scaling": {"type": "yarn", "factor": 2.0,
+  # "original_max_position_embeddings": 32768} block before launch,
+  # mirroring the chat_template.jinja patch mechanism already used for
+  # Qwen3.8-27B (see that model's mlx.yaml) — NOT yet implemented here,
+  # do that first if --max-request-tokens 65536 alone doesn't actually
+  # extend the model's real attention window.
+  HF_TOKEN=$(cat ~/.cache/huggingface/token) uv run --locked --extra mlx python -m vllm_mlx.server \
+    --model mlx-community/Qwen2.5-Coder-14B-Instruct-4bit --host 127.0.0.1 --port 8018 \
+    --max-request-tokens 65536 --max-tokens 65536 --continuous-batching \
+    --default-temperature 0.7 --default-top-p 0.8 --default-top-k 20 \
+    --default-repetition-penalty 1.05 --timeout 1800
+
+benchmark_endpoint: http://127.0.0.1:8018/v1
+  # Assumed no proxy needed (native tool_calls) — UNVERIFIED, first use
+  # of this model on vllm-mlx in this benchmark. Tool-call parsing in
+  # vllm-mlx is confirmed MODEL-DEPENDENT elsewhere in this repo (native
+  # for Qwen3.8-27B, proxy-required for Qwen3-Coder-30B-A3B despite both
+  # being Qwen family) — spot-check this specific checkpoint directly
+  # before trusting any result, per standing policy.
+
+orchestration:
+  raw_port: 8018
+  needs_proxy: false   # assumed — see benchmark_endpoint note; may need
+    # changing to true + a proxy_parser after the live spot-check.
+  hermes_provider: qwen25coder-14b-mlx   # needs registering in
+    # ~/.hermes/profiles/bench/config.yaml before first use.
+  viable: full   # provisional — see known_gaps. If the context-extension
+    # mechanism doesn't actually work on this backend, this should drop
+    # to sanity_and_hermes_ops_only (same pattern as Qwen3.8-27B's
+    # 32K-capped variants) rather than silently producing coding results
+    # against a truncated/degraded context window.
+
+settings:
+  - name: quant
+    value: 4-bit (mlx-community/Qwen2.5-Coder-14B-Instruct-4bit)
+    source: "Confirmed present via the HF models API 2026-08-22. Note:
+      this repo's tags list doesn't include 'mlx' (just 'transformers',
+      'safetensors', 'qwen2') unlike most mlx-community conversions —
+      worth a first-launch sanity check that it loads correctly via
+      vllm-mlx before trusting further, though the file structure
+      (sharded safetensors + config.json) looks like a standard
+      conversion."
+  - name: context_length / rope_scaling
+    value: "65536 requested via --max-request-tokens — NOT CONFIRMED to
+      actually extend the model's native 32768 attention window on this
+      backend"
+    source: "See benchmark_launch_command's header comment and
+      known_gaps below. This is the single biggest open question for
+      this config."
+  - name: temperature / top_p / top_k / repetition_penalty
+    value: 0.7 / 0.8 / 20 / 1.05
+    source: "https://huggingface.co/Qwen/Qwen2.5-Coder-14B-Instruct model
+      card generation_config.json defaults — same as gguf.yaml."
+
+known_gaps:
+  - "Context-extension mechanism unverified on this backend (see header
+    comment) — this is the first thing to check on a live launch, before
+    trusting any hermes_ops or coding result from this config at all."
+  - "Tool-call parsing (native vs. proxy-required) unverified for this
+    specific checkpoint."
+  - "Never run live as of authoring."
+  - "hermes_provider entry not yet added to
+    ~/.hermes/profiles/bench/config.yaml — do that before the first run."
+
+last_updated: 2026-08-22
+last_verified_against_docs: 2026-08-22
