@@ -205,8 +205,29 @@ def assert_plain_completion(base_url, request_model, timeout=60):
     choices = data.get("choices") or []
     message = (choices[0].get("message") or {}) if choices else {}
     content = message.get("content")
+    # Some llama-server chat templates misclassify an entire short response
+    # (this probe's whole 8-token budget) as reasoning_content, leaving
+    # content empty — bench_local_proxy.py's normalize_response() already
+    # has a documented 2026-08-20 fix for exactly this (confirmed live for
+    # poolside/Laguna-XS-2.1), but that fix only runs for proxied configs;
+    # this probe deliberately hits the RAW backend, before any proxy is
+    # even started, so it never benefited from it. Confirmed live again
+    # 2026-08-23: this false-failed poolside/Laguna-XS-2.1/gguf.yaml AND
+    # LiquidAI/LFM2.5-2.6B-GGUF:Q8_0/gguf.yaml (a config with real,
+    # previously-confirmed 45+ tok/s hermes_ops results) in the same
+    # sweep — both servers' own logs showed a real completed generation at
+    # probe time, so this is a probe-side false negative, not a dead
+    # backend. tool_calls presence is also accepted as life, matching
+    # normalize_response()'s own "tool_calls means don't touch it" logic.
     if isinstance(content, str) and content.strip():
         print("Plain completion probe passed.")
+        return True
+    if message.get("tool_calls"):
+        print("Plain completion probe passed (tool_calls).")
+        return True
+    reasoning_content = message.get("reasoning_content")
+    if isinstance(reasoning_content, str) and reasoning_content.strip():
+        print("Plain completion probe passed (reasoning_content).")
         return True
     print(f"FAILED: plain completion probe returned no assistant content for {request_model!r}.")
     return False

@@ -65,6 +65,91 @@ class OmlxIdentityTests(unittest.TestCase):
                 )
             )
 
+    def test_plain_completion_accepts_reasoning_content_fallback(self):
+        """Some llama-server chat templates misclassify an entire short
+        response as reasoning_content, leaving content empty — confirmed
+        live 2026-08-23 for poolside/Laguna-XS-2.1/gguf.yaml and
+        LiquidAI/LFM2.5-2.6B-GGUF:Q8_0/gguf.yaml (the latter a config with
+        real, previously-confirmed 45+ tok/s hermes_ops results — both
+        servers' own logs showed a real completed generation at probe
+        time). bench_local_proxy.py's normalize_response() already falls
+        back to reasoning_content for exactly this; this probe hits the
+        raw backend directly (before any proxy), so it needs its own
+        fallback rather than false-failing a live model."""
+        payload = json.dumps({
+            "choices": [{"message": {"content": "", "reasoning_content": "ready"}}]
+        }).encode()
+
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self):
+                return payload
+
+        with patch("run_bench.urllib.request.urlopen", return_value=Response()):
+            self.assertTrue(
+                run_bench.assert_plain_completion(
+                    "http://127.0.0.1:8017/v1", "bench-laguna", timeout=1
+                )
+            )
+
+    def test_plain_completion_accepts_tool_calls_with_no_content(self):
+        """A tool-calling response legitimately has empty/null content —
+        the tool_calls array itself is the evidence of life, matching
+        normalize_response()'s own 'tool_calls means don't touch it'
+        handling."""
+        payload = json.dumps({
+            "choices": [{"message": {
+                "content": None,
+                "tool_calls": [{"id": "1", "type": "function", "function": {"name": "ready", "arguments": "{}"}}],
+            }}]
+        }).encode()
+
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self):
+                return payload
+
+        with patch("run_bench.urllib.request.urlopen", return_value=Response()):
+            self.assertTrue(
+                run_bench.assert_plain_completion(
+                    "http://127.0.0.1:8017/v1", "bench-tool-model", timeout=1
+                )
+            )
+
+    def test_plain_completion_still_fails_on_genuinely_empty_response(self):
+        # Regression guard: the reasoning_content/tool_calls fallbacks must
+        # not swallow a real dead-endpoint case.
+        payload = json.dumps({
+            "choices": [{"message": {"content": "", "reasoning_content": ""}}]
+        }).encode()
+
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self):
+                return payload
+
+        with patch("run_bench.urllib.request.urlopen", return_value=Response()):
+            self.assertFalse(
+                run_bench.assert_plain_completion(
+                    "http://127.0.0.1:8017/v1", "bench-dead", timeout=1
+                )
+            )
+
 
 class OmlxLauncherTests(unittest.TestCase):
     def test_dry_run_isolated_cold_launch_uses_explicit_no_cache(self):
