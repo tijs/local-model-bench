@@ -64,7 +64,14 @@ class HarnessErrorExclusionTests(unittest.TestCase):
         ])
         bl.main()
         text = (self.repo / "results" / "LEADERBOARD.md").read_text()
-        self.assertIn("| test-model | mlx | — | — | — | — | abc123 | 2 | 100% |", text)
+        # sanity gate column added (finding F3) since this assertion was
+        # first written — match on the surrounding cells rather than an
+        # exact full-row string, so an unrelated column addition doesn't
+        # make this brittle.
+        row_line = next(l for l in text.splitlines() if l.startswith("| test-model |"))
+        cells = [c.strip() for c in row_line.split("|")]
+        self.assertEqual(cells[9], "2")     # tasks
+        self.assertEqual(cells[10], "100%")  # pass rate
 
     def test_harness_error_row_not_flagged_as_flaky(self):
         self._write_log([
@@ -223,7 +230,107 @@ class SlowPassColumnTests(unittest.TestCase):
         text = (self.repo / "results" / "LEADERBOARD.md").read_text()
         row_line = next(l for l in text.splitlines() if l.startswith("| test-model |"))
         cells = [c.strip() for c in row_line.split("|")]
-        self.assertEqual(cells[10], "0")  # "slow passes" column
+        self.assertEqual(cells[11], "0")  # "slow passes" column
+
+
+class CompositeRankingTests(unittest.TestCase):
+    """F3: the leaderboard didn't rank anything — no composite score, no
+    tie-break, alphabetical order. score = 0.5*coding + 0.3*hermes_ops +
+    0.2*speed, renormalized over whichever axes a group actually has data
+    for (a group with no coding rows yet must not be scored as if its
+    missing coding axis were 0)."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.repo = Path(self.tmp)
+        (self.repo / "results").mkdir()
+        self._orig_repo = bl.REPO
+        bl.REPO = self.repo
+
+    def tearDown(self):
+        bl.REPO = self._orig_repo
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _write_log(self, rows):
+        (self.repo / "results" / "log.jsonl").write_text(
+            "\n".join(json.dumps(r) for r in rows) + "\n"
+        )
+
+    def _best_overall_section(self, text):
+        return text[text.index("## Best overall"):text.index("## Flaky tasks")]
+
+    def test_sanity_excluded_from_pass_rate_and_shown_as_its_own_gate(self):
+        self._write_log([
+            {"suite": "sanity", "task_id": "sanity-basic", "task_type": "sanity",
+             "model": "m", "backend": "mlx", "quant": None, "config_path": None,
+             "config_hash": None, "runner_git_sha": "abc", "trial": 1, "pass": True,
+             "grade_output": "PASS"},
+            {"suite": "hermes_ops", "task_id": "hermes_ops-selection", "task_type": "tool-selection",
+             "model": "m", "backend": "mlx", "quant": None, "config_path": None,
+             "config_hash": None, "runner_git_sha": "abc", "trial": 1, "pass": False,
+             "grade_output": "FAIL"},
+        ])
+        bl.main()
+        text = (self.repo / "results" / "LEADERBOARD.md").read_text()
+        row_line = next(l for l in text.splitlines() if l.startswith("| m |"))
+        cells = [c.strip() for c in row_line.split("|")]
+        self.assertEqual(cells[6], "1/1")  # sanity gate: passed
+        self.assertEqual(cells[9], "1")    # tasks: only the hermes_ops row counts
+        self.assertEqual(cells[10], "0%")  # pass rate: sanity's PASS excluded, hermes_ops's FAIL counts
+
+    def test_group_with_only_hermes_ops_data_still_gets_a_score(self):
+        # No coding rows at all for this group — must NOT be scored as if
+        # coding_pass_rate were 0; it should score on hermes_ops+speed alone.
+        self._write_log([
+            {"suite": "hermes_ops", "task_id": "hermes_ops-selection", "task_type": "tool-selection",
+             "model": "hermes-only-model", "backend": "mlx", "quant": None, "config_path": None,
+             "config_hash": None, "runner_git_sha": "abc", "trial": 1, "pass": True,
+             "grade_output": "PASS", "tokens_per_second": 20.0},
+        ])
+        bl.main()
+        text = (self.repo / "results" / "LEADERBOARD.md").read_text()
+        section = self._best_overall_section(text)
+        self.assertIn("hermes-only-model", section)
+        row_line = next(l for l in section.splitlines() if "hermes-only-model" in l)
+        cells = [c.strip() for c in row_line.split("|")]
+        self.assertEqual(cells[7], "2")  # axes: hermes_ops + speed, not 3
+
+    def test_higher_coding_pass_rate_ranks_above_faster_but_less_correct_model(self):
+        # Coding is weighted 0.5, speed only 0.2 — a model that's 100%
+        # correct on coding but slow must still outrank one that's fast
+        # but fails half its coding tasks.
+        self._write_log([
+            {"suite": "kiem_mini", "task_id": "kiem_mini-feature", "task_type": "feature",
+             "model": "correct-but-slow", "backend": "mlx", "quant": None, "config_path": None,
+             "config_hash": "h1", "runner_git_sha": "abc", "trial": 1, "pass": True,
+             "grade_output": "PASS", "tokens_per_second": 5.0},
+            {"suite": "kiem_mini", "task_id": "kiem_mini-feature", "task_type": "feature",
+             "model": "fast-but-wrong", "backend": "mlx", "quant": None, "config_path": None,
+             "config_hash": "h2", "runner_git_sha": "abc", "trial": 1, "pass": False,
+             "grade_output": "FAIL", "tokens_per_second": 50.0},
+        ])
+        bl.main()
+        text = (self.repo / "results" / "LEADERBOARD.md").read_text()
+        section = self._best_overall_section(text)
+        correct_rank = next(i for i, l in enumerate(section.splitlines()) if "correct-but-slow" in l)
+        wrong_rank = next(i for i, l in enumerate(section.splitlines()) if "fast-but-wrong" in l)
+        self.assertLess(correct_rank, wrong_rank, "the correct-but-slow model must rank first")
+
+    def test_group_with_zero_scoreable_axes_is_omitted_not_zero_scored(self):
+        # A harness-error-only group has no pass/fail signal at all on any
+        # axis (harness_error rows are excluded from `scored` upstream) —
+        # it must be left out of the ranking, not shown with a misleading
+        # score of 0.
+        self._write_log([
+            {"suite": "hermes_ops", "task_id": "hermes_ops-selection", "task_type": "tool-selection",
+             "model": "all-harness-errors", "backend": "mlx", "quant": None, "config_path": None,
+             "config_hash": None, "runner_git_sha": "abc", "trial": 1, "pass": False,
+             "harness_error": True, "grade_output": "HARNESS ERROR"},
+        ])
+        bl.main()
+        text = (self.repo / "results" / "LEADERBOARD.md").read_text()
+        section = self._best_overall_section(text)
+        self.assertNotIn("all-harness-errors", section)
 
 
 if __name__ == "__main__":

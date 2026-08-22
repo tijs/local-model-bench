@@ -11,6 +11,18 @@ import yaml
 
 REPO = Path(__file__).resolve().parent.parent
 
+# `sanity` is explicitly a fail-fast GATE (run_bench.py stops entirely if
+# sanity-basic fails), not a quality signal to average alongside real
+# tool-use/coding results — folding it into one blended "pass rate" can
+# only compress the differences between models that already cleared it,
+# since it sits at or near ceiling for nearly everything (26/26 and 25/26
+# in the committed data as of the methodology review, finding F3).
+# CODING_SUITES names every `runner: fixture` suite explicitly rather than
+# inferring "not sanity, not hermes_ops" — a future prompt-runner suite
+# added alongside hermes_ops should default to being treated like it, not
+# silently miscounted as coding.
+CODING_SUITES = {"kiem_mini", "hearth_mini", "kipclip_mini"}
+
 
 def _fairness_fields(config_hash, config_path):
     """temperature/reasoning_mode as declared in the config that produced
@@ -225,9 +237,25 @@ def main():
         "scans for the same compiler-error markers `grade_mutation.sh` already",
         "looks for as a fallback.",
         "",
-        "| model | backend | quant | temp (coding only)¹ | reasoning | config | runner | tasks | pass rate | slow passes² | avg tok/s | avg TTFT (s) | hallucinated tools | avg coding turns³ | coding tool errors³ | peak RSS (GB) | framework | quant family | cache | MTP |",
-        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+        "**⁴ `sanity gate` / `pass rate`** (methodology review, finding F3): `sanity`",
+        "is a fail-fast GATE — run_bench.py stops the whole config entirely if",
+        "sanity-basic fails — not a quality signal to blend in alongside real",
+        "tool-use/coding results. It's shown here as its own `passed/total` column",
+        "instead. `pass rate` now covers only `hermes_ops` + coding-suite rows;",
+        "folding sanity in used to compress real differences between models,",
+        "since it sits at or near ceiling for nearly everything.",
+        "",
+        "| model | backend | quant | temp (coding only)¹ | reasoning | sanity gate⁴ | config | runner | tasks | pass rate⁴ | slow passes² | avg tok/s | avg TTFT (s) | hallucinated tools | avg coding turns³ | coding tool errors³ | peak RSS (GB) | framework | quant family | cache | MTP |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
+    # Two passes, not one (methodology review, finding F3): the composite
+    # "Best overall" ranking below needs the raw numeric avg_tps for every
+    # group BEFORE it can normalize any one group's speed against the
+    # fastest group seen this run — that global max isn't known until all
+    # groups have been visited once. group_stats carries both the raw
+    # numbers (for scoring) and the pre-formatted display strings (for the
+    # main table), computed once, so the two never drift apart.
+    group_stats = []
     for (model, backend, quant, config_hash, runner_sha), group in sorted(
         groups.items(), key=lambda kv: (kv[0][0], kv[0][1], kv[0][2] or "", kv[0][3] or "", kv[0][4] or "")
     ):
@@ -241,11 +269,24 @@ def main():
         # Surfaced separately in their own "Harness errors" section instead
         # of being silently dropped.
         scored = [r for r in group if not r.get("harness_error")]
-        n = len(scored)
-        n_pass = sum(1 for r in scored if r.get("pass"))
+        # sanity is a fail-fast GATE (see CODING_SUITES comment above), not
+        # a quality signal — excluded from pass_rate and shown as its own
+        # column instead (methodology review, finding F3). Confirmed live
+        # against the committed data: sanity-basic and sanity-tool sit at
+        # 26/26 and 25/26, so blending them in only compresses the real
+        # differences between models on hermes_ops/coding.
+        sanity_scored = [r for r in scored if r["suite"] == "sanity"]
+        non_sanity_scored = [r for r in scored if r["suite"] != "sanity"]
+        sanity_gate = (
+            f"{sum(1 for r in sanity_scored if r.get('pass'))}/{len(sanity_scored)}"
+            if sanity_scored else "—"
+        )
+        n = len(non_sanity_scored)
+        n_pass = sum(1 for r in non_sanity_scored if r.get("pass"))
         pass_rate = f"{100 * n_pass / n:.0f}%" if n else "n/a (all harness errors)"
         tps_values = [r["tokens_per_second"] for r in scored if r.get("tokens_per_second") is not None]
-        avg_tps = f"{mean(tps_values):.1f}" if tps_values else "—"
+        avg_tps_val = mean(tps_values) if tps_values else None
+        avg_tps = f"{avg_tps_val:.1f}" if avg_tps_val is not None else "—"
         # bench_local_proxy.py buffers the whole response into one SSE
         # chunk, so "ttft_seconds" for any proxied config structurally
         # equals total generation time, not real time-to-first-token —
@@ -288,9 +329,108 @@ def main():
         temp, reasoning_mode = _fairness_fields(config_hash, config_path)
         framework, quant_family, cache_mode, mtp_mode = _experiment_fields(config_hash, config_path)
         runner_label = runner_sha or "*(predates tracking)*"
-        lines.append(
-            f"| {model} | {backend} | {quant or '—'} | {temp} | {reasoning_mode} | {config_label} | {runner_label} | {n} | {pass_rate} | {n_slow_pass} | {avg_tps} | {avg_ttft} | {n_hallucinated} | {avg_turns} | {n_tool_errors} | {peak_rss} | {framework} | {quant_family} | {cache_mode} | {mtp_mode} |"
+
+        # Per-axis pass rates for the composite score below — kept as raw
+        # fractions (0.0-1.0) here, not the display-formatted `pass_rate`
+        # string above, and computed separately per suite category rather
+        # than reused from the blended one, since "coding" and
+        # "hermes_ops" need to combine at DIFFERENT weights, not get
+        # averaged together first and lose that distinction.
+        coding_scored = [r for r in non_sanity_scored if r["suite"] in CODING_SUITES]
+        hermes_ops_scored = [r for r in non_sanity_scored if r["suite"] not in CODING_SUITES]
+        coding_pass_rate = (
+            sum(1 for r in coding_scored if r.get("pass")) / len(coding_scored)
+            if coding_scored else None
         )
+        hermes_ops_pass_rate = (
+            sum(1 for r in hermes_ops_scored if r.get("pass")) / len(hermes_ops_scored)
+            if hermes_ops_scored else None
+        )
+
+        group_stats.append({
+            "key": (model, backend, quant, config_hash, runner_sha),
+            "line": (
+                f"| {model} | {backend} | {quant or '—'} | {temp} | {reasoning_mode} | "
+                f"{sanity_gate} | {config_label} | {runner_label} | {n} | {pass_rate} | "
+                f"{n_slow_pass} | {avg_tps} | {avg_ttft} | {n_hallucinated} | {avg_turns} | "
+                f"{n_tool_errors} | {peak_rss} | {framework} | {quant_family} | {cache_mode} | {mtp_mode} |"
+            ),
+            "avg_tps_val": avg_tps_val,
+            "coding_pass_rate": coding_pass_rate,
+            "hermes_ops_pass_rate": hermes_ops_pass_rate,
+            "n_coding": len(coding_scored),
+            "n_hermes_ops": len(hermes_ops_scored),
+        })
+
+    for gs in group_stats:
+        lines.append(gs["line"])
+
+    # Composite "Best overall" ranking (methodology review, finding F3):
+    # the table above is 20 independent columns the reader has to weigh
+    # by hand — there was no ordering by quality, no tie-break, no single
+    # answer to "which one is best." score = 0.5*coding_pass_rate +
+    # 0.3*hermes_ops_pass_rate + 0.2*speed_score, per the review's own
+    # suggested starting point: "the exact weights matter far less than
+    # writing SOME weighting down and sorting by it." speed_score is each
+    # group's avg_tps normalized against the FASTEST group seen in this
+    # run (0.0-1.0), not an absolute tok/s target, since "fast enough" is
+    # relative to what this hardware can actually produce for any model.
+    #
+    # A group missing an axis entirely (most groups have zero coding rows
+    # today, per finding F1) does NOT get scored as if that axis were 0 —
+    # the weights renormalize over whichever axes actually have data, so a
+    # hermes_ops-only group is judged on hermes_ops+speed alone, not
+    # unfairly zeroed out on coding it was never run against. This means
+    # scores computed from different axis-subsets aren't perfectly
+    # apples-to-apples — flagged in the section text, not hidden.
+    max_tps = max(
+        (gs["avg_tps_val"] for gs in group_stats if gs["avg_tps_val"] is not None),
+        default=None,
+    )
+    ranked = []
+    for gs in group_stats:
+        axes = []
+        if gs["coding_pass_rate"] is not None:
+            axes.append((gs["coding_pass_rate"], 0.5))
+        if gs["hermes_ops_pass_rate"] is not None:
+            axes.append((gs["hermes_ops_pass_rate"], 0.3))
+        if gs["avg_tps_val"] is not None and max_tps:
+            axes.append((gs["avg_tps_val"] / max_tps, 0.2))
+        if not axes:
+            continue
+        total_weight = sum(w for _, w in axes)
+        score = sum(v * w for v, w in axes) / total_weight
+        ranked.append((score, len(axes), gs))
+
+    lines.append("")
+    lines.append("## Best overall (composite ranking)")
+    lines.append("")
+    lines.append("`score = 0.5×coding_pass_rate + 0.3×hermes_ops_pass_rate + 0.2×speed_score`")
+    lines.append("(speed_score = this group's avg tok/s ÷ the fastest group's avg tok/s seen")
+    lines.append("in this run). Weights renormalize over whichever axes a group actually has")
+    lines.append("data for — a group with no coding rows yet is scored on hermes_ops+speed")
+    lines.append("alone, not penalized as if its missing coding score were 0. That also means")
+    lines.append("a 1-axis score and a 3-axis score aren't strictly apples-to-apples; `axes`")
+    lines.append("below shows how many contributed. Groups with zero scoreable axes (harness-")
+    lines.append("error-only, or sanity-only with `--coding-suites`/`hermes_ops` never run)")
+    lines.append("are omitted entirely rather than shown with a misleading score.")
+    lines.append("")
+    if not ranked:
+        lines.append("No group has enough data yet to score.")
+    else:
+        lines.append("| rank | model | backend | quant | config | score | axes | coding | hermes_ops | speed |")
+        lines.append("|---|---|---|---|---|---|---|---|---|---|")
+        for i, (score, n_axes, gs) in enumerate(
+            sorted(ranked, key=lambda t: t[0], reverse=True), start=1
+        ):
+            model, backend, quant, config_hash, runner_sha = gs["key"]
+            coding_disp = f"{100 * gs['coding_pass_rate']:.0f}% ({gs['n_coding']})" if gs["coding_pass_rate"] is not None else "—"
+            hermes_disp = f"{100 * gs['hermes_ops_pass_rate']:.0f}% ({gs['n_hermes_ops']})" if gs["hermes_ops_pass_rate"] is not None else "—"
+            speed_disp = f"{gs['avg_tps_val']:.1f} tok/s" if gs["avg_tps_val"] is not None else "—"
+            lines.append(
+                f"| {i} | {model} | {backend} | {quant or '—'} | {config_hash or '—'} | "
+                f"{score:.2f} | {n_axes} | {coding_disp} | {hermes_disp} | {speed_disp} |"
+            )
 
     lines.append("")
     lines.append("## Flaky tasks (mixed pass/fail under identical conditions)")
