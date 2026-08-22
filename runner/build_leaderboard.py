@@ -200,8 +200,19 @@ def main():
         "reasoning-mode when comparing it against `configs/Qwen3.8-27B/gguf.yaml`,",
         "not currently its own column since no other config sets this flag.",
         "",
-        "| model | backend | quant | temp (coding only)¹ | reasoning | config | runner | tasks | pass rate | avg tok/s | avg TTFT (s) | hallucinated tools | peak RSS (GB) | framework | quant family | cache | MTP |",
-        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+        "**² `slow passes`** (methodology review, finding F5): count of PASS rows",
+        "that took longer than `bench_common.py`'s `INTERACTIVE_BUDGET_SECONDS`",
+        "(300s) to complete — still correct, and still counted in `pass rate`",
+        "above, but not a practically usable result in a real interactive agentic",
+        "session. Deliberately separate from `timeout_seconds`/`--timeout`, which",
+        "exist to give a slow-but-alive model a fair chance to finish generating",
+        "without being cut off mid-response — a task can legitimately take up to",
+        "that much generous budget and still show up here if it's well past what",
+        "an interactive session would tolerate. 300s is a judgment call (see that",
+        "constant's own comment), not a hard spec.",
+        "",
+        "| model | backend | quant | temp (coding only)¹ | reasoning | config | runner | tasks | pass rate | slow passes² | avg tok/s | avg TTFT (s) | hallucinated tools | peak RSS (GB) | framework | quant family | cache | MTP |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for (model, backend, quant, config_hash, runner_sha), group in sorted(
         groups.items(), key=lambda kv: (kv[0][0], kv[0][1], kv[0][2] or "", kv[0][3] or "", kv[0][4] or "")
@@ -234,6 +245,14 @@ def main():
             ttft_values = [r["ttft_seconds"] for r in scored if r.get("ttft_seconds") is not None]
             avg_ttft = f"{mean(ttft_values):.2f}" if ttft_values else "—"
         n_hallucinated = sum(1 for r in scored if r.get("grade_output", "").startswith("FAIL: model called tool"))
+        # A PASS that took longer than INTERACTIVE_BUDGET_SECONDS isn't a
+        # failure (it's still counted in pass_rate above), but it's not a
+        # practically usable result in a real interactive session either
+        # — surfaced as its own count rather than silently blending into
+        # the same pass_rate number as a 5-second pass (methodology
+        # review, finding F5). None (row has no wall_seconds at all, e.g.
+        # a harness crash) is not counted as slow.
+        n_slow_pass = sum(1 for r in scored if r.get("pass") and r.get("within_budget") is False)
         # Peak, not average, across the group (methodology review, finding
         # F7) — the 32GB unified-memory ceiling is a hard capacity limit,
         # so the worst observed footprint is the number that actually
@@ -247,7 +266,7 @@ def main():
         framework, quant_family, cache_mode, mtp_mode = _experiment_fields(config_hash, config_path)
         runner_label = runner_sha or "*(predates tracking)*"
         lines.append(
-            f"| {model} | {backend} | {quant or '—'} | {temp} | {reasoning_mode} | {config_label} | {runner_label} | {n} | {pass_rate} | {avg_tps} | {avg_ttft} | {n_hallucinated} | {peak_rss} | {framework} | {quant_family} | {cache_mode} | {mtp_mode} |"
+            f"| {model} | {backend} | {quant or '—'} | {temp} | {reasoning_mode} | {config_label} | {runner_label} | {n} | {pass_rate} | {n_slow_pass} | {avg_tps} | {avg_ttft} | {n_hallucinated} | {peak_rss} | {framework} | {quant_family} | {cache_mode} | {mtp_mode} |"
         )
 
     lines.append("")

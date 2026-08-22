@@ -30,7 +30,7 @@ from pathlib import Path
 
 import yaml
 
-from bench_common import REPO, PeakRSSSampler, git_sha, snapshot_config
+from bench_common import INTERACTIVE_BUDGET_SECONDS, REPO, PeakRSSSampler, git_sha, snapshot_config
 
 HERMES_BIN = Path(os.environ.get(
     "BENCH_HERMES_BIN", str(Path.home() / ".hermes/hermes-agent/venv/bin/hermes")
@@ -757,6 +757,14 @@ def main():
                     "harness_error": harness_error,
                     "hermes_exit_code": rc,
                     "wall_seconds": round(wall, 1),
+                    # A correct answer that took many minutes isn't
+                    # something a real interactive session would tolerate,
+                    # even though it's fully entitled to the generous
+                    # timeout_seconds budget above (methodology review,
+                    # finding F5) — see bench_common.py's
+                    # INTERACTIVE_BUDGET_SECONDS for why this is a
+                    # separate, distinct signal from timeout/pass.
+                    "within_budget": wall <= INTERACTIVE_BUDGET_SECONDS,
                     "grade_output": grade_output.strip()[-500:],
                     # Own dedicated field, not prepended into grade_output
                     # (3rd adversarial review, finding CR3-9): grade_output

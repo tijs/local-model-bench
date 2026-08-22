@@ -21,7 +21,7 @@ from pathlib import Path
 
 import yaml
 
-from bench_common import REPO, PeakRSSSampler, git_sha, snapshot_config
+from bench_common import INTERACTIVE_BUDGET_SECONDS, REPO, PeakRSSSampler, git_sha, snapshot_config
 
 
 def main():
@@ -245,6 +245,20 @@ def main():
                 "tokens_per_second": parsed.get("tokens_per_second"),
                 "ttft_seconds": parsed.get("ttft_seconds"),
                 "wall_seconds": parsed.get("wall_seconds"),
+                # A correct answer that took many minutes isn't something
+                # a real interactive session would tolerate, even though
+                # it's fully entitled to the generous timeout_seconds
+                # budget above (methodology review, finding F5) — see
+                # bench_common.py's INTERACTIVE_BUDGET_SECONDS for why
+                # this is a separate, distinct signal from timeout/pass.
+                # None (not False) when wall_seconds itself is unknown
+                # (e.g. a harness crash before run_prompt.py ever reported
+                # one) — this row simply has no latency signal to judge,
+                # not a fast one.
+                "within_budget": (
+                    parsed["wall_seconds"] <= INTERACTIVE_BUDGET_SECONDS
+                    if parsed.get("wall_seconds") is not None else None
+                ),
                 "total_cost_usd": parsed.get("total_cost_usd"),
                 "run_error": parsed.get("error"),
                 "usage_estimated": parsed.get("usage_estimated", False),

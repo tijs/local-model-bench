@@ -23,6 +23,22 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 
+# Added 2026-08-22 (methodology review, finding F5): PASS carried no
+# latency signal at all — a task that took 3135s scored identically to
+# one that took 4.8s, and 5 hermes_ops rows already exceeded the suite's
+# own declared timeout_seconds (1000s) while being logged as ordinary
+# passes. Deliberately DISTINCT from timeout_seconds/--timeout, which
+# exist to give a slow-but-alive model a fair chance to finish generating
+# without being unfairly cut off mid-response (that value was raised
+# specifically to stop penalizing large/thinking models — see
+# tasks/hermes_ops.yaml's own history). This is the opposite question:
+# even a fully correct, uninterrupted answer that takes many minutes
+# isn't something a real interactive agentic session would tolerate. 300s
+# (5 minutes) is a judgment call, not derived from a spec — documented
+# here, in one place, rather than duplicated as a magic number in each
+# runner.
+INTERACTIVE_BUDGET_SECONDS = 300
+
 
 def _find_listening_pid(port):
     """PID of whatever process is actually listening on *port*, or None.

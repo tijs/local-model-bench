@@ -172,5 +172,59 @@ class PeakRssColumnTests(unittest.TestCase):
         self.assertIn("| — |", row_line)
 
 
+class SlowPassColumnTests(unittest.TestCase):
+    """F5: a PASS that took longer than INTERACTIVE_BUDGET_SECONDS is still
+    counted in pass_rate (correctness didn't change) but must be surfaced
+    as its own count — not silently blended in with a 5-second pass."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.repo = Path(self.tmp)
+        (self.repo / "results").mkdir()
+        self._orig_repo = bl.REPO
+        bl.REPO = self.repo
+
+    def tearDown(self):
+        bl.REPO = self._orig_repo
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _write_log(self, rows):
+        (self.repo / "results" / "log.jsonl").write_text(
+            "\n".join(json.dumps(r) for r in rows) + "\n"
+        )
+
+    def _base_row(self, **overrides):
+        row = {
+            "suite": "hermes_ops", "task_id": "hermes_ops-error-recovery",
+            "task_type": "error-recovery", "model": "test-model", "backend": "mlx",
+            "quant": None, "config_path": None, "config_hash": None,
+            "runner_git_sha": "abc123", "trial": 1, "pass": True, "grade_output": "PASS",
+        }
+        row.update(overrides)
+        return row
+
+    def test_slow_pass_counted_separately_from_pass_rate(self):
+        self._write_log([
+            self._base_row(trial=1, within_budget=True),
+            self._base_row(trial=2, within_budget=False),  # e.g. a 3135s pass
+        ])
+        bl.main()
+        text = (self.repo / "results" / "LEADERBOARD.md").read_text()
+        row_line = next(l for l in text.splitlines() if l.startswith("| test-model |"))
+        cells = [c.strip() for c in row_line.split("|")]
+        self.assertIn("100%", cells)  # both rows still correctness-passed
+        self.assertIn("1", cells)     # exactly one of them was slow
+
+    def test_failed_task_never_counted_as_a_slow_pass(self):
+        # A genuine FAIL that also happens to be over-budget shouldn't
+        # double-count against this signal — it's already a failure.
+        self._write_log([self._base_row(trial=1, **{"pass": False, "within_budget": False})])
+        bl.main()
+        text = (self.repo / "results" / "LEADERBOARD.md").read_text()
+        row_line = next(l for l in text.splitlines() if l.startswith("| test-model |"))
+        cells = [c.strip() for c in row_line.split("|")]
+        self.assertEqual(cells[10], "0")  # "slow passes" column
+
+
 if __name__ == "__main__":
     unittest.main()
