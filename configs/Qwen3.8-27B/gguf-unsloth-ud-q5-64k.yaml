@@ -1,0 +1,78 @@
+model: unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M
+backend: gguf
+# Added 2026-08-22 (methodology review, finding F9): the entire
+# Qwen3.8-27B quant ladder (this family's only multi-quant model) was
+# stuck at --ctx-size 32768 across every existing variant
+# (gguf.yaml, gguf-unsloth-ud-q4.yaml, gguf-unsloth-ud-q2.yaml, mlx.yaml,
+# gguf-dflash2.yaml) — below hermes's hard 64K coding-suite minimum, so
+# this entire family has NEVER produced a single coding result. This
+# config exists specifically to close that gap: same model, a quant one
+# step up from Q4, at a context length that actually reaches the coding
+# suite.
+#
+# Why UD-Q5_K_M and not the existing Q4 variants: Qwen3.8-27B is a HYBRID
+# architecture — 64 layers total, but only 16 are full Gated Attention (4
+# KV heads, head_dim 256); the other 48 are Gated DeltaNet linear-
+# attention layers whose recurrent state is a FIXED size that does not
+# grow with context length. KV cache at 64K tokens (fp16) is therefore
+# only the 16 full-attention layers: 2 * 4 * 256 * 2 bytes * 16 layers *
+# 65536 tokens ~= 4GB — nothing like a conventional all-layers-attention
+# 27B model would need at 64K. Confirmed via HF API: UD-Q5_K_M is 19.77GB
+# on disk. Budget: ~19.8GB weights + ~4GB KV cache + ~2GB runtime/OS
+# overhead ~= ~26GB, comfortably inside 32GB. UD-Q6_K (21.98GB) was also
+# confirmed available and would total ~28GB — plausible but tight, worth
+# trying only after this config's ACTUAL peak RSS is measured live (see
+# the memory-instrumentation fix, finding F7/R5) rather than trusting this
+# estimate blindly.
+temperature: 1.0
+reasoning_mode: thinking
+framework: llama.cpp
+
+benchmark_launch_command: |
+  HF_TOKEN=$(cat ~/.cache/huggingface/token) llama-server \
+    --hf-repo unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M \
+    --host 127.0.0.1 --port 8017 \
+    --temp 1.0 --top-p 0.95 --top-k 20 --ctx-size 65536 \
+    --jinja --chat-template-file configs/Qwen3.8-27B/chat_template.jinja
+
+benchmark_endpoint: http://127.0.0.1:8017/v1
+  # no proxy needed — native tool_calls, same Qwen family as gguf.yaml.
+
+orchestration:
+  raw_port: 8017
+  needs_proxy: false
+  hermes_provider: qwen-gguf-q5-64k   # registered in
+    # ~/.hermes/profiles/bench/config.yaml alongside qwen-gguf, with
+    # context_length: 65536 matching this config's real --ctx-size (not
+    # 262144 like the plain qwen-gguf entry, which doesn't match ITS
+    # server's actual 32768 ceiling — don't repeat that mismatch).
+  viable: full   # the whole point of this config: unlike every other
+    # Qwen3.8-27B variant, this one actually reaches sanity, hermes_ops,
+    # AND the coding suites.
+
+settings:
+  - name: quant
+    value: UD-Q5_K_M (Unsloth Dynamic, https://huggingface.co/unsloth/Qwen3.8-27B-GGUF)
+    source: "Confirmed present via a live HF resolve HEAD request 2026-08-22
+      (19.77GB). One tier up from the existing UD-Q4_K_M variant — see
+      that file for Unsloth's dynamic-quant rationale, unchanged here."
+  - name: context_length
+    value: 65536 (raised from every other variant's 32768)
+    source: "Hermes's hard >=64K minimum for the coding suite (see
+      AGENTS.md) — this is the header-comment KV-cache math applied. If
+      this config OOMs or swaps in practice, that's real, useful signal
+      about this family's actual ceiling on this hardware, not something
+      to paper over — record it, don't quietly walk back the context
+      length without noting why."
+  - name: chat_template / temp / top_p / top_k
+    value: "same as configs/Qwen3.8-27B/gguf.yaml and gguf-unsloth-ud-q4.yaml
+      — see those files for full citations, unchanged for this quant/context
+      variant."
+
+known_gaps:
+  - "Never run live as of authoring — first run should specifically watch
+    for OOM/swap behavior (per the memory-instrumentation fix, finding
+    F7), since the ~26GB estimate above is arithmetic, not measured."
+
+last_updated: 2026-08-22
+last_verified_against_docs: 2026-08-22

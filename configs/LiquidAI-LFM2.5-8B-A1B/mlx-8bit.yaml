@@ -1,0 +1,77 @@
+model: mlx-community/LFM2.5-8B-A1B-MLX-8bit
+backend: mlx
+# Added 2026-08-22 (methodology review, finding F4 + follow-up guidance):
+# mlx.yaml (bf16, full precision) is the "best achievable quality on this
+# backend" config — a legitimately useful result on its own if MLX turns
+# out fast enough at bf16 to be worth it. This file is the SEPARATE,
+# matched-precision comparison point: the GGUF sibling (gguf.yaml) runs at
+# Q8_0, so this isolates backend-only effects at the same ~8 bits/weight,
+# the way the mismatched bf16-vs-Q8_0 pairing never could. Both configs
+# are kept — the goal is "best model+backend combo", not forcing every
+# comparison into one quant tier.
+temperature: 0.2
+reasoning_mode: n/a
+framework: vllm-mlx
+
+benchmark_launch_command: |
+  HF_TOKEN=$(cat ~/.cache/huggingface/token) uv run --locked python -m vllm_mlx.server \
+    --model mlx-community/LFM2.5-8B-A1B-MLX-8bit --host 127.0.0.1 --port 8018 \
+    --max-request-tokens 65536 --max-tokens 65536 --continuous-batching \
+    --default-temperature 0.2 --default-top-k 80 \
+    --default-repetition-penalty 1.05 --timeout 1800
+
+benchmark_endpoint: http://127.0.0.1:8015/v1
+  # bench_local_proxy.py (BENCH_TOOL_PARSER=lfm, same as mlx.yaml/2.6B) —
+  # vllm-mlx has no server-side tool-call parser at all, and this model
+  # uses the same <|tool_call_start|>[fn(...)]<|tool_call_end|> format as
+  # the 2.6B model, so the existing 'lfm' parser applies unchanged. Verify
+  # live before trusting (standing policy), but no new parser expected.
+
+orchestration:
+  raw_port: 8018
+  needs_proxy: true
+  proxy_parser: lfm
+  proxy_port: 8015
+  hermes_provider: lfm8b-mlx-8bit
+  viable: full
+
+settings:
+  - name: quant
+    value: 8-bit (mlx-community/LFM2.5-8B-A1B-MLX-8bit)
+    source: "Confirmed present via the HF models API 2026-08-22 (also
+      mirrored at LiquidAI/LFM2.5-8B-A1B-MLX-8bit). 8.3B total params at
+      8-bit is ~8.3GB. Chosen specifically to match the GGUF sibling's
+      Q8_0 precision — see this file's header comment for why mlx.yaml
+      (bf16) is kept as a separate config rather than replaced by this
+      one."
+  - name: architecture
+    value: "MoE, 8.3B total / 1.5B active params"
+    source: "https://huggingface.co/LiquidAI/LFM2.5-8B-A1B model card."
+  - name: temperature / top_k / repetition_penalty
+    value: 0.2 / 80 / 1.05
+    source: "https://huggingface.co/LiquidAI/LFM2.5-8B-A1B model card,
+      agentic/tool-use recommended settings — same as mlx.yaml's bf16 leg
+      (a model-property setting, not precision-dependent)."
+  - name: context_length
+    value: 65536 (native 128000, capped per hermes's >=64K hard minimum)
+    source: "https://huggingface.co/LiquidAI/LFM2.5-8B-A1B model card +
+      AGENTS.md hermes hard-minimum note."
+  - name: tool_call_parser
+    value: lfm (bench_local_proxy.py, same as mlx.yaml/2.6B)
+    source: "same format family confirmed on the model card — not
+      independently re-verified for this specific 8-bit checkpoint; spot
+      check live before fully trusting, per this benchmark's standing
+      policy."
+
+known_gaps:
+  - "Native tool-call format assumed identical to the bf16 leg and to
+    LFM2.5-2.6B from the model card — not yet independently re-verified
+    against this specific checkpoint's raw output."
+  - "hermes_provider (lfm8b-mlx-8bit) is a new provider entry this config
+    assumes exists in ~/.hermes/profiles/bench/config.yaml, alongside the
+    existing lfm8b-mlx (bf16) entry, pointed at the same
+    benchmark_endpoint. Confirm it's configured before running the coding
+    suite against this config."
+
+last_updated: 2026-08-22
+last_verified_against_docs: 2026-08-22
