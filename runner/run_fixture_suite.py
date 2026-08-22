@@ -74,6 +74,93 @@ def run_hermes(prompt, cwd, provider, model, max_turns, timeout):
         return "", "TIMEOUT", -1, time.time() - start, True
 
 
+_SESSION_ID_RE = re.compile(r"^session_id:\s*(\S+)", re.MULTILINE)
+_COMPILE_ERROR_RE = re.compile(
+    r"error\[E[0-9]+\]|error TS[0-9]+|SyntaxError|error: could not compile"
+)
+
+_EMPTY_SESSION_STATS = {
+    "hermes_turns": None, "hermes_tool_calls": None,
+    "hermes_input_tokens": None, "hermes_output_tokens": None,
+    "hermes_reasoning_tokens": None, "hermes_tool_errors": None,
+}
+
+
+def extract_hermes_session_stats(stdout):
+    """Pull turn/tool-call/token counts out of hermes's own SQLite session
+    store for the just-finished run (methodology review, finding F6): the
+    coding suite previously logged only pass/exit-code/wall/diff-stat — no
+    performance data from the actual target workload at all, unlike the
+    two synthetic prompt suites. `hermes sessions export` (confirmed live
+    via `hermes sessions --help`) returns exactly this as structured JSON:
+    api_call_count (turns), tool_call_count, input/output/reasoning
+    tokens, and the full per-message transcript.
+
+    Returns a dict (all values None if the session_id can't be found in
+    stdout, or the export itself fails/times out — never raises, since
+    this is instrumentation, not something that should turn a
+    successfully-graded task into a harness error).
+    """
+    match = _SESSION_ID_RE.search(stdout)
+    if not match:
+        return dict(_EMPTY_SESSION_STATS)
+    session_id = match.group(1)
+    try:
+        proc = subprocess.run(
+            [str(HERMES_BIN), "--profile", "bench", "sessions", "export",
+             "--session-id", session_id, "--format", "jsonl", "-"],
+            capture_output=True, text=True, timeout=30,
+        )
+        if proc.returncode != 0 or not proc.stdout.strip():
+            return dict(_EMPTY_SESSION_STATS)
+        session = json.loads(proc.stdout.strip().splitlines()[0])
+    except (subprocess.SubprocessError, json.JSONDecodeError, OSError, IndexError):
+        return dict(_EMPTY_SESSION_STATS)
+
+    # Best-effort heuristic, not a fully generic classifier (documented
+    # limitation, not silently assumed complete): each tool's own result
+    # JSON shape differs (patch uses "success", terminal uses "exit_code"/
+    # "error"), so this looks for the couple of conventions actually
+    # observed across this repo's own tool set rather than parsing every
+    # tool's schema individually. Confirmed live against a real session
+    # that a `terminal` call's own exit_code can read 0 even when its
+    # output clearly shows a build failure (e.g. piped through something
+    # that swallows the real exit status) — exit_code/error/success fields
+    # alone are NOT sufficient, so this also scans output text for the
+    # same compiler-error markers grade_mutation.sh's own heuristic
+    # already uses, as a fallback when the structured fields say "ok."
+    tool_errors = 0
+    for msg in session.get("messages") or []:
+        if msg.get("role") != "tool":
+            continue
+        content = msg.get("content")
+        if not isinstance(content, str):
+            continue
+        try:
+            parsed = json.loads(content)
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if not isinstance(parsed, dict):
+            continue
+        if parsed.get("success") is False:
+            tool_errors += 1
+        elif parsed.get("error") not in (None, False):
+            tool_errors += 1
+        elif isinstance(parsed.get("exit_code"), int) and parsed["exit_code"] != 0:
+            tool_errors += 1
+        elif isinstance(parsed.get("output"), str) and _COMPILE_ERROR_RE.search(parsed["output"]):
+            tool_errors += 1
+
+    return {
+        "hermes_turns": session.get("api_call_count"),
+        "hermes_tool_calls": session.get("tool_call_count"),
+        "hermes_input_tokens": session.get("input_tokens"),
+        "hermes_output_tokens": session.get("output_tokens"),
+        "hermes_reasoning_tokens": session.get("reasoning_tokens"),
+        "hermes_tool_errors": tool_errors,
+    }
+
+
 def isolated_agent_prompt(prompt, run_dir):
     """Anchor agent file tools to the disposable copy, not the source fixture.
 
@@ -661,6 +748,7 @@ def main():
                 harness_error = False
                 diff_stat = None
                 peak_rss_gb = None
+                session_stats = dict(_EMPTY_SESSION_STATS)
                 try:
                     ensure_proxy_idle()
                     reset_fixture(args.suite, run_dir)
@@ -683,6 +771,7 @@ def main():
                             max_turns=args.max_turns, timeout=timeout,
                         )
                     peak_rss_gb = rss_sampler.stop()
+                    session_stats = extract_hermes_session_stats(stdout)
 
                     # Full transcript, saved and committed (not just the last 500
                     # chars of grade_output) — discovered live 2026-08-20 that no
@@ -778,6 +867,13 @@ def main():
                     # grade_output's length.
                     "diff_stat": (diff_stat or "").strip()[-1000:] or None,
                     "peak_rss_gb": round(peak_rss_gb, 2) if peak_rss_gb is not None else None,
+                    # Pulled from hermes's own SQLite session store
+                    # (methodology review, finding F6) — turns/tool-calls/
+                    # tokens from the ACTUAL coding workload, not just the
+                    # two synthetic prompt suites. See
+                    # extract_hermes_session_stats()'s docstring for the
+                    # exact mechanism and its documented limitations.
+                    **session_stats,
                     "transcript_path": transcript_rel,
                     "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                 }

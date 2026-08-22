@@ -6,11 +6,13 @@ have caught any of the bugs these tests pin down.
 
 Run: uv run --locked python -m unittest discover -s runner/tests -v
 """
+import json
 import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -209,6 +211,56 @@ class AgentWorkspaceIsolationTests(unittest.TestCase):
             self.assertTrue(state["changed"])
         finally:
             shutil.rmtree(root, ignore_errors=True)
+
+
+class ExtractHermesSessionStatsTests(unittest.TestCase):
+    """F6: the coding suite previously logged zero performance data from
+    the actual target workload — no tokens, no turn count, no tool-call
+    data. extract_hermes_session_stats() pulls this from hermes's own
+    SQLite session store via `hermes sessions export`."""
+
+    def test_no_session_id_in_stdout_degrades_gracefully(self):
+        stats = rfs.extract_hermes_session_stats("no session id anywhere in this text")
+        self.assertEqual(stats, rfs._EMPTY_SESSION_STATS)
+
+    def test_export_subprocess_failure_degrades_gracefully(self):
+        with unittest.mock.patch("run_fixture_suite.subprocess.run") as m:
+            m.return_value = unittest.mock.Mock(returncode=1, stdout="")
+            stats = rfs.extract_hermes_session_stats("session_id: some_id_that_fails\n")
+        self.assertEqual(stats, rfs._EMPTY_SESSION_STATS)
+
+    def test_real_session_json_is_parsed_correctly(self):
+        session = {
+            "api_call_count": 9, "tool_call_count": 10,
+            "input_tokens": 105920, "output_tokens": 3264, "reasoning_tokens": 0,
+            "messages": [
+                {"role": "user", "content": "hi"},
+                {"role": "tool", "tool_name": "patch", "content": json.dumps({"success": True, "diff": "..."})},
+                {"role": "tool", "tool_name": "patch", "content": json.dumps({"success": False, "error": "no match"})},
+                # A tool call whose own exit_code reads 0 despite the
+                # output clearly showing a compile failure (confirmed live
+                # against a real session — piping can swallow the real
+                # exit status) — must still be counted via the output-text
+                # fallback, not just the exit_code field.
+                {"role": "tool", "tool_name": "terminal", "content": json.dumps({
+                    "exit_code": 0, "error": None,
+                    "output": "error: could not compile `notekeep` due to 1 previous error",
+                })},
+                {"role": "tool", "tool_name": "terminal", "content": json.dumps({
+                    "exit_code": 0, "error": None, "output": "Finished dev profile",
+                })},
+            ],
+        }
+        with unittest.mock.patch("run_fixture_suite.subprocess.run") as m:
+            m.return_value = unittest.mock.Mock(returncode=0, stdout=json.dumps(session) + "\n")
+            stats = rfs.extract_hermes_session_stats("session_id: real_session_id\n")
+        self.assertEqual(stats["hermes_turns"], 9)
+        self.assertEqual(stats["hermes_tool_calls"], 10)
+        self.assertEqual(stats["hermes_input_tokens"], 105920)
+        # 2 real errors: the explicit success:false, and the exit_code:0-
+        # but-actually-failed compile call. The final successful terminal
+        # call must NOT be counted.
+        self.assertEqual(stats["hermes_tool_errors"], 2)
 
 
 if __name__ == "__main__":

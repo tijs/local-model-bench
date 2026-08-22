@@ -211,8 +211,22 @@ def main():
         "an interactive session would tolerate. 300s is a judgment call (see that",
         "constant's own comment), not a hard spec.",
         "",
-        "| model | backend | quant | temp (coding only)¹ | reasoning | config | runner | tasks | pass rate | slow passes² | avg tok/s | avg TTFT (s) | hallucinated tools | peak RSS (GB) | framework | quant family | cache | MTP |",
-        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+        "**³ `avg coding turns` / `coding tool errors`** (methodology review, finding",
+        "F6): the coding suite previously logged zero performance data from the",
+        "actual target workload — no tokens, no turn count, no tool-call data,",
+        "ever, unlike the two synthetic prompt suites. Pulled from hermes's own",
+        "SQLite session store (`hermes sessions export`) after each coding-suite",
+        "task; blank/0 for sanity/hermes_ops-only groups, which call the raw API",
+        "directly and have no hermes session to pull from. `coding tool errors` is",
+        "a best-effort heuristic (documented in",
+        "`run_fixture_suite.py`'s `extract_hermes_session_stats()`), not a fully",
+        "generic classifier — confirmed live that a tool's own `exit_code` can",
+        "read 0 even when its output clearly shows a build failure, so this also",
+        "scans for the same compiler-error markers `grade_mutation.sh` already",
+        "looks for as a fallback.",
+        "",
+        "| model | backend | quant | temp (coding only)¹ | reasoning | config | runner | tasks | pass rate | slow passes² | avg tok/s | avg TTFT (s) | hallucinated tools | avg coding turns³ | coding tool errors³ | peak RSS (GB) | framework | quant family | cache | MTP |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for (model, backend, quant, config_hash, runner_sha), group in sorted(
         groups.items(), key=lambda kv: (kv[0][0], kv[0][1], kv[0][2] or "", kv[0][3] or "", kv[0][4] or "")
@@ -245,6 +259,15 @@ def main():
             ttft_values = [r["ttft_seconds"] for r in scored if r.get("ttft_seconds") is not None]
             avg_ttft = f"{mean(ttft_values):.2f}" if ttft_values else "—"
         n_hallucinated = sum(1 for r in scored if r.get("grade_output", "").startswith("FAIL: model called tool"))
+        # Pulled from hermes's own session store, coding-suite rows only —
+        # sanity/hermes_ops rows never populate these (they call the raw
+        # API directly, no hermes session involved), so this is silently
+        # 0 for prompt-suite-only groups rather than misleadingly blank
+        # (methodology review, finding F6: the coding suite previously
+        # had zero performance data of any kind).
+        turn_values = [r["hermes_turns"] for r in scored if r.get("hermes_turns") is not None]
+        avg_turns = f"{mean(turn_values):.1f}" if turn_values else "—"
+        n_tool_errors = sum(r["hermes_tool_errors"] for r in scored if r.get("hermes_tool_errors") is not None)
         # A PASS that took longer than INTERACTIVE_BUDGET_SECONDS isn't a
         # failure (it's still counted in pass_rate above), but it's not a
         # practically usable result in a real interactive session either
@@ -266,7 +289,7 @@ def main():
         framework, quant_family, cache_mode, mtp_mode = _experiment_fields(config_hash, config_path)
         runner_label = runner_sha or "*(predates tracking)*"
         lines.append(
-            f"| {model} | {backend} | {quant or '—'} | {temp} | {reasoning_mode} | {config_label} | {runner_label} | {n} | {pass_rate} | {n_slow_pass} | {avg_tps} | {avg_ttft} | {n_hallucinated} | {peak_rss} | {framework} | {quant_family} | {cache_mode} | {mtp_mode} |"
+            f"| {model} | {backend} | {quant or '—'} | {temp} | {reasoning_mode} | {config_label} | {runner_label} | {n} | {pass_rate} | {n_slow_pass} | {avg_tps} | {avg_ttft} | {n_hallucinated} | {avg_turns} | {n_tool_errors} | {peak_rss} | {framework} | {quant_family} | {cache_mode} | {mtp_mode} |"
         )
 
     lines.append("")
