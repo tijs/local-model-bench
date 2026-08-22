@@ -178,6 +178,19 @@ def grade(result, check):
     if forbidden:
         return False, forbidden
 
+    # Universal add-on, same spot/pattern as must_not_contain_any/
+    # must_not_match above (methodology review, finding F8/R7): every
+    # existing check kind assumes the correct answer involves calling a
+    # specific tool — nothing tested the opposite case, a question where
+    # the correct behavior is a direct answer from the model's own
+    # knowledge with NO tool call at all. A model that reaches for
+    # web_search/execute_code/etc. on a question that needs neither is a
+    # real, gradeable mistake (needlessly slower, and a red flag for
+    # over-triggering tool use in general), not an equally-valid choice.
+    if check.get("must_not_call_tools") and result.get("tool_calls"):
+        called = [c["name"] for c in result["tool_calls"]]
+        return False, f"model called tool(s) {called} for a question that expected a direct answer with no tool use"
+
     kind = check["type"]
 
     if kind == "regex":

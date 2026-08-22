@@ -251,5 +251,26 @@ class ToolCallArgChecksRequireSingleCallTests(unittest.TestCase):
         self.assertTrue(ok)
 
 
+class MustNotCallToolsTests(unittest.TestCase):
+    """F8/R7: nothing tested the case where the correct answer is a direct
+    response with no tool call at all — every existing check assumed the
+    right answer involves calling something."""
+
+    CHECK = {"type": "contains_any", "phrases": ["commit"], "must_not_call_tools": True}
+
+    def test_direct_answer_with_no_tool_call_passes(self):
+        result = {"final_text": "Commit small, logically complete changes often.", "tool_calls": []}
+        ok, _ = grade(result, self.CHECK)
+        self.assertTrue(ok)
+
+    def test_needless_tool_call_fails_even_with_a_correct_answer(self):
+        result = {
+            "final_text": "Based on my search, commit often.",
+            "tool_calls": [{"name": "web_search", "arguments": {"query": "how often to commit"}}],
+        }
+        ok, _ = grade(result, self.CHECK)
+        self.assertFalse(ok)
+
+
 if __name__ == "__main__":
     unittest.main()

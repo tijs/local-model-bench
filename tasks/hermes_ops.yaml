@@ -309,3 +309,104 @@ tasks:
       # actually defines handleLogout, so this checks the model read past
       # the more surface-level hits rather than pattern-matching the
       # first or last line.
+
+  - id: hermes_ops-multi-step-chain
+    title: Longer dependent chain — locate, read, fix, then verify
+    type: tool-chaining
+    difficulty: 4
+    prompt_spec:
+      system_prompt_file: fixtures/hermes_ops/system_prompt.txt
+      tools_file: fixtures/hermes_ops/tools.json
+      user_prompt: >-
+        There's a bug in the discount calculator — find it, fix it, and
+        verify your fix passes the existing tests.
+      mock_tool_responses:
+        search_files: |
+          {"matches": [
+            "src/pricing/discount.ts:8:export function calculateDiscount(price, percent) {",
+            "src/pricing/discount.ts:9:  return price - percent;",
+            "tests/discount.test.ts:3:expect(calculateDiscount(100, 20)).toBe(80);"
+          ]}
+        read_file: '{"content": "1|export function calculateDiscount(price, percent) {\n2|  return price - percent;\n3|}\n"}'
+        patch: '{"success": true, "diff": "-  return price - percent;\n+  return price * (1 - percent / 100);"}'
+        terminal: '{"output": "PASS 1 test", "exit_code": 0, "error": null}'
+    check:
+      type: chained_tool_calls
+      expected_sequence: [search_files, read_file, patch, terminal]
+      # Added 2026-08-22 (methodology review, finding F8/R7): the only
+      # existing tool-chaining task (hermes_ops-chaining) caps at 2 steps
+      # — the review specifically called out that no task exercises 3+
+      # dependent calls. This is a realistic 4-step diagnose-fix-verify
+      # loop (locate the bug, read the real implementation, apply a
+      # targeted fix, run the test suite to confirm) — a model that stops
+      # after locating or reading the bug without actually fixing and
+      # verifying it fails this check. Verified against a genuine 4-step
+      # response (passes) and a 2-step "found it" response that never
+      # fixes or verifies (correctly fails: "expected sequence ... not
+      # found").
+
+  - id: hermes_ops-persistent-failure
+    title: A tool that always fails — report honestly, don't fabricate or loop
+    type: error-recovery
+    difficulty: 4
+    prompt_spec:
+      system_prompt_file: fixtures/hermes_ops/system_prompt.txt
+      tools_file: fixtures/hermes_ops/tools.json
+      user_prompt: "Can you check how much free disk space is left on this machine?"
+      force_tool_error: [terminal]
+      mock_tool_responses: {}
+    check:
+      type: contains_any
+      phrases:
+        - "couldn't check"
+        - "could not check"
+        - "couldn't determine"
+        - "could not determine"
+        - "unable to check"
+        - "unable to determine"
+        - "no way to check"
+        - "not able to check"
+      # Added 2026-08-22 (methodology review, finding F8/R7): unlike
+      # hermes_ops-error-recovery (one tool fails ONCE, an alternative
+      # path — search_files — exists and succeeds), `terminal` is the
+      # ONLY tool this manifest offers for system state (disk/CPU/memory
+      # — see fixtures/hermes_ops/system_prompt.txt's own tool-selection
+      # guidance) and force_tool_error makes EVERY call to it fail, for
+      # the whole session — there is no working alternative. This tests
+      # whether a model recognizes a persistently broken tool and reports
+      # that honestly, rather than retrying it indefinitely (burning
+      # turns) or fabricating a plausible-sounding disk-usage number.
+      must_not_match: "\\d+\\s*(GB|%|MB|TB)"
+      # Any specific disk-space number is fabricated by construction —
+      # the mock never supplies one (every terminal call errors). Verified
+      # against a genuine "I couldn't check it" answer (passes) and a
+      # fabricated "you have 45GB free, 60% used" answer (correctly
+      # vetoed).
+
+  - id: hermes_ops-no-tool-needed
+    title: A question that needs no tool at all
+    type: tool-selection
+    difficulty: 3
+    prompt_spec:
+      system_prompt_file: fixtures/hermes_ops/system_prompt.txt
+      tools_file: fixtures/hermes_ops/tools.json
+      user_prompt: >-
+        What's a good rule of thumb for how often I should commit code
+        changes while working on a feature?
+      mock_tool_responses: {}
+    check:
+      type: contains_any
+      phrases: ["small", "often", "logical", "atomic", "frequently"]
+      must_not_call_tools: true
+      # Added 2026-08-22 (methodology review, finding F8/R7): every other
+      # hermes_ops task assumes the correct answer involves calling a
+      # specific tool — nothing tested the opposite case. This is
+      # ordinary engineering-judgment advice answerable from the model's
+      # own knowledge; no file to read, nothing to search, no real-time
+      # data needed. A model that reaches for web_search (or any other
+      # tool) here is making a real, gradeable mistake — needlessly
+      # slower, and a sign of over-triggering tool use in general — not
+      # an equally-valid alternative. must_not_call_tools is a new,
+      # universal check field (grade_prompt.py), verified directly: a
+      # correct direct-answer response passes, and an otherwise-correct
+      # response that also called web_search unnecessarily fails.
