@@ -5,14 +5,31 @@ engine for [Hermes](https://hermes-agent.nousresearch.com/docs) (a local
 agent framework) for agentic coding work — JS/TS, Rust, Swift, a large
 system prompt, and a large tool manifest. Compares candidate models across
 three inference engines (vllm-mlx, isolated oMLX, and GGUF/llama.cpp) on
-three axes: raw quality, speed, and tool-use reliability under realistic
-agentic conditions.
+three axes: tool-use reliability, speed, and coding capability under
+realistic agentic conditions, on a Mac Studio (M1 Max, 32GB unified
+memory).
+
+This harness (every runner script, config, task, and fix) was built and is
+run by Claude (Anthropic) working autonomously in the terminal, directed
+and reviewed by a human. Treat generated numbers/code accordingly, and see
+[`AGENTS.md`](AGENTS.md) for the full history of what was found and fixed
+along the way.
 
 Results: [`results/LEADERBOARD.md`](results/LEADERBOARD.md) (human-readable
-summary) and [`results/log.jsonl`](results/log.jsonl) (append-only raw
-record, one row per task attempt). Methodology, inference-engine architecture, and
-every non-obvious gotcha discovered while running this are in
-[`AGENTS.md`](AGENTS.md) — read that before touching the runner code.
+summary, regenerated from the log — includes a "Best overall" composite
+ranking, a "Blocked configs" section for models ruled out outright, and a
+"Speed-gated configs" section for models that didn't clear the minimum
+tokens/sec floor) and [`results/log.jsonl`](results/log.jsonl) (append-only
+raw record, one row per task attempt). Methodology, inference-engine
+architecture, and every non-obvious gotcha discovered while running this
+are in [`AGENTS.md`](AGENTS.md) — read that before touching the runner
+code.
+
+**The speed gate**: a config whose `hermes_ops` run averages under
+`bench_common.MIN_HERMES_OPS_TOKENS_PER_SECOND` (currently 4 tok/s — see
+that constant's own comment for the full reasoning and history) skips the
+far more expensive coding suite rather than spend hours confirming an
+outcome the speed data already answered.
 
 ## Prerequisites
 
