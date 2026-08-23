@@ -100,12 +100,13 @@ class SpeedGateFailureRecordTests(unittest.TestCase):
 
 
 class MinTokensPerSecondValueTests(unittest.TestCase):
-    """Guards the actual cutoff value — a deliberate user decision (10
-    tok/s), not something that should silently drift back to the earlier
-    1.0 tok/s bar this replaced."""
+    """Guards the actual cutoff value — a deliberate user decision (lowered
+    2026-08-23 from an initial 10 tok/s to 4 tok/s, to keep more variety in
+    the results rather than narrowing the field this early), not something
+    that should silently drift back to an earlier bar."""
 
-    def test_threshold_is_ten(self):
-        self.assertEqual(rb.MIN_HERMES_OPS_TOKENS_PER_SECOND, 10.0)
+    def test_threshold_is_four(self):
+        self.assertEqual(rb.MIN_HERMES_OPS_TOKENS_PER_SECOND, 4.0)
 
 
 if __name__ == "__main__":

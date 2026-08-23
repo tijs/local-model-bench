@@ -39,25 +39,32 @@ REPO = Path(__file__).resolve().parent.parent
 # runner.
 INTERACTIVE_BUDGET_SECONDS = 300
 
-# Set 2026-08-22, by explicit user decision (Tijs): 10 tok/s is the
-# practical floor for a model to be worth considering as Hermes's backing
-# LLM at all, regardless of correctness. Below this, a real interactive
-# coding session is unusable even when every answer is right. This
-# REPLACES an earlier, much lower 1.0 tok/s cutoff added right after the
+# Lowered to 4 tok/s 2026-08-23, by explicit user decision (Tijs): the
+# original 10 tok/s bar (set 2026-08-22) was gating out too many otherwise-
+# interesting candidates for comparison purposes — deliberately loosened
+# to keep more variety in the results rather than narrowing the field this
+# early. This is NOT a claim that 4 tok/s is comfortable for real
+# interactive use (it likely still isn't) — it's a "still worth collecting
+# coding-suite data on" bar, one step above "clearly hopeless." The
+# original 10 tok/s reasoning (a practical floor for a model to be worth
+# considering as Hermes's backing LLM at all) still applies at the
+# leaderboard-interpretation level; this constant just controls when
+# run_bench.py stops collecting more data, not what counts as "good enough
+# to use." Also replaces an earlier 1.0 tok/s cutoff added right after the
 # Qwen3.8-27B MLX pilot (that config's own hermes_ops rows sat at
-# 0.15-0.83 tok/s — comfortably below either number, so that finding is
-# unaffected by the change). run_bench.py checks this against the MEAN
+# 0.15-0.83 tok/s — comfortably below every version of this number, so
+# that finding is unaffected). run_bench.py checks this against the MEAN
 # tokens_per_second across a config's own full hermes_ops suite run (every
 # task, not one probe task) — a single-task probe was tried first but
 # rejected: hermes_ops-selection specifically (the smallest-completion
 # task) is the most prefill-dominated of the 8 tasks and reads
 # systematically low even for genuinely fast models (LiquidAI/LFM2.5-8B-
 # A1B-GGUF:Q8_0 reads 9.36 tok/s on that one task alone despite averaging
-# 48.2 tok/s across its full hermes_ops run) — gating on it at a 10 tok/s
-# bar would have wrongly failed that model. The full-suite mean is also
-# exactly what results/LEADERBOARD.md's own "avg tok/s" column already
-# reports, so this cutoff means the same thing everywhere in this repo.
-MIN_HERMES_OPS_TOKENS_PER_SECOND = 10.0
+# 48.2 tok/s across its full hermes_ops run) — gating on it directly would
+# have wrongly failed that model. The full-suite mean is also exactly what
+# results/LEADERBOARD.md's own "avg tok/s" column already reports, so this
+# cutoff means the same thing everywhere in this repo.
+MIN_HERMES_OPS_TOKENS_PER_SECOND = 4.0
 
 
 def _find_listening_pid(port):
