@@ -102,6 +102,24 @@ def strip_reasoning(text):
     return stripped.strip()
 
 
+# LaTeX \boxed{...} wrapping. Confirmed live 2026-08-23:
+# mlx-community/LFM2.5-8B-A1B-MLX-8bit answered sanity-basic's "What is
+# 15 + 27? Answer with only the number, nothing else." with the literal
+# text "\boxed{42}" — mathematically correct, but failed the ^42$ regex on
+# formatting alone. This is a math/reasoning-RL-trained model's output
+# habit, not semantic content — no task in this repo ever wants the
+# literal \boxed{} wrapper preserved, so unwrap it the same way <think>
+# reasoning is stripped, at the same universal point in grade(). Simple
+# non-nested-brace pattern only (sufficient for the short numeric/word
+# answers these checks look for) — a genuinely nested case like
+# \boxed{\frac{1}{2}} would not fully unwrap, but hasn't been observed live.
+LATEX_BOXED = re.compile(r"\\boxed\{([^{}]*)\}")
+
+
+def strip_latex_boxed(text):
+    return LATEX_BOXED.sub(r"\1", text)
+
+
 # Typographic ("smart") punctuation normalization. Discovered live 2026-08-20:
 # gpt-5.6-luna answered a task correctly ("i couldn't find a file named
 # notes.txt...") but used a curly apostrophe (U+2019, '), which silently
@@ -173,7 +191,7 @@ def grade(result, check):
     # hermes_ops-error-recovery uses it, and that's a contains_any check),
     # but a future check author reasonably expecting this to work uniformly
     # would have been silently wrong.
-    text = normalize_punctuation(strip_reasoning(result.get("final_text", "")))
+    text = normalize_punctuation(strip_latex_boxed(strip_reasoning(result.get("final_text", ""))))
     forbidden = _forbidden_hit(text, check)
     if forbidden:
         return False, forbidden
@@ -360,7 +378,7 @@ def grade(result, check):
                 )
 
         if "response_contains" in check:
-            text = normalize_punctuation(strip_reasoning(result.get("final_text", "")))
+            text = normalize_punctuation(strip_latex_boxed(strip_reasoning(result.get("final_text", ""))))
             if check["response_contains"] not in text:
                 return False, f"tool was called correctly but final response {text!r} did not contain {check['response_contains']!r}"
 
@@ -370,7 +388,7 @@ def grade(result, check):
             # finding L4): "18" as a bare substring matches "2018" or "180"
             # just as well as the real answer. A task checking a specific
             # number should use this with a boundary, e.g. r"(?<!\d)18(?!\d)".
-            text = normalize_punctuation(strip_reasoning(result.get("final_text", "")))
+            text = normalize_punctuation(strip_latex_boxed(strip_reasoning(result.get("final_text", ""))))
             # re.IGNORECASE added (3rd adversarial review, finding CR3-10):
             # this was the only case-sensitive text-matching check kind in
             # the file (contains/regex are deliberately case-sensitive for

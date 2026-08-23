@@ -16,6 +16,40 @@ inference_engine: vllm-mlx
 # benchmark run, applying the researched settings below (same sampling
 # settings as mlx.yaml's bf16 leg — only the model repo/precision differs):
 benchmark_launch_command: |
+  # CRITICAL FIX, discovered live 2026-08-23: this repo's config.json is
+  # missing the `block_ff_dim` key that the installed mlx_lm 0.31.3's
+  # models/lfm2.py ModelArgs dataclass requires (no default) — load()
+  # crashes with "TypeError: ModelArgs.__init__() missing 1 required
+  # positional argument: 'block_ff_dim'" before the server even starts
+  # listening. Confirmed via a live diff against the OFFICIAL bf16 repo
+  # (LiquidAI/LFM2.5-2.6B-MLX-bf16, used by mlx.yaml in this same
+  # directory) — that config.json has BOTH `block_ff_dim` and
+  # `intermediate_size` set to the identical value (10752); this
+  # mlx-community quant's config.json only kept `intermediate_size`. Patch
+  # the cached config.json in place, idempotently, adding the missing key
+  # from the value that's already present — same pattern as the
+  # Qwen3.8-27B chat_template.jinja fix elsewhere in this repo: fails
+  # LOUDLY if the file isn't found (model not staged yet, or the HF cache
+  # layout changed) instead of silently launching against a config that
+  # will crash the same way.
+  # Deliberately a single-line python3 -c (no embedded newlines): a
+  # multi-line here-string nested inside this YAML block scalar hits a
+  # genuine conflict — YAML requires every line indented >= this block's
+  # baseline, but Python requires a -c script's top-level statements to
+  # start at column 0. Adding spaces to satisfy YAML broke Python with
+  # "IndentationError: unexpected indent" (confirmed live 2026-08-23);
+  # one line sidesteps both constraints at once.
+  patched=0
+  for f in ~/.cache/huggingface/hub/models--mlx-community--LFM2.5-2.6B-8bit/snapshots/*/config.json; do
+    if [ -e "$f" ]; then
+      uv run --locked python3 -c "import json; p='$f'; d=json.load(open(p)); had=('block_ff_dim' in d); d.setdefault('block_ff_dim', d.get('intermediate_size')); json.dump(d, open(p,'w'), indent=2); print(('already has block_ff_dim, skipping' if had else 'patched'), p)"
+      patched=$((patched + 1))
+    fi
+  done
+  if [ "$patched" -eq 0 ]; then
+    echo "FATAL: block_ff_dim patch matched no config.json under ~/.cache/huggingface/hub/models--mlx-community--LFM2.5-2.6B-8bit/snapshots/*/ — model not downloaded yet, or the HF cache layout changed. Refusing to launch with a config that will crash the same way." >&2
+    exit 1
+  fi
   uv run --locked python -m vllm_mlx.server \
     --model mlx-community/LFM2.5-2.6B-8bit --host 127.0.0.1 --port 8012 \
     --max-request-tokens 32768 --max-tokens 32768 --continuous-batching \
@@ -55,6 +89,18 @@ settings:
     source: "https://huggingface.co/LiquidAI/LFM2.5-2.6B model card — same
       as mlx.yaml's bf16 leg (a model-property setting, not
       precision-dependent)."
+  - name: block_ff_dim config.json patch
+    value: "mlx-community/LFM2.5-2.6B-8bit's config.json is missing the
+      `block_ff_dim` key that installed mlx_lm 0.31.3's models/lfm2.py
+      ModelArgs requires (no default) — load() crashed with
+      'TypeError: ModelArgs.__init__() missing 1 required positional
+      argument: block_ff_dim' before this fix, confirmed live 2026-08-23.
+      Patched in benchmark_launch_command by copying the equal-valued
+      `intermediate_size` field into the missing key (confirmed identical
+      in the official bf16 repo's config.json: both 10752)."
+    source: "Live diff against LiquidAI/LFM2.5-2.6B-MLX-bf16's config.json
+      (mlx.yaml, this same directory) + mlx_lm 0.31.3's
+      models/lfm2.py ModelArgs dataclass, read directly, 2026-08-23."
 
 known_gaps:
   - "hermes_provider (local-mlx-8bit) is a new provider entry this config
@@ -62,6 +108,10 @@ known_gaps:
     existing local-mlx (bf16) entry, pointed at the same
     benchmark_endpoint. Confirm it's configured before running the coding
     suite against this config."
+  - "The block_ff_dim patch above is a workaround for a third-party repo's
+    incomplete config.json, not something this repo controls — if
+    mlx-community ever fixes the upstream config.json, this patch becomes
+    a harmless no-op (it checks for the key's presence first)."
 
-last_updated: 2026-08-22
-last_verified_against_docs: 2026-08-22
+last_updated: 2026-08-23
+last_verified_against_docs: 2026-08-23

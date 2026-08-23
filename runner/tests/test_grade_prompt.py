@@ -14,7 +14,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from grade_prompt import grade, strip_reasoning, normalize_punctuation
+from grade_prompt import grade, strip_reasoning, strip_latex_boxed, normalize_punctuation
 
 
 class StripReasoningTests(unittest.TestCase):
@@ -54,6 +54,33 @@ class StripReasoningTests(unittest.TestCase):
     def test_empty_and_bare_closer(self):
         self.assertEqual(strip_reasoning(""), "")
         self.assertEqual(strip_reasoning("</think>"), "")
+
+
+class StripLatexBoxedTests(unittest.TestCase):
+    """Confirmed live 2026-08-23: mlx-community/LFM2.5-8B-A1B-MLX-8bit
+    answered sanity-basic's arithmetic question with the literal text
+    "\\boxed{42}" — mathematically correct, but failed the ^42$ regex on
+    formatting alone. A math/reasoning-RL-trained model's output habit,
+    not semantic content."""
+
+    def test_bare_boxed_answer_unwrapped(self):
+        self.assertEqual(strip_latex_boxed(r"\boxed{42}"), "42")
+
+    def test_boxed_answer_mid_sentence_unwrapped(self):
+        self.assertEqual(
+            strip_latex_boxed(r"The answer is \boxed{42}."), "The answer is 42.",
+        )
+
+    def test_plain_text_without_boxed_untouched(self):
+        self.assertEqual(strip_latex_boxed("42"), "42")
+
+    def test_full_grade_pipeline_passes_boxed_answer_against_exact_regex(self):
+        # Integration check: the actual failure mode observed live was a
+        # regex check (^42$) failing against a real sanity-basic result.
+        result = {"final_text": r"\boxed{42}", "tool_calls": []}
+        check = {"type": "regex", "pattern": "^42$"}
+        passed, _ = grade(result, check)
+        self.assertTrue(passed)
 
 
 class NormalizePunctuationAppliedToCheckPhrasesTests(unittest.TestCase):
