@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/455 rows below predate the 2026-08-21
+> **⚠ 138/465 rows below predate the 2026-08-21
 > adversarial-review grading fixes** (no `runner_git_sha` at all — that
 > field didn't exist yet when they were produced). A second independent
 > review found the first review's own fixes still left real bugs (see
@@ -27,9 +27,9 @@ hand-edit rows below, edit the log and regenerate instead.
 > Re-running is the only way to get current, trustworthy rows for these
 > tasks; regenerating this file alone does not re-grade anything.
 
-Grouped by (model, framework, quant, config_hash, runner_git_sha) — never
+Grouped by (model, inference_engine, quant, config_hash, runner_git_sha) — never
 averaged across different configs OR different harness/grading code
-versions, even for the same model+framework, since either would mix
+versions, even for the same model+inference_engine, since either would mix
 genuinely different experiments (e.g. before/after a settings fix, or
 before/after a grading-bug fix). `config_hash` links to a verbatim
 snapshot of the exact config content used (`results/configs/`), not the
@@ -106,7 +106,7 @@ on the two synthetic suites," not "never hallucinated a tool" — the
 coding-suite session data added for finding F6 (avg coding turns/tool
 errors) doesn't cover this specific question either.
 
-| model | framework | quant | temp (coding only)¹ | reasoning | sanity gate⁴ | config | runner | tasks | pass rate⁴ | slow passes² | avg tok/s | avg TTFT (s) | hallucinated tools⁵ | avg coding turns³ | coding tool errors³ | peak RSS (GB) | quant family | cache | MTP |
+| model | engine | quant | temp (coding only)¹ | reasoning | sanity gate⁴ | config | runner | tasks | pass rate⁴ | slow passes² | avg tok/s | avg TTFT (s) | hallucinated tools⁵ | avg coding turns³ | coding tool errors³ | peak RSS (GB) | quant family | cache | MTP |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | 1.0 | xhigh | 2/2 | [3618a30940bc](configs/3618a30940bc.yaml) — *config since changed* | e155170f4c1d | 0 | n/a (all harness errors) | 0 | 9.6 | 4.90 | 0 | — | 0 | 6.2 | oQ4e-fp16 mixed precision + MTP tensors | cold | lightning |
 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | 1.0 | xhigh | 2/2 | [3618a30940bc](configs/3618a30940bc.yaml) — *config since changed* | fc71ba2c66f8+dirty | 0 | n/a (all harness errors) | 0 | 9.0 | 4.15 | 0 | — | 0 | — | oQ4e-fp16 mixed precision + MTP tensors | cold | lightning |
@@ -153,6 +153,9 @@ errors) doesn't cover this specific question either.
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M (+ incoai/Muse-Glimmer-30B-DFlash2-GGUF:Q4_K_M drafter) | gguf | — | 1.0 | thinking | 2/2 | [5e61e8c02089](configs/5e61e8c02089.yaml) — *config since changed* | 3182238013a3 | 1 | 100% | 0 | 7.2 | 89.00 | 0 | — | 0 | 23.4 | — | — | — |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M (+ incoai/Muse-Glimmer-30B-DFlash2-GGUF:Q4_K_M drafter) | gguf | — | 1.0 | thinking | — | [5e61e8c02089](configs/5e61e8c02089.yaml) — *config since changed* | 3182238013a3+dirty | 7 | 0% | 0 | 3.0 | 27.90 | 0 | — | 0 | 23.2 | — | — | — |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M (+ incoai/Muse-Glimmer-30B-DFlash2-GGUF:Q4_K_M drafter) | gguf | — | ? | ? | 2/2 | [fd29e9c067f8](configs/Muse-Glimmer-30B/gguf-dflash2.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 33% | 0 | 8.3 | 64.61 | 0 | — | 0 | — | ? | ? | ? |
+| bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M (+ incoai/Muse-Glimmer-30B-DFlash2-GGUF:Q4_K_M drafter) | llama.cpp-dflash2 | — | 1.0 | thinking | — | [17768c195364](configs/17768c195364.yaml) — *config since changed* | 0ca55f47516d | 8 | 12% | 0 | 0.9 | 140.09 | 0 | — | 0 | 23.6 | — | — | — |
+| bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M (+ incoai/Muse-Glimmer-30B-DFlash2-GGUF:Q4_K_M drafter) | llama.cpp-dflash2 | — | 1.0 | thinking | 1/1 | [17768c195364](configs/17768c195364.yaml) — *config since changed* | 1ab13d3b7d57 | 0 | n/a (all harness errors) | 0 | 12.0 | 8.18 | 0 | — | 0 | 22.3 | — | — | — |
+| bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M (+ incoai/Muse-Glimmer-30B-DFlash2-GGUF:Q4_K_M drafter) | llama.cpp-dflash2 | — | 1.0 | thinking | 1/1 | [17768c195364](configs/17768c195364.yaml) — *config since changed* | 1ab13d3b7d57+dirty | 0 | n/a (all harness errors) | 0 | 9.2 | 14.39 | 0 | — | 0 | 22.9 | — | — | — |
 | bartowski/Qwen2.5-Coder-14B-Instruct-GGUF:Q4_K_M | gguf | — | 0.7 | n/a | 1/2 | [0a014488283a](configs/0a014488283a.yaml) — *config since changed* | e155170f4c1d | 0 | n/a (all harness errors) | 0 | 9.2 | 0.79 | 0 | — | 0 | 20.5 | — | — | — |
 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | — | ? | ? | 2/2 | [e6a0628476cc](configs/Qwen3.8-27B/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 100% | 0 | 7.8 | 8.98 | 0 | — | 0 | — | ? | ? | ? |
 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | — | ? | ? | 4/4 | [f6397d624011](configs/Qwen3.8-27B/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 4 | 100% | 0 | 6.2 | 52.74 | 0 | — | 0 | — | ? | ? | ? |
@@ -212,7 +215,7 @@ below shows how many contributed. Groups with zero scoreable axes (harness-
 error-only, or sanity-only with `--coding-suites`/`hermes_ops` never run)
 are omitted entirely rather than shown with a misleading score.
 
-| rank | model | framework | quant | config | score | axes | coding | hermes_ops | speed |
+| rank | model | engine | quant | config | score | axes | coding | hermes_ops | speed |
 |---|---|---|---|---|---|---|---|---|---|
 | 1 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | gguf | — | 011816a7d0df | 1.00 | 1 | 100% (1) | — | — |
 | 2 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | — | c1ed322cee8c | 1.00 | 1 | — | — | 105.5 tok/s |
@@ -278,37 +281,40 @@ are omitted entirely rather than shown with a misleading score.
 | 62 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M (+ incoai/Muse-Glimmer-30B-DFlash2-GGUF:Q4_K_M drafter) | gguf | — | fd29e9c067f8 | 0.23 | 2 | — | 33% (3) | 8.3 tok/s |
 | 63 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | mlx | — | da00492c3b46 | 0.23 | 3 | 0% (1) | 62% (8) | 21.4 tok/s |
 | 64 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | omlx | — | 08e51e50397d | 0.12 | 1 | — | — | 13.1 tok/s |
-| 65 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | 6f8f1c7b8d48 | 0.10 | 1 | — | — | 11.0 tok/s |
-| 66 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | f9648093327f | 0.10 | 1 | — | — | 11.0 tok/s |
-| 67 | mlx-community/Qwen2.5-Coder-14B-Instruct-4bit | mlx | — | c6d10ac83efc | 0.10 | 1 | — | — | 10.9 tok/s |
-| 68 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | f9648093327f | 0.10 | 1 | — | — | 10.9 tok/s |
-| 69 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | b6112a82c243 | 0.10 | 1 | — | — | 10.6 tok/s |
-| 70 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | gguf | — | 1d65d14c63a8 | 0.10 | 3 | 0% (1) | 12% (8) | 32.8 tok/s |
-| 71 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | b6112a82c243 | 0.10 | 1 | — | — | 10.5 tok/s |
-| 72 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | 6f8f1c7b8d48 | 0.10 | 1 | — | — | 10.4 tok/s |
-| 73 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | 3618a30940bc | 0.09 | 1 | — | — | 9.6 tok/s |
-| 74 | bartowski/Qwen2.5-Coder-14B-Instruct-GGUF:Q4_K_M | gguf | — | 0a014488283a | 0.09 | 1 | — | — | 9.2 tok/s |
-| 75 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | omlx | — | 08e51e50397d | 0.09 | 2 | — | 12% (8) | 2.9 tok/s |
-| 76 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | 3618a30940bc | 0.09 | 1 | — | — | 9.0 tok/s |
-| 77 | mlx-community/Qwen3.8-27B-4bit | mlx | — | bbaa3dfa1953 | 0.08 | 1 | — | — | 8.6 tok/s |
-| 78 | mlx-community/Devstral-Small-2507-4bit-DWQ | mlx | — | 54b39a32dd69 | 0.07 | 1 | — | — | 6.9 tok/s |
-| 79 | mlx-community/Qwen3.8-27B-4bit | omlx | — | 1eec0081c5d6 | 0.01 | 2 | — | 0% (3) | 3.4 tok/s |
-| 80 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M (+ incoai/Muse-Glimmer-30B-DFlash2-GGUF:Q4_K_M drafter) | gguf | — | 5e61e8c02089 | 0.01 | 2 | — | 0% (7) | 3.0 tok/s |
-| 81 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | b7b32d0eb150 | 0.01 | 3 | 0% (1) | 0% (3) | 4.4 tok/s |
-| 82 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | b7b32d0eb150 | 0.01 | 2 | — | 0% (8) | 2.1 tok/s |
-| 83 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | a7867bea182c | 0.01 | 3 | 0% (2) | 0% (3) | 3.9 tok/s |
-| 84 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | a7867bea182c | 0.01 | 2 | — | 0% (8) | 1.9 tok/s |
-| 85 | poolside/Laguna-XS-2.1-GGUF:Q4_K_M | gguf | — | e427e7a50b14 | 0.00 | 1 | — | — | 0.1 tok/s |
-| 86 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | mlx | — | 57734ec83d1b | 0.00 | 1 | 0% (1) | — | — |
-| 87 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | mlx | — | b2dc92c2ed56 | 0.00 | 1 | 0% (1) | — | — |
-| 88 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | gguf | — | f4620fe8538d | 0.00 | 1 | 0% (1) | — | — |
-| 89 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | mlx | — | 5fd02e54bb9d | 0.00 | 1 | 0% (1) | — | — |
-| 90 | gpt-5.6-luna | api | — | dc55dd82a2c3 | 0.00 | 1 | 0% (1) | — | — |
-| 91 | prism-ml/Ternary-Bonsai-27B-mlx-2bit | mlx | — | 8e85abe37e32 | 0.00 | 1 | 0% (1) | — | — |
+| 65 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M (+ incoai/Muse-Glimmer-30B-DFlash2-GGUF:Q4_K_M drafter) | llama.cpp-dflash2 | — | 17768c195364 | 0.11 | 1 | — | — | 12.0 tok/s |
+| 66 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | 6f8f1c7b8d48 | 0.10 | 1 | — | — | 11.0 tok/s |
+| 67 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | f9648093327f | 0.10 | 1 | — | — | 11.0 tok/s |
+| 68 | mlx-community/Qwen2.5-Coder-14B-Instruct-4bit | mlx | — | c6d10ac83efc | 0.10 | 1 | — | — | 10.9 tok/s |
+| 69 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | f9648093327f | 0.10 | 1 | — | — | 10.9 tok/s |
+| 70 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | b6112a82c243 | 0.10 | 1 | — | — | 10.6 tok/s |
+| 71 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | gguf | — | 1d65d14c63a8 | 0.10 | 3 | 0% (1) | 12% (8) | 32.8 tok/s |
+| 72 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | b6112a82c243 | 0.10 | 1 | — | — | 10.5 tok/s |
+| 73 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | 6f8f1c7b8d48 | 0.10 | 1 | — | — | 10.4 tok/s |
+| 74 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | 3618a30940bc | 0.09 | 1 | — | — | 9.6 tok/s |
+| 75 | bartowski/Qwen2.5-Coder-14B-Instruct-GGUF:Q4_K_M | gguf | — | 0a014488283a | 0.09 | 1 | — | — | 9.2 tok/s |
+| 76 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M (+ incoai/Muse-Glimmer-30B-DFlash2-GGUF:Q4_K_M drafter) | llama.cpp-dflash2 | — | 17768c195364 | 0.09 | 1 | — | — | 9.2 tok/s |
+| 77 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | omlx | — | 08e51e50397d | 0.09 | 2 | — | 12% (8) | 2.9 tok/s |
+| 78 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | 3618a30940bc | 0.09 | 1 | — | — | 9.0 tok/s |
+| 79 | mlx-community/Qwen3.8-27B-4bit | mlx | — | bbaa3dfa1953 | 0.08 | 1 | — | — | 8.6 tok/s |
+| 80 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M (+ incoai/Muse-Glimmer-30B-DFlash2-GGUF:Q4_K_M drafter) | llama.cpp-dflash2 | — | 17768c195364 | 0.08 | 2 | — | 12% (8) | 0.9 tok/s |
+| 81 | mlx-community/Devstral-Small-2507-4bit-DWQ | mlx | — | 54b39a32dd69 | 0.07 | 1 | — | — | 6.9 tok/s |
+| 82 | mlx-community/Qwen3.8-27B-4bit | omlx | — | 1eec0081c5d6 | 0.01 | 2 | — | 0% (3) | 3.4 tok/s |
+| 83 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M (+ incoai/Muse-Glimmer-30B-DFlash2-GGUF:Q4_K_M drafter) | gguf | — | 5e61e8c02089 | 0.01 | 2 | — | 0% (7) | 3.0 tok/s |
+| 84 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | b7b32d0eb150 | 0.01 | 3 | 0% (1) | 0% (3) | 4.4 tok/s |
+| 85 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | b7b32d0eb150 | 0.01 | 2 | — | 0% (8) | 2.1 tok/s |
+| 86 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | a7867bea182c | 0.01 | 3 | 0% (2) | 0% (3) | 3.9 tok/s |
+| 87 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | a7867bea182c | 0.01 | 2 | — | 0% (8) | 1.9 tok/s |
+| 88 | poolside/Laguna-XS-2.1-GGUF:Q4_K_M | gguf | — | e427e7a50b14 | 0.00 | 1 | — | — | 0.1 tok/s |
+| 89 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | mlx | — | 57734ec83d1b | 0.00 | 1 | 0% (1) | — | — |
+| 90 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | mlx | — | b2dc92c2ed56 | 0.00 | 1 | 0% (1) | — | — |
+| 91 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | gguf | — | f4620fe8538d | 0.00 | 1 | 0% (1) | — | — |
+| 92 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | mlx | — | 5fd02e54bb9d | 0.00 | 1 | 0% (1) | — | — |
+| 93 | gpt-5.6-luna | api | — | dc55dd82a2c3 | 0.00 | 1 | 0% (1) | — | — |
+| 94 | prism-ml/Ternary-Bonsai-27B-mlx-2bit | mlx | — | 8e85abe37e32 | 0.00 | 1 | 0% (1) | — | — |
 
 ## Flaky tasks (mixed pass/fail under identical conditions)
 
-Any task with the SAME (model, framework, quant, config_hash,
+Any task with the SAME (model, inference_engine, quant, config_hash,
 runner_git_sha, suite, task_id) that comes back with SOME passes and
 some fails is not "probably fine" — it's proof this one task's result
 isn't safe to treat as a boolean for this model (adversarial review
@@ -320,13 +326,13 @@ came from two independent runs, not --trials, which didn't exist yet).
 Tasks run only once never appear here — that is NOT the same as
 confirmed-stable, just untested for flakiness.
 
-| model | framework | quant | config | suite | task | pass/trials |
+| model | engine | quant | config | suite | task | pass/trials |
 |---|---|---|---|---|---|---|
 | mlx-community/Qwen3.8-27B-4bit | mlx | — | f894953f1f80 | hermes_ops | hermes_ops-selection | 1/2 |
 
 ## By suite
 
-| model | framework | config | runner | suite | pass rate |
+| model | engine | config | runner | suite | pass rate |
 |---|---|---|---|---|---|
 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | 3618a30940bc | e155170f4c1d | sanity | 2/2 |
 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | 3618a30940bc | fc71ba2c66f8+dirty | sanity | 2/2 |
@@ -407,6 +413,9 @@ confirmed-stable, just untested for flakiness.
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M (+ incoai/Muse-Glimmer-30B-DFlash2-GGUF:Q4_K_M drafter) | gguf | 5e61e8c02089 | 3182238013a3+dirty | hermes_ops | 0/7 |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M (+ incoai/Muse-Glimmer-30B-DFlash2-GGUF:Q4_K_M drafter) | gguf | fd29e9c067f8 | *(predates tracking)* | hermes_ops | 1/3 |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M (+ incoai/Muse-Glimmer-30B-DFlash2-GGUF:Q4_K_M drafter) | gguf | fd29e9c067f8 | *(predates tracking)* | sanity | 2/2 |
+| bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M (+ incoai/Muse-Glimmer-30B-DFlash2-GGUF:Q4_K_M drafter) | llama.cpp-dflash2 | 17768c195364 | 0ca55f47516d | hermes_ops | 1/8 |
+| bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M (+ incoai/Muse-Glimmer-30B-DFlash2-GGUF:Q4_K_M drafter) | llama.cpp-dflash2 | 17768c195364 | 1ab13d3b7d57 | sanity | 1/1 |
+| bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M (+ incoai/Muse-Glimmer-30B-DFlash2-GGUF:Q4_K_M drafter) | llama.cpp-dflash2 | 17768c195364 | 1ab13d3b7d57+dirty | sanity | 1/1 |
 | bartowski/Qwen2.5-Coder-14B-Instruct-GGUF:Q4_K_M | gguf | 0a014488283a | e155170f4c1d | sanity | 1/2 |
 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | 0686abeab746 | *(predates tracking)* | hermes_ops | 3/3 |
 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | 0686abeab746 | *(predates tracking)* | sanity | 2/2 |
@@ -491,7 +500,7 @@ confirmed-stable, just untested for flakiness.
 
 3 row(s) where the harness itself crashed (e.g. a network blip during `npm ci`, a malformed task spec) rather than the model producing a graded result — added 2026-08-21 (3rd adversarial review, finding CR3-6) so these are visible instead of silently deflating pass rates or masquerading as model flakiness.
 
-| model | framework | suite | task | grade_output (truncated) |
+| model | engine | suite | task | grade_output (truncated) |
 |---|---|---|---|---|
 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | kiem_mini | kiem_mini-feature | HARNESS ERROR: child agent escaped the disposable workspace and modified the source fixture; result invalidated and sour |
 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | kiem_mini | kiem_mini-feature | HARNESS ERROR: child agent escaped the disposable workspace and created repository-root src/lib.rs; result invalidated a |
@@ -505,7 +514,7 @@ a whole quant ladder ruled out once one sibling engine's live pilot showed
 the model too slow to be worth testing further), so it would otherwise
 vanish from this file with no trace of why.
 
-| model | framework | config | blocked_reason |
+| model | engine | config | blocked_reason |
 |---|---|---|---|
 | mlx-community/Laguna-XS-2.1-4bit | vllm-mlx | configs/Laguna-XS-2.1/mlx.yaml | (no blocked_reason set) |
 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M (+ incoai/Qwen3.8-27B-DFlash2-GGUF:Q4_K_M drafter) | llama.cpp-dflash2 | configs/Qwen3.8-27B/gguf-dflash2.yaml | Marked non-viable 2026-08-22: MLX leg (mlx.yaml, config_hash 968652aede2d) completed sanity + all 3 hermes_ops tasks (2/3 pass) but decode throughput collapsed as prompt size grew — 12.37 tok/s at 29 prompt tokens down to 0.18/0.36/0.83 tok/s at 43312/65273/177877 prompt tokens, taking 668s/1021s/2904s (~77 min combined) for those 3 hermes_ops tasks alone (~1.5h total wall clock incl. load+sanity). Every hermes_ops row is flagged within_budget: false. Pilot stopped before the coding suite (even larger prompts) or the GGUF/oMLX legs were reached. |
@@ -528,7 +537,7 @@ log.jsonl rows (visible in every table above) — this section just makes the
 *reason the coding suite didn't run* explicit rather than something a reader
 has to infer from a config missing coding rows.
 
-| model | framework | config | avg tok/s | per-task tok/s | threshold | timestamp |
+| model | engine | config | avg tok/s | per-task tok/s | threshold | timestamp |
 |---|---|---|---|---|---|---|
 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | /Users/tijs/projects/local-model-bench/configs/LFM2.5-8B-A1B-oQ4e-fp16/omlx.yaml | 9.62 | 6.86, 11.06, 3.06, 7.40, 10.63, 21.83, 7.00, 9.09 | 10.0 | 2026-08-22T20:08:16Z |
 | mlx-community/Laguna-XS-2.1-4bit | omlx | /Users/tijs/projects/local-model-bench/configs/Laguna-XS-2.1/omlx.yaml | 2.13 | 1.83, 1.12, 0.79, 1.32, 1.61, 2.05, 1.47, 6.89 | 10.0 | 2026-08-22T21:48:59Z |

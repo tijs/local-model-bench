@@ -44,7 +44,7 @@ class HarnessErrorExclusionTests(unittest.TestCase):
             "task_id": "hermes_ops-selection",
             "task_type": "tool-selection",
             "model": "test-model",
-            "framework": "vllm-mlx",
+            "inference_engine": "vllm-mlx",
             "quant": None,
             "config_path": None,
             "config_hash": None,
@@ -112,20 +112,20 @@ class HarnessErrorExclusionTests(unittest.TestCase):
         cfg = self.repo / "configs" / "qwen" / "omlx-mtp.yaml"
         cfg.parent.mkdir(parents=True)
         cfg.write_text(
-            "framework: omlx\nquant_family: oQ4e-fp16 mixed precision\n"
+            "inference_engine: omlx\nquant_family: oQ4e-fp16 mixed precision\n"
             "cache_mode: ssd-warm\nmtp_mode: lightning\n"
             "temperature: 1\nreasoning_mode: medium\n"
         )
         import hashlib
         config_hash = hashlib.sha256(cfg.read_bytes()).hexdigest()[:12]
         self._write_log([self._base_row(
-            model="qwen", framework="omlx", config_path="configs/qwen/omlx-mtp.yaml",
+            model="qwen", inference_engine="omlx", config_path="configs/qwen/omlx-mtp.yaml",
             config_hash=config_hash,
         )])
         bl.main()
         text = (self.repo / "results" / "LEADERBOARD.md").read_text()
         row_line = next(l for l in text.splitlines() if l.startswith("| qwen |"))
-        self.assertIn("| omlx |", row_line)  # primary framework column
+        self.assertIn("| omlx |", row_line)  # primary engine column
         self.assertIn("| oQ4e-fp16 mixed precision | ssd-warm | lightning |", row_line)
 
 
@@ -155,7 +155,7 @@ class PeakRssColumnTests(unittest.TestCase):
     def _base_row(self, **overrides):
         row = {
             "suite": "hermes_ops", "task_id": "hermes_ops-selection",
-            "task_type": "tool-selection", "model": "test-model", "framework": "vllm-mlx",
+            "task_type": "tool-selection", "model": "test-model", "inference_engine": "vllm-mlx",
             "quant": None, "config_path": None, "config_hash": None,
             "runner_git_sha": "abc123", "trial": 1, "pass": True, "grade_output": "PASS",
         }
@@ -205,7 +205,7 @@ class SlowPassColumnTests(unittest.TestCase):
     def _base_row(self, **overrides):
         row = {
             "suite": "hermes_ops", "task_id": "hermes_ops-error-recovery",
-            "task_type": "error-recovery", "model": "test-model", "framework": "vllm-mlx",
+            "task_type": "error-recovery", "model": "test-model", "inference_engine": "vllm-mlx",
             "quant": None, "config_path": None, "config_hash": None,
             "runner_git_sha": "abc123", "trial": 1, "pass": True, "grade_output": "PASS",
         }
@@ -264,11 +264,11 @@ class CompositeRankingTests(unittest.TestCase):
     def test_sanity_excluded_from_pass_rate_and_shown_as_its_own_gate(self):
         self._write_log([
             {"suite": "sanity", "task_id": "sanity-basic", "task_type": "sanity",
-             "model": "m", "framework": "vllm-mlx", "quant": None, "config_path": None,
+             "model": "m", "inference_engine": "vllm-mlx", "quant": None, "config_path": None,
              "config_hash": None, "runner_git_sha": "abc", "trial": 1, "pass": True,
              "grade_output": "PASS"},
             {"suite": "hermes_ops", "task_id": "hermes_ops-selection", "task_type": "tool-selection",
-             "model": "m", "framework": "vllm-mlx", "quant": None, "config_path": None,
+             "model": "m", "inference_engine": "vllm-mlx", "quant": None, "config_path": None,
              "config_hash": None, "runner_git_sha": "abc", "trial": 1, "pass": False,
              "grade_output": "FAIL"},
         ])
@@ -285,7 +285,7 @@ class CompositeRankingTests(unittest.TestCase):
         # coding_pass_rate were 0; it should score on hermes_ops+speed alone.
         self._write_log([
             {"suite": "hermes_ops", "task_id": "hermes_ops-selection", "task_type": "tool-selection",
-             "model": "hermes-only-model", "framework": "vllm-mlx", "quant": None, "config_path": None,
+             "model": "hermes-only-model", "inference_engine": "vllm-mlx", "quant": None, "config_path": None,
              "config_hash": None, "runner_git_sha": "abc", "trial": 1, "pass": True,
              "grade_output": "PASS", "tokens_per_second": 20.0},
         ])
@@ -303,11 +303,11 @@ class CompositeRankingTests(unittest.TestCase):
         # but fails half its coding tasks.
         self._write_log([
             {"suite": "kiem_mini", "task_id": "kiem_mini-feature", "task_type": "feature",
-             "model": "correct-but-slow", "framework": "vllm-mlx", "quant": None, "config_path": None,
+             "model": "correct-but-slow", "inference_engine": "vllm-mlx", "quant": None, "config_path": None,
              "config_hash": "h1", "runner_git_sha": "abc", "trial": 1, "pass": True,
              "grade_output": "PASS", "tokens_per_second": 5.0},
             {"suite": "kiem_mini", "task_id": "kiem_mini-feature", "task_type": "feature",
-             "model": "fast-but-wrong", "framework": "vllm-mlx", "quant": None, "config_path": None,
+             "model": "fast-but-wrong", "inference_engine": "vllm-mlx", "quant": None, "config_path": None,
              "config_hash": "h2", "runner_git_sha": "abc", "trial": 1, "pass": False,
              "grade_output": "FAIL", "tokens_per_second": 50.0},
         ])
@@ -325,7 +325,7 @@ class CompositeRankingTests(unittest.TestCase):
         # score of 0.
         self._write_log([
             {"suite": "hermes_ops", "task_id": "hermes_ops-selection", "task_type": "tool-selection",
-             "model": "all-harness-errors", "framework": "vllm-mlx", "quant": None, "config_path": None,
+             "model": "all-harness-errors", "inference_engine": "vllm-mlx", "quant": None, "config_path": None,
              "config_hash": None, "runner_git_sha": "abc", "trial": 1, "pass": False,
              "harness_error": True, "grade_output": "HARNESS ERROR"},
         ])
@@ -373,14 +373,14 @@ class BlockedConfigsSectionTests(unittest.TestCase):
         # itself has NO row of its own, which is the whole point of the test.
         self._write_log([{
             "suite": "hermes_ops", "task_id": "hermes_ops-selection", "task_type": "tool-selection",
-            "model": "unrelated-model", "framework": "vllm-mlx", "quant": None, "config_path": None,
+            "model": "unrelated-model", "inference_engine": "vllm-mlx", "quant": None, "config_path": None,
             "config_hash": None, "runner_git_sha": "abc", "trial": 1, "pass": True,
             "grade_output": "PASS",
         }])
         self._write_config(
             "configs/NeverRun-Model/gguf.yaml",
             "model: some-org/NeverRun-Model-GGUF\n"
-            "framework: llama.cpp\n"
+            "inference_engine: llama.cpp\n"
             "orchestration:\n"
             "  viable: blocked\n"
             "  blocked_reason: \"Marked non-viable before this config was ever run.\"\n",
@@ -394,13 +394,13 @@ class BlockedConfigsSectionTests(unittest.TestCase):
     def test_non_blocked_config_not_listed(self):
         self._write_log([{
             "suite": "hermes_ops", "task_id": "hermes_ops-selection", "task_type": "tool-selection",
-            "model": "unrelated-model", "framework": "vllm-mlx", "quant": None, "config_path": None,
+            "model": "unrelated-model", "inference_engine": "vllm-mlx", "quant": None, "config_path": None,
             "config_hash": None, "runner_git_sha": "abc", "trial": 1, "pass": True,
             "grade_output": "PASS",
         }])
         self._write_config(
             "configs/StillFine-Model/mlx.yaml",
-            "model: some-org/StillFine-Model\nframework: vllm-mlx\norchestration:\n  viable: full\n",
+            "model: some-org/StillFine-Model\ninference_engine: vllm-mlx\norchestration:\n  viable: full\n",
         )
         bl.main()
         text = (self.repo / "results" / "LEADERBOARD.md").read_text()
@@ -440,7 +440,7 @@ class SpeedGatedConfigsSectionTests(unittest.TestCase):
     def test_missing_speed_gate_log_renders_none_gated(self):
         self._write_log([{
             "suite": "hermes_ops", "task_id": "hermes_ops-selection", "task_type": "tool-selection",
-            "model": "unrelated-model", "framework": "vllm-mlx", "quant": None, "config_path": None,
+            "model": "unrelated-model", "inference_engine": "vllm-mlx", "quant": None, "config_path": None,
             "config_hash": None, "runner_git_sha": "abc", "trial": 1, "pass": True,
             "grade_output": "PASS",
         }])
@@ -451,12 +451,12 @@ class SpeedGatedConfigsSectionTests(unittest.TestCase):
     def test_speed_gated_entry_is_rendered_with_its_measurements(self):
         self._write_log([{
             "suite": "hermes_ops", "task_id": "hermes_ops-selection", "task_type": "tool-selection",
-            "model": "unrelated-model", "framework": "vllm-mlx", "quant": None, "config_path": None,
+            "model": "unrelated-model", "inference_engine": "vllm-mlx", "quant": None, "config_path": None,
             "config_hash": None, "runner_git_sha": "abc", "trial": 1, "pass": True,
             "grade_output": "PASS",
         }])
         (self.repo / "results" / "speed_gate.jsonl").write_text(json.dumps({
-            "model": "TooSlow/Model-4bit", "framework": "vllm-mlx",
+            "model": "TooSlow/Model-4bit", "inference_engine": "vllm-mlx",
             "config_path": "configs/TooSlow-Model/mlx.yaml", "config_hash": "abc123",
             "suite": "hermes_ops",
             "measured_tokens_per_second": [0.18, 0.22, 0.31],
@@ -477,7 +477,7 @@ class SpeedGatedConfigsSectionTests(unittest.TestCase):
         # carry "backend" only — must not silently render as blank.
         self._write_log([{
             "suite": "hermes_ops", "task_id": "hermes_ops-selection", "task_type": "tool-selection",
-            "model": "unrelated-model", "framework": "vllm-mlx", "quant": None, "config_path": None,
+            "model": "unrelated-model", "inference_engine": "vllm-mlx", "quant": None, "config_path": None,
             "config_hash": None, "runner_git_sha": "abc", "trial": 1, "pass": True,
             "grade_output": "PASS",
         }])
@@ -495,13 +495,16 @@ class SpeedGatedConfigsSectionTests(unittest.TestCase):
         self.assertIn("| omlx |", row_line)
 
 
-class BackendToFrameworkBackcompatTests(unittest.TestCase):
-    """`backend` (mlx/gguf/omlx/api) was renamed to `framework` (the actual
-    inference-engine identity: llama.cpp/vllm-mlx/omlx/...) 2026-08-23.
-    results/log.jsonl is an append-only historical record — rows logged
-    before the rename are never rewritten in place, so they carry `backend`
-    only. _row_framework() must still group/render them correctly rather
-    than treating them as missing an identity column."""
+class InferenceEngineFieldHistoryBackcompatTests(unittest.TestCase):
+    """The engine-identity field went through two renames in quick
+    succession on 2026-08-23: `backend` (mlx/gguf/omlx/api) -> `framework`
+    (still too coarse a name for what it actually meant) -> `inference_engine`
+    (llama.cpp/vllm-mlx/omlx/..., the final name). results/log.jsonl is an
+    append-only historical record — rows logged before either rename are
+    never rewritten in place, so a real row can carry any of the three
+    field names. _row_inference_engine() must still group/render all three
+    correctly rather than treating older rows as missing an identity
+    column."""
 
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
@@ -531,12 +534,27 @@ class BackendToFrameworkBackcompatTests(unittest.TestCase):
         row_line = next(l for l in text.splitlines() if l.startswith("| legacy-model |"))
         self.assertIn("| mlx |", row_line)
 
-    def test_old_and_new_rows_for_same_model_do_not_silently_merge(self):
-        # A pre-rename row (backend: mlx) and a post-rename row (framework:
-        # vllm-mlx) for the same model are DIFFERENT strings in the grouping
-        # key ("mlx" vs "vllm-mlx") even though they refer to the same real
-        # engine — this is an accepted, documented gap (not silently averaging
-        # differently-labeled data), not something this fix papers over.
+    def test_old_middle_tier_framework_only_row_still_renders_its_identity(self):
+        # Rows logged between the two renames (2026-08-23, same day) carry
+        # "framework" only — the middle tier of the fallback chain.
+        self._write_log([{
+            "suite": "hermes_ops", "task_id": "hermes_ops-selection", "task_type": "tool-selection",
+            "model": "mid-rename-model", "framework": "llama.cpp", "quant": None, "config_path": None,
+            "config_hash": None, "runner_git_sha": "abc", "trial": 1, "pass": True,
+            "grade_output": "PASS",
+        }])
+        bl.main()
+        text = (self.repo / "results" / "LEADERBOARD.md").read_text()
+        row_line = next(l for l in text.splitlines() if l.startswith("| mid-rename-model |"))
+        self.assertIn("| llama.cpp |", row_line)
+
+    def test_rows_from_all_three_field_name_generations_do_not_silently_merge(self):
+        # A backend-only row, a framework-only row, and an inference_engine
+        # row for the same model are three DIFFERENT strings in the
+        # grouping key even though two of them describe the same real
+        # engine — this is an accepted, documented gap (not silently
+        # averaging differently-labeled data), not something this fix
+        # papers over.
         self._write_log([
             {"suite": "hermes_ops", "task_id": "hermes_ops-selection", "task_type": "tool-selection",
              "model": "m", "backend": "mlx", "quant": None, "config_path": None,
@@ -546,14 +564,19 @@ class BackendToFrameworkBackcompatTests(unittest.TestCase):
              "model": "m", "framework": "vllm-mlx", "quant": None, "config_path": None,
              "config_hash": None, "runner_git_sha": "abc", "trial": 1, "pass": True,
              "grade_output": "PASS"},
+            {"suite": "hermes_ops", "task_id": "hermes_ops-selection", "task_type": "tool-selection",
+             "model": "m", "inference_engine": "vllm-mlx", "quant": None, "config_path": None,
+             "config_hash": None, "runner_git_sha": "abc", "trial": 1, "pass": True,
+             "grade_output": "PASS"},
         ])
         bl.main()
         text = (self.repo / "results" / "LEADERBOARD.md").read_text()
         main_table = text[:text.index("## Best overall")]
         row_lines = [l for l in main_table.splitlines() if l.startswith("| m |")]
-        self.assertEqual(len(row_lines), 2)
-        self.assertIn("| mlx |", row_lines[0] + row_lines[1])
-        self.assertIn("| vllm-mlx |", row_lines[0] + row_lines[1])
+        self.assertEqual(len(row_lines), 2)  # "mlx" and "vllm-mlx" — 2 groups, not 3 or 1
+        joined = "".join(row_lines)
+        self.assertIn("| mlx |", joined)
+        self.assertIn("| vllm-mlx |", joined)
 
 
 if __name__ == "__main__":

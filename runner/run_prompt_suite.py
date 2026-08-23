@@ -9,7 +9,7 @@ Requires PyYAML. Run through the repository's locked uv environment:
 
 Usage:
   run_prompt_suite.py --suite sanity --base-url http://127.0.0.1:8013/v1 \
-      --model LiquidAI/LFM2.5-2.6B-MLX-bf16 --framework vllm-mlx [--quant Q4_K_M]
+      --model LiquidAI/LFM2.5-2.6B-MLX-bf16 --inference-engine vllm-mlx [--quant Q4_K_M]
 """
 import argparse
 import json
@@ -32,7 +32,7 @@ def main():
     ap.add_argument("--model", required=True)
     ap.add_argument("--request-model", default=None,
                     help="endpoint model ID when it differs from the source model recorded in --model")
-    ap.add_argument("--framework", required=True, help="llama.cpp | vllm-mlx | omlx | ..., recorded in the log")
+    ap.add_argument("--inference-engine", required=True, help="llama.cpp | vllm-mlx | omlx | ..., recorded in the log")
     ap.add_argument("--quant", default=None, help="quant level, for gguf log rows")
     ap.add_argument("--config", default=None, help="path to configs/<model>/<backend>.yaml used for this run")
     ap.add_argument("--only-task", default=None, help="run just this one task id (e.g. to rerun a single fixed/flaky task)")
@@ -231,7 +231,7 @@ def main():
                 "task_id": task["id"],
                 "task_type": task.get("type"),
                 "model": args.model,
-                "framework": args.framework,
+                "inference_engine": args.inference_engine,
                 "quant": args.quant,
                 "config_path": config_path,
                 "config_hash": config_hash,

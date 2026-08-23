@@ -79,7 +79,7 @@ class UvPythonWorkflowTests(unittest.TestCase):
         configs = []
         for path in sorted(REPO.glob("configs/*/*.yaml")):
             config = yaml.safe_load(path.read_text()) or {}
-            if config.get("framework") == "vllm-mlx":
+            if config.get("inference_engine") == "vllm-mlx":
                 configs.append((path, config["benchmark_launch_command"]))
 
         self.assertTrue(configs)

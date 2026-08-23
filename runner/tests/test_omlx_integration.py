@@ -245,7 +245,7 @@ class OmlxCleanupTests(unittest.TestCase):
     def test_fail_fast_path_still_invokes_isolated_teardown(self):
         with tempfile.TemporaryDirectory() as td:
             config = Path(td) / "omlx.yaml"
-            config.write_text("framework: omlx\n")
+            config.write_text("inference_engine: omlx\n")
             with patch("run_bench._run_one_impl", side_effect=RuntimeError("boom")), \
                     patch("run_bench.run") as run:
                 with self.assertRaises(RuntimeError):

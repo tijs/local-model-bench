@@ -59,10 +59,10 @@ def _experiment_fields(config_hash, config_path):
 
     The config hash already prevents accidental averaging, but a reader should
     not need to open every snapshot to discover that two rows differ by cache,
-    MTP, or mixed-precision quant family. `framework` itself (the inference
+    MTP, or mixed-precision quant family. `inference_engine` itself (the inference
     engine identity — llama.cpp/vllm-mlx/omlx, or a fork variant like
     llama.cpp-dflash2) is NOT returned here — it's the row's own primary
-    identity column, sourced directly from the log row (see _row_framework()),
+    identity column, sourced directly from the log row (see _row_inference_engine()),
     not re-derived from the config snapshot.
     """
     if not config_hash:
@@ -83,14 +83,17 @@ def _experiment_fields(config_hash, config_path):
     ))
 
 
-def _row_framework(r):
-    """The inference-engine identity for one log row: `framework` going
-    forward (llama.cpp, vllm-mlx, omlx, or a fork variant like
-    llama.cpp-dflash2/llama.cpp-dspark), falling back to the older `backend`
-    field name (mlx/gguf/omlx/api) for rows logged before this rename —
-    those rows are never rewritten in place (results/log.jsonl is an
-    append-only historical record), so both field names coexist here."""
-    return r.get("framework") or r.get("backend") or "?"
+def _row_inference_engine(r):
+    """The inference-engine identity for one log row: `inference_engine`
+    going forward (llama.cpp, vllm-mlx, omlx, or a fork variant like
+    llama.cpp-dflash2/llama.cpp-dspark). Two renames happened in quick
+    succession 2026-08-23 (backend -> framework -> inference_engine, since
+    "framework" was itself judged not quite the right final name either),
+    and results/log.jsonl is an append-only historical record that is
+    NEVER rewritten in place — so a real row can carry any of the three
+    field names depending on when it was logged. All three coexist here,
+    preferring the newest."""
+    return r.get("inference_engine") or r.get("framework") or r.get("backend") or "?"
 
 
 def _blocked_configs():
@@ -114,7 +117,7 @@ def _blocked_configs():
             continue
         found.append({
             "model": cfg.get("model", "—"),
-            "framework": cfg.get("framework", "—"),
+            "inference_engine": cfg.get("inference_engine", "—"),
             "config_path": str(path.relative_to(REPO)),
             "blocked_reason": orch.get("blocked_reason", "(no blocked_reason set)"),
         })
@@ -193,22 +196,22 @@ def main():
         print("No rows in log.jsonl — wrote empty leaderboard.")
         return
 
-    # Grouped by (model, framework, quant, config_hash, runner_git_sha) — NOT
-    # just (model, framework, quant, config_hash). Two runs against the same
-    # model+framework+config can still differ in RESULT-MEANING if the
+    # Grouped by (model, inference_engine, quant, config_hash, runner_git_sha) — NOT
+    # just (model, inference_engine, quant, config_hash). Two runs against the same
+    # model+inference_engine+config can still differ in RESULT-MEANING if the
     # runner/grading code itself changed between them (e.g. the max_turns=6
     # bug, or the kiem_mini-feature grading strengthened 2026-08-21) — those
     # must never be silently averaged together just because the config
     # didn't change. Rows logged before this field existed carry
     # runner_git_sha=None, which naturally keeps them in their own group
-    # rather than merging with anything after this fix. `framework` (the
+    # rather than merging with anything after this fix. `inference_engine` (the
     # inference engine: llama.cpp/vllm-mlx/omlx, or a fork variant like
     # llama.cpp-dflash2) replaced the older, coarser `backend` field
-    # (mlx/gguf/omlx/api) 2026-08-23 — see _row_framework()'s own comment;
+    # (mlx/gguf/omlx/api) 2026-08-23 — see _row_inference_engine()'s own comment;
     # rows logged before that rename still carry `backend` only.
     groups = defaultdict(list)
     for r in rows:
-        key = (r["model"], _row_framework(r), r.get("quant"), r.get("config_hash"), r.get("runner_git_sha"))
+        key = (r["model"], _row_inference_engine(r), r.get("quant"), r.get("config_hash"), r.get("runner_git_sha"))
         groups[key].append(r)
 
     stale_rows = [r for r in rows if not r.get("runner_git_sha")]
@@ -247,9 +250,9 @@ def main():
             "",
         ]
     lines += [
-        "Grouped by (model, framework, quant, config_hash, runner_git_sha) — never",
+        "Grouped by (model, inference_engine, quant, config_hash, runner_git_sha) — never",
         "averaged across different configs OR different harness/grading code",
-        "versions, even for the same model+framework, since either would mix",
+        "versions, even for the same model+inference_engine, since either would mix",
         "genuinely different experiments (e.g. before/after a settings fix, or",
         "before/after a grading-bug fix). `config_hash` links to a verbatim",
         "snapshot of the exact config content used (`results/configs/`), not the",
@@ -326,7 +329,7 @@ def main():
         "coding-suite session data added for finding F6 (avg coding turns/tool",
         "errors) doesn't cover this specific question either.",
         "",
-        "| model | framework | quant | temp (coding only)¹ | reasoning | sanity gate⁴ | config | runner | tasks | pass rate⁴ | slow passes² | avg tok/s | avg TTFT (s) | hallucinated tools⁵ | avg coding turns³ | coding tool errors³ | peak RSS (GB) | quant family | cache | MTP |",
+        "| model | engine | quant | temp (coding only)¹ | reasoning | sanity gate⁴ | config | runner | tasks | pass rate⁴ | slow passes² | avg tok/s | avg TTFT (s) | hallucinated tools⁵ | avg coding turns³ | coding tool errors³ | peak RSS (GB) | quant family | cache | MTP |",
         "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     # Two passes, not one (methodology review, finding F3): the composite
@@ -337,7 +340,7 @@ def main():
     # numbers (for scoring) and the pre-formatted display strings (for the
     # main table), computed once, so the two never drift apart.
     group_stats = []
-    for (model, framework, quant, config_hash, runner_sha), group in sorted(
+    for (model, inference_engine, quant, config_hash, runner_sha), group in sorted(
         groups.items(), key=lambda kv: (kv[0][0], kv[0][1], kv[0][2] or "", kv[0][3] or "", kv[0][4] or "")
     ):
         # harness_error rows excluded from n/n_pass (3rd adversarial
@@ -429,9 +432,9 @@ def main():
         )
 
         group_stats.append({
-            "key": (model, framework, quant, config_hash, runner_sha),
+            "key": (model, inference_engine, quant, config_hash, runner_sha),
             "line": (
-                f"| {model} | {framework} | {quant or '—'} | {temp} | {reasoning_mode} | "
+                f"| {model} | {inference_engine} | {quant or '—'} | {temp} | {reasoning_mode} | "
                 f"{sanity_gate} | {config_label} | {runner_label} | {n} | {pass_rate} | "
                 f"{n_slow_pass} | {avg_tps} | {avg_ttft} | {n_hallucinated} | {avg_turns} | "
                 f"{n_tool_errors} | {peak_rss} | {quant_family} | {cache_mode} | {mtp_mode} |"
@@ -499,24 +502,24 @@ def main():
     if not ranked:
         lines.append("No group has enough data yet to score.")
     else:
-        lines.append("| rank | model | framework | quant | config | score | axes | coding | hermes_ops | speed |")
+        lines.append("| rank | model | engine | quant | config | score | axes | coding | hermes_ops | speed |")
         lines.append("|---|---|---|---|---|---|---|---|---|---|")
         for i, (score, n_axes, gs) in enumerate(
             sorted(ranked, key=lambda t: t[0], reverse=True), start=1
         ):
-            model, framework, quant, config_hash, runner_sha = gs["key"]
+            model, inference_engine, quant, config_hash, runner_sha = gs["key"]
             coding_disp = f"{100 * gs['coding_pass_rate']:.0f}% ({gs['n_coding']})" if gs["coding_pass_rate"] is not None else "—"
             hermes_disp = f"{100 * gs['hermes_ops_pass_rate']:.0f}% ({gs['n_hermes_ops']})" if gs["hermes_ops_pass_rate"] is not None else "—"
             speed_disp = f"{gs['avg_tps_val']:.1f} tok/s" if gs["avg_tps_val"] is not None else "—"
             lines.append(
-                f"| {i} | {model} | {framework} | {quant or '—'} | {config_hash or '—'} | "
+                f"| {i} | {model} | {inference_engine} | {quant or '—'} | {config_hash or '—'} | "
                 f"{score:.2f} | {n_axes} | {coding_disp} | {hermes_disp} | {speed_disp} |"
             )
 
     lines.append("")
     lines.append("## Flaky tasks (mixed pass/fail under identical conditions)")
     lines.append("")
-    lines.append("Any task with the SAME (model, framework, quant, config_hash,")
+    lines.append("Any task with the SAME (model, inference_engine, quant, config_hash,")
     lines.append("runner_git_sha, suite, task_id) that comes back with SOME passes and")
     lines.append("some fails is not \"probably fine\" — it's proof this one task's result")
     lines.append("isn't safe to treat as a boolean for this model (adversarial review")
@@ -543,37 +546,37 @@ def main():
     for r in rows:
         if r.get("harness_error"):
             continue
-        key = (r["model"], _row_framework(r), r.get("quant"), r.get("config_hash"), r.get("runner_git_sha"), r["suite"], r["task_id"])
+        key = (r["model"], _row_inference_engine(r), r.get("quant"), r.get("config_hash"), r.get("runner_git_sha"), r["suite"], r["task_id"])
         task_groups[key].append(r)
     flaky = {k: v for k, v in task_groups.items() if 0 < sum(1 for r in v if r.get("pass")) < len(v)}
     if not flaky:
         lines.append("None observed (or no task has been run with `--trials` > 1 yet).")
     else:
-        lines.append("| model | framework | quant | config | suite | task | pass/trials |")
+        lines.append("| model | engine | quant | config | suite | task | pass/trials |")
         lines.append("|---|---|---|---|---|---|---|")
-        for (model, framework, quant, config_hash, runner_sha, suite, task_id), group in sorted(flaky.items(), key=lambda kv: tuple(str(x) for x in kv[0])):
+        for (model, inference_engine, quant, config_hash, runner_sha, suite, task_id), group in sorted(flaky.items(), key=lambda kv: tuple(str(x) for x in kv[0])):
             n = len(group)
             n_pass = sum(1 for r in group if r.get("pass"))
-            lines.append(f"| {model} | {framework} | {quant or '—'} | {config_hash or '—'} | {suite} | {task_id} | {n_pass}/{n} |")
+            lines.append(f"| {model} | {inference_engine} | {quant or '—'} | {config_hash or '—'} | {suite} | {task_id} | {n_pass}/{n} |")
 
     lines.append("")
     lines.append("## By suite")
     lines.append("")
-    lines.append("| model | framework | config | runner | suite | pass rate |")
+    lines.append("| model | engine | config | runner | suite | pass rate |")
     lines.append("|---|---|---|---|---|---|")
     suite_groups = defaultdict(list)
     for r in rows:
         if r.get("harness_error"):  # CR3-6: same exclusion as the main table
             continue
-        key = (r["model"], _row_framework(r), r.get("config_hash"), r.get("runner_git_sha"), r["suite"])
+        key = (r["model"], _row_inference_engine(r), r.get("config_hash"), r.get("runner_git_sha"), r["suite"])
         suite_groups[key].append(r)
-    for (model, framework, config_hash, runner_sha, suite), group in sorted(
+    for (model, inference_engine, config_hash, runner_sha, suite), group in sorted(
         suite_groups.items(), key=lambda kv: (kv[0][0], kv[0][1], kv[0][2] or "", kv[0][3] or "", kv[0][4])
     ):
         n = len(group)
         n_pass = sum(1 for r in group if r.get("pass"))
         runner_label = runner_sha or "*(predates tracking)*"
-        lines.append(f"| {model} | {framework} | {config_hash or '—'} | {runner_label} | {suite} | {n_pass}/{n} |")
+        lines.append(f"| {model} | {inference_engine} | {config_hash or '—'} | {runner_label} | {suite} | {n_pass}/{n} |")
 
     harness_error_rows = [r for r in rows if r.get("harness_error")]
     lines.append("")
@@ -590,11 +593,11 @@ def main():
             "silently deflating pass rates or masquerading as model flakiness."
         )
         lines.append("")
-        lines.append("| model | framework | suite | task | grade_output (truncated) |")
+        lines.append("| model | engine | suite | task | grade_output (truncated) |")
         lines.append("|---|---|---|---|---|")
-        for r in sorted(harness_error_rows, key=lambda r: (r["model"], _row_framework(r), r["suite"], r["task_id"])):
+        for r in sorted(harness_error_rows, key=lambda r: (r["model"], _row_inference_engine(r), r["suite"], r["task_id"])):
             snippet = r.get("grade_output", "")[:120].replace("|", "\\|").replace("\n", " ")
-            lines.append(f"| {r['model']} | {_row_framework(r)} | {r['suite']} | {r['task_id']} | {snippet} |")
+            lines.append(f"| {r['model']} | {_row_inference_engine(r)} | {r['suite']} | {r['task_id']} | {snippet} |")
 
     blocked = _blocked_configs()
     lines.append("")
@@ -609,11 +612,11 @@ def main():
     if not blocked:
         lines.append("None currently blocked.")
     else:
-        lines.append("| model | framework | config | blocked_reason |")
+        lines.append("| model | engine | config | blocked_reason |")
         lines.append("|---|---|---|---|")
         for b in blocked:
             reason = b["blocked_reason"].replace("|", "\\|").replace("\n", " ")
-            lines.append(f"| {b['model']} | {b['framework']} | {b['config_path']} | {reason} |")
+            lines.append(f"| {b['model']} | {b['inference_engine']} | {b['config_path']} | {reason} |")
 
     speed_gated = _speed_gated_configs()
     lines.append("")
@@ -632,14 +635,14 @@ def main():
     if not speed_gated:
         lines.append("None gated on speed so far.")
     else:
-        lines.append("| model | framework | config | avg tok/s | per-task tok/s | threshold | timestamp |")
+        lines.append("| model | engine | config | avg tok/s | per-task tok/s | threshold | timestamp |")
         lines.append("|---|---|---|---|---|---|---|")
         for g in speed_gated:
             measured = g.get("measured_tokens_per_second") or []
             measured_disp = ", ".join(f"{v:.2f}" for v in measured) if measured else "—"
             avg_disp = f"{g['avg_tokens_per_second']:.2f}" if g.get("avg_tokens_per_second") is not None else "—"
             lines.append(
-                f"| {g.get('model', '—')} | {g.get('framework') or g.get('backend', '—')} | {g.get('config_path', '—')} | "
+                f"| {g.get('model', '—')} | {g.get('inference_engine') or g.get('framework') or g.get('backend', '—')} | {g.get('config_path', '—')} | "
                 f"{avg_disp} | {measured_disp} | {g.get('threshold_tokens_per_second', '—')} | {g.get('timestamp', '—')} |"
             )
 

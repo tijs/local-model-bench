@@ -290,7 +290,7 @@ def server_command(cfg, alias=None):
         comment_start = text.rfind("\n#", 0, idx)
         cut = comment_start if comment_start != -1 else prior_newline
         text = text[:cut].strip()
-    if alias and cfg.get("framework", "").startswith("llama.cpp"):
+    if alias and cfg.get("inference_engine", "").startswith("llama.cpp"):
         # A third independent adversarial review (finding CR3-2) found this
         # used to blindly string-append to the END of `text` — but
         # Qwen3.5-9B/gguf.yaml's launch block ends with a trailing shell
@@ -333,7 +333,7 @@ def _hermes_ops_tps_values(summary_path):
     return values or None
 
 
-def _record_speed_gate_failure(model, framework, config_path, config_hash, measured, avg_tps):
+def _record_speed_gate_failure(model, inference_engine, config_path, config_hash, measured, avg_tps):
     """Append one row to results/speed_gate.jsonl — a dedicated, append-
     only log kept separate from results/log.jsonl (whose task/suite-keyed
     schema every other grouping/flakiness check in build_leaderboard.py
@@ -343,7 +343,7 @@ def _record_speed_gate_failure(model, framework, config_path, config_hash, measu
     renders this as its own "Speed-gated configs" section."""
     entry = {
         "model": model,
-        "framework": framework,
+        "inference_engine": inference_engine,
         "config_path": str(config_path),
         "config_hash": config_hash,
         "suite": "hermes_ops",
@@ -364,10 +364,10 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
         sys.exit(f"{config_path} has no orchestration: block — see configs/README.md")
 
     model = cfg["model"]
-    framework = cfg["framework"]
+    inference_engine = cfg["inference_engine"]
     served_model_id = orch.get("served_model_id")
-    if cfg.get("framework") == "omlx" and not served_model_id:
-        sys.exit(f"{config_path} is framework: omlx but has no orchestration.served_model_id")
+    if cfg.get("inference_engine") == "omlx" and not served_model_id:
+        sys.exit(f"{config_path} is inference_engine: omlx but has no orchestration.served_model_id")
     # oMLX deliberately serves a stable local directory/alias ID while log
     # rows retain the source artifact ID in `model`. Other frameworks request
     # the model ID directly as before.
@@ -375,7 +375,7 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
     config_hash = hashlib.sha256(config_path.read_bytes()).hexdigest()[:12]
     viable = orch.get("viable", "full")
 
-    print(f"\n{'=' * 70}\n{model} ({framework}) — {config_path}\nviable={viable}\n{'=' * 70}")
+    print(f"\n{'=' * 70}\n{model} ({inference_engine}) — {config_path}\nviable={viable}\n{'=' * 70}")
 
     if viable == "blocked":
         print("SKIPPED (blocked) — see the config's known_gaps for why.")
@@ -395,7 +395,7 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
         return
 
     if raw_port is not None:
-        if cfg.get("framework") == "omlx":
+        if cfg.get("inference_engine") == "omlx":
             print("\n--- stop any prior isolated oMLX server ---")
             run(["bash", str(REPO / "runner" / "stop_omlx_server.sh")])
         print("\n--- unload any existing candidate backend ---")
@@ -413,7 +413,7 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
         run(["bash", str(REPO / "runner" / "reset_bench_profile.sh")])
 
         print("\n--- launch candidate server ---")
-        alias = f"bench-{config_hash}" if framework.startswith("llama.cpp") else None
+        alias = f"bench-{config_hash}" if inference_engine.startswith("llama.cpp") else None
         cmd = server_command(cfg, alias=alias)
         log_file = f"/tmp/bench_{config_path.parent.name}_{config_path.stem}_server.log"
         print(f"(backgrounded, log: {log_file})")
@@ -473,7 +473,7 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
             summary_path = Path(td) / "sanity_summary.json"
             proc = run([sys.executable, str(REPO / "runner" / "run_prompt_suite.py"),
                         "--suite", "sanity", "--base-url", base_url, "--model", model,
-                        "--request-model", request_model, "--framework", framework, "--config", str(config_path),
+                        "--request-model", request_model, "--inference-engine", inference_engine, "--config", str(config_path),
                         "--trials", str(trials), "--summary-out", str(summary_path)])
             # Read THIS invocation's own rows, not "whatever's at the tail
             # of the shared log" — a crashed/misconfigured subprocess used
@@ -516,7 +516,7 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
             summary_path = Path(td) / "hermes_ops_summary.json"
             run([sys.executable, str(REPO / "runner" / "run_prompt_suite.py"),
                  "--suite", "hermes_ops", "--base-url", base_url, "--model", model,
-                 "--request-model", request_model, "--framework", framework, "--config", str(config_path),
+                 "--request-model", request_model, "--inference-engine", inference_engine, "--config", str(config_path),
                  "--trials", str(trials), "--summary-out", str(summary_path)])
             tps_values = _hermes_ops_tps_values(summary_path)
 
@@ -532,8 +532,8 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
         if tps_values:
             avg_tps = mean(tps_values)
             if avg_tps < MIN_HERMES_OPS_TOKENS_PER_SECOND:
-                _record_speed_gate_failure(model, framework, config_path, config_hash, tps_values, avg_tps)
-                print(f"\n!!! {model} ({framework}) hermes_ops averaged {avg_tps:.2f} tok/s "
+                _record_speed_gate_failure(model, inference_engine, config_path, config_hash, tps_values, avg_tps)
+                print(f"\n!!! {model} ({inference_engine}) hermes_ops averaged {avg_tps:.2f} tok/s "
                       f"({tps_values}) — below the {MIN_HERMES_OPS_TOKENS_PER_SECOND} tok/s "
                       f"viability cutoff. Too slow to be practical. Skipping the coding suite. "
                       f"Stopping here.")
@@ -553,14 +553,14 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
                 run([sys.executable, str(REPO / "runner" / "run_fixture_suite.py"),
                      "--suite", suite,
                      "--hermes-provider", hermes_provider, "--hermes-model", request_model,
-                     "--log-model", model, "--framework", framework, "--config", str(config_path),
+                     "--log-model", model, "--inference-engine", inference_engine, "--config", str(config_path),
                      "--trials", str(trials)])
         else:
             print(f"\n--- coding spot-check ({CODING_SPOTCHECK_TASK}) ---")
             run([sys.executable, str(REPO / "runner" / "run_fixture_suite.py"),
                  "--suite", CODING_SPOTCHECK_SUITE, "--only-task", CODING_SPOTCHECK_TASK,
                  "--hermes-provider", hermes_provider, "--hermes-model", request_model,
-                 "--log-model", model, "--framework", framework, "--config", str(config_path),
+                 "--log-model", model, "--inference-engine", inference_engine, "--config", str(config_path),
                  "--trials", str(trials)])
     elif stage in ("all", "coding") and viable in ("full", "coding_only"):
         print("\n(coding spot-check skipped — no hermes_provider registered for this config)")
@@ -594,7 +594,7 @@ def run_one(config_path: Path, trials: int = 1, coding_suites=None, stage="all")
             cfg = yaml.safe_load(config_path.read_text()) or {}
         except (OSError, yaml.YAMLError):
             cfg = {}
-        if cfg.get("framework") == "omlx":
+        if cfg.get("inference_engine") == "omlx":
             run(["bash", str(REPO / "runner" / "stop_omlx_server.sh")])
 
 
@@ -638,9 +638,9 @@ def main():
                           "hearth_mini/kipclip_mini and every debug/test-writing task had "
                           "never been run against any model). Opt-in — omitting this leaves "
                           "--all's runtime and existing results' comparability unchanged.")
-    ap.add_argument("--framework", default=None,
-                    help="with --all, run only configs whose top-level framework matches "
-                         "this value (for example: omlx); keeps an oMLX sweep from "
+    ap.add_argument("--inference-engine", default=None,
+                    help="with --all, run only configs whose top-level inference_engine "
+                         "matches this value (for example: omlx); keeps an oMLX sweep from "
                          "re-running every historical llama.cpp/vllm-mlx config")
     ap.add_argument("--stage", choices=("all", "coding"), default="all",
                     help="run the normal full config matrix (all), or only the coding "
@@ -667,7 +667,7 @@ def main():
             except yaml.YAMLError:
                 continue
             if (isinstance(loaded, dict) and "orchestration" in loaded
-                    and (args.framework is None or loaded.get("framework") == args.framework)):
+                    and (args.inference_engine is None or loaded.get("inference_engine") == args.inference_engine)):
                 configs.append(c)
         print(f"Running {len(configs)} configs...")
         for i, config_path in enumerate(configs, 1):

@@ -72,7 +72,7 @@ model, tears down the server, and moves to the next.
 
 Run only the sequential isolated oMLX matrix (never concurrently):
 ```
-uv run --locked python runner/run_bench.py --all --framework omlx
+uv run --locked python runner/run_bench.py --all --inference-engine omlx
 ```
 
 **Optional flags** (either invocation form above):
@@ -92,7 +92,7 @@ uv run --locked python runner/run_bench.py --all --framework omlx
 **Config-driven, not hardcoded**: every port, launch flag, proxy
 requirement, and hermes provider name lives in that model's
 `configs/<model>/<name>.yaml` (the engine identity lives in that file's
-`framework:` field, not the filename), not in the runner code. See
+`inference_engine:` field, not the filename), not in the runner code. See
 [`configs/README.md`](configs/README.md) for the full schema.
 
 ## Adding a new candidate model

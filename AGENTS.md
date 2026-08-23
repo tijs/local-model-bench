@@ -423,7 +423,7 @@ MLX stack to `pyproject.toml`; the isolated runtime is intentional.
 - The Qwen/LFM `oQ4e-fp16` / `oQ4-fp16` artifacts are mixed-precision 4-bit
   oQ models with FP16-preserved tensors, not full-FP16 controls. Keep
   `quant_family`, `cache_mode`, and `mtp_mode` explicit in every config.
-- Use `uv run --locked python runner/run_bench.py --all --framework omlx` for
+- Use `uv run --locked python runner/run_bench.py --all --inference-engine omlx` for
   the sequential oMLX-only matrix. Never launch two local model servers
   concurrently.
 

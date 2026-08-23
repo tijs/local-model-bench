@@ -3,16 +3,18 @@
 One file per model+inference-engine combo: `configs/<model-slug>/<name>.yaml`,
 where the filename (`mlx`, `gguf`, `omlx`, or a variant like `gguf-dflash2`)
 is just a naming convention — the actual engine identity lives in the
-`framework:` field inside (`llama.cpp`, `vllm-mlx`, `omlx`, or a fork variant
-like `llama.cpp-dflash2`/`llama.cpp-dspark`). There used to be a separate,
-coarser `backend:` field (`mlx`/`gguf`/`omlx`/`api`) — retired 2026-08-23 in
-favor of `framework` being the sole identity, since it was already the more
-precise concept and having both was redundant (see build_leaderboard.py's
-`_row_framework()` for the backward-compat read of old log rows that still
-carry `backend` only). Documents the exact serving/inference settings used
-for benchmark runs against that model — each setting with a citation, so
-results are auditable and reproducible, and so a value is never just "chosen
-because it seemed right" without saying so explicitly.
+`inference_engine:` field inside (`llama.cpp`, `vllm-mlx`, `omlx`, or a fork
+variant like `llama.cpp-dflash2`/`llama.cpp-dspark`). This field went through
+two renames in quick succession on 2026-08-23: a separate, coarser `backend:`
+field (`mlx`/`gguf`/`omlx`/`api`) was retired in favor of the already-more-
+precise `framework:` field being the sole identity — but "framework" itself
+turned out not to be the right final name either, so it was renamed again to
+`inference_engine:` (see build_leaderboard.py's `_row_inference_engine()` for
+the backward-compat read of old log rows that still carry `backend` or
+`framework` only). Documents the exact serving/inference settings used for
+benchmark runs against that model — each setting with a citation, so results
+are auditable and reproducible, and so a value is never just "chosen because
+it seemed right" without saying so explicitly.
 
 ## Schema
 
@@ -29,7 +31,7 @@ model: LiquidAI/LFM2.5-2.6B-MLX-bf16
 # actually runs at.
 temperature: 0.1
 reasoning_mode: n/a   # thinking | instruct | n/a (no thinking-mode concept) | unspecified
-framework: vllm-mlx              # vllm-mlx | llama.cpp | llama.cpp-dflash2 |
+inference_engine: vllm-mlx        # vllm-mlx | llama.cpp | llama.cpp-dflash2 |
                                   # llama.cpp-dspark | omlx | openrouter |
                                   # hermes-openai-codex — the inference
                                   # engine identity; primary grouping key
@@ -75,7 +77,7 @@ orchestration:
                            # — see runner/run_bench.py's docstring for
                            # exactly what each value skips and why
 
-# Required when framework: omlx. These are first-class experiment factors,
+# Required when inference_engine: omlx. These are first-class experiment factors,
 # snapshotted with the config and rendered by build_leaderboard.py so cache /
 # acceleration variants cannot be silently averaged or mislabeled.
 omlx_version: 0.6.2

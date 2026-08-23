@@ -45,7 +45,7 @@ def run_config(config_path: Path, args: argparse.Namespace) -> dict[str, Any]:
     cfg = yaml.safe_load(config_path.read_text()) or {}
     orch = cfg.get("orchestration") or {}
     model = orch.get("served_model_id")
-    if cfg.get("framework") != "omlx" or not model:
+    if cfg.get("inference_engine") != "omlx" or not model:
         raise ValueError(f"not an oMLX served-model config: {config_path}")
     # Configs are shell-readable literal blocks with POSIX backslash/newline
     # continuations. We execute argv directly, so remove those continuations
