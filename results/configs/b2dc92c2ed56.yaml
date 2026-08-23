@@ -1,0 +1,122 @@
+model: LiquidAI/LFM2.5-2.6B-MLX-bf16
+backend: mlx
+# Added 2026-08-21 (adversarial review finding H7): reasoning-mode and
+# temperature differ across models presented in one ranked leaderboard
+# table with no column showing it — e.g. Qwen3.8-27B vs Qwen3.8-27B-Ridge
+# looked like a quant comparison but also differed in reasoning mode,
+# temperature, and presence_penalty (three confounds, one conclusion).
+# These two fields are read by build_leaderboard.py and shown as columns;
+# keep them in sync with benchmark_launch_command by hand.
+temperature: 0.1
+reasoning_mode: n/a
+framework: vllm-mlx
+
+# What the live cocore daily-driver process actually runs (for reference —
+# the benchmark does NOT reuse this process, it launches its own so it can
+# apply the settings below without touching Tijs's daily driver):
+live_cocore_launch_command: |
+  python -m vllm_mlx.server --model LiquidAI/LFM2.5-2.6B-MLX-bf16 \
+    --host 127.0.0.1 --port 8012 --max-request-tokens 4096 --max-tokens 4096 \
+    --timeout 300
+
+# What runner/run_bench.py actually executes to load this model for a
+# benchmark run, applying the researched settings below:
+benchmark_launch_command: |
+  uv run --locked python -m vllm_mlx.server \
+    --model LiquidAI/LFM2.5-2.6B-MLX-bf16 --host 127.0.0.1 --port 8012 \
+    --max-request-tokens 32768 --max-tokens 32768 --continuous-batching \
+    --default-temperature 0.1 --default-top-k 50 \
+    --default-repetition-penalty 1.1 --timeout 300
+
+benchmark_endpoint: http://127.0.0.1:8015/v1
+  # local-model-bench's own bench_local_proxy.py (runner/start_bench_proxy.sh),
+  # sitting in front of the raw vllm_mlx.server (8012) above. NEVER 8013 —
+  # that's the "fitness" hermes profile's own shared mara_local_proxy.py,
+  # which unconditionally filters the tools array to its own ~12-tool
+  # allowlist (discovered 2026-08-19 giving false-passing tool-call results
+  # — see AGENTS.md).
+  #
+  # NOTE: this launch command predates the vllm-mlx 0.4.1 upgrade
+  # (AGENTS.md's "vllm-mlx version note") and still uses the old `python -m
+  # vllm_mlx.server` module invocation rather than the newer `vllm-mlx
+  # serve` CLI — still valid/reproducible, just not the more modern
+  # invocation style used in configs written after 2026-08-20.
+
+orchestration:
+  raw_port: 8012
+  needs_proxy: true
+  proxy_parser: lfm
+  proxy_port: 8015
+  hermes_provider: local-mlx
+  viable: full
+
+settings:
+  - name: tool_call_parser
+    value: lfm
+    source: "https://huggingface.co/LiquidAI/LFM2.5-2.6B model card + observed
+      live: LFM emits <|tool_call_start|>[fn(a=1,b=2)]<|tool_call_end|>
+      (Python-call syntax). vllm-mlx has no server-side tool-call parsing
+      (confirmed: no --tool-call-parser flag in `vllm_mlx.server --help`),
+      so this must be handled by runner/bench_local_proxy.py's `lfm` parser."
+  - name: temperature
+    value: 0.1
+    source: "https://huggingface.co/LiquidAI/LFM2.5-2.6B model card — LiquidAI's
+      own recommended sampling settings for this specific size variant.
+      Smaller LFM2.5 variants use different values (1.2B-Base:
+      temperature=0.3, min_p=0.15; 230M/350M: temperature=0.1, top_k=50,
+      repetition_penalty=1.05) — do not reuse these numbers for other model
+      sizes without re-checking."
+  - name: top_k
+    value: 50
+    source: "https://huggingface.co/LiquidAI/LFM2.5-2.6B model card"
+  - name: repetition_penalty
+    value: 1.1
+    source: "https://huggingface.co/LiquidAI/LFM2.5-2.6B model card"
+  - name: server flags for the above
+    value: "--default-temperature 0.1 --default-top-k 50 --default-repetition-penalty 1.1"
+    source: "confirmed present in the locally-installed `vllm_mlx.server --help`"
+  - name: continuous_batching (prefix/prompt caching)
+    value: "currently OFF on the live cocore process — --continuous-batching flag not in the launch command"
+    source: "https://github.com/waybarrios/vllm-mlx and
+      https://github.com/waybarrios/vllm-mlx/blob/main/docs/guides/warm-prompts.md
+      — cites 28s -> 0.3s time-to-first-token (5.8x) on a cache hit for a
+      33K-token context. Also cited on
+      https://news.ycombinator.com/item?id=47162364."
+    note: "THE key lever for hermes_ops's 'startup time for first response' and
+      'caching effectiveness' metrics — hermes_ops sends the same ~106K-char
+      fixed system prompt on every task, so this flag is the difference
+      between each task's first response taking many seconds vs. near-instant.
+      Not yet enabled — needs a decision on whether to change cocore's live
+      production launch command (affects Tijs's daily driver, not just the
+      benchmark) vs. only using it in the benchmark's own separate
+      model-loading step. See runner/load_mlx.sh (not yet built)."
+  - name: max_tokens / max_request_tokens
+    value: 4096 (live) — framework default is 32768
+    source: "confirmed via `vllm_mlx.server --help`: --max-request-tokens
+      defaults to 32768, so 4096 is NOT a framework ceiling, someone set it
+      explicitly low on this specific launch (reason unknown — possibly a
+      deliberate resource-conservation choice by Tijs)."
+    note: "No model-card guidance found on an ideal ceiling for LFM2.5-2.6B
+      specifically. 4096 is conservative relative to the framework default;
+      worth revisiting if longer generations are needed for coding tasks."
+  - name: kv_cache_bits (KV-cache quantization)
+    value: not applicable — not installed
+    source: "documented on the vllm-mlx GitHub/HN thread (--kv-cache-bits
+      {4,8}, --cache-memory-mb; 8-bit ~ minimal quality loss, 4-bit more
+      aggressive memory savings) but NOT present in the locally-installed
+      `vllm_mlx.server --help` output — likely a newer feature than the
+      installed version ships."
+    note: "Unconfirmed-available locally, not just unused. Would need a
+      version check/upgrade before relying on this."
+
+known_gaps:
+  - "continuous_batching is now applied in benchmark_launch_command above
+    (not on the live cocore process, which is unaffected) — not yet
+    re-measured against a real run to confirm the cited TTFT improvement
+    actually holds here; do that before treating it as verified fact rather
+    than a documented hypothesis."
+  - "No MLX-general (Apple docs) guidance found beyond what's already
+    implicit in using the bf16 build; nothing further to cite there."
+
+last_updated: 2026-08-19
+last_verified_against_docs: 2026-08-19
