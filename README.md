@@ -1,15 +1,16 @@
 # local-model-bench
 
 A benchmark harness for picking the best local LLM to run as the inference
-backend for [Hermes](https://hermes-agent.nousresearch.com/docs) (a local
+engine for [Hermes](https://hermes-agent.nousresearch.com/docs) (a local
 agent framework) for agentic coding work — JS/TS, Rust, Swift, a large
 system prompt, and a large tool manifest. Compares candidate models across
-three backends (vllm-mlx, isolated oMLX, and GGUF/llama.cpp) on three axes: raw quality, speed,
-and tool-use reliability under realistic agentic conditions.
+three inference engines (vllm-mlx, isolated oMLX, and GGUF/llama.cpp) on
+three axes: raw quality, speed, and tool-use reliability under realistic
+agentic conditions.
 
 Results: [`results/LEADERBOARD.md`](results/LEADERBOARD.md) (human-readable
 summary) and [`results/log.jsonl`](results/log.jsonl) (append-only raw
-record, one row per task attempt). Methodology, backend architecture, and
+record, one row per task attempt). Methodology, inference-engine architecture, and
 every non-obvious gotcha discovered while running this are in
 [`AGENTS.md`](AGENTS.md) — read that before touching the runner code.
 
@@ -24,10 +25,10 @@ every non-obvious gotcha discovered while running this are in
   and vllm-mlx serving with `uv run --locked ...`. Set
   `BENCH_HERMES_BIN=/path/to/hermes` only if your external Hermes install
   isn't at `~/.hermes/hermes-agent/venv/bin/hermes`.
-- **`llama.cpp`** (`brew install llama.cpp`) for the GGUF backend.
-- **`vllm-mlx` 0.4.1 or newer** for the MLX backend, included in the locked
-  project environment. See AGENTS.md's "vllm-mlx version note".
-- **oMLX 0.6.2** for the isolated oMLX backend. Bootstrap it with
+- **`llama.cpp`** (`brew install llama.cpp`) for the `llama.cpp` inference engine.
+- **`vllm-mlx` 0.4.1 or newer** for the `vllm-mlx` inference engine, included
+  in the locked project environment. See AGENTS.md's "vllm-mlx version note".
+- **oMLX 0.6.2** for the isolated `omlx` inference engine. Bootstrap it with
   `runner/bootstrap_omlx.sh`; that script creates/manages the separate
   environment under `~/.local/share/local-model-bench/`, pins source commit
   `f2d36f3d25a7e7a2401a92eecafc28b8f8968ec7`, and never installs oMLX into
@@ -90,7 +91,8 @@ uv run --locked python runner/run_bench.py --all --framework omlx
 
 **Config-driven, not hardcoded**: every port, launch flag, proxy
 requirement, and hermes provider name lives in that model's
-`configs/<model>/<backend>.yaml`, not in the runner code. See
+`configs/<model>/<name>.yaml` (the engine identity lives in that file's
+`framework:` field, not the filename), not in the runner code. See
 [`configs/README.md`](configs/README.md) for the full schema.
 
 ## Adding a new candidate model
@@ -126,7 +128,7 @@ requirement, and hermes provider name lives in that model's
    prompt directive rather than a template kwarg (e.g. Muse-Glimmer's
    `"Reasoning strength: high"`). Record which value was used — it's not
    directly comparable across model families, so never leave it implicit.
-6. Run it: `uv run --locked python runner/run_bench.py --config configs/<model>/<backend>.yaml`.
+6. Run it: `uv run --locked python runner/run_bench.py --config configs/<model>/<name>.yaml`.
 
 **When a model underperforms expectations**, don't accept the result at
 face value — do deeper research first (a dedicated deployment guide, a
@@ -154,7 +156,7 @@ AGENTS.md for the full writeups.
 
 ## Repo layout
 
-- `configs/<model-slug>/<backend>.yaml` — one file per model+backend,
+- `configs/<model-slug>/<name>.yaml` — one file per model+inference-engine,
   everything needed to reproduce a result (see `configs/README.md`).
 - `tasks/*.yaml` — the suite definitions (`sanity`, `hermes_ops`,
   `kiem_mini`, `hearth_mini`, `kipclip_mini`); see `tasks/SCHEMA.md`.

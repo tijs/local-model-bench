@@ -11,7 +11,7 @@ Requires PyYAML. Run through the repository's locked uv environment:
 Usage:
   run_fixture_suite.py --suite kiem_mini \
       --hermes-provider custom:local-mlx --hermes-model LiquidAI/LFM2.5-2.6B-MLX-bf16 \
-      --backend mlx [--quant Q4_K_M] [--only-task kiem_mini-feature]
+      --framework vllm-mlx [--quant Q4_K_M] [--only-task kiem_mini-feature]
 """
 import argparse
 import contextlib
@@ -652,7 +652,7 @@ def main():
     ap.add_argument("--hermes-model", required=True)
     ap.add_argument("--log-model", default=None,
                     help="source model ID to record when --hermes-model is a stable served alias")
-    ap.add_argument("--backend", required=True, help="mlx | gguf | omlx, recorded in the log")
+    ap.add_argument("--framework", required=True, help="llama.cpp | vllm-mlx | omlx | ..., recorded in the log")
     ap.add_argument("--quant", default=None)
     ap.add_argument("--only-task", default=None, help="run just this one task id")
     ap.add_argument("--max-turns", type=int, default=40)
@@ -827,7 +827,7 @@ def main():
                     "task_id": task["id"],
                     "task_type": task.get("type"),
                     "model": args.log_model or args.hermes_model,
-                    "backend": args.backend,
+                    "framework": args.framework,
                     "config_path": config_path,
                     "config_hash": config_hash,
                     "runner_git_sha": git_sha(),

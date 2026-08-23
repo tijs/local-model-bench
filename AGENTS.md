@@ -8,7 +8,7 @@ This repo is Kiem project `proj/local_model_bench`. Run `kiem todos` / `kiem not
 Benchmark harness for picking a local LLM to drive Hermes (Tijs's local agent
 framework at `~/.hermes`) for agentic coding — light JS/TS, Rust, and Swift
 work with a large system prompt and many tools. Compares candidate models on
-quality, speed, and tool-use reliability, each across two backends: MLX (via
+quality, speed, and tool-use reliability, each across two inference engines: MLX (via
 the `cocore` serving stack) and GGUF (via llama.cpp's `llama-server`).
 
 **Project management lives in kiem, not in scratch files or markdown TODOs.**
@@ -38,7 +38,7 @@ new session that opens this repo.
   its own — this is the same separation SWE-bench/HumanEval-style benchmarks
   use, and it keeps scoring meaningful (an agent can't special-case a test it
   never sees).
-- **Everything held constant except model+backend** — same task prompts, same
+- **Everything held constant except model+inference-engine** — same task prompts, same
   tool/capability set (hermes's full current set, not a curated subset — this
   is deliberately meant to stress-test large-prompt/many-tools behavior), same
   system scaffolding. Only the `custom:bench` provider in hermes's config
@@ -50,7 +50,7 @@ new session that opens this repo.
   tests for correct-but-under-tested existing code). Separating these
   isolates the signal — a combined task can't tell you whether a model
   failed to plan, to diagnose, or to test. 3 suites × 3 types = 9 tasks per
-  model/backend, a small, legible grid rather than a loose graduated list.
+  model/engine, a small, legible grid rather than a loose graduated list.
   Test-writing tasks are graded by mutation kill rate, not exit code alone:
   the agent's tests must pass against the real implementation and fail
   against every pre-written buggy mutant swapped in one at a time
@@ -60,7 +60,7 @@ new session that opens this repo.
   than stalling the run.
 - **Single trial by default** — LLM agentic runs are stochastic, but repeated
   trials are expensive on local hardware. Default to one attempt per
-  task/model/backend; only re-run a specific task if the result looks flaky
+  task/model/engine; only re-run a specific task if the result looks flaky
   (e.g. a plausible near-pass or a timeout that looks like noise), and note
   the re-run in the log rather than silently overwriting.
 - **Raw logs + rollup kept separate** — `results/log.jsonl` is the append-only

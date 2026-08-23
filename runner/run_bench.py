@@ -281,7 +281,7 @@ def server_command(cfg, alias=None):
         comment_start = text.rfind("\n#", 0, idx)
         cut = comment_start if comment_start != -1 else prior_newline
         text = text[:cut].strip()
-    if alias and cfg.get("backend") == "gguf":
+    if alias and cfg.get("framework", "").startswith("llama.cpp"):
         # A third independent adversarial review (finding CR3-2) found this
         # used to blindly string-append to the END of `text` — but
         # Qwen3.5-9B/gguf.yaml's launch block ends with a trailing shell
@@ -324,7 +324,7 @@ def _hermes_ops_tps_values(summary_path):
     return values or None
 
 
-def _record_speed_gate_failure(model, backend, config_path, config_hash, measured, avg_tps):
+def _record_speed_gate_failure(model, framework, config_path, config_hash, measured, avg_tps):
     """Append one row to results/speed_gate.jsonl — a dedicated, append-
     only log kept separate from results/log.jsonl (whose task/suite-keyed
     schema every other grouping/flakiness check in build_leaderboard.py
@@ -334,7 +334,7 @@ def _record_speed_gate_failure(model, backend, config_path, config_hash, measure
     renders this as its own "Speed-gated configs" section."""
     entry = {
         "model": model,
-        "backend": backend,
+        "framework": framework,
         "config_path": str(config_path),
         "config_hash": config_hash,
         "suite": "hermes_ops",
@@ -355,7 +355,7 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
         sys.exit(f"{config_path} has no orchestration: block — see configs/README.md")
 
     model = cfg["model"]
-    backend = cfg["backend"]
+    framework = cfg["framework"]
     served_model_id = orch.get("served_model_id")
     if cfg.get("framework") == "omlx" and not served_model_id:
         sys.exit(f"{config_path} is framework: omlx but has no orchestration.served_model_id")
@@ -366,7 +366,7 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
     config_hash = hashlib.sha256(config_path.read_bytes()).hexdigest()[:12]
     viable = orch.get("viable", "full")
 
-    print(f"\n{'=' * 70}\n{model} ({backend}) — {config_path}\nviable={viable}\n{'=' * 70}")
+    print(f"\n{'=' * 70}\n{model} ({framework}) — {config_path}\nviable={viable}\n{'=' * 70}")
 
     if viable == "blocked":
         print("SKIPPED (blocked) — see the config's known_gaps for why.")
@@ -404,7 +404,7 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
         run(["bash", str(REPO / "runner" / "reset_bench_profile.sh")])
 
         print("\n--- launch candidate server ---")
-        alias = f"bench-{config_hash}" if backend == "gguf" else None
+        alias = f"bench-{config_hash}" if framework.startswith("llama.cpp") else None
         cmd = server_command(cfg, alias=alias)
         log_file = f"/tmp/bench_{config_path.parent.name}_{config_path.stem}_server.log"
         print(f"(backgrounded, log: {log_file})")
@@ -464,7 +464,7 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
             summary_path = Path(td) / "sanity_summary.json"
             proc = run([sys.executable, str(REPO / "runner" / "run_prompt_suite.py"),
                         "--suite", "sanity", "--base-url", base_url, "--model", model,
-                        "--request-model", request_model, "--backend", backend, "--config", str(config_path),
+                        "--request-model", request_model, "--framework", framework, "--config", str(config_path),
                         "--trials", str(trials), "--summary-out", str(summary_path)])
             # Read THIS invocation's own rows, not "whatever's at the tail
             # of the shared log" — a crashed/misconfigured subprocess used
@@ -507,7 +507,7 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
             summary_path = Path(td) / "hermes_ops_summary.json"
             run([sys.executable, str(REPO / "runner" / "run_prompt_suite.py"),
                  "--suite", "hermes_ops", "--base-url", base_url, "--model", model,
-                 "--request-model", request_model, "--backend", backend, "--config", str(config_path),
+                 "--request-model", request_model, "--framework", framework, "--config", str(config_path),
                  "--trials", str(trials), "--summary-out", str(summary_path)])
             tps_values = _hermes_ops_tps_values(summary_path)
 
@@ -523,8 +523,8 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
         if tps_values:
             avg_tps = mean(tps_values)
             if avg_tps < MIN_HERMES_OPS_TOKENS_PER_SECOND:
-                _record_speed_gate_failure(model, backend, config_path, config_hash, tps_values, avg_tps)
-                print(f"\n!!! {model} ({backend}) hermes_ops averaged {avg_tps:.2f} tok/s "
+                _record_speed_gate_failure(model, framework, config_path, config_hash, tps_values, avg_tps)
+                print(f"\n!!! {model} ({framework}) hermes_ops averaged {avg_tps:.2f} tok/s "
                       f"({tps_values}) — below the {MIN_HERMES_OPS_TOKENS_PER_SECOND} tok/s "
                       f"viability cutoff. Too slow to be practical. Skipping the coding suite. "
                       f"Stopping here.")
@@ -544,14 +544,14 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
                 run([sys.executable, str(REPO / "runner" / "run_fixture_suite.py"),
                      "--suite", suite,
                      "--hermes-provider", hermes_provider, "--hermes-model", request_model,
-                     "--log-model", model, "--backend", backend, "--config", str(config_path),
+                     "--log-model", model, "--framework", framework, "--config", str(config_path),
                      "--trials", str(trials)])
         else:
             print(f"\n--- coding spot-check ({CODING_SPOTCHECK_TASK}) ---")
             run([sys.executable, str(REPO / "runner" / "run_fixture_suite.py"),
                  "--suite", CODING_SPOTCHECK_SUITE, "--only-task", CODING_SPOTCHECK_TASK,
                  "--hermes-provider", hermes_provider, "--hermes-model", request_model,
-                 "--log-model", model, "--backend", backend, "--config", str(config_path),
+                 "--log-model", model, "--framework", framework, "--config", str(config_path),
                  "--trials", str(trials)])
     elif stage in ("all", "coding") and viable in ("full", "coding_only"):
         print("\n(coding spot-check skipped — no hermes_provider registered for this config)")

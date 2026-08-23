@@ -11,8 +11,8 @@ families, distinguished by the top-level `runner:` field:
   `kipclip_mini`. A real project the agent edits with real tools (file edit,
   git, cargo/npm/deno). See "Fixture-based tasks" below.
 - **`runner: prompt`** — `sanity`, `hermes_ops`. No project, no file edits: a
-  single (or scripted multi-turn) chat-completions exchange against a model
-  backend, with tool calls intercepted and given a scripted mock response.
+  single (or scripted multi-turn) chat-completions exchange against a
+  model+inference-engine endpoint, with tool calls intercepted and given a scripted mock response.
   Driven by `runner/run_prompt.py` + graded by `runner/grade_prompt.py`. See
   "Prompt-based tasks" below.
 

@@ -1,16 +1,23 @@
 # Run configs
 
-One file per model+backend combo: `configs/<model-slug>/<backend>.yaml`
-(`backend` is `mlx`, `gguf`, or isolated `omlx`). Documents the exact serving/inference
-settings used for benchmark runs against that model — each setting with a
-citation, so results are auditable and reproducible, and so a value is never
-just "chosen because it seemed right" without saying so explicitly.
+One file per model+inference-engine combo: `configs/<model-slug>/<name>.yaml`,
+where the filename (`mlx`, `gguf`, `omlx`, or a variant like `gguf-dflash2`)
+is just a naming convention — the actual engine identity lives in the
+`framework:` field inside (`llama.cpp`, `vllm-mlx`, `omlx`, or a fork variant
+like `llama.cpp-dflash2`/`llama.cpp-dspark`). There used to be a separate,
+coarser `backend:` field (`mlx`/`gguf`/`omlx`/`api`) — retired 2026-08-23 in
+favor of `framework` being the sole identity, since it was already the more
+precise concept and having both was redundant (see build_leaderboard.py's
+`_row_framework()` for the backward-compat read of old log rows that still
+carry `backend` only). Documents the exact serving/inference settings used
+for benchmark runs against that model — each setting with a citation, so
+results are auditable and reproducible, and so a value is never just "chosen
+because it seemed right" without saying so explicitly.
 
 ## Schema
 
 ```yaml
 model: LiquidAI/LFM2.5-2.6B-MLX-bf16
-backend: mlx
 # temperature/reasoning_mode: read by build_leaderboard.py and shown as
 # their own columns (adversarial review finding H7 — two configs that
 # differ in these, not just quant, used to look like a same-conditions
@@ -22,7 +29,11 @@ backend: mlx
 # actually runs at.
 temperature: 0.1
 reasoning_mode: n/a   # thinking | instruct | n/a (no thinking-mode concept) | unspecified
-framework: vllm-mlx              # vllm-mlx | llama.cpp | omlx
+framework: vllm-mlx              # vllm-mlx | llama.cpp | llama.cpp-dflash2 |
+                                  # llama.cpp-dspark | omlx | openrouter |
+                                  # hermes-openai-codex — the inference
+                                  # engine identity; primary grouping key
+                                  # for build_leaderboard.py
 benchmark_launch_command: |
   uv run --locked python -m vllm_mlx.server \
     --model LiquidAI/LFM2.5-2.6B-MLX-bf16 \
@@ -102,7 +113,7 @@ last_updated: 2026-08-20
 last_verified_against_docs: 2026-08-20   # bump when re-checked — configs go stale
 ```
 
-## Process for adding a new model+backend config
+## Process for adding a new model+inference-engine config
 
 1. Check the model's HuggingFace model card / creator blog / GitHub README
    for recommended inference settings (temperature, top_p, chat template,
@@ -130,7 +141,7 @@ last_verified_against_docs: 2026-08-20   # bump when re-checked — configs go s
 ## Config files
 
 One directory per model family, `gguf.yaml`/`mlx.yaml` (or a variant name,
-e.g. `gguf-unsloth-ud-q4.yaml`, for a distinct quant/backend combo) inside:
+e.g. `gguf-unsloth-ud-q4.yaml`, for a distinct quant/engine combo) inside:
 
 - `LiquidAI-LFM2.5-2.6B/` — gguf, mlx
 - `LiquidAI-LFM2.5-8B-A1B/` — gguf, mlx, gguf-dspark (speculative decoding,

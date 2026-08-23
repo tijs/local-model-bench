@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """
 Drives every `runner: prompt` task in a tasks/<suite>.yaml file against one
-model backend, grades each, and appends a row per task to results/log.jsonl.
+model+inference-engine combination, grades each, and appends a row per task
+to results/log.jsonl.
 
 Requires PyYAML. Run through the repository's locked uv environment:
   uv run --locked python runner/run_prompt_suite.py ...
 
 Usage:
   run_prompt_suite.py --suite sanity --base-url http://127.0.0.1:8013/v1 \
-      --model LiquidAI/LFM2.5-2.6B-MLX-bf16 --backend mlx [--quant Q4_K_M]
+      --model LiquidAI/LFM2.5-2.6B-MLX-bf16 --framework vllm-mlx [--quant Q4_K_M]
 """
 import argparse
 import json
@@ -31,7 +32,7 @@ def main():
     ap.add_argument("--model", required=True)
     ap.add_argument("--request-model", default=None,
                     help="endpoint model ID when it differs from the source model recorded in --model")
-    ap.add_argument("--backend", required=True, help="mlx | gguf | omlx, recorded in the log")
+    ap.add_argument("--framework", required=True, help="llama.cpp | vllm-mlx | omlx | ..., recorded in the log")
     ap.add_argument("--quant", default=None, help="quant level, for gguf log rows")
     ap.add_argument("--config", default=None, help="path to configs/<model>/<backend>.yaml used for this run")
     ap.add_argument("--only-task", default=None, help="run just this one task id (e.g. to rerun a single fixed/flaky task)")
@@ -230,7 +231,7 @@ def main():
                 "task_id": task["id"],
                 "task_type": task.get("type"),
                 "model": args.model,
-                "backend": args.backend,
+                "framework": args.framework,
                 "quant": args.quant,
                 "config_path": config_path,
                 "config_hash": config_hash,
