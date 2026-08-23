@@ -192,7 +192,16 @@ def assert_plain_completion(base_url, request_model, timeout=60):
         "model": request_model,
         "messages": [{"role": "user", "content": "Reply with exactly: ready"}],
         "temperature": 0,
-        "max_tokens": 8,
+        # 32, not 8 (confirmed live 2026-08-23): poolside/Laguna-XS-2.1
+        # forces thinking mode on via --chat-template-kwargs
+        # enable_thinking:true, and even with the reasoning_content
+        # fallback below, 8 tokens isn't always enough budget for a
+        # thinking-forced model to produce ANY extractable text (opening
+        # the <think> block alone can consume the whole budget) — this
+        # config genuinely IS alive and serves real completions once given
+        # room, so a bigger probe budget is more honest than declaring it
+        # dead. Still small enough to be cheap for every other model.
+        "max_tokens": 32,
         "stream": False,
     }).encode()
     request = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"}, method="POST")
