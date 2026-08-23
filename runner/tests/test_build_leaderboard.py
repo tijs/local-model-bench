@@ -579,5 +579,46 @@ class InferenceEngineFieldHistoryBackcompatTests(unittest.TestCase):
         self.assertIn("| vllm-mlx |", joined)
 
 
+class MarkdownTableColumnCountTests(unittest.TestCase):
+    """Confirmed live 2026-08-23: the main table's header had 20 columns
+    but its separator row had 21 `|---|` cells — a leftover from trimming
+    a redundant "framework" column during the backend->inference_engine
+    rename (the header string was updated, the separator string wasn't).
+    GitHub renders this as a visibly broken table. Generic guard: every
+    `| header | ... |` line immediately followed by an all-dashes
+    `|---|...|` line must have the SAME number of `|` characters, for
+    every table this file generates, not just the one that broke."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.repo = Path(self.tmp)
+        (self.repo / "results").mkdir()
+        self._orig_repo = bl.REPO
+        bl.REPO = self.repo
+
+    def tearDown(self):
+        bl.REPO = self._orig_repo
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_every_table_header_matches_its_separator_row_width(self):
+        (self.repo / "results" / "log.jsonl").write_text(json.dumps({
+            "suite": "hermes_ops", "task_id": "hermes_ops-selection", "task_type": "tool-selection",
+            "model": "m", "inference_engine": "vllm-mlx", "quant": None, "config_path": None,
+            "config_hash": None, "runner_git_sha": "abc", "trial": 1, "pass": True,
+            "grade_output": "PASS",
+        }) + "\n")
+        bl.main()
+        lines = (self.repo / "results" / "LEADERBOARD.md").read_text().splitlines()
+        mismatches = []
+        for i in range(1, len(lines)):
+            sep = lines[i].strip()
+            if not sep or set(sep) - set("|-"):
+                continue  # not an all-dashes separator line
+            header = lines[i - 1]
+            if header.count("|") != sep.count("|"):
+                mismatches.append((i + 1, header.count("|"), sep.count("|"), header[:60]))
+        self.assertEqual(mismatches, [], f"header/separator column-count mismatches: {mismatches}")
+
+
 if __name__ == "__main__":
     unittest.main()

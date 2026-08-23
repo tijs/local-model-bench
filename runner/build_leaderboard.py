@@ -331,7 +331,7 @@ def main():
         "errors) doesn't cover this specific question either.",
         "",
         "| model | engine | quant | temp (coding only)¹ | reasoning | sanity gate⁴ | config | runner | tasks | pass rate⁴ | slow passes² | avg tok/s | avg TTFT (s) | hallucinated tools⁵ | avg coding turns³ | coding tool errors³ | peak RSS (GB) | quant family | cache | MTP |",
-        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     # Two passes, not one (methodology review, finding F3): the composite
     # "Best overall" ranking below needs the raw numeric avg_tps for every

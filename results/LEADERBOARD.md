@@ -107,7 +107,7 @@ coding-suite session data added for finding F6 (avg coding turns/tool
 errors) doesn't cover this specific question either.
 
 | model | engine | quant | temp (coding only)¹ | reasoning | sanity gate⁴ | config | runner | tasks | pass rate⁴ | slow passes² | avg tok/s | avg TTFT (s) | hallucinated tools⁵ | avg coding turns³ | coding tool errors³ | peak RSS (GB) | quant family | cache | MTP |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | 1.0 | xhigh | 2/2 | [3618a30940bc](configs/3618a30940bc.yaml) — *config since changed* | e155170f4c1d | 0 | n/a (all harness errors) | 0 | 9.6 | 4.90 | 0 | — | 0 | 6.2 | oQ4e-fp16 mixed precision + MTP tensors | cold | lightning |
 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | 1.0 | xhigh | 2/2 | [3618a30940bc](configs/3618a30940bc.yaml) — *config since changed* | fc71ba2c66f8+dirty | 0 | n/a (all harness errors) | 0 | 9.0 | 4.15 | 0 | — | 0 | — | oQ4e-fp16 mixed precision + MTP tensors | cold | lightning |
 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | 1.0 | medium | 2/2 | [6f8f1c7b8d48](configs/6f8f1c7b8d48.yaml) — *config since changed* | e155170f4c1d | 0 | n/a (all harness errors) | 0 | 10.4 | 3.52 | 0 | — | 0 | 8.0 | oQ4e-fp16 mixed precision + MTP tensors | ssd | off |
