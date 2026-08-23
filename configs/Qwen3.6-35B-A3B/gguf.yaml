@@ -1,0 +1,91 @@
+model: unsloth/Qwen3.6-35B-A3B-GGUF:UD-Q4_K_XL
+# Added 2026-08-23 (user request): Qwen3.6-35B-A3B is described in
+# community reviews as one of the strongest open MoE models for agentic
+# coding (73.4% SWE-Bench claimed) and shares the same active-3B-of-N-
+# experts architecture pattern as this benchmark's two best GGUF
+# performers so far (Ornith-1.5-35B-A3B ~31 tok/s, Qwen3-Coder-30B-A3B
+# ~20 tok/s) — see the "temperature / reasoning_mode" note on those
+# configs for why these two fields matter for leaderboard comparability.
+temperature: 0.6
+reasoning_mode: thinking
+inference_engine: llama.cpp
+
+benchmark_launch_command: |
+  HF_TOKEN=$(cat ~/.cache/huggingface/token) llama-server \
+    --hf-repo unsloth/Qwen3.6-35B-A3B-GGUF:UD-Q4_K_XL \
+    --host 127.0.0.1 --port 8017 \
+    --temp 0.6 --top-p 0.95 --top-k 20 --min-p 0.0 \
+    --ctx-size 65536 \
+    --timeout 1800
+
+benchmark_endpoint: http://127.0.0.1:8017/v1
+  # native tool_calls expected (Qwen family, llama-server, same as the
+  # Qwen3-Coder-30B-A3B/Qwen3.8-27B precedent) — NOT independently
+  # verified live yet for this specific model. Spot-check before
+  # trusting hermes_ops/coding results, per standing policy for every
+  # new model+backend combo.
+
+orchestration:
+  raw_port: 8017
+  needs_proxy: false
+  hermes_provider: qwen36-35b-gguf
+  viable: full
+
+settings:
+  - name: quant
+    value: "UD-Q4_K_XL (unsloth Dynamic 2.0 quant — their own documented
+      launch example uses this exact tag, not plain Q4_K_M)"
+    source: "https://unsloth.ai/docs/models/qwen3.6 launch example:
+      `-hf unsloth/Qwen3.6-35B-A3B-GGUF:UD-Q4_K_XL`. Confirmed most-used
+      quant source on HF: unsloth/Qwen3.6-35B-A3B-GGUF has 1.2M downloads
+      vs ~436K for bartowski/Qwen_Qwen3.6-35B-A3B-GGUF (checked via HF API
+      2026-08-23)."
+  - name: architecture
+    value: "MoE, 35B total / ~3B active per token — same sparse-activation
+      class as Ornith-1.5-35B-A3B and Qwen3-Coder-30B-A3B, both fast on
+      this hardware's GGUF leg."
+    source: "https://huggingface.co/Qwen/Qwen3.6-35B-A3B model card;
+      https://www.buildfastwithai.com/blogs/qwen3-6-35b-a3b-review"
+  - name: temperature / top_p / top_k / min_p (thinking mode, precise coding preset)
+    value: 0.6 / 0.95 / 20 / 0.0
+    source: "https://unsloth.ai/docs/models/qwen3.6 — 'Thinking Mode -
+      Precise Coding' preset (same top_p/top_k/min_p as the general
+      thinking preset, temperature lowered from 1.0 to 0.6). Deliberately
+      NOT the non-thinking/instruct preset (temp 0.7/top_p 0.8, presence
+      penalty 1.5) — thinking is ON by default for this model and the
+      73.4% SWE-Bench figure found in review coverage is presumed to
+      assume thinking mode, so disabling it here would silently test a
+      different, unbenchmarked mode. Record kept explicit per this repo's
+      standing policy on reasoning-mode never being left implicit."
+  - name: context_length
+    value: 65536 (native 262144, extendable to 1M via YaRN — capped here
+      per hermes's >=64K hard minimum and this benchmark's standard
+      ceiling, same as every other A3B config in this repo)
+    source: "https://unsloth.ai/docs/models/qwen3.6 + AGENTS.md hermes
+      hard-minimum note."
+
+known_gaps:
+  - "run_prompt.py hardcodes temperature=0 for sanity/hermes_ops — these
+    model-card-recommended settings only apply to the hermes-chat-driven
+    coding suites, per this benchmark's established design (see
+    tasks/SCHEMA.md)."
+  - "Native tool_calls format not independently verified live for this
+    specific model+backend yet — confirm before fully trusting a
+    hermes_ops/coding-suite pass, same open item as Qwen3.8-27B/gguf.yaml
+    had at creation."
+  - "Qwen3.8-27B (dense, same family lineage) needed a community
+    chat_template.jinja fix (froggeric/Qwen-Fixed-Chat-Templates) to work
+    correctly on llama-server — not yet confirmed whether Qwen3.6 ships a
+    fixed default template or needs the same treatment. If tool-calling
+    looks broken on first run, check that repo for a Qwen3.6 template
+    before assuming a harness bug."
+  - "Thinking mode adds reasoning-trace tokens before the final answer,
+    which increases completion_tokens and wall time relative to a
+    non-thinking model at the same tok/s rate — expect this to look
+    slower in raw wall-clock terms than Qwen3-Coder-30B-A3B (instruct-
+    only) even at a comparable tokens_per_second figure. Don't compare
+    the two model's wall_seconds/coding-turn-duration directly without
+    accounting for this."
+
+last_updated: 2026-08-23
+last_verified_against_docs: 2026-08-23
