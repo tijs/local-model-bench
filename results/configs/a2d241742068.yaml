@@ -1,0 +1,67 @@
+model: bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0
+# Added 2026-08-21 (adversarial review finding H7): reasoning-mode and
+# temperature differ across models presented in one ranked leaderboard
+# table with no column showing it — e.g. Qwen3.8-27B vs Qwen3.8-27B-Ridge
+# looked like a quant comparison but also differed in reasoning mode,
+# temperature, and presence_penalty (three confounds, one conclusion).
+# These two fields are read by build_leaderboard.py and shown as columns;
+# keep them in sync with benchmark_launch_command by hand.
+temperature: 0.6
+reasoning_mode: thinking
+inference_engine: llama.cpp
+
+benchmark_launch_command: |
+  HF_TOKEN=$(cat ~/.cache/huggingface/token) llama-server \
+    --hf-repo bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 \
+    --host 127.0.0.1 --port 8017 \
+    --temp 0.6 --top-p 0.95 --top-k 20 --ctx-size 65536
+  # ctx-size bumped 32768 -> 65536 2026-08-19: hermes refuses to start
+  # (coding suites only) below 64K context_length — see AGENTS.md
+  # "Hermes's hard minimums".
+
+benchmark_endpoint: http://127.0.0.1:8017/v1
+  # no proxy needed — confirmed live: native tool_calls, correct int args
+  # (unlike Qwen3.8-27B's official template, no string-coercion issue seen
+  # here — but note this is at Q8_0, not directly comparable to the 27B's
+  # 4-bit tests).
+
+orchestration:
+  raw_port: 8017
+  needs_proxy: false
+  hermes_provider: qwen35-9b-gguf
+  viable: full
+
+settings:
+  - name: quant
+    value: Q8_0 (comfortable fit at 9B — 4-bit not needed to fit on 32GB)
+    source: "9B model, ~9GB at Q8_0 — well within budget without aggressive
+      quantization. Deviates from the 4-bit-by-default pattern used for
+      27B+ models deliberately, per 'as needed to fit' policy."
+  - name: temperature / top_p / top_k (thinking mode, precise-coding preset)
+    value: 0.6 / 0.95 / 20
+    source: "https://huggingface.co/Qwen/Qwen3.5-9B model card — thinking
+      mode ON by default; chose the 'precise coding' preset over the
+      'general tasks' preset (temp=1.0) since this benchmark is specifically
+      about coding-agent use. General-tasks values: temp=1.0/top_p=0.95/
+      presence_penalty=1.5, for reference if precise-coding underperforms."
+  - name: context_length
+    value: 262144 (native, extensible to 1.01M via YaRN)
+    source: "https://huggingface.co/Qwen/Qwen3.5-9B model card"
+  - name: tool_call_parser
+    value: native (llama-server, no proxy)
+    source: "confirmed live via runner/run_prompt.py against raw endpoint —
+      correct tool_calls with proper int-typed arguments (no string-coercion
+      quirk seen with Qwen3.8-27B's official template). Model card also
+      mentions a distinct 'qwen3_coder' parser name used by vLLM/SGLang —
+      not directly relevant here since llama-server handles this natively,
+      but worth knowing this family may not be uniformly 'hermes-style'
+      across all Qwen3.x variants."
+  - name: chat_template
+    value: official (not the froggeric fix — that repo covers 3.5/3.6/3.8,
+      not independently tested here)
+    source: "Not applied for this run — the official template correctly
+      produced clean tool_calls on first try, unlike Qwen3.8-27B. Revisit
+      only if a real problem surfaces (same as the general policy: fix
+      what's actually broken, don't pre-apply fixes speculatively)."
+
+last_updated: 2026-08-19
