@@ -3,29 +3,18 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/522 rows below predate the 2026-08-21
-> adversarial-review grading fixes** (no `runner_git_sha` at all — that
-> field didn't exist yet when they were produced). A second independent
-> review found the first review's own fixes still left real bugs (see
-> AGENTS.md), so **do not treat any pre-2026-08-21 PASS/FAIL as final
-> signal** until re-run under current grading. Known-affected checks,
-> confirmed to have changed real outcomes:
-> - `kiem_mini-feature` (all rows before the C1 fix): graded only the
-> library function, never the CLI wiring — one logged PASS is known to
-> have a compiler warning proving the CLI half was never implemented.
-> - `hermes_ops-error-recovery` (all rows before this session's fixes,
-> including a since-fixed regression where the word "error" itself
-> became an auto-fail): rewarded fabricated file contents as long as
-> an unrelated word like "error" appeared anywhere in the answer.
-> - `hermes_ops-selection` (all rows before the L4 fix): `response_contains:
-> "18"` matched "18" as a substring of any number, including "2018".
-> - `hermes_ops-chaining` (all rows before the L5 fix): only checked the
-> written number appeared somewhere in the file, not that it was the
-> ONLY content, despite the prompt saying "just that number".
-> - `sanity-tool` (all rows): graded with multiset argument matching,
-> not exact key/value matching — could pass wrong argument names.
-> Re-running is the only way to get current, trustworthy rows for these
-> tasks; regenerating this file alone does not re-grade anything.
+> **⚠ 138/522 rows below predate 2026-08-21
+> grading fixes** (no `runner_git_sha` — that field didn't exist yet).
+> **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
+> re-run under current grading. Known-affected checks: `kiem_mini-feature`
+> (used to grade only the library function, never the CLI wiring),
+> `hermes_ops-error-recovery` (used to reward fabricated file contents if
+> an unrelated word like "error" appeared anywhere), `hermes_ops-selection`
+> (used to match "18" as a substring of any number, including "2018"),
+> `hermes_ops-chaining` (used to accept extra content beyond the requested
+> single number), and `sanity-tool` (used multiset argument matching,
+> which could pass wrong argument names). Re-running is the only way to
+> get current, trustworthy rows for these tasks.
 
 Grouped by (model, inference_engine, quant, config_hash, runner_git_sha) — never
 averaged across different configs OR different harness/grading code
@@ -37,7 +26,7 @@ live (possibly since-edited) config file — see `config_hash` values
 flagged "config since changed" for rows predating that snapshot.
 `runner_git_sha` rows marked `+dirty` were graded by uncommitted code.
 
-**`avg tok/s` caveat** (adversarial review finding H6, not fully closed):
+**`avg tok/s` caveat**:
 this is `completion_tokens / wall_seconds` across the ENTIRE multi-turn
 loop, including every prefill of the suite's system prompt — it's a
 prefill-dominated-workload throughput number, not a pure decode rate, and
@@ -48,21 +37,19 @@ is a follow-up, not yet implemented. `avg TTFT` is blanked instead of
 silently mislabeled for proxied configs (see below), but is still a
 single combined average across suites where it IS real.
 
-**¹ `temp (coding only)`** (2nd adversarial review finding CR-3, a bug in
-the H7 fix): the config's declared temperature is what the coding suite
-(`hermes chat`, driven by `run_fixture_suite.py`) actually runs at, since
-it respects the server's launch flags. `sanity`/`hermes_ops` (driven by
-`run_prompt.py`) deliberately hardcode `temperature=0` for EVERY model,
-always, regardless of this config value — a longstanding, documented
+**¹ `temp (coding only)`**: the config's declared temperature is what the
+coding suite (`hermes chat`, driven by `run_fixture_suite.py`) actually
+runs at, since it respects the server's launch flags. `sanity`/`hermes_ops`
+(driven by `run_prompt.py`) deliberately hardcode `temperature=0` for EVERY
+model, always, regardless of this config value — a longstanding, documented
 design choice (see `tasks/SCHEMA.md` "Temperature is deliberately fixed
-at 0"), not a bug. The H7 fix originally displayed this value as if it
-applied everywhere, which was false for 124 of 138 rows at the time.
+at 0"), not a bug.
 Note also: `configs/Qwen3.8-27B-Ridge/gguf.yaml` is the only config that
 sets `--presence-penalty` (1.5) — a third confound alongside temp/
 reasoning-mode when comparing it against `configs/Qwen3.8-27B/gguf.yaml`,
 not currently its own column since no other config sets this flag.
 
-**² `slow passes`** (methodology review, finding F5): count of PASS rows
+**² `slow passes`**: count of PASS rows
 that took longer than `bench_common.py`'s `INTERACTIVE_BUDGET_SECONDS`
 (300s) to complete — still correct, and still counted in `pass rate`
 above, but not a practically usable result in a real interactive agentic
@@ -73,10 +60,7 @@ that much generous budget and still show up here if it's well past what
 an interactive session would tolerate. 300s is a judgment call (see that
 constant's own comment), not a hard spec.
 
-**³ `avg coding turns` / `coding tool errors`** (methodology review, finding
-F6): the coding suite previously logged zero performance data from the
-actual target workload — no tokens, no turn count, no tool-call data,
-ever, unlike the two synthetic prompt suites. Pulled from hermes's own
+**³ `avg coding turns` / `coding tool errors`**: pulled from hermes's own
 SQLite session store (`hermes sessions export`) after each coding-suite
 task; blank/0 for sanity/hermes_ops-only groups, which call the raw API
 directly and have no hermes session to pull from. `coding tool errors` is
@@ -87,7 +71,7 @@ read 0 even when its output clearly shows a build failure, so this also
 scans for the same compiler-error markers `grade_mutation.sh` already
 looks for as a fallback.
 
-**⁴ `sanity gate` / `pass rate`** (methodology review, finding F3): `sanity`
+**⁴ `sanity gate` / `pass rate`**: `sanity`
 is a fail-fast GATE — run_bench.py stops the whole config entirely if
 sanity-basic fails — not a quality signal to blend in alongside real
 tool-use/coding results. It's shown here as its own `passed/total` column
@@ -95,16 +79,14 @@ instead. `pass rate` now covers only `hermes_ops` + coding-suite rows;
 folding sanity in used to compress real differences between models,
 since it sits at or near ceiling for nearly everything.
 
-**⁵ `hallucinated tools`** (methodology review, finding F14): this only
+**⁵ `hallucinated tools`**: this only
 fires in the two synthetic prompt suites (sanity/hermes_ops), whose fixed
 tool manifest makes "called a tool that doesn't exist in it" a clean,
 checkable signal. The coding suite has no equivalent check — a hermes
 chat session's real tool manifest isn't fixed/known the way hermes_ops's
 41-tool mock manifest is, so this reads 0 for every coding-suite row
 regardless of what actually happened. Read this column as "not observed
-on the two synthetic suites," not "never hallucinated a tool" — the
-coding-suite session data added for finding F6 (avg coding turns/tool
-errors) doesn't cover this specific question either.
+on the two synthetic suites," not "never hallucinated a tool".
 
 | model | engine | quant | temp (coding only)¹ | reasoning | sanity gate⁴ | config | runner | tasks | pass rate⁴ | slow passes² | avg tok/s | avg TTFT (s) | hallucinated tools⁵ | avg coding turns³ | coding tool errors³ | peak RSS (GB) | quant family | cache | MTP |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -333,9 +315,9 @@ are omitted entirely rather than shown with a misleading score.
 Any task with the SAME (model, inference_engine, quant, config_hash,
 runner_git_sha, suite, task_id) that comes back with SOME passes and
 some fails is not "probably fine" — it's proof this one task's result
-isn't safe to treat as a boolean for this model (adversarial review
-finding C5: temperature=0 measurably does not make MLX/Metal generation
-deterministic across runs). This catches flakiness from an explicit
+isn't safe to treat as a boolean for this model — temperature=0
+measurably does not make MLX/Metal generation deterministic across
+runs. This catches flakiness from an explicit
 `--trials N` run AND from two separate invocations that happen to share
 every one of those fields (found live: a real historical entry below
 came from two independent runs, not --trials, which didn't exist yet).
@@ -530,7 +512,7 @@ confirmed-stable, just untested for flakiness.
 
 ## Harness errors (excluded from every table above)
 
-3 row(s) where the harness itself crashed (e.g. a network blip during `npm ci`, a malformed task spec) rather than the model producing a graded result — added 2026-08-21 (3rd adversarial review, finding CR3-6) so these are visible instead of silently deflating pass rates or masquerading as model flakiness.
+3 row(s) where the harness itself crashed (e.g. a network blip during `npm ci`, a malformed task spec) rather than the model producing a graded result — shown separately so they don't deflate pass rates or masquerade as model flakiness.
 
 | model | engine | suite | task | grade_output (truncated) |
 |---|---|---|---|---|
@@ -549,8 +531,8 @@ vanish from this file with no trace of why.
 | model | engine | config | blocked_reason |
 |---|---|---|---|
 | mlx-community/Laguna-XS-2.1-4bit | vllm-mlx | configs/Laguna-XS-2.1/mlx.yaml | (no blocked_reason set) |
-| bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M (+ incoai/Muse-Glimmer-30B-DFlash2-GGUF:Q4_K_M drafter) | llama.cpp-dflash2 | configs/Muse-Glimmer-30B/gguf-dflash2.yaml | Marked non-viable 2026-08-23: hermes_ops averaged 0.943 tok/s across 8 real trials — under the 10 tok/s viability cutoff. This is specific to the DFlash2 speculative-decoding variant — the plain (non-speculative) config for this same model is fine (configs/Muse-Glimmer-30B/gguf.yaml, ~8.25 tok/s), so DFlash2 is actively hurting throughput here, not helping (same pattern already seen on LiquidAI-LFM2.5-8B-A1B's DSpark variant). |
-| mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | omlx | configs/Qwen3-Coder-30B-A3B/omlx.yaml | Marked non-viable 2026-08-23: hermes_ops averaged 0.75 tok/s across 8 real trials — well under the 10 tok/s viability cutoff. This is specific to the oMLX serving path for this model — the same model+quant family is genuinely fast on its other two engines (configs/Qwen3-Coder-30B-A3B/gguf.yaml ~18.6 tok/s, configs/Qwen3-Coder-30B-A3B/mlx.yaml ~11.1 tok/s), so this blocks only this one config, not the model overall. |
+| bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M (+ incoai/Muse-Glimmer-30B-DFlash2-GGUF:Q4_K_M drafter) | llama.cpp-dflash2 | configs/Muse-Glimmer-30B/gguf-dflash2.yaml | Marked non-viable 2026-08-23: hermes_ops averaged 0.943 tok/s across 8 real trials — well under the viability cutoff. Specific to the DFlash2 speculative-decoding variant — the plain (non-speculative) config for this same model is fine (configs/Muse-Glimmer-30B/gguf.yaml, ~8.25 tok/s), so DFlash2 is actively hurting throughput here, not helping (same pattern already seen on LiquidAI-LFM2.5-8B-A1B's DSpark variant). |
+| mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | omlx | configs/Qwen3-Coder-30B-A3B/omlx.yaml | Marked non-viable 2026-08-23: hermes_ops averaged 0.75 tok/s across 8 real trials — well under the viability cutoff. Specific to the oMLX serving path for this model — the same model+quant family is genuinely fast on its other two engines (configs/Qwen3-Coder-30B-A3B/gguf.yaml ~18.6 tok/s, configs/Qwen3-Coder-30B-A3B/mlx.yaml ~11.1 tok/s), so this blocks only this one config, not the model overall. |
 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M (+ incoai/Qwen3.8-27B-DFlash2-GGUF:Q4_K_M drafter) | llama.cpp-dflash2 | configs/Qwen3.8-27B/gguf-dflash2.yaml | Marked non-viable 2026-08-22: MLX leg (mlx.yaml, config_hash 968652aede2d) completed sanity + all 3 hermes_ops tasks (2/3 pass) but decode throughput collapsed as prompt size grew — 12.37 tok/s at 29 prompt tokens down to 0.18/0.36/0.83 tok/s at 43312/65273/177877 prompt tokens, taking 668s/1021s/2904s (~77 min combined) for those 3 hermes_ops tasks alone (~1.5h total wall clock incl. load+sanity). Every hermes_ops row is flagged within_budget: false. Pilot stopped before the coding suite (even larger prompts) or the GGUF/oMLX legs were reached. |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q2_K_XL | llama.cpp | configs/Qwen3.8-27B/gguf-unsloth-ud-q2.yaml | Marked non-viable 2026-08-22: MLX leg (mlx.yaml, config_hash 968652aede2d) completed sanity + all 3 hermes_ops tasks (2/3 pass) but decode throughput collapsed as prompt size grew — 12.37 tok/s at 29 prompt tokens down to 0.18/0.36/0.83 tok/s at 43312/65273/177877 prompt tokens, taking 668s/1021s/2904s (~77 min combined) for those 3 hermes_ops tasks alone (~1.5h total wall clock incl. load+sanity). Every hermes_ops row is flagged within_budget: false. Pilot stopped before the coding suite (even larger prompts) or the GGUF/oMLX legs were reached. |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q4_K_M | llama.cpp | configs/Qwen3.8-27B/gguf-unsloth-ud-q4.yaml | Marked non-viable 2026-08-22: MLX leg (mlx.yaml, config_hash 968652aede2d) completed sanity + all 3 hermes_ops tasks (2/3 pass) but decode throughput collapsed as prompt size grew — 12.37 tok/s at 29 prompt tokens down to 0.18/0.36/0.83 tok/s at 43312/65273/177877 prompt tokens, taking 668s/1021s/2904s (~77 min combined) for those 3 hermes_ops tasks alone (~1.5h total wall clock incl. load+sanity). Every hermes_ops row is flagged within_budget: false. Pilot stopped before the coding suite (even larger prompts) or the GGUF/oMLX legs were reached. |
@@ -564,8 +546,8 @@ vanish from this file with no trace of why.
 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | configs/Qwen3.8-27B-oQ4e-fp16-mtp/omlx-mtp.yaml | Marked non-viable 2026-08-23: hermes_ops averaged 0.008 tok/s across 11 real trials (harness-confirmed, not a single fluke) — same catastrophic-collapse pattern as configs/Qwen3.8-27B/*.yaml (already blocked): small sanity prompts work, but the ~23K+-token hermes_ops system prompt produces near-zero real output. Lightning MTP on/off makes no difference (the plain omlx.yaml sibling shows the same collapse). See this file's own investigation notes (chat_template.jinja on this repo is byte-identical to Qwen3.8-27B's pre-froggeric-fix broken template). |
 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | configs/Qwen3.8-27B-oQ4e-fp16-mtp/omlx-ssd.yaml | Marked non-viable 2026-08-23 BY EXTENSION (not independently tested at hermes_ops scale — this variant is sanity_only so never reached hermes_ops): the same underlying artifact (Jundot/Qwen3.8-27B-oQ4e-fp16-mtp) is confirmed to collapse to 0.008-0.012 tok/s on hermes_ops-scale prompts on 2 sibling configs in this same directory (omlx.yaml, omlx-mtp.yaml), traced to a broken chat_template.jinja shared by every config that serves this exact repo. No reason to expect this variant behaves differently. |
 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | configs/Qwen3.8-27B-oQ4e-fp16-mtp/omlx.yaml | Marked non-viable 2026-08-23: hermes_ops averaged 0.012 tok/s across 11 real trials (harness-confirmed, not a single fluke) — same catastrophic-collapse pattern as configs/Qwen3.8-27B/*.yaml (already blocked): small sanity prompts work, but the ~23K+-token hermes_ops system prompt produces near-zero real output. See this file's own investigation notes (chat_template.jinja on this repo is byte-identical to Qwen3.8-27B's pre-froggeric-fix broken template). |
-| prism-ml/Ternary-Bonsai-27B-mlx-2bit | vllm-mlx | configs/Ternary-Bonsai-27B/mlx.yaml | Marked non-viable 2026-08-23: hermes_ops averaged 0.538 tok/s across 13 real trials — well under the 10 tok/s viability cutoff, and this model has no GGUF config to fall back to (native 2-bit ternary training, not a post-hoc quant with a higher-precision GGUF sibling available). The omlx leg (configs/Ternary-Bonsai-27B/ omlx.yaml) is equally slow (0.534 tok/s) — not an MLX-specific issue. |
-| prism-ml/Ternary-Bonsai-27B-mlx-2bit | omlx | configs/Ternary-Bonsai-27B/omlx.yaml | Marked non-viable 2026-08-23: hermes_ops averaged 0.534 tok/s across 11 real trials — well under the 10 tok/s viability cutoff. The mlx leg (configs/Ternary-Bonsai-27B/mlx.yaml) is equally slow (0.538 tok/s) — not an oMLX-specific issue, and this model has no GGUF config to fall back to. |
+| prism-ml/Ternary-Bonsai-27B-mlx-2bit | vllm-mlx | configs/Ternary-Bonsai-27B/mlx.yaml | Marked non-viable 2026-08-23: hermes_ops averaged 0.538 tok/s across 13 real trials — well under the viability cutoff, and this model has no GGUF config to fall back to (native 2-bit ternary training, not a post-hoc quant with a higher-precision GGUF sibling available). The omlx leg (configs/Ternary-Bonsai-27B/ omlx.yaml) is equally slow (0.534 tok/s) — not an MLX-specific issue. |
+| prism-ml/Ternary-Bonsai-27B-mlx-2bit | omlx | configs/Ternary-Bonsai-27B/omlx.yaml | Marked non-viable 2026-08-23: hermes_ops averaged 0.534 tok/s across 11 real trials — well under the viability cutoff. The mlx leg (configs/Ternary-Bonsai-27B/mlx.yaml) is equally slow (0.538 tok/s) — not an oMLX-specific issue, and this model has no GGUF config to fall back to. |
 
 ## Speed-gated configs (stopped early — too slow to be practical)
 

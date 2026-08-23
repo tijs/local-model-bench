@@ -225,29 +225,18 @@ def main():
     ]
     if stale_rows:
         lines += [
-            f"> **⚠ {len(stale_rows)}/{len(rows)} rows below predate the 2026-08-21",
-            "> adversarial-review grading fixes** (no `runner_git_sha` at all — that",
-            "> field didn't exist yet when they were produced). A second independent",
-            "> review found the first review's own fixes still left real bugs (see",
-            "> AGENTS.md), so **do not treat any pre-2026-08-21 PASS/FAIL as final",
-            "> signal** until re-run under current grading. Known-affected checks,",
-            "> confirmed to have changed real outcomes:",
-            "> - `kiem_mini-feature` (all rows before the C1 fix): graded only the",
-            "> library function, never the CLI wiring — one logged PASS is known to",
-            "> have a compiler warning proving the CLI half was never implemented.",
-            "> - `hermes_ops-error-recovery` (all rows before this session's fixes,",
-            "> including a since-fixed regression where the word \"error\" itself",
-            "> became an auto-fail): rewarded fabricated file contents as long as",
-            "> an unrelated word like \"error\" appeared anywhere in the answer.",
-            "> - `hermes_ops-selection` (all rows before the L4 fix): `response_contains:",
-            "> \"18\"` matched \"18\" as a substring of any number, including \"2018\".",
-            "> - `hermes_ops-chaining` (all rows before the L5 fix): only checked the",
-            "> written number appeared somewhere in the file, not that it was the",
-            "> ONLY content, despite the prompt saying \"just that number\".",
-            "> - `sanity-tool` (all rows): graded with multiset argument matching,",
-            "> not exact key/value matching — could pass wrong argument names.",
-            "> Re-running is the only way to get current, trustworthy rows for these",
-            "> tasks; regenerating this file alone does not re-grade anything.",
+            f"> **⚠ {len(stale_rows)}/{len(rows)} rows below predate 2026-08-21",
+            "> grading fixes** (no `runner_git_sha` — that field didn't exist yet).",
+            "> **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until",
+            "> re-run under current grading. Known-affected checks: `kiem_mini-feature`",
+            "> (used to grade only the library function, never the CLI wiring),",
+            "> `hermes_ops-error-recovery` (used to reward fabricated file contents if",
+            "> an unrelated word like \"error\" appeared anywhere), `hermes_ops-selection`",
+            "> (used to match \"18\" as a substring of any number, including \"2018\"),",
+            "> `hermes_ops-chaining` (used to accept extra content beyond the requested",
+            "> single number), and `sanity-tool` (used multiset argument matching,",
+            "> which could pass wrong argument names). Re-running is the only way to",
+            "> get current, trustworthy rows for these tasks.",
             "",
         ]
     lines += [
@@ -261,7 +250,7 @@ def main():
         "flagged \"config since changed\" for rows predating that snapshot.",
         "`runner_git_sha` rows marked `+dirty` were graded by uncommitted code.",
         "",
-        "**`avg tok/s` caveat** (adversarial review finding H6, not fully closed):",
+        "**`avg tok/s` caveat**:",
         "this is `completion_tokens / wall_seconds` across the ENTIRE multi-turn",
         "loop, including every prefill of the suite's system prompt — it's a",
         "prefill-dominated-workload throughput number, not a pure decode rate, and",
@@ -272,21 +261,19 @@ def main():
         "silently mislabeled for proxied configs (see below), but is still a",
         "single combined average across suites where it IS real.",
         "",
-        "**¹ `temp (coding only)`** (2nd adversarial review finding CR-3, a bug in",
-        "the H7 fix): the config's declared temperature is what the coding suite",
-        "(`hermes chat`, driven by `run_fixture_suite.py`) actually runs at, since",
-        "it respects the server's launch flags. `sanity`/`hermes_ops` (driven by",
-        "`run_prompt.py`) deliberately hardcode `temperature=0` for EVERY model,",
-        "always, regardless of this config value — a longstanding, documented",
+        "**¹ `temp (coding only)`**: the config's declared temperature is what the",
+        "coding suite (`hermes chat`, driven by `run_fixture_suite.py`) actually",
+        "runs at, since it respects the server's launch flags. `sanity`/`hermes_ops`",
+        "(driven by `run_prompt.py`) deliberately hardcode `temperature=0` for EVERY",
+        "model, always, regardless of this config value — a longstanding, documented",
         "design choice (see `tasks/SCHEMA.md` \"Temperature is deliberately fixed",
-        "at 0\"), not a bug. The H7 fix originally displayed this value as if it",
-        "applied everywhere, which was false for 124 of 138 rows at the time.",
+        "at 0\"), not a bug.",
         "Note also: `configs/Qwen3.8-27B-Ridge/gguf.yaml` is the only config that",
         "sets `--presence-penalty` (1.5) — a third confound alongside temp/",
         "reasoning-mode when comparing it against `configs/Qwen3.8-27B/gguf.yaml`,",
         "not currently its own column since no other config sets this flag.",
         "",
-        "**² `slow passes`** (methodology review, finding F5): count of PASS rows",
+        "**² `slow passes`**: count of PASS rows",
         "that took longer than `bench_common.py`'s `INTERACTIVE_BUDGET_SECONDS`",
         "(300s) to complete — still correct, and still counted in `pass rate`",
         "above, but not a practically usable result in a real interactive agentic",
@@ -297,10 +284,7 @@ def main():
         "an interactive session would tolerate. 300s is a judgment call (see that",
         "constant's own comment), not a hard spec.",
         "",
-        "**³ `avg coding turns` / `coding tool errors`** (methodology review, finding",
-        "F6): the coding suite previously logged zero performance data from the",
-        "actual target workload — no tokens, no turn count, no tool-call data,",
-        "ever, unlike the two synthetic prompt suites. Pulled from hermes's own",
+        "**³ `avg coding turns` / `coding tool errors`**: pulled from hermes's own",
         "SQLite session store (`hermes sessions export`) after each coding-suite",
         "task; blank/0 for sanity/hermes_ops-only groups, which call the raw API",
         "directly and have no hermes session to pull from. `coding tool errors` is",
@@ -311,7 +295,7 @@ def main():
         "scans for the same compiler-error markers `grade_mutation.sh` already",
         "looks for as a fallback.",
         "",
-        "**⁴ `sanity gate` / `pass rate`** (methodology review, finding F3): `sanity`",
+        "**⁴ `sanity gate` / `pass rate`**: `sanity`",
         "is a fail-fast GATE — run_bench.py stops the whole config entirely if",
         "sanity-basic fails — not a quality signal to blend in alongside real",
         "tool-use/coding results. It's shown here as its own `passed/total` column",
@@ -319,16 +303,14 @@ def main():
         "folding sanity in used to compress real differences between models,",
         "since it sits at or near ceiling for nearly everything.",
         "",
-        "**⁵ `hallucinated tools`** (methodology review, finding F14): this only",
+        "**⁵ `hallucinated tools`**: this only",
         "fires in the two synthetic prompt suites (sanity/hermes_ops), whose fixed",
         "tool manifest makes \"called a tool that doesn't exist in it\" a clean,",
         "checkable signal. The coding suite has no equivalent check — a hermes",
         "chat session's real tool manifest isn't fixed/known the way hermes_ops's",
         "41-tool mock manifest is, so this reads 0 for every coding-suite row",
         "regardless of what actually happened. Read this column as \"not observed",
-        "on the two synthetic suites,\" not \"never hallucinated a tool\" — the",
-        "coding-suite session data added for finding F6 (avg coding turns/tool",
-        "errors) doesn't cover this specific question either.",
+        "on the two synthetic suites,\" not \"never hallucinated a tool\".",
         "",
         "| model | engine | quant | temp (coding only)¹ | reasoning | sanity gate⁴ | config | runner | tasks | pass rate⁴ | slow passes² | avg tok/s | avg TTFT (s) | hallucinated tools⁵ | avg coding turns³ | coding tool errors³ | peak RSS (GB) | quant family | cache | MTP |",
         "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
@@ -523,9 +505,9 @@ def main():
     lines.append("Any task with the SAME (model, inference_engine, quant, config_hash,")
     lines.append("runner_git_sha, suite, task_id) that comes back with SOME passes and")
     lines.append("some fails is not \"probably fine\" — it's proof this one task's result")
-    lines.append("isn't safe to treat as a boolean for this model (adversarial review")
-    lines.append("finding C5: temperature=0 measurably does not make MLX/Metal generation")
-    lines.append("deterministic across runs). This catches flakiness from an explicit")
+    lines.append("isn't safe to treat as a boolean for this model — temperature=0")
+    lines.append("measurably does not make MLX/Metal generation deterministic across")
+    lines.append("runs. This catches flakiness from an explicit")
     lines.append("`--trials N` run AND from two separate invocations that happen to share")
     lines.append("every one of those fields (found live: a real historical entry below")
     lines.append("came from two independent runs, not --trials, which didn't exist yet).")
@@ -589,9 +571,8 @@ def main():
         lines.append(
             f"{len(harness_error_rows)} row(s) where the harness itself crashed "
             "(e.g. a network blip during `npm ci`, a malformed task spec) rather "
-            "than the model producing a graded result — added 2026-08-21 (3rd "
-            "adversarial review, finding CR3-6) so these are visible instead of "
-            "silently deflating pass rates or masquerading as model flakiness."
+            "than the model producing a graded result — shown separately so they "
+            "don't deflate pass rates or masquerade as model flakiness."
         )
         lines.append("")
         lines.append("| model | engine | suite | task | grade_output (truncated) |")
