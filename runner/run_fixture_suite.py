@@ -217,7 +217,26 @@ def preserve_tree(root, state):
 
 
 def _repository_entries(root):
-    """Return protected repository entries, pruning intentional run outputs."""
+    """Return protected repository entries, pruning intentional run outputs.
+
+    Also prunes runner/.dspark-head and runner/.dflash2-fork (found live
+    2026-08-23): these are gitignored, from-source llama.cpp build
+    checkouts for DSpark/DFlash2 speculative decoding — tens of thousands
+    of unrelated files, including large binary pack files, that this scan
+    was reading byte-for-byte on EVERY coding-suite task (before and
+    after, via preserve_repository below) despite never being something a
+    fixture task could plausibly touch. Root-caused a recurring
+    `HARNESS ERROR: PermissionError` on an unrelated .dspark-head pack
+    file that had (wrongly) looked like a model- or task-specific
+    flake — hit twice this session, on two completely different models,
+    before being traced back to this scan reading a huge unrelated tree
+    on every single task rather than anything about the model being
+    tested. NOTE: this exact function is why the first attempt at this
+    fix vanished — preserve_repository(REPO, ...) below guards the WHOLE
+    repo (including this file) during every task's execution window and
+    reverts anything that changed, including an edit made by the operator
+    mid-task, not just a model's own tool use. Never edit this file (or
+    anything else in the repo) while a coding-suite task is in flight."""
     root = Path(root)
     entries = {}
     for current, dirs, files in os.walk(root):
@@ -226,7 +245,7 @@ def _repository_entries(root):
         if rel_dir == Path("."):
             dirs[:] = [d for d in dirs if d not in {".git", "results"}]
         elif rel_dir == Path("runner"):
-            dirs[:] = [d for d in dirs if d != "runs"]
+            dirs[:] = [d for d in dirs if d not in {"runs", ".dspark-head", ".dflash2-fork"}]
         entries[str(rel_dir)] = ("dir", None)
         for name in files:
             path = current_path / name
