@@ -1,0 +1,99 @@
+model: bartowski/Qwen3.8-27B-GGUF:Q4_K_M
+# Added 2026-08-24 (user request): "someone tried different tactics to
+# speed things up for 3.8" — same model/quant as configs/Qwen3.8-27B/
+# gguf.yaml (base config), but with speculative decoding via the model's
+# own embedded MTP (multi-token prediction) draft head, plus quantized
+# KV cache. Source for the tactic: https://kgptalkie.com/tutorials/
+# generative-ai/qwen-3-8-27b-llama-cpp-speed-settings, which reported
+# 74->134 tok/s on an RTX 5090 (CUDA) using --spec-type draft-mtp
+# --spec-draft-n-max 2/3 plus --cache-type-k/v q4_0. That number is
+# CUDA-only — no Apple Silicon/Metal data was found anywhere; this config
+# exists specifically to get a real Mac data point, not to confirm an
+# already-known Mac result. Confirmed live 2026-08-24 that this project's
+# Homebrew llama.cpp build (b10470, `llama-server --version`) natively
+# supports --spec-type draft-mtp and -ctk/-ctv (checked via
+# `llama-server --help`) — unlike DFlash2/DSpark, no custom fork build is
+# needed for this technique.
+temperature: 1.0
+reasoning_mode: thinking
+inference_engine: llama.cpp
+
+benchmark_launch_command: |
+  HF_TOKEN=$(cat ~/.cache/huggingface/token) llama-server \
+    --hf-repo bartowski/Qwen3.8-27B-GGUF:Q4_K_M \
+    --host 127.0.0.1 --port 8017 \
+    --temp 1.0 --top-p 0.95 --top-k 20 \
+    --ctx-size 65536 \
+    --spec-type draft-mtp --spec-draft-n-max 2 \
+    --cache-type-k q4_0 --cache-type-v q4_0 \
+    --jinja --chat-template-file configs/Qwen3.8-27B/chat_template.jinja
+
+benchmark_endpoint: http://127.0.0.1:8017/v1
+  # native tool_calls expected (same as configs/Qwen3.8-27B/gguf.yaml,
+  # identical model/quant) — the speculative-decoding/KV-cache-quant flags
+  # only affect throughput, not output format, so tool-call parsing should
+  # behave identically to the base config. Not independently re-verified
+  # for this exact flag combination though.
+
+orchestration:
+  raw_port: 8017
+  needs_proxy: false
+  hermes_provider: qwen38-mtp-gguf
+  viable: full
+
+settings:
+  - name: quant / base model
+    value: "Identical to configs/Qwen3.8-27B/gguf.yaml
+      (bartowski/Qwen3.8-27B-GGUF:Q4_K_M) — this config isolates the
+      speed-tactic flags as the only variable, for a clean before/after
+      comparison against that sibling config's real results."
+  - name: speculative decoding (MTP)
+    value: "--spec-type draft-mtp --spec-draft-n-max 2"
+    source: "https://kgptalkie.com/tutorials/generative-ai/qwen-3-8-27b-llama-cpp-speed-settings
+      — uses the model's own embedded multi-token-prediction draft head
+      (shipped inside the official Qwen3.8-27B GGUF) to speculatively
+      generate multiple tokens per full-model forward pass, verified by
+      one real pass over the 27B weights. Reported n_max=2 as a solid
+      default; n=3 peaked slightly higher (133.6 vs unspecified for n=2)
+      in their testing but on CUDA hardware — not assumed to transfer
+      exactly to Metal, n=2 chosen as the documented default rather than
+      guessing an optimum for this hardware."
+  - name: KV cache quantization
+    value: "--cache-type-k q4_0 --cache-type-v q4_0"
+    source: "Same article — quantizing the KV cache to 4-bit (from the
+      llama.cpp default f16) cuts memory-bandwidth traffic per token,
+      reported to roughly double throughput on its own (50->100 tok/s in
+      their testing) even before adding speculative decoding."
+  - name: hardware caveat (the actual point of this config)
+    value: "The 74->134 tok/s figure this tactic is based on was measured
+      on an RTX 5090 (32GB CUDA), not Apple Silicon. No Metal-specific
+      data for this flag combination was found anywhere during research
+      — this benchmark run is intended to be the first real Mac data
+      point for it, not a confirmation of an already-known Mac result."
+  - name: ctx-size / chat_template
+    value: "Same as configs/Qwen3.8-27B/gguf.yaml — see that config's
+      settings entries for the original OOM history and chat-template
+      fix rationale, both apply identically here since it's the same
+      model file."
+
+known_gaps:
+  - "run_prompt.py hardcodes temperature=0 for sanity/hermes_ops — see
+    configs/Qwen3.8-27B/gguf.yaml's known_gaps, same caveat applies."
+  - "--spec-draft-n-max 2 is the article's documented default, not a value
+    tuned for this specific hardware — if this run's throughput looks
+    disappointing, trying n=3 or n=1 before concluding the whole tactic
+    doesn't help on Metal would be a reasonable next step."
+  - "Speculative decoding accept/reject rates aren't logged by this
+    benchmark's current instrumentation — a low measured speedup could
+    mean either 'the technique doesn't transfer well to Metal' or 'the
+    draft head's guesses are frequently rejected for this specific
+    workload' (e.g. code generation vs the article's likely more generic
+    test prompts) — this run's raw tok/s alone won't distinguish those,
+    only tells you whether it helped or not on this workload specifically."
+  - "Native tool_calls format not independently re-verified for this
+    exact flag combination — confirm before trusting hermes_ops/coding
+    results if anything looks structurally different from the base
+    config's known-good behavior."
+
+last_updated: 2026-08-24
+last_verified_against_docs: 2026-08-24
