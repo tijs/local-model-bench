@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/832 rows below predate 2026-08-21
+> **⚠ 138/834 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -170,6 +170,7 @@ on the two synthetic suites," not "never hallucinated a tool".
 | gpt-5.6-luna | api | — | ? | ? | — | [86cbe69b94ae](configs/Luna/api.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 1 | 100% | 0 | — | — | 0 | — | 0 | — | ? | ? | ? |
 | gpt-5.6-luna | api | — | None | unspecified | — | [dc55dd82a2c3](configs/dc55dd82a2c3.yaml) — *config since changed* | e155170f4c1d | 1 | 0% | 0 | — | — | 0 | — | 0 | — | — | — | — |
 | mlx-community/Devstral-Small-2507-4bit-DWQ | mlx | — | 0.15 | n/a | 1/2 | [54b39a32dd69](configs/54b39a32dd69.yaml) — *config since changed* | 65bb6d23192e | 0 | n/a (all harness errors) | 0 | 6.9 | 9.13 | 0 | — | 0 | 8.7 | — | — | — |
+| mlx-community/LFM2.5-2.6B-8bit | vllm-mlx | — | 0.1 | n/a | 0/2 | [662a015ba0e6](configs/662a015ba0e6.yaml) | 4f0aad77c3ab | 0 | n/a (all harness errors) | 0 | 0.0 | n/a (proxied — not real TTFT) | 0 | — | 0 | 0.8 | — | — | — |
 | mlx-community/LFM2.5-2.6B-8bit | vllm-mlx | — | 0.1 | n/a | 0/2 | [662a015ba0e6](configs/662a015ba0e6.yaml) | 6a6b4bcf6907 | 0 | n/a (all harness errors) | 0 | 0.0 | n/a (proxied — not real TTFT) | 0 | — | 0 | 0.8 | — | — | — |
 | mlx-community/LFM2.5-8B-A1B-MLX-8bit | mlx | — | 0.2 | n/a | 1/2 | [509fe12b4b1a](configs/509fe12b4b1a.yaml) — *config since changed* | e155170f4c1d | 0 | n/a (all harness errors) | 0 | 99.4 | n/a (proxied — not real TTFT) | 0 | — | 0 | 9.1 | — | — | — |
 | mlx-community/LFM2.5-8B-A1B-MLX-8bit | vllm-mlx | — | 0.2 | n/a | 2/2 | [00878f13621f](configs/00878f13621f.yaml) | 6a6b4bcf6907 | 9 | 56% | 0 | 26.4 | n/a (proxied — not real TTFT) | 0 | — | 0 | 9.1 | — | — | — |
@@ -353,7 +354,8 @@ are omitted entirely rather than shown with a misleading score.
 | 121 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | mlx | — | 5fd02e54bb9d | 0.00 | 1 | 0% (1) | — | — |
 | 122 | gpt-5.6-luna | api | — | dc55dd82a2c3 | 0.00 | 1 | 0% (1) | — | — |
 | 123 | mlx-community/LFM2.5-2.6B-8bit | vllm-mlx | — | 662a015ba0e6 | 0.00 | 1 | — | — | 0.0 tok/s |
-| 124 | prism-ml/Ternary-Bonsai-27B-mlx-2bit | mlx | — | 8e85abe37e32 | 0.00 | 1 | 0% (1) | — | — |
+| 124 | mlx-community/LFM2.5-2.6B-8bit | vllm-mlx | — | 662a015ba0e6 | 0.00 | 1 | — | — | 0.0 tok/s |
+| 125 | prism-ml/Ternary-Bonsai-27B-mlx-2bit | mlx | — | 8e85abe37e32 | 0.00 | 1 | 0% (1) | — | — |
 
 ## Flaky tasks (mixed pass/fail under identical conditions)
 
@@ -545,6 +547,7 @@ confirmed-stable, just untested for flakiness.
 | gpt-5.6-luna | api | 86cbe69b94ae | *(predates tracking)* | kiem_mini | 1/1 |
 | gpt-5.6-luna | api | dc55dd82a2c3 | e155170f4c1d | kiem_mini | 0/1 |
 | mlx-community/Devstral-Small-2507-4bit-DWQ | mlx | 54b39a32dd69 | 65bb6d23192e | sanity | 1/2 |
+| mlx-community/LFM2.5-2.6B-8bit | vllm-mlx | 662a015ba0e6 | 4f0aad77c3ab | sanity | 0/2 |
 | mlx-community/LFM2.5-2.6B-8bit | vllm-mlx | 662a015ba0e6 | 6a6b4bcf6907 | sanity | 0/2 |
 | mlx-community/LFM2.5-8B-A1B-MLX-8bit | mlx | 509fe12b4b1a | e155170f4c1d | sanity | 1/2 |
 | mlx-community/LFM2.5-8B-A1B-MLX-8bit | vllm-mlx | 00878f13621f | 6a6b4bcf6907 | hermes_ops | 5/8 |
