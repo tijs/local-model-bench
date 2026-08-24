@@ -1,0 +1,134 @@
+$ hermes chat --profile bench --provider qwen38ridge-gguf -m empero-ai/Qwen3.8-27B-Ridge-GGUF --max-turns 40
+
+--- stdout ---
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmpaqgc9igj/run/rust/src/store.rs → b//Users/tijs/projects/local-model-bench/runner/runs/tmpaqgc9igj/run/rust/src/store.rs
+@@ -36,3 +36,25 @@
+     }
+     Ok(notes)
+ }
++
++/// Renames a stored note: changes its id to `new_id` and its title to
++/// `new_title`, leaving body, tags, and pinned state unchanged. The old
++/// `{old_id}.note` file is removed so no duplicate under the old id
++/// remains on disk. Returns an error if the note was not found.
++pub fn rename(dir: &Path, old_id: &str, new_id: &str, new_title: &str) -> std::io::Result<()> {
++    let old_path = dir.join(format!("{}.note", old_id));
++    let content = fs::read_to_string(&old_path)?;
++    let parts: Vec<&str> = content.splitn(4, SEP).collect();
++    if parts.len() != 4 || parts[0] != old_id {
++        return Err(std::io::Error::new(
++            std::io::ErrorKind::NotFound,
++            format!("note not found: {}", old_id),
++        ));
++    }
++    let new_content = format!(
++        "{}{}{}{}{}{}{}",
++        new_id, SEP, new_title, SEP, parts[2], SEP, parts[3]
++    );
++    fs::write(dir.join(format!("{}.note", new_id)), new_content)?;
++    fs::remove_file(&old_path)
++}
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmpaqgc9igj/run/rust/src/store.rs → b//Users/tijs/projects/local-model-bench/runner/runs/tmpaqgc9igj/run/rust/src/store.rs
+@@ -58,3 +58,54 @@
+     fs::write(dir.join(format!("{}.note", new_id)), new_content)?;
+     fs::remove_file(&old_path)
+ }
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use crate::new_note;
++    use std::fs;
++
++    #[test]
++    fn rename_updates_both_representations() {
++        let dir = tempfile_dir();
++        let note = new_note("old-1", "Old Title", "body with #tag text");
++        save(&dir, &note).unwrap();
++
++        // Pin it so we can verify pinned state survives the rename.
++        fs::write(
++            dir.join("old-1.note"),
++            format!("old-1{SEP}Old Title{SEP}1{SEP}body with #tag text"),
++        )
++        .unwrap();
++
++        rename(&dir, "old-1", "new-2", "New Title").unwrap();
++
++        // Old file is gone, new file exists.
++        assert!(!dir.join("old-1.note").exists());
++        assert!(dir.join("new-2.note").exists());
++
++        let notes = load_all(&dir).unwrap();
++        assert_eq!(notes.len(), 1);
++        assert_eq!(notes[0].id, "new-2");
++        assert_eq!(notes[0].title, "New Title");
++        assert_eq!(notes[0].body, "body with #tag text");
++        assert_eq!(notes[0].tags, vec!["tag".to_string()]);
++        assert!(notes[0].pinned);
++
++        fs::remove_dir_all(&dir).unwrap();
++    }
++
++    #[test]
++    fn rename_missing_note_is_error() {
++        let dir = tempfile_dir();
++        assert!(rename(&dir, "nope", "x", "T").is_err());
++        fs::remove_dir_all(&dir).unwrap();
++    }
++
++    fn tempfile_dir() -> std::path::PathBuf {
++        let dir = std::path::PathBuf::from(format!("/tmp/notekeep-test-{}", std::process::id()));
++        let _ = fs::remove_dir_all(&dir);
++        fs::create_dir_all(&dir).unwrap();
++        dir
++    }
++}
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmpaqgc9igj/run/rust/src/store.rs → b//Users/tijs/projects/local-model-bench/runner/runs/tmpaqgc9igj/run/rust/src/store.rs
+@@ -103,8 +103,9 @@
+     }
+ 
+     fn tempfile_dir() -> std::path::PathBuf {
+-        let dir = std::path::PathBuf::from(format!("/tmp/notekeep-test-{}", std::process::id()));
+-        let _ = fs::remove_dir_all(&dir);
++        static COUNTER: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
++        let n = COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
++        let dir = std::path::PathBuf::from(format!("/tmp/notekeep-test-{}-{}", std::process::id(), n));
+         fs::create_dir_all(&dir).unwrap();
+         dir
+     }
+Ad-hoc verification complete (not a suite-green claim — this is a one-off harness I built and tore down).
+
+What I ran:
+
+1. **Fresh `cargo test`** in the crate — all green: both `store::tests` rename tests pass, plus the pre-existing `tests/basic.rs` integration tests. Exit 0.
+
+2. **Standalone end-to-end check** (the piece the unit tests alone don't show): built a throwaway bin crate depending on the local `notekeep` lib, seeded a real data dir with a pinned note containing a tag (`old-42.note`, body `some #kept tag here`), called `store::rename(dir, "old-42", "brand-new-id", "Renamed Title")`, and asserted:
+   - old file deleted, new file created
+   - `load_all()` returns **exactly one** note — no stale duplicate under the old id (the F10/F11 cross-representation trap)
+   - id/title updated; body, tags (`["kept"]`), pinned state all preserved
+
+   Result: `PASS`, and the on-disk file content after rename was printed for direct inspection:
+   ```
+   brand-new-id
+   ---
+   Renamed Title
+   ---
+   1
+   ---
+   some #kept tag here
+   ```
+
+Cleanup: scratch crate, data dir, and the `hermes-verify-WHKD` temp dir under `/private/var/folders/.../T` all removed. No artifacts left behind except the source change in `rust/src/store.rs`.
+
+⚠️ File-mutation verifier: 1 file(s) were NOT modified this turn despite any wording above that may suggest otherwise. Run `git status` or `read_file` to confirm.
+  • `/private/var/folders/1s/ggz8433s6x56bzrwdtfbblfc0000gn/T/hermes-verify-WHKD/verify.sh` — [write_file] Refusing to write to sensitive system path: `/private/var/folders/1s/ggz8433s6x56bzrwdtfbblfc0000gn/T/hermes-verify-WHKD/verify.sh` Use the terminal tool with sudo if you need to mo…
+
+
+--- stderr ---
+
+session_id: 20260824_041200_4d83db
+

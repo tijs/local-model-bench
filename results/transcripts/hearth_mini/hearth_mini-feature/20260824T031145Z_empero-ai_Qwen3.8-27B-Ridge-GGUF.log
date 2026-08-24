@@ -1,0 +1,97 @@
+$ hermes chat --profile bench --provider qwen38ridge-gguf -m empero-ai/Qwen3.8-27B-Ridge-GGUF --max-turns 40
+
+--- stdout ---
+  ┊ review diff
+a/src/types.ts → b/src/types.ts
+@@ -1,7 +1,7 @@
+ export type ResourceKind = "wood" | "food" | "stone";
+ export type Resources = Record<ResourceKind, number>;
+ 
+-export type BuildingKind = "hut" | "farm" | "quarry";
++export type BuildingKind = "hut" | "farm" | "quarry" | "storehouse";
+ 
+ export interface Settlement {
+   resources: Resources;
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmpdvxgr2ze/run/src/sim.ts → b//Users/tijs/projects/local-model-bench/runner/runs/tmpdvxgr2ze/run/src/sim.ts
+@@ -4,6 +4,14 @@
+   hut: { wood: 10 },
+   farm: { wood: 15, stone: 5 },
+   quarry: { wood: 20 },
++  storehouse: { wood: 25, stone: 10 },
++};
++
++const BUILDING_PREREQUISITES: Record<BuildingKind, BuildingKind | null> = {
++  hut: null,
++  farm: null,
++  quarry: null,
++  storehouse: "hut",
+ };
+ 
+ export function canAfford(settlement: Settlement, kind: BuildingKind): boolean {
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmpdvxgr2ze/run/src/sim.ts → b//Users/tijs/projects/local-model-bench/runner/runs/tmpdvxgr2ze/run/src/sim.ts
+@@ -24,6 +24,10 @@
+ export function build(settlement: Settlement, kind: BuildingKind): Settlement {
+   if (!canAfford(settlement, kind)) {
+     throw new Error(`cannot afford ${kind}`);
++  }
++  const prereq = BUILDING_PREREQUISITES[kind];
++  if (prereq && !settlement.buildings.includes(prereq)) {
++    throw new Error(`${kind} requires a ${prereq}`);
+   }
+   const cost = BUILDING_COSTS[kind];
+   const resources = { ...settlement.resources };
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmpdvxgr2ze/run/src/sim.ts → b//Users/tijs/projects/local-model-bench/runner/runs/tmpdvxgr2ze/run/src/sim.ts
+@@ -19,6 +19,15 @@
+   return (Object.entries(cost) as [keyof Resources, number][]).every(
+     ([res, amount]) => settlement.resources[res] >= amount,
+   );
++}
++
++export function isAllowed(settlement: Settlement, kind: BuildingKind): boolean {
++  const prereq = BUILDING_PREREQUISITES[kind];
++  return !prereq || settlement.buildings.includes(prereq);
++}
++
++export function availableBuildings(settlement: Settlement): BuildingKind[] {
++  return Object.keys(BUILDING_COSTS) as BuildingKind[];
+ }
+ 
+ export function build(settlement: Settlement, kind: BuildingKind): Settlement {
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmpdvxgr2ze/run/src/sim.ts → b//Users/tijs/projects/local-model-bench/runner/runs/tmpdvxgr2ze/run/src/sim.ts
+@@ -27,7 +27,9 @@
+ }
+ 
+ export function availableBuildings(settlement: Settlement): BuildingKind[] {
+-  return Object.keys(BUILDING_COSTS) as BuildingKind[];
++  return (Object.keys(BUILDING_COSTS) as BuildingKind[]).filter(
++    (kind) => canAfford(settlement, kind) && isAllowed(settlement, kind),
++  );
+ }
+ 
+ export function build(settlement: Settlement, kind: BuildingKind): Settlement {
+Done. Typecheck and all tests pass.
+
+Changes:
+
+src/types.ts
+- BuildingKind now includes "storehouse".
+
+src/sim.ts
+- BUILDING_COSTS: added storehouse: { wood: 25, stone: 10 }.
+- New BUILDING_PREREQUISITES map: hut/farm/quarry have null; storehouse requires "hut".
+- build() now also throws if the prerequisite building hasn't been built yet (e.g. `storehouse requires a hut`), so the new rule is enforced at build time, not just in availability.
+- New exported helpers:
+  - isAllowed(settlement, kind) — true if no prereq or the prereq is already in settlement.buildings.
+  - availableBuildings(settlement) — returns every BuildingKind that passes both canAfford and isAllowed.
+
+Verified with `npm run typecheck` (clean) and `npm run test` (4/4 pass).
+
+
+--- stderr ---
+
+session_id: 20260824_050638_63fc59
+
