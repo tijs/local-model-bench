@@ -1,0 +1,128 @@
+model: LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF:F16 drafter)
+# Added 2026-08-21 (adversarial review finding H7): reasoning-mode and
+# temperature differ across models presented in one ranked leaderboard
+# table with no column showing it — e.g. Qwen3.8-27B vs Qwen3.8-27B-Ridge
+# looked like a quant comparison but also differed in reasoning mode,
+# temperature, and presence_penalty (three confounds, one conclusion).
+# These two fields are read by build_leaderboard.py and shown as columns;
+# keep them in sync with benchmark_launch_command by hand.
+temperature: 0.2
+reasoning_mode: n/a
+inference_engine: llama.cpp-dspark   # built from ggml-org/llama.cpp mainline at
+  # HEAD, NOT the Homebrew build used for every other GGUF config in this
+  # repo — DSpark's LFM2-specific support merged via PR #27383 on
+  # 2026-08-20, AFTER the installed Homebrew bottle (build 10470, commit
+  # 34af94cd9, dated 2026-08-17) was cut. `brew upgrade llama.cpp` found
+  # no newer bottle yet (bottles lag mainline by hours-days). Unlike
+  # DFlash2, this is real, merged, OFFICIAL upstream code — just not yet
+  # bottled — so a plain mainline clone at HEAD sufficed, no third-party
+  # fork needed. See runner/setup_dspark_head.sh.
+
+benchmark_launch_command: |
+  # One-time setup (builds into runner/.dspark-head/, gitignored):
+  #   runner/setup_dspark_head.sh
+  HF_TOKEN=$(cat ~/.cache/huggingface/token) runner/.dspark-head/build/bin/llama-server \
+    --hf-repo LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 \
+    --spec-type draft-dspark \
+    --spec-draft-hf LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF:F16 \
+    --spec-draft-n-max 10 --spec-draft-n-min 0 \
+    --host 127.0.0.1 --port 8017 \
+    --temp 0.2 --top-k 80 --repeat-penalty 1.05 \
+    --ctx-size 65536 --timeout 1800
+
+benchmark_endpoint: http://127.0.0.1:8017/v1
+  # Native tool_calls expected (same base model/quant as the working plain
+  # config, configs/LiquidAI-LFM2.5-8B-A1B/gguf.yaml) — re-verify live
+  # since this is a different binary (mainline HEAD, not Homebrew).
+
+orchestration:
+  raw_port: 8017
+  needs_proxy: false
+  hermes_provider: lfm8b-gguf   # same provider as the plain config — same
+    # port/endpoint shape, only the server binary + spec-decoding flags
+    # differ. Swap the running server, not the hermes provider entry.
+  server_binary: runner/.dspark-head/build/bin/llama-server
+  viable: full
+
+settings:
+  - name: why mainline HEAD instead of Homebrew
+    value: "Homebrew's llama-server (build 10470) already lists
+      draft-dspark in --spec-type (generic DSpark support, PR #25173,
+      merged 2026-07-28) but its commit (34af94cd9, 2026-08-17) predates
+      PR #27383 ('spec: support DSpark for LFM2 models', merged
+      2026-08-20T14:36:58Z) — the LFM2-specific tensor/architecture glue.
+      Confirmed both PRs' merge state via `gh api repos/ggml-org/llama.cpp/
+      pulls/{25173,27383}`. Built mainline HEAD from source rather than
+      wait for the Homebrew bottle to catch up."
+    source: "https://github.com/ggml-org/llama.cpp/pull/25173,
+      https://github.com/ggml-org/llama.cpp/pull/27383"
+  - name: draft quant
+    value: "F16 (664MB) — 'best accept length, recommended when memory
+      allows' per the drafter's own card. Q8_0 (349MB, -2% accept length)
+      and Q4_K_M (191MB, -3%) also available if memory becomes a concern —
+      not expected to be an issue given the target is only Q8_0 8.3B-total/
+      1.5B-active MoE."
+    source: "https://huggingface.co/LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF
+      README.md 'Files' section."
+  - name: --spec-draft-n-max / --spec-draft-n-min
+    value: "10 / 0 — exactly the blog/model-card's own quick-start command.
+      Block size (9) is read from the drafter GGUF's own sidecar metadata,
+      not set manually."
+    source: "https://huggingface.co/LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF
+      README.md 'How to run' section."
+  - name: temperature / top_k / repetition_penalty
+    value: "0.2 / 80 / 1.05 — identical to the plain (non-spec) config.
+      DSpark speculative decoding is exact (the target verifies every
+      proposed token; greedy output equals the target alone, sampling
+      preserves its distribution per the drafter's own README), so
+      sampling settings are unchanged, not re-derived."
+    source: "configs/LiquidAI-LFM2.5-8B-A1B/gguf.yaml's own settings block
+      + https://huggingface.co/LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF
+      README.md."
+  - name: expected speedup — tempering expectations up front
+    value: "LiquidAI's own DSpark blog post
+      (https://huggingface.co/blog/LiquidAI/lfm25-dspark) notes only a
+      ~1.18x on-device speedup for the 8B-A1B MoE model specifically,
+      'due to MoE implementation limitations' — much lower than dense-model
+      results elsewhere in the post. Also, PR #27441 (Metal-kernel-specific
+      optimization for DSpark) is still open/unmerged as of 2026-08-20, so
+      this Apple Silicon run may not even reach that 1.18x figure. Measure
+      and record the real number rather than assume the blog's figure
+      transfers directly to this hardware/quant combination."
+    source: "https://huggingface.co/blog/LiquidAI/lfm25-dspark +
+      https://github.com/ggml-org/llama.cpp/pull/27441 (state: open,
+      merged: false, as of 2026-08-20)."
+
+  - name: measured result (2026-08-20, full sanity + hermes_ops + coding run)
+    value: "sanity 2/2 PASS. hermes_ops 3/3 PASS (error-recovery initially
+      FAILed on a grading-strictness gap, not a model issue — the model's
+      correct answer ('...could not be located; no matching file was
+      found') didn't literally contain any of the check's exact phrases;
+      fixed by broadening tasks/hermes_ops.yaml's accepted phrase list,
+      re-graded PASS). kiem_mini-feature (coding spot-check): FAIL (17s) —
+      the model produced only a bare JSON plan/todo dump (no actual tool
+      call, no code changes) instead of using its normal
+      <|tool_call_start|>[...] format. This matches the SAME already-
+      documented genuine-instability pattern seen on the plain (non-spec)
+      LFM2.5-8B-A1B GGUF/MLX configs' own kiem_mini-feature FAILs (one of
+      three observed symptoms there was this exact 'bare plan-only
+      response') — i.e. this looks like the base model's own known
+      weakness under long/complex coding-suite prompts, not something
+      DSpark introduced.
+      THROUGHPUT: measured via direct curl (200-token completion,
+      temp 0.2) — 34.3 tok/s with DSpark active (draft_n=893,
+      draft_n_accepted=196, ~22% acceptance) vs. this benchmark's own
+      non-spec baseline of 61.4 tok/s for the same target+quant (see
+      configs/LiquidAI-LFM2.5-8B-A1B/gguf.yaml's leaderboard row) — DSpark
+      made this SLOWER, not faster, on this hardware. Consistent with the
+      settings block above's up-front caution: PR #27441 (Metal-kernel
+      optimization) is still unmerged, and the blog's own on-device figure
+      for this exact MoE model was only ~1.18x even with that
+      optimization — evidently the un-optimized Metal path here doesn't
+      clear even that low bar, and the ~22% acceptance rate means most of
+      each drafted block is wasted verification overhead."
+    source: "Direct runs via runner/run_prompt_suite.py, run_fixture_suite.py,
+      and a direct curl against /v1/chat/completions for the timings
+      breakdown, 2026-08-20."
+
+last_updated: 2026-08-20
