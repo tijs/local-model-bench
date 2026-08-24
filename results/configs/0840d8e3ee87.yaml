@@ -1,0 +1,69 @@
+model: LiquidAI/LFM2.5-2.6B-GGUF:Q8_0
+# Added 2026-08-21 (adversarial review finding H7): reasoning-mode and
+# temperature differ across models presented in one ranked leaderboard
+# table with no column showing it — e.g. Qwen3.8-27B vs Qwen3.8-27B-Ridge
+# looked like a quant comparison but also differed in reasoning mode,
+# temperature, and presence_penalty (three confounds, one conclusion).
+# These two fields are read by build_leaderboard.py and shown as columns;
+# keep them in sync with benchmark_launch_command by hand.
+temperature: 0.1
+reasoning_mode: n/a
+inference_engine: llama.cpp
+
+benchmark_launch_command: |
+  HF_TOKEN=$(cat ~/.cache/huggingface/token) llama-server \
+    --hf-repo LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 \
+    --host 127.0.0.1 --port 8016 \
+    --temp 0.1 --top-k 50 --repeat-penalty 1.1
+
+benchmark_endpoint: http://127.0.0.1:8016/v1
+  # No proxy needed — confirmed live 2026-08-19: llama-server returns proper
+  # tool_calls natively for LFM (unlike vllm-mlx on the MLX side), plus real
+  # streaming usage counts. hermes's local-gguf provider points straight at
+  # this port.
+
+orchestration:
+  raw_port: 8016
+  needs_proxy: false
+  hermes_provider: local-gguf
+  viable: full
+
+settings:
+  - name: quant
+    value: Q8_0
+    source: "chosen per configs/README.md quant policy — closest to lossless
+      while still being a real quant; model is only 2.6B so aggressive
+      quantization isn't needed to fit. Available alternatives:
+      Q4_0/Q4_K_M/Q5_K_M/Q6_K/Q8_0/BF16/F16, per
+      https://huggingface.co/LiquidAI/LFM2.5-2.6B-GGUF."
+  - name: tool_call_parser
+    value: native (llama.cpp built-in, no bench_local_proxy.py needed)
+    source: "confirmed live 2026-08-19 — llama-server's chat-template-driven
+      tool calling returns a proper tool_calls array for LFM directly, no
+      custom parsing required. Do not assume this holds for every model
+      family — spot-check with runner/run_prompt.py against the raw
+      endpoint before trusting a new model's GGUF tool-call results."
+  - name: temperature / top_k / repetition_penalty
+    value: 0.1 / 50 / 1.1 (same as MLX, applied via --temp --top-k --repeat-penalty)
+    source: "same LiquidAI model-card guidance as configs/LiquidAI-LFM2.5-2.6B/mlx.yaml
+      — these are model properties, not framework-specific. Confirmed
+      llama-server supports matching flags (`llama-server --help`); applied
+      for apples-to-apples comparison with the MLX config."
+  - name: context_length
+    value: 131072 (n_ctx_train, used by default)
+    source: "confirmed via GET /v1/models on the running server: n_ctx=131072,
+      n_ctx_train=131072 — full trained context available with no flag
+      needed."
+  - name: DFlash 2 (speculative decoding)
+    value: not applicable — no LFM2.5 drafter published
+    source: "https://huggingface.co/collections/incoai/dflash-2 — only
+      Qwen3.8-27B and Muse-Glimmer-30B drafters exist as of 2026-08-19.
+      --spec-type draft-dflash IS present in the installed llama.cpp build
+      (confirmed via llama-server --help), so this is ready to use the
+      moment a compatible drafter exists or when testing those other two
+      candidates."
+
+known_gaps: []
+
+last_updated: 2026-08-19
+last_verified_against_docs: 2026-08-19
