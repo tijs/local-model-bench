@@ -1,0 +1,88 @@
+model: bartowski/Qwen2.5-Coder-14B-Instruct-GGUF:Q4_K_M
+# Added 2026-08-22 (methodology review, finding F12): fills the "dense
+# 12-20B model" gap the review identified — every other config in this
+# repo is either a small (<10B) dense model or a 27B+ dense/MoE model,
+# with nothing in the band most likely to trade a little speed for real
+# quality inside 32GB unified memory. Chosen over other 12-20B candidates
+# because both a GGUF quant repo (this one) AND a real MLX quant repo
+# (see mlx.yaml) already exist on HuggingFace — confirmed via the HF
+# models API before authoring this config, not assumed from naming
+# conventions.
+temperature: 0.7
+reasoning_mode: n/a
+inference_engine: llama.cpp
+
+benchmark_launch_command: |
+  HF_TOKEN=$(cat ~/.cache/huggingface/token) llama-server \
+    --hf-repo bartowski/Qwen2.5-Coder-14B-Instruct-GGUF:Q4_K_M \
+    --host 127.0.0.1 --port 8017 \
+    --temp 0.7 --top-p 0.8 --top-k 20 --repeat-penalty 1.05 \
+    --ctx-size 65536 --rope-scaling yarn --rope-scale 2.0 --yarn-orig-ctx 32768 \
+    --jinja
+
+benchmark_endpoint: http://127.0.0.1:8017/v1
+  # Assumed native tool_calls via llama-server's --jinja auto-detection of
+  # the GGUF's embedded chat template (standard Qwen2.5 Hermes-style
+  # <tool_call>{"name":...,"arguments":...}</tool_call> format) — NOT yet
+  # confirmed live for this specific checkpoint. Spot-check before
+  # trusting any hermes_ops/coding result, per this benchmark's standing
+  # policy (AGENTS.md).
+
+orchestration:
+  raw_port: 8017
+  needs_proxy: false   # assumed — see benchmark_endpoint note above;
+    # revisit (may need bench_local_proxy.py) if the live spot-check
+    # shows tool_calls coming back empty from the raw endpoint.
+  hermes_provider: qwen25coder-14b-gguf   # needs registering in
+    # ~/.hermes/profiles/bench/config.yaml before first use — not yet
+    # added (unlike the Qwen3.8-27B q5-64k fix, this model has never run,
+    # so there's no existing entry to model exactly; add one pointed at
+    # this port with context_length: 65536 when first launching this
+    # config).
+  viable: full
+
+settings:
+  - name: quant
+    value: Q4_K_M (bartowski/Qwen2.5-Coder-14B-Instruct-GGUF)
+    source: "Confirmed present via a live HF resolve HEAD request
+      2026-08-22 (8.99GB). bartowski is a well-established GGUF quantizer
+      for this model family."
+  - name: context_length / rope_scaling
+    value: "65536 via YaRN (factor 2.0, original_max_position_embeddings
+      32768)"
+    source: "https://huggingface.co/Qwen/Qwen2.5-Coder-14B-Instruct model
+      card: native max_position_embeddings is only 32768 (confirmed via
+      the model's own config.json) — the card explicitly documents YaRN
+      static scaling to extend usable context (its own example uses
+      factor 4.0 for 128K; this config uses 2.0, the minimum needed to
+      clear Hermes's 64K hard minimum, since a smaller scaling factor is
+      less lossy). --rope-scaling/--rope-scale/--yarn-orig-ctx confirmed
+      present in the locally-installed `llama-server --help`. NOT yet
+      measured live whether YaRN-extended quality holds up on this
+      benchmark's actual tasks — a real, open question this config is
+      meant to help answer, not something assumed to work perfectly."
+  - name: temperature / top_p / top_k / repeat_penalty
+    value: 0.7 / 0.8 / 20 / 1.05
+    source: "https://huggingface.co/Qwen/Qwen2.5-Coder-14B-Instruct model
+      card generation_config.json defaults."
+  - name: tool_call_parser
+    value: "assumed native via llama-server --jinja (see
+      benchmark_endpoint note) — UNVERIFIED, first use of this model in
+      this benchmark."
+    source: "Standard Qwen2.5-Instruct family Hermes-style tool-call
+      format per Qwen documentation; not yet spot-checked against this
+      specific checkpoint's raw output."
+
+known_gaps:
+  - "Never run live as of authoring. First run should confirm, in order:
+    (1) native tool_calls actually come back non-empty from the raw
+    endpoint (or this needs a proxy parser), (2) the YaRN-extended 64K
+    context doesn't visibly degrade quality relative to native 32K on a
+    task that doesn't need the extra context, (3) actual peak RSS at
+    Q4_K_M + 64K KV cache (per the memory-instrumentation fix, finding
+    F7) — GQA with 8 KV heads keeps this cheap but hasn't been measured."
+  - "hermes_provider entry not yet added to
+    ~/.hermes/profiles/bench/config.yaml — do that before the first run."
+
+last_updated: 2026-08-22
+last_verified_against_docs: 2026-08-22
