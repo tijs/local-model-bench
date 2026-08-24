@@ -1,0 +1,223 @@
+$ hermes chat --profile bench --provider qwen38-mtp-gguf -m bartowski/Qwen3.8-27B-GGUF:Q4_K_M --max-turns 40
+
+--- stdout ---
+
+┌─ Reasoning ──────────────────────────────────────────────────────────────────┐
+Let's take a look at the source file.
+Let's take a look at the source file.
+I'll look at the test file to understand the conventions.
+I'll look at the test file to understand the conventions.
+Alright, let's implement. Add "storehouse" to BuildingKind, add cost {wood:25, stone
+:10}, prerequisite "hut". Add a PREREQUISITES record (or function) and an available
+Buildings function.
+
+Design:
+
+```ts
+export const BUILDING_PREREQUISITES: Record<BuildingKind, BuildingKind | null> = {
+
+  hut: null,
+  farm: null,
+  quarry: null,
+  storehouse: "hut",
+};
+
+export function prerequisitesMet(settlement: Settlement, kind: BuildingKind): boolean
+ {
+  const prereq = BUILDING_PREREQUISITES[kind];
+  return prereq === null || settlement.buildings.includes(prereq);
+}
+
+export function availableBuildings(settlement: Settlement): BuildingKind[] {
+  return (Object.keys(BUILDING_COSTS) as BuildingKind[]).filter(
+    (kind) => prerequisitesMet(settlement, kind) && canAfford(settlement, kind),
+  );
+}
+```
+
+The order of Object.keys follows the insertion order of the record: hut, farm, quarry
+, storehouse. This is a natural order.
+
+Should build() enforce the prerequisites? The task doesn't ask for that — it only
+ says to implement availableBuildings. Keep the scope narrow. The task says "add a
+ new BuildingKind 'storehouse' with cost {wood:25, stone:10}, which requires 'hut
+' to already be built before it can be built." Hmm, "before it can be built" — this
+ is about the availableBuildings logic. Should build() also check prerequisites? The
+ task says "then implement availableBuildings". I'll stick to just the two changes
+ requested. But "requires hut to be built before it can be built" might suggest build
+ should also enforce this. To be safe, minimal interpretation: the requirements are
+ described as data, and availableBuildings is the enforcement point. I'll leave build
+ as is — the task explicitly only asks for availableBuildings. Actually, hmm. "Requires
+ hut to already be built before it can be built (unlike hut/farm/quarry which have
+ no prerequisites)." I think it's safer to implement the prerequisite check as a helper
+ used by availableBuildings. Adding an enforcement check to build() would change behavior
+ beyond what's asked and could break tests? No, the tests don't cover building a store
+house. Keep it minimal — just types, cost, prerequisite data, availableBuildings.
+
+
+Let's write the changes.
+Alright, let's implement. Add "storehouse" to BuildingKind, add cost {wood:25, stone:10}, prerequisite "hut". Add a PREREQUISITES record (or function) and an availableBuildings function.
+
+Design:
+
+```ts
+export const BUILDING_PREREQUISITES: Record<BuildingKind, BuildingKind | null> = {
+  hut: null,
+  farm: null,
+  quarry: null,
+  storehouse: "hut",
+};
+
+export function prerequisitesMet(settlement: Settlement, kind: BuildingKind): boolean {
+  const prereq = BUILDING_PREREQUISITES[kind];
+  return prereq === null || settlement.buildings.includes(prereq);
+}
+
+export function availableBuildings(settlement: Settlement): BuildingKind[] {
+  return (Object.keys(BUILDING_COSTS) as BuildingKind[]).filter(
+    (kind) => prerequisitesMet(settlement, kind) && canAfford(settlement, kind),
+  );
+}
+```
+
+The order of Object.keys follows the insertion order of the record: hut, farm, quarry, storehouse. This is a natural order.
+
+Should build() enforce the prerequisites? The task doesn't ask for that — it only says to implement availableBuildings. Keep the scope narrow. The task says "add a new BuildingKind 'storehouse' with cost {wood:25, stone:10}, which requires 'hut' to already be built before it can be built." Hmm, "before it can be built" — this is about the availableBuildings logic. Should build() also check prerequisites? The task says "then implement availableBuildings". I'll stick to just the two changes requested. But "requires hut to be built before it can be built" might suggest build should also enforce this. To be safe, minimal interpretation: the requirements are described as data, and availableBuildings is the enforcement point. I'll leave build as is — the task explicitly only asks for availableBuildings. Actually, hmm. "Requires hut to already be built before it can be built (unlike hut/farm/quarry which have no prerequisites)." I think it's safer to implement the prerequisite check as a helper used by availableBuildings. Adding an enforcement check to build() would change behavior beyond what's asked and could break tests? No, the tests don't cover building a storehouse. Keep it minimal — just types, cost, prerequisite data, availableBuildings.
+
+Let's write the changes.
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmpixcuq7tn/run/src/types.ts → b//Users/tijs/projects/local-model-bench/runner/runs/tmpixcuq7tn/run/src/types.ts
+@@ -1,7 +1,7 @@
+ export type ResourceKind = "wood" | "food" | "stone";
+ export type Resources = Record<ResourceKind, number>;
+ 
+-export type BuildingKind = "hut" | "farm" | "quarry";
++export type BuildingKind = "hut" | "farm" | "quarry" | "storehouse";
+ 
+ export interface Settlement {
+   resources: Resources;
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmpixcuq7tn/run/src/sim.ts → b//Users/tijs/projects/local-model-bench/runner/runs/tmpixcuq7tn/run/src/sim.ts
+@@ -4,7 +4,32 @@
+   hut: { wood: 10 },
+   farm: { wood: 15, stone: 5 },
+   quarry: { wood: 20 },
++  storehouse: { wood: 25, stone: 10 },
+ };
++
++/** Building that must already exist before `kind` can be built (null = none). */
++export const BUILDING_PREREQUISITES: Record<BuildingKind, BuildingKind | null> = {
++  hut: null,
++  farm: null,
++  quarry: null,
++  storehouse: "hut",
++};
++
++export function prerequisitesMet(settlement: Settlement, kind: BuildingKind): boolean {
++  const prereq = BUILDING_PREREQUISITES[kind];
++  return prereq === null || settlement.buildings.includes(prereq);
++}
++
++/**
++ * Every building kind the settlement can currently build: it must be
++ * affordable (per `canAfford`) and its prerequisite, if any, must already
++ * be built.
++ */
++export function availableBuildings(settlement: Settlement): BuildingKind[] {
++  return (Object.keys(BUILDING_COSTS) as BuildingKind[]).filter(
++    (kind) => prerequisitesMet(settlement, kind) && canAfford(settlement, kind),
++  );
++}
+ 
+ export function canAfford(settlement: Settlement, kind: BuildingKind): boolean {
+   const cost = BUILDING_COSTS[kind];
+Alright, I'll add tests for the new behavior, and after that run the tests and type
+ check.
+Alright, I'll add tests for the new behavior, and after that run the tests and type check.
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmpixcuq7tn/run/tests/sim.test.ts → b//Users/tijs/projects/local-model-bench/runner/runs/tmpixcuq7tn/run/tests/sim.test.ts
+@@ -1,5 +1,5 @@
+ import { describe, expect, it } from "vitest";
+-import { build, canAfford } from "../src/sim";
++import { build, canAfford, availableBuildings } from "../src/sim";
+ import type { Settlement } from "../src/types";
+ 
+ function settlement(overrides: Partial<Settlement> = {}): Settlement {
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmpixcuq7tn/run/tests/sim.test.ts → b//Users/tijs/projects/local-model-bench/runner/runs/tmpixcuq7tn/run/tests/sim.test.ts
+@@ -32,3 +32,33 @@
+     expect(() => build(s, "hut")).toThrow();
+   });
+ });
++
++describe("availableBuildings", () => {
++  it("lists affordable prerequisite-free buildings, excluding storehouse without a hut", () => {
++    // wood 30 / stone 10: hut, farm, quarry affordable; storehouse cost (25w/10s) is
++    // also affordable but requires a hut, which is not built yet.
++    const s = settlement();
++    expect(availableBuildings(s).sort()).toEqual(["farm", "hut", "quarry"]);
++  });
++
++  it("includes storehouse once a hut exists and it is affordable", () => {
++    const s = settlement({ buildings: ["hut"] });
++    expect(availableBuildings(s).sort()).toEqual(["farm", "hut", "quarry", "storehouse"]);
++  });
++
++  it("excludes storehouse when a hut exists but it cannot be afforded", () => {
++    const s = settlement({ buildings: ["hut"], resources: { wood: 20, food: 10, stone: 10 } });
++    expect(availableBuildings(s)).not.toContain("storehouse");
++  });
++
++  it("excludes unaffordable buildings", () => {
++    const s = settlement({ buildings: ["hut"], resources: { wood: 15, food: 10, stone: 0 } });
++    // hut (10w) only: farm needs 15w+5s, quarry 20w, storehouse 25w+10s.
++    expect(availableBuildings(s)).toEqual(["hut"]);
++  });
++
++  it("returns empty list when nothing can be built", () => {
++    const s = settlement({ resources: { wood: 0, food: 0, stone: 0 } });
++    expect(availableBuildings(s)).toEqual([]);
++  });
++});
+Wait — there's a bug in my "exclude unaffordable buildings" test: wood 15, stone 
+0. farm requires wood 15 + stone 5 → unaffordable (no stone). hut requires wood 1
+0 → affordable. So only ["hut"]. Correct.
+
+Also, the first test: resources are wood 30, food 10, stone 10. hut (10w) OK, farm
+ (15w+5s) OK, quarry (20w) OK, storehouse (25w+10s) is affordable but no hut → excluded
+. So ["farm","hut","quarry"]. Correct.
+
+Alright, now let's run the tests and type check.
+Wait — there's a bug in my "exclude unaffordable buildings" test: wood 15, stone 0. farm requires wood 15 + stone 5 → unaffordable (no stone). hut requires wood 10 → affordable. So only ["hut"]. Correct.
+
+Also, the first test: resources are wood 30, food 10, stone 10. hut (10w) OK, farm (15w+5s) OK, quarry (20w) OK, storehouse (25w+10s) is affordable but no hut → excluded. So ["farm","hut","quarry"]. Correct.
+
+Alright, now let's run the tests and type check.
+All done. 9 tests passed, type check is clean. I'll summarize concisely.
+All done. 9 tests passed, type check is clean. I'll summarize concisely.
+Done. All 9 tests pass and typecheck is clean.
+
+Changes:
+
+1. src/types.ts:4 — added `"storehouse"` to `BuildingKind`.
+
+2. src/sim.ts:
+   - BUILDING_COSTS: added `storehouse: { wood: 25, stone: 10 }` (line 7).
+   - Added `BUILDING_PREREQUISITES` (line 11): `storehouse -> "hut"`, all others `null`.
+   - Added `prerequisitesMet(settlement, kind)` helper (line 18).
+   - Added the requested `availableBuildings(settlement)` (line 26): filters all building kinds by `prerequisitesMet` && `canAfford`.
+
+3. tests/sim.test.ts — added a `describe("availableBuildings")` block with 5 cases:
+   - default settlement (30w/10s, no buildings): returns hut/farm/quarry, excludes storehouse (affordable but no hut yet)
+   - with a hut: storehouse included when affordable
+   - hut exists but only 20 wood: storehouse excluded (unaffordable)
+   - 15w/0s with hut: only hut returned
+   - zero resources: empty list
+
+Verification: `npm run test` → 9/9 passed; `npm run typecheck` → clean (exit 0).
+
+
+--- stderr ---
+
+session_id: 20260824_185402_efaf6f
+
