@@ -1,0 +1,104 @@
+$ hermes chat --profile bench --provider qwen38-uncensored-gguf -m JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M --max-turns 40
+
+--- stdout ---
+
+┌─ Reasoning ──────────────────────────────────────────────────────────────────┐
+Let's take a look at the repository, especially src/sim.ts and advanceTurn.
+Let's take a look at the repository, especially src/sim.ts and advanceTurn.
+The bug is clear: `if (foodSurplus >= 0)` — when production is exactly equal to consumption
+ (surplus === 0), the population still grows. Fix: `> 0`.
+
+Also, I should check the test files to see what's being asserted.
+The bug is clear: `if (foodSurplus >= 0)` — when production is exactly equal to consumption (surplus === 0), the population still grows. Fix: `> 0`.
+
+Also, I should check the test files to see what's being asserted.
+The bug is at src/sim.ts:43 — the `foodSurplus >= 0` should be `foodSurplus > 0`.
+ Let me check the test file to confirm, then I'll fix it and run the tests.
+The bug is at src/sim.ts:43 — the `foodSurplus >= 0` should be `foodSurplus > 0`. Let me check the test file to confirm, then I'll fix it and run the tests.
+Found it: line 43 `if (foodSurplus >= 0)` — should be `> 0`. Fixing it and running
+ the tests.
+Found it: line 43 `if (foodSurplus >= 0)` — should be `> 0`. Fixing it and running the tests.
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmp8uy9s8or/run/src/sim.ts → b//Users/tijs/projects/local-model-bench/runner/runs/tmp8uy9s8or/run/src/sim.ts
+@@ -40,7 +40,7 @@
+   const foodSurplus = foodProduced - foodConsumed;
+ 
+   let population = settlement.population;
+-  if (foodSurplus >= 0) {
++  if (foodSurplus > 0) {
+     population += 1;
+   }
+ 
+Let's verify with a quick test. I'll check the test scripts in package.json, and add
+ a test for this behavior. The existing tests don't cover advanceTurn. I'll add a
+ test case that asserts no growth on break-even and growth on surplus, then run the
+ test and type check.
+Let's verify with a quick test. I'll check the test scripts in package.json, and add a test for this behavior. The existing tests don't cover advanceTurn. I'll add a test case that asserts no growth on break-even and growth on surplus, then run the test and type check.
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmp8uy9s8or/run/tests/sim.test.ts → b//Users/tijs/projects/local-model-bench/runner/runs/tmp8uy9s8or/run/tests/sim.test.ts
+@@ -1,5 +1,5 @@
+ import { describe, expect, it } from "vitest";
+-import { build, canAfford } from "../src/sim";
++import { build, advanceTurn, canAfford } from "../src/sim";
+ import type { Settlement } from "../src/types";
+ 
+ function settlement(overrides: Partial<Settlement> = {}): Settlement {
+Adding a test case. Break-even: 2 farms (production 10) vs. 5 population (consumption
+ 10) → no growth. Surplus: 2 farms, 4 population (consumption 8, surplus 2) → +1.
+ Deficit: 1 farm (5) vs. 5 population (10) → no growth.
+Adding a test case. Break-even: 2 farms (production 10) vs. 5 population (consumption 10) → no growth. Surplus: 2 farms, 4 population (consumption 8, surplus 2) → +1. Deficit: 1 farm (5) vs. 5 population (10) → no growth.
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmp8uy9s8or/run/tests/sim.test.ts → b//Users/tijs/projects/local-model-bench/runner/runs/tmp8uy9s8or/run/tests/sim.test.ts
+@@ -32,3 +32,27 @@
+     expect(() => build(s, "hut")).toThrow();
+   });
+ });
++
++describe("advanceTurn", () => {
++  it("does not grow population when production exactly equals consumption", () => {
++    // 2 farms produce 10, population 5 consumes 10 -> break-even
++    const s = settlement({ population: 5, buildings: ["farm", "farm"] });
++    const next = advanceTurn(s);
++    expect(next.population).toBe(5);
++  });
++
++  it("grows population by 1 on a food surplus", () => {
++    // 2 farms produce 10, population 4 consumes 8 -> surplus of 2
++    const s = settlement({ population: 4, buildings: ["farm", "farm"] });
++    const next = advanceTurn(s);
++    expect(next.population).toBe(5);
++    expect(next.resources.food).toBe(10 + 2);
++  });
++
++  it("does not grow population on a food deficit", () => {
++    // 1 farm produces 5, population 5 consumes 10 -> deficit
++    const s = settlement({ population: 5, buildings: ["farm"] });
++    const next = advanceTurn(s);
++    expect(next.population).toBe(5);
++  });
++});
+One test checks food: initial food is 10, surplus is 2 → 12. `10 + 2` = 12. No problem
+.
+
+Alright, let's run the tests and type check.
+One test checks food: initial food is 10, surplus is 2 → 12. `10 + 2` = 12. No problem.
+
+Alright, let's run the tests and type check.
+Done. Type check and tests pass (7/7, including the 3 new ones).
+Done. Type check and tests pass (7/7, including the 3 new ones).
+Fixed. The bug was at src/sim.ts:43 — the growth check was `if (foodSurplus >= 0)`, so a break-even turn (production exactly equals consumption, surplus = 0) still counted as a surplus and bumped population by 1. That's why settlements barely making ends meet kept growing every turn.
+
+Change: `>= 0` → `> 0`, matching the documented behavior ("grows by 1 if there was a food surplus this turn").
+
+I also added a regression test block for `advanceTurn` in tests/sim.test.ts covering three cases:
+- break-even (10 produced / 10 consumed) → population stays put
+- surplus (10 / 8) → population grows by 1, food bank grows by the surplus
+- deficit (5 / 10) → population stays put
+
+Verification: `npm run typecheck` passes and `npm run test` passes — 7/7 tests, including the 3 new ones.
+
+
+--- stderr ---
+
+session_id: 20260824_150740_d48384
+
