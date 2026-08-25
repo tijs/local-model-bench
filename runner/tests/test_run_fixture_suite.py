@@ -213,6 +213,178 @@ class AgentWorkspaceIsolationTests(unittest.TestCase):
             shutil.rmtree(root, ignore_errors=True)
 
 
+class RepositoryEntriesScopeTests(unittest.TestCase):
+    """M2 (improvement plan): the byte-manifest guard scanned the WHOLE
+    repo, including .venv — measured on the real checkout at 31,129 files
+    / 1.2GB / 5.7s, read TWICE per coding task (baseline + comparison),
+    of which 30,957 files were the virtualenv. Narrowed to the
+    benchmark-owned subtrees, with git-ignored paths skipped."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.root = Path(self.tmp).resolve()
+        for sub in ("runner", "tasks", "checks", "fixtures", "configs"):
+            (self.root / sub).mkdir()
+            (self.root / sub / "kept.txt").write_text(f"{sub} content\n")
+        (self.root / "AGENTS.md").write_text("root file\n")
+        # Ignored content, inside and outside a protected subtree.
+        (self.root / ".venv" / "lib").mkdir(parents=True)
+        (self.root / ".venv" / "lib" / "huge.bin").write_bytes(b"x" * 4096)
+        (self.root / "runner" / "__pycache__").mkdir()
+        (self.root / "runner" / "__pycache__" / "x.pyc").write_bytes(b"\x00" * 64)
+        (self.root / "fixtures" / "node_modules").mkdir()
+        (self.root / "fixtures" / "node_modules" / "dep.js").write_text("dep\n")
+        # Intentional run output, never guarded.
+        (self.root / "results").mkdir()
+        (self.root / "results" / "log.jsonl").write_text('{"row": 1}\n')
+        (self.root / ".gitignore").write_text(
+            ".venv/\n__pycache__/\nnode_modules/\nrunner/runs/\n"
+        )
+        subprocess.run(["git", "init", "-q"], cwd=self.root, check=True)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_protected_subtrees_are_scanned_byte_for_byte(self):
+        entries = rfs._repository_entries(self.root)
+        for sub in ("runner", "tasks", "checks", "fixtures", "configs"):
+            self.assertEqual(entries[f"{sub}/kept.txt"], ("file", f"{sub} content\n".encode()))
+        self.assertEqual(entries["AGENTS.md"], ("file", b"root file\n"))
+
+    def test_gitignored_content_is_not_scanned(self):
+        entries = rfs._repository_entries(self.root)
+        for leaked in (
+            ".venv/lib/huge.bin",
+            "runner/__pycache__/x.pyc",
+            "fixtures/node_modules/dep.js",
+        ):
+            self.assertNotIn(leaked, entries, f"{leaked} should not be scanned")
+
+    def test_results_output_is_not_guarded(self):
+        entries = rfs._repository_entries(self.root)
+        self.assertNotIn("results/log.jsonl", entries)
+
+    def test_a_new_top_level_directory_is_still_detected(self):
+        # Narrowing must not create a blind spot: an agent creating an
+        # entirely new top-level directory is still an escape.
+        state = {}
+        with rfs.preserve_repository(self.root, state):
+            (self.root / "evil").mkdir()
+            (self.root / "evil" / "payload.sh").write_text("rm -rf /\n")
+        self.assertTrue(state["changed"])
+        self.assertFalse((self.root / "evil").exists())
+
+    def test_tampering_inside_a_protected_subtree_is_reverted(self):
+        state = {}
+        with rfs.preserve_repository(self.root, state):
+            (self.root / "checks" / "kept.txt").write_text("tampered\n")
+            (self.root / "fixtures" / "added.rs").write_text("fn main() {}\n")
+        self.assertTrue(state["changed"])
+        self.assertEqual((self.root / "checks" / "kept.txt").read_text(), "checks content\n")
+        self.assertFalse((self.root / "fixtures" / "added.rs").exists())
+
+    def test_writes_to_ignored_and_output_paths_are_left_alone(self):
+        state = {}
+        with rfs.preserve_repository(self.root, state):
+            (self.root / "results" / "transcript.log").write_text("keep me\n")
+            (self.root / ".venv" / "lib" / "new.bin").write_bytes(b"y" * 16)
+        self.assertFalse(state["changed"])
+        self.assertTrue((self.root / "results" / "transcript.log").exists())
+        self.assertTrue((self.root / ".venv" / "lib" / "new.bin").exists())
+
+    def test_falls_back_safely_when_git_is_unavailable(self):
+        with unittest.mock.patch(
+            "run_fixture_suite._git_ignored_entries", return_value=None
+        ):
+            entries = rfs._repository_entries(self.root)
+        # The static fallback list must still keep the virtualenv and
+        # bytecode caches out of the scan.
+        self.assertNotIn(".venv/lib/huge.bin", entries)
+        self.assertNotIn("runner/__pycache__/x.pyc", entries)
+        self.assertIn("runner/kept.txt", entries)
+
+
+class SandboxTests(unittest.TestCase):
+    """M3 (improvement plan): `hermes chat --yolo` auto-approves every
+    tool call, so a mis-resolved path could write to sibling projects or
+    the benchmark checkout. The restoration guards revert such writes but
+    are detect-and-repair; this prevents them."""
+
+    def test_profile_denies_repo_and_siblings_but_allows_the_run_dir(self):
+        # Paths are resolved (macOS's /tmp is a symlink to /private/tmp)
+        # because seatbelt matches on real paths, not symlinked ones.
+        run_dir = Path("/tmp/bench-run-1/run").resolve()
+        profile = rfs.sandbox_profile(run_dir)
+        repo = str(Path(rfs.REPO).resolve())
+        self.assertIn(f'(deny file-write* (subpath "{repo}"))', profile)
+        self.assertIn(f'(deny file-write* (subpath "{Path(repo).parent}"))', profile)
+        self.assertIn(f'(allow file-write* (subpath "{run_dir}"))', profile)
+
+    def test_run_dir_allow_comes_after_every_containing_deny(self):
+        # SBPL is last-match-wins, so an allow placed before a deny that
+        # contains it would be silently overridden — the profile would
+        # compile fine and block every build.
+        profile = rfs.sandbox_profile("/tmp/bench-run-1/run")
+        lines = profile.splitlines()
+        last_deny = max(i for i, line in enumerate(lines) if line.startswith("(deny"))
+        run_allow = next(i for i, line in enumerate(lines) if "/tmp/bench-run-1/run" in line)
+        self.assertGreater(run_allow, last_deny)
+
+    def test_disabled_by_env_var_returns_the_command_unchanged(self):
+        with unittest.mock.patch.object(rfs, "SANDBOX_ENABLED", False):
+            cmd, sandboxed = rfs.sandbox_wrapped_command(["echo", "hi"], "/tmp/run")
+        self.assertEqual(cmd, ["echo", "hi"])
+        self.assertFalse(sandboxed)
+
+    def test_unavailable_sandbox_degrades_to_running_unwrapped(self):
+        # A missing/broken seatbelt must not turn every coding task into
+        # a harness error.
+        with unittest.mock.patch.object(rfs, "_sandbox_available", return_value=False):
+            cmd, sandboxed = rfs.sandbox_wrapped_command(["echo", "hi"], "/tmp/run")
+        self.assertEqual(cmd, ["echo", "hi"])
+        self.assertFalse(sandboxed)
+
+    @unittest.skipUnless(
+        sys.platform == "darwin" and Path("/usr/bin/sandbox-exec").exists(),
+        "seatbelt only exists on macOS",
+    )
+    def test_live_seatbelt_blocks_the_repo_and_allows_the_run_dir(self):
+        # The real thing: a scratch tree standing in for the repo, so no
+        # actual benchmark file is ever written during the test.
+        tmp = Path(tempfile.mkdtemp()).resolve()
+        try:
+            fake_repo = tmp / "local-model-bench"
+            run_dir = fake_repo / "runner" / "runs" / "tmpx" / "run"
+            run_dir.mkdir(parents=True)
+            (fake_repo / "fixtures").mkdir()
+            sibling = tmp / "some-other-project"
+            sibling.mkdir()
+
+            with unittest.mock.patch.object(rfs, "REPO", fake_repo):
+                profile = rfs.sandbox_profile(run_dir)
+                if not rfs._sandbox_available(profile):
+                    self.skipTest("seatbelt self-test failed in this environment")
+
+                def _write(target):
+                    return subprocess.run(
+                        ["/usr/bin/sandbox-exec", "-p", profile,
+                         "/bin/sh", "-c", f"echo x > {target}"],
+                        capture_output=True,
+                    ).returncode
+
+                self.assertEqual(_write(run_dir / "ok.txt"), 0, "run dir must be writable")
+                self.assertNotEqual(
+                    _write(fake_repo / "fixtures" / "escaped.rs"), 0,
+                    "a write into the benchmark checkout must be blocked",
+                )
+                self.assertNotEqual(
+                    _write(sibling / "escaped.txt"), 0,
+                    "a write into a sibling project must be blocked",
+                )
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+
 class ExtractHermesSessionStatsTests(unittest.TestCase):
     """F6: the coding suite previously logged zero performance data from
     the actual target workload — no tokens, no turn count, no tool-call

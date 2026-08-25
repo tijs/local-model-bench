@@ -37,12 +37,108 @@ HERMES_BIN = Path(os.environ.get(
 ))  # override via env var instead of editing this file (adversarial review finding M8)
 
 
+# macOS Seatbelt sandbox for the coding agent (improvement plan, M3).
+#
+# `hermes chat --yolo` auto-approves every tool call, so a model that
+# resolves a path wrongly (or maliciously) can write anywhere the user
+# can: sibling projects under the repo's parent directory, the benchmark
+# checkout itself, Hermes's own state. preserve_tree/preserve_repository
+# already REVERT such writes and flag the task as a harness error, but
+# they are detect-and-repair, not prevention — and they only cover the
+# trees they scan.
+#
+# Deliberately a DENY-list, not an allow-list. An allow-list profile has
+# to enumerate everything cargo/npm/swiftpm/xcodebuild legitimately touch
+# (toolchain paths, ~/.cargo, ~/.npm, ~/Library/Caches, Xcode's DEVELOPER_DIR,
+# temp dirs, ...); getting one entry wrong makes every coding task fail
+# for a reason that has nothing to do with the model, and silently
+# corrupts the dataset. A deny-list closes exactly the holes M3 names
+# while leaving normal builds untouched.
+#
+# ~/.hermes is deliberately NOT denied: the sandbox applies to the hermes
+# process itself, which legitimately writes its own session store there —
+# the same store extract_hermes_session_stats() reads telemetry from.
+# That write is the harness's, not the agent's, and the two are
+# indistinguishable at this layer.
+#
+# Set BENCH_SANDBOX=0 to disable (e.g. to reproduce a pre-sandbox result).
+# Falls back to running unsandboxed, with a warning, if seatbelt is
+# unavailable or its self-test fails, rather than failing the run.
+SANDBOX_ENABLED = os.environ.get("BENCH_SANDBOX", "1") != "0"
+SANDBOX_EXEC = "/usr/bin/sandbox-exec"
+
+
+def sandbox_profile(run_dir):
+    """Seatbelt (SBPL) profile denying writes outside *run_dir*.
+
+    Rule order matters: in SBPL the LAST matching rule wins, so the
+    allow for the disposable run root has to come after every deny that
+    contains it.
+    """
+    run_dir = Path(run_dir).resolve()
+    repo = Path(REPO).resolve()
+    siblings = repo.parent
+    return "\n".join([
+        "(version 1)",
+        "(allow default)",
+        # Sibling checkouts next to this repo — the blast radius M3 names.
+        f'(deny file-write* (subpath "{siblings}"))',
+        # The benchmark checkout itself: fixtures, checks, tasks, runner.
+        f'(deny file-write* (subpath "{repo}"))',
+        # Run output the harness itself produces under the repo.
+        f'(allow file-write* (subpath "{repo / "results"}"))',
+        f'(allow file-write* (subpath "{repo / "runner" / "runs"}"))',
+        # The disposable run root: the one place the agent SHOULD write.
+        f'(allow file-write* (subpath "{run_dir}"))',
+        "",
+    ])
+
+
+def _sandbox_available(profile):
+    """True if seatbelt is usable here — verified by actually running a
+    trivial command under *profile*, not just by checking the binary
+    exists. A profile that fails to compile would otherwise turn every
+    coding task into a harness error."""
+    if not (SANDBOX_ENABLED and sys.platform == "darwin" and os.path.exists(SANDBOX_EXEC)):
+        return False
+    try:
+        probe = subprocess.run(
+            [SANDBOX_EXEC, "-p", profile, "/usr/bin/true"],
+            capture_output=True, timeout=20,
+        )
+    except (subprocess.SubprocessError, OSError):
+        return False
+    return probe.returncode == 0
+
+
+def sandbox_wrapped_command(cmd, run_dir):
+    """Wrap *cmd* in sandbox-exec when possible; return it unchanged (with
+    a warning) otherwise. Returns (argv, sandboxed)."""
+    if not SANDBOX_ENABLED:
+        return cmd, False
+    profile = sandbox_profile(run_dir)
+    if not _sandbox_available(profile):
+        print(
+            "WARNING: seatbelt sandbox unavailable — running the coding agent "
+            "unsandboxed. preserve_tree/preserve_repository still revert and flag "
+            "any escape, but prevention is off (see M3 in the improvement plan).",
+            file=sys.stderr,
+        )
+        return cmd, False
+    return [SANDBOX_EXEC, "-p", profile, *cmd], True
+
+
 def run_hermes(prompt, cwd, provider, model, max_turns, timeout):
     cmd = [
         str(HERMES_BIN), "chat", "--profile", "bench", "-q", prompt,
         "--provider", provider, "-m", model, "-Q", "--yolo",
         "--max-turns", str(max_turns),
     ]
+    # `--yolo` auto-approves every tool call, so confine the agent's
+    # writes to the disposable run root where the platform allows it
+    # (improvement plan, M3). The restoration guards stay in place as
+    # defense in depth, exactly as the plan asks.
+    cmd, _sandboxed = sandbox_wrapped_command(cmd, cwd)
     start = time.time()
     # start_new_session=True + killpg on timeout (adversarial review finding
     # M9): plain subprocess.run(timeout=...) only kills the DIRECT hermes
@@ -224,44 +320,118 @@ def preserve_tree(root, state):
         shutil.rmtree(backup_parent, ignore_errors=True)
 
 
+# Benchmark-owned subtrees: everything whose bytes define what a task IS
+# and how it is graded. These are the trees an escaping agent must never
+# be able to alter, and the only ones this guard reads byte-for-byte.
+_PROTECTED_SUBTREES = ("runner", "tasks", "checks", "fixtures", "configs", "docs")
+
+# Never descended into, even at the repo root: `.git` is git's own state
+# (and a file, not a directory, inside a worktree), and `results/` is
+# intentional run OUTPUT that a task is expected to add to.
+_NEVER_SCANNED = {".git", "results"}
+
+# Fallback prune list used only when `git` itself is unavailable, so the
+# guard degrades to "slower and slightly broader" rather than to "reads a
+# 1.2GB virtualenv again".
+_FALLBACK_IGNORED_DIR_NAMES = {
+    ".venv", "node_modules", "target", ".build", ".swiftpm", ".deno",
+    "__pycache__", "runs", ".dspark-head", ".dflash2-fork", ".omlx-runtime",
+}
+
+
+def _git_ignored_entries(root):
+    """Repo-relative paths git considers ignored, or None if git can't
+    answer. `--directory` collapses a fully-ignored directory to a single
+    entry, so this stays cheap even when the ignored tree is enormous."""
+    try:
+        out = subprocess.run(
+            ["git", "ls-files", "--others", "--ignored", "--exclude-standard", "--directory"],
+            cwd=str(root), capture_output=True, text=True, timeout=60, check=True,
+        ).stdout
+    except (subprocess.SubprocessError, OSError):
+        return None
+    return {line.rstrip("/") for line in out.splitlines() if line.strip()}
+
+
 def _repository_entries(root):
     """Return protected repository entries, pruning intentional run outputs.
 
-    Also prunes runner/.dspark-head and runner/.dflash2-fork (found live
-    2026-08-23): these are gitignored, from-source llama.cpp build
-    checkouts for DSpark/DFlash2 speculative decoding — tens of thousands
-    of unrelated files, including large binary pack files, that this scan
-    was reading byte-for-byte on EVERY coding-suite task (before and
-    after, via preserve_repository below) despite never being something a
-    fixture task could plausibly touch. Root-caused a recurring
-    `HARNESS ERROR: PermissionError` on an unrelated .dspark-head pack
-    file that had (wrongly) looked like a model- or task-specific
-    flake — hit twice this session, on two completely different models,
-    before being traced back to this scan reading a huge unrelated tree
-    on every single task rather than anything about the model being
-    tested. NOTE: this exact function is why the first attempt at this
-    fix vanished — preserve_repository(REPO, ...) below guards the WHOLE
-    repo (including this file) during every task's execution window and
-    reverts anything that changed, including an edit made by the operator
-    mid-task, not just a model's own tool use. Never edit this file (or
-    anything else in the repo) while a coding-suite task is in flight."""
+    SCOPE (narrowed 2026-08-25, improvement plan M2): only the
+    benchmark-owned subtrees above, plus every repo-root FILE, plus the
+    NAMES of every repo-root directory (so a brand-new top-level directory
+    an agent creates is still detected and removed, without recursing into
+    unrelated ones). Anything git reports as ignored is skipped outright.
+
+    Measured on this repo before the change: 31,129 files and 1.2GB read
+    in 5.7s — of which 30,957 files were `.venv/` — and that happened
+    TWICE per coding task (baseline before, comparison after), on every
+    single task, forever. `.venv` cannot be part of what a fixture task
+    changes, and reading it proved nothing.
+
+    The narrowing preserves the previous ad-hoc prunes for the same
+    reasons they were added: runner/.dspark-head and runner/.dflash2-fork
+    (found live 2026-08-23) are gitignored from-source llama.cpp build
+    checkouts — tens of thousands of unrelated files including large
+    binary pack files — whose scanning root-caused a recurring
+    `HARNESS ERROR: PermissionError` that had wrongly looked like a model-
+    or task-specific flake, hit twice on two completely different models
+    before being traced back to this scan rather than to anything about
+    the model being tested. They are now covered by the general
+    git-ignored rule instead of by name.
+
+    NOTE (unchanged, and still important): preserve_repository(REPO, ...)
+    below guards these trees — including this file — during every task's
+    execution window and reverts anything that changed, including an edit
+    made by the operator mid-task, not just a model's own tool use. Never
+    edit this file (or anything else under a protected subtree) while a
+    coding-suite task is in flight.
+    """
     root = Path(root)
-    entries = {}
-    for current, dirs, files in os.walk(root):
-        current_path = Path(current)
-        rel_dir = current_path.relative_to(root)
-        if rel_dir == Path("."):
-            dirs[:] = [d for d in dirs if d not in {".git", "results"}]
-        elif rel_dir == Path("runner"):
-            dirs[:] = [d for d in dirs if d not in {"runs", ".dspark-head", ".dflash2-fork"}]
-        entries[str(rel_dir)] = ("dir", None)
-        for name in files:
-            path = current_path / name
-            rel = str(path.relative_to(root))
-            if path.is_symlink():
-                entries[rel] = ("link", os.readlink(path))
-            else:
-                entries[rel] = ("file", path.read_bytes())
+    ignored = _git_ignored_entries(root)
+    entries = {".": ("dir", None)}
+
+    def _is_ignored(rel):
+        if ignored is not None:
+            return rel in ignored
+        return Path(rel).name in _FALLBACK_IGNORED_DIR_NAMES
+
+    def _record(path, rel):
+        if path.is_symlink():
+            entries[rel] = ("link", os.readlink(path))
+        elif path.is_file():
+            entries[rel] = ("file", path.read_bytes())
+
+    # Repo root: every file's bytes, and every directory's NAME (so a new
+    # top-level directory is an added entry the restore logic removes),
+    # but no recursion outside the protected subtrees.
+    for child in sorted(root.iterdir()):
+        rel = child.name
+        if rel in _NEVER_SCANNED or _is_ignored(rel):
+            continue
+        if child.is_dir() and not child.is_symlink():
+            entries[rel] = ("dir", None)
+        else:
+            _record(child, rel)
+
+    for subtree in _PROTECTED_SUBTREES:
+        base = root / subtree
+        if not base.is_dir():
+            continue
+        for current, dirs, files in os.walk(base):
+            current_path = Path(current)
+            rel_dir = str(current_path.relative_to(root))
+            dirs[:] = sorted(
+                d for d in dirs
+                if d not in _NEVER_SCANNED
+                and not _is_ignored(str((current_path / d).relative_to(root)))
+            )
+            entries[rel_dir] = ("dir", None)
+            for name in sorted(files):
+                path = current_path / name
+                rel = str(path.relative_to(root))
+                if _is_ignored(rel):
+                    continue
+                _record(path, rel)
     return entries
 
 
