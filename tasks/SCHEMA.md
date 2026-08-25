@@ -108,6 +108,11 @@ suite: sanity
 runner: prompt
 timeout_seconds: 60
 max_turns: 40   # optional, defaults to 6 (run_prompt.py's CLI default) if omitted
+# Optional liveness/total budgets — see "Timeout and liveness budgets" below
+task_timeout_seconds: 14400
+first_progress_timeout_seconds: 600
+stream_idle_timeout_seconds: 300
+connect_timeout_seconds: 60
 
 tasks:
   - id: sanity-tool
@@ -200,6 +205,65 @@ verified on Qwen3.8-27B that the same model/temperature converges cleanly
 by turn 11 given 15 turns instead of 6, doing reasonable diagnostic
 exploration rather than looping). Always set this explicitly for a new
 suite rather than relying on the fallback.
+
+### Timeout and liveness budgets
+
+Added 2026-08-25 after repeated live hangs: an oMLX backend's SSE stream
+would stall mid-response (many tiny completions, or one partial one that
+never converged) while the harness's only bound — a derived
+`timeout_seconds * max_turns + 60` subprocess deadline, about **11 hours**
+for `hermes_ops` — never fired. The run then sat there holding a server
+slot until a human noticed and killed it by hand. That happened on at
+least four configs in one session, and one Ornith-1.5-9B run burned the
+full 11 hours.
+
+The root cause was one number doing three incompatible jobs:
+`timeout_seconds` was passed to `urllib.request.urlopen()`, where it acts
+as a **socket inactivity** timeout — so any occasional byte (an SSE
+keepalive comment, a usage-only chunk, one partial delta) reset it
+forever. Lowering it was not an option: a genuinely slow-but-progressing
+model produced a passing `hermes_ops-selection` row at 1277.383s, and
+passing `hermes_ops` rows reach 8839.930s.
+
+There are now four **explicit, separately meaningful** budgets, all
+measured on `time.monotonic()`:
+
+| key | scope | enforced by |
+| --- | --- | --- |
+| `timeout_seconds` | total budget for ONE HTTP turn | `run_prompt.py` |
+| `task_timeout_seconds` | total budget for one suite task (all turns) | `run_prompt_suite.py` |
+| `first_progress_timeout_seconds` | response headers → first *meaningful* SSE event | `run_prompt.py` |
+| `stream_idle_timeout_seconds` | gap between two *meaningful* SSE events | `run_prompt.py` |
+| `connect_timeout_seconds` | TCP connect + request send + response headers | `run_prompt.py` |
+
+**"Meaningful"** means a content delta, a tool-call delta, a
+`finish_reason`, or the terminal `[DONE]`. It deliberately excludes blank
+lines, `:`-prefixed SSE comments/keepalives, role-only opening deltas, and
+usage-only chunks — precisely the traffic a stalled stream keeps emitting.
+
+The generous total budgets are kept so a slow-but-progressing model is
+never rejected for being slow; the liveness watchdogs catch a stalled
+response in **minutes**. Omitting `task_timeout_seconds` falls back to
+`min(timeout_seconds * max_turns + 60, 14400)` — the old derived value,
+but capped so no suite can silently inherit an 11-hour ceiling again.
+
+When a task deadline fires, the request subprocess's whole **process
+group** is terminated (SIGTERM, then SIGKILL after a grace period) so no
+grandchild or in-flight backend request is left running, and its partial
+stdout/stderr is preserved next to the durable result. The log row records
+`timeout_phase` (`connect` / `first_progress` / `stream_idle` /
+`turn_total` / `task_deadline`, or `null`) and `partial_output_path`, so a
+stalled engine, a merely slow model, and a dead backend are three
+distinguishable outcomes rather than one. A task deadline is recorded as a
+**model/engine** failure (`pass: false`), *not* `harness_error` — the
+harness did exactly what it was supposed to.
+
+`bench_local_proxy.py` keeps its own separate pair: `UPSTREAM_TIMEOUT`
+(now a real monotonic overall deadline, returning `504` when it fires) and
+`BENCH_PROXY_UPSTREAM_READ_IDLE_TIMEOUT`. It deliberately does *not* use a
+token-progress watchdog, because it issues a non-streaming upstream
+request and buffers the whole response into one SSE chunk — there are no
+incremental tokens on that path to watch.
 
 **Temperature is deliberately fixed at 0** for every `run_prompt.py` call
 (`sanity`/`hermes_ops`) — these suites test precise behavior fidelity (right

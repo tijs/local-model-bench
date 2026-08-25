@@ -59,6 +59,21 @@ LISTEN = ("127.0.0.1", int(os.environ.get("BENCH_PROXY_PORT", "8015")))
 # via env var so a future task with an even longer budget doesn't need a
 # code change.
 UPSTREAM_TIMEOUT = float(os.environ.get("BENCH_PROXY_UPSTREAM_TIMEOUT", "1800"))
+# Read-idle bound, distinct from the total deadline above (2026-08-25
+# timeout/liveness redesign). UPSTREAM_TIMEOUT used to be handed to
+# urlopen() and nothing else, which makes it a per-socket-operation
+# INACTIVITY timeout, not an overall bound: an upstream that dribbles a
+# few bytes every few minutes could hold a proxy worker (and therefore the
+# single-slot MLX generation queue) open indefinitely. Now UPSTREAM_TIMEOUT
+# is enforced as a real monotonic OVERALL deadline and this value bounds
+# how long a single read may sit idle. Deliberately NOT a token-progress
+# watchdog: this proxy issues a NON-streaming upstream request and buffers
+# the whole response (see _send_stream), so there are no incremental
+# tokens here to watch — the total deadline is the meaningful bound, and
+# the per-turn progress watchdogs live client-side in run_prompt.py.
+UPSTREAM_READ_IDLE_TIMEOUT = float(
+    os.environ.get("BENCH_PROXY_UPSTREAM_READ_IDLE_TIMEOUT", str(UPSTREAM_TIMEOUT))
+)
 THINK_BLOCK = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
 STRAY_TOOL_CALL_TAG = re.compile(r"</?tool_call>", re.IGNORECASE)
 LOG = logging.getLogger("bench_local_proxy")
@@ -499,15 +514,49 @@ def normalize_response(data: dict) -> dict:
     return data
 
 
+class UpstreamDeadlineExceeded(Exception):
+    """The upstream's total (monotonic) deadline elapsed mid-response."""
+
+
+def _read_until_deadline(response, deadline: float) -> bytes:
+    """Read *response* to EOF, aborting if the monotonic *deadline* passes.
+
+    Reading in bounded chunks (rather than one `.read()`) is what makes the
+    total deadline real: a single blocking read can only ever be bounded by
+    the socket's inactivity timeout, so an upstream that keeps trickling
+    bytes would never hit any overall limit.
+    """
+    chunks: list[bytes] = []
+    while True:
+        if time.monotonic() >= deadline:
+            raise UpstreamDeadlineExceeded
+        chunk = response.read(65536)
+        if not chunk:
+            return b"".join(chunks)
+        chunks.append(chunk)
+
+
 def upstream(method: str, path: str, body: bytes | None = None) -> tuple[int, dict, bytes]:
     headers = {"Content-Type": "application/json"}
     request = Request(UPSTREAM + path, data=body, headers=headers, method=method)
+    deadline = time.monotonic() + UPSTREAM_TIMEOUT
     try:
-        with urlopen(request, timeout=UPSTREAM_TIMEOUT) as response:
-            raw = response.read()
+        with urlopen(request, timeout=min(UPSTREAM_READ_IDLE_TIMEOUT, UPSTREAM_TIMEOUT)) as response:
+            raw = _read_until_deadline(response, deadline)
             return response.status, dict(response.headers), raw
     except HTTPError as error:
         return error.code, dict(error.headers), error.read()
+    except UpstreamDeadlineExceeded:
+        # 504, not the 502 every other upstream problem returns: "the model
+        # is still going and I gave up on it" is a materially different
+        # diagnosis from "the upstream is unreachable/broken", and a run
+        # investigating a stall needs to be able to tell them apart from
+        # the proxy log alone.
+        return (
+            504,
+            {"Content-Type": "application/json"},
+            b'{"error":{"message":"local upstream exceeded its total deadline","type":"upstream_deadline"}}',
+        )
     except (URLError, TimeoutError):
         # TimeoutError added alongside the CR3-12 timeout fix, found while
         # verifying it live: `socket.timeout` IS `TimeoutError` (aliased

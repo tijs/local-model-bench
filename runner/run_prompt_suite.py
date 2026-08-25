@@ -13,7 +13,9 @@ Usage:
 """
 import argparse
 import json
+import os
 import re
+import signal
 import subprocess
 import sys
 import tempfile
@@ -23,6 +25,73 @@ from pathlib import Path
 import yaml
 
 from bench_common import INTERACTIVE_BUDGET_SECONDS, REPO, PeakRSSSampler, git_sha, snapshot_config
+
+# Hard ceiling on one suite task, used when the suite file doesn't declare
+# `task_timeout_seconds` itself. Before the 2026-08-25 timeout/liveness
+# redesign the ONLY subprocess bound was derived as
+# `timeout_seconds * max_turns + 60` — about 11 HOURS for hermes_ops
+# (1000 * 40 + 60) — and that derived ceiling was reached in practice: a
+# stalled oMLX stream held a server slot for 11 hours before a human
+# noticed and killed it by hand, and several other configs had to be
+# killed manually after 2+ hours in the same session. The per-turn
+# liveness watchdogs in run_prompt.py catch a stalled stream in minutes;
+# this is the backstop for everything they can't see (a hung child
+# process, a wedged interpreter), so it deliberately stays generous — 4
+# hours is far above the slowest genuine hermes_ops task ever recorded in
+# results/log.jsonl (8839.9s ≈ 2.5h, a PASS) but far below 11 hours.
+DEFAULT_TASK_TIMEOUT_CAP_SECONDS = 14400
+
+# How long a task-deadline kill waits after SIGTERM before escalating to
+# SIGKILL. Long enough for run_prompt.py to unwind and flush whatever it
+# has, short enough that a wedged process can't extend the task budget
+# meaningfully.
+TASK_TIMEOUT_GRACE_SECONDS = 15
+
+
+def run_with_task_deadline(cmd, timeout, grace=TASK_TIMEOUT_GRACE_SECONDS, **popen_kwargs):
+    """Run *cmd* under a hard task deadline, terminating its whole process
+    GROUP (not just the direct child) and preserving partial output.
+
+    Returns (stdout, stderr, returncode, timed_out).
+
+    start_new_session=True + killpg mirrors run_fixture_suite.run_hermes()'s
+    own M9 fix, for the same reason: plain subprocess.run(timeout=...) only
+    kills the direct child, leaving any grandchild it spawned running and
+    the in-flight backend request still generating — which is exactly the
+    killed-task retry hazard documented in run_fixture_suite.py. Graceful
+    SIGTERM first so the child can flush its own partial stdout/stderr,
+    then SIGKILL after *grace*.
+    """
+    proc = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        start_new_session=True,
+        **popen_kwargs,
+    )
+    try:
+        stdout, stderr = proc.communicate(timeout=timeout)
+        return stdout, stderr, proc.returncode, False
+    except subprocess.TimeoutExpired:
+        pass
+
+    def _signal_group(sig):
+        try:
+            os.killpg(os.getpgid(proc.pid), sig)
+        except (ProcessLookupError, PermissionError):
+            pass  # already exited, or never got its own group
+
+    _signal_group(signal.SIGTERM)
+    try:
+        stdout, stderr = proc.communicate(timeout=grace)
+    except subprocess.TimeoutExpired:
+        _signal_group(signal.SIGKILL)
+        stdout, stderr = proc.communicate()
+    # A distinct boolean rather than inferring from returncode (same
+    # reasoning as run_fixture_suite.run_hermes()'s L-2 fix): a process
+    # killed by an unrelated signal also reports a negative returncode.
+    return stdout or "", stderr or "", proc.returncode, True
 
 
 def main():
@@ -53,8 +122,24 @@ def main():
     if task_spec.get("runner") != "prompt":
         sys.exit(f"{task_file} is not a prompt-runner suite (runner: {task_spec.get('runner')!r})")
 
+    # Four EXPLICIT budgets rather than one number doing three jobs (see
+    # tasks/SCHEMA.md's "Timeout and liveness budgets" section):
+    #   timeout_seconds                 — total budget for ONE HTTP turn
+    #   task_timeout_seconds            — total budget for one suite task
+    #   first_progress_timeout_seconds  — headers -> first meaningful event
+    #   stream_idle_timeout_seconds     — between two meaningful events
     timeout = task_spec.get("timeout_seconds", 60)
     max_turns = task_spec.get("max_turns", 6)
+    connect_timeout = task_spec.get("connect_timeout_seconds")
+    first_progress_timeout = task_spec.get("first_progress_timeout_seconds")
+    stream_idle_timeout = task_spec.get("stream_idle_timeout_seconds")
+    # Default keeps the old derived value for suites that never came close
+    # to it (sanity: 60*40+60 = 2460s), but caps it so no suite can
+    # silently inherit the ~11-hour ceiling hermes_ops used to have.
+    task_timeout = task_spec.get(
+        "task_timeout_seconds",
+        min(timeout * max_turns + 60, DEFAULT_TASK_TIMEOUT_CAP_SECONDS),
+    )
     log_path = REPO / "results" / "log.jsonl"
 
     config_path = config_hash = None
@@ -94,6 +179,8 @@ def main():
             continue
         for trial in range(1, args.trials + 1):
             result_path_rel = None
+            partial_output_rel = None
+            timeout_phase = None
             parsed = {}
             peak_rss_gb = None
             try:
@@ -125,30 +212,31 @@ def main():
                     ]
                     if api_key_env:
                         cmd += ["--api-key-env", api_key_env]
-                    # Wall-clock bound added (3rd adversarial review, low
-                    # finding): this subprocess.run() had no timeout= at
-                    # all, so a run_prompt.py that hung for any reason
-                    # run_prompt.py's own per-call --timeout doesn't cover
-                    # (a genuine bug, a hung child process it spawns)
-                    # would block this ENTIRE task×trial loop forever, with
-                    # no recovery short of manual intervention — this
-                    # suite's own theoretical ceiling is already
-                    # max_turns * timeout_seconds (each turn's own client-
-                    # side timeout, per call_backend_streaming), so bound
-                    # the subprocess to comfortably above that instead of
-                    # not bounding it at all. TimeoutExpired is a normal
-                    # Exception subclass, so this is already caught by the
-                    # try/except around this whole block (finding CR3-13)
-                    # and recorded as a harness_error row, same as any
-                    # other crash.
+                    if connect_timeout is not None:
+                        cmd += ["--connect-timeout", str(connect_timeout)]
+                    if first_progress_timeout is not None:
+                        cmd += ["--first-progress-timeout", str(first_progress_timeout)]
+                    if stream_idle_timeout is not None:
+                        cmd += ["--stream-idle-timeout", str(stream_idle_timeout)]
+                    # Bounded by an EXPLICIT task budget, terminated as a
+                    # process group, with partial output preserved — see
+                    # run_with_task_deadline() and
+                    # DEFAULT_TASK_TIMEOUT_CAP_SECONDS. This used to be
+                    # `subprocess.run(..., timeout=timeout * max_turns + 60)`,
+                    # a derived ~11-hour ceiling for hermes_ops that (a) was
+                    # actually reached in practice and (b) killed only the
+                    # direct child, leaving grandchildren and the in-flight
+                    # backend request alive.
                     # Sampled continuously for the task's duration, not
                     # snapshotted once at the end (methodology review,
                     # finding F7) — a single end-of-task read would miss a
                     # transient peak mid-generation.
                     rss_sampler = PeakRSSSampler(raw_port).start()
-                    run = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout * max_turns + 60)
+                    run_stdout, run_stderr, _rc, task_timed_out = run_with_task_deadline(
+                        cmd, timeout=task_timeout,
+                    )
                     peak_rss_gb = rss_sampler.stop()
-                    result_path.write_text(run.stdout)
+                    result_path.write_text(run_stdout)
 
                     # Full result (messages, tool_calls, final_text — everything
                     # run_prompt.py actually produced) persisted durably, not
@@ -166,8 +254,28 @@ def main():
                     model_slug = re.sub(r"[^A-Za-z0-9._-]+", "_", args.model)
                     trial_suffix = f"_trial{trial}" if args.trials > 1 else ""
                     durable_result_path = result_dir / f"{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}_{model_slug}{trial_suffix}.json"
-                    durable_result_path.write_text(run.stdout or "{}")
+                    durable_result_path.write_text(run_stdout or "{}")
                     result_path_rel = str(durable_result_path.relative_to(REPO))
+
+                    if task_timed_out:
+                        # A task-deadline kill leaves run_prompt.py's stdout
+                        # partial or empty (it prints its result JSON only at
+                        # the very end), so the ONLY evidence of what the
+                        # model/engine was doing is whatever it had already
+                        # written. Preserve it next to the durable result
+                        # instead of discarding it — the whole reason this
+                        # deadline exists is that the observed oMLX stalls
+                        # were undiagnosable after the fact.
+                        partial_path = durable_result_path.with_name(
+                            durable_result_path.stem + "_partial.txt"
+                        )
+                        partial_path.write_text(
+                            f"--- task timed out after {task_timeout}s "
+                            f"(process group terminated) ---\n\n"
+                            f"--- partial stdout ---\n{run_stdout}\n\n"
+                            f"--- stderr ---\n{run_stderr}\n"
+                        )
+                        partial_output_rel = str(partial_path.relative_to(REPO))
 
                     # run_prompt.py crashing uncaught (e.g. a read timeout that
                     # wasn't a caught exception type — see run_prompt.py's own
@@ -186,14 +294,31 @@ def main():
                     # before reaching its own final print/exit.
                     harness_crashed = False
                     try:
-                        parsed = json.loads(run.stdout)
+                        parsed = json.loads(run_stdout)
                     except json.JSONDecodeError:
                         harness_crashed = True
+                    timeout_phase = parsed.get("timeout_phase")
 
-                    if harness_crashed:
+                    if task_timed_out:
+                        # Deliberately NOT a harness_error: the harness did
+                        # exactly what it was supposed to. A task that burns
+                        # its whole budget without producing an answer is a
+                        # MODEL/ENGINE failure and belongs in the leaderboard
+                        # as one, distinct from an npm-blip-style
+                        # infrastructure crash (which stays harness_error and
+                        # is excluded from pass-rate maths downstream).
+                        passed = False
+                        harness_crashed = False
+                        timeout_phase = "task_deadline"
+                        grade_output = (
+                            f"TIMEOUT (model/engine): task exceeded its "
+                            f"{task_timeout}s budget and its process group was "
+                            f"terminated. Partial output: {partial_output_rel}"
+                        )
+                    elif harness_crashed:
                         passed = False
                         grade_output = "HARNESS ERROR (not a graded model result): " + (
-                            run.stderr.strip()[-1000:] or "run_prompt.py produced no parseable output"
+                            run_stderr.strip()[-1000:] or "run_prompt.py produced no parseable output"
                         )
                     else:
                         grade = subprocess.run(
@@ -237,6 +362,15 @@ def main():
                 "config_hash": config_hash,
                 "harness_error": harness_crashed,
                 "result_path": result_path_rel,
+                # Which budget ran out, if any: "connect" / "first_progress"
+                # / "stream_idle" / "turn_total" come from run_prompt.py's
+                # own per-turn watchdogs; "task_deadline" is this file's
+                # process-group kill. None for a run that finished (pass or
+                # fail) without any timeout. Lets a reader tell a stalled
+                # engine from a merely slow model from a dead backend —
+                # all three used to be one undifferentiated failure.
+                "timeout_phase": timeout_phase,
+                "partial_output_path": partial_output_rel,
                 "runner_git_sha": git_sha(),
                 "trial": trial,
                 "pass": passed,
@@ -261,7 +395,10 @@ def main():
                     if parsed.get("wall_seconds") is not None else None
                 ),
                 "total_cost_usd": parsed.get("total_cost_usd"),
-                "run_error": parsed.get("error"),
+                "run_error": parsed.get("error") or (
+                    f"task deadline exceeded ({task_timeout}s) — process group terminated"
+                    if timeout_phase == "task_deadline" else None
+                ),
                 "usage_estimated": parsed.get("usage_estimated", False),
                 "ttft_measurable": ttft_measurable,
                 "peak_rss_gb": round(peak_rss_gb, 2) if peak_rss_gb is not None else None,
