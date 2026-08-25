@@ -86,7 +86,7 @@ _EMPTY_SESSION_STATS = {
 }
 
 
-def extract_hermes_session_stats(stdout):
+def extract_hermes_session_stats(stdout, stderr=""):
     """Pull turn/tool-call/token counts out of hermes's own SQLite session
     store for the just-finished run (methodology review, finding F6): the
     coding suite previously logged only pass/exit-code/wall/diff-stat — no
@@ -96,12 +96,20 @@ def extract_hermes_session_stats(stdout):
     api_call_count (turns), tool_call_count, input/output/reasoning
     tokens, and the full per-message transcript.
 
+    Searches STDERR first, then stdout (improvement plan, H2): this only
+    ever looked at stdout, while current Hermes prints its `session_id:`
+    banner on stderr — so every coding row silently logged an empty
+    telemetry block (hermes_turns, tool errors and friends all null) even
+    when the task itself graded fine. Both streams are checked rather
+    than just swapping them, so the extraction keeps working across
+    Hermes versions that differ on which stream carries the banner.
+
     Returns a dict (all values None if the session_id can't be found in
-    stdout, or the export itself fails/times out — never raises, since
-    this is instrumentation, not something that should turn a
+    either stream, or the export itself fails/times out — never raises,
+    since this is instrumentation, not something that should turn a
     successfully-graded task into a harness error).
     """
-    match = _SESSION_ID_RE.search(stdout)
+    match = _SESSION_ID_RE.search(stderr or "") or _SESSION_ID_RE.search(stdout or "")
     if not match:
         return dict(_EMPTY_SESSION_STATS)
     session_id = match.group(1)
@@ -790,7 +798,7 @@ def main():
                             max_turns=args.max_turns, timeout=timeout,
                         )
                     peak_rss_gb = rss_sampler.stop()
-                    session_stats = extract_hermes_session_stats(stdout)
+                    session_stats = extract_hermes_session_stats(stdout, stderr)
 
                     # Full transcript, saved and committed (not just the last 500
                     # chars of grade_output) — discovered live 2026-08-20 that no

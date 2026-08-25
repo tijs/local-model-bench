@@ -219,8 +219,56 @@ class ExtractHermesSessionStatsTests(unittest.TestCase):
     data. extract_hermes_session_stats() pulls this from hermes's own
     SQLite session store via `hermes sessions export`."""
 
-    def test_no_session_id_in_stdout_degrades_gracefully(self):
-        stats = rfs.extract_hermes_session_stats("no session id anywhere in this text")
+    def test_no_session_id_in_either_stream_degrades_gracefully(self):
+        stats = rfs.extract_hermes_session_stats(
+            "no session id anywhere in this text", "nor in this one"
+        )
+        self.assertEqual(stats, rfs._EMPTY_SESSION_STATS)
+
+    def test_session_id_is_found_on_stderr(self):
+        # H2 (improvement plan): current Hermes prints its `session_id:`
+        # banner on STDERR, but this only ever searched stdout — so every
+        # coding row silently logged an empty telemetry block even when
+        # the task graded fine.
+        session = {"api_call_count": 3, "tool_call_count": 4, "messages": []}
+        with unittest.mock.patch("run_fixture_suite.subprocess.run") as m:
+            m.return_value = unittest.mock.Mock(returncode=0, stdout=json.dumps(session))
+            stats = rfs.extract_hermes_session_stats(
+                stdout="ordinary agent chatter, no banner here\n",
+                stderr="session_id: from_stderr_123\n",
+            )
+        self.assertEqual(stats["hermes_turns"], 3)
+        self.assertEqual(stats["hermes_tool_calls"], 4)
+        self.assertIn("from_stderr_123", m.call_args[0][0])
+
+    def test_session_id_on_stdout_still_works(self):
+        # Both streams are checked rather than just swapped, so the
+        # extraction survives a Hermes version that puts it back.
+        session = {"api_call_count": 7, "tool_call_count": 8, "messages": []}
+        with unittest.mock.patch("run_fixture_suite.subprocess.run") as m:
+            m.return_value = unittest.mock.Mock(returncode=0, stdout=json.dumps(session))
+            stats = rfs.extract_hermes_session_stats(
+                stdout="session_id: from_stdout_456\n", stderr="",
+            )
+        self.assertEqual(stats["hermes_turns"], 7)
+        self.assertIn("from_stdout_456", m.call_args[0][0])
+
+    def test_stderr_wins_when_both_streams_carry_a_banner(self):
+        # Hermes writes its own banner to stderr; anything matching on
+        # stdout is far more likely to be the agent echoing text back.
+        session = {"api_call_count": 1, "tool_call_count": 0, "messages": []}
+        with unittest.mock.patch("run_fixture_suite.subprocess.run") as m:
+            m.return_value = unittest.mock.Mock(returncode=0, stdout=json.dumps(session))
+            rfs.extract_hermes_session_stats(
+                stdout="session_id: echoed_by_the_agent\n",
+                stderr="session_id: real_one\n",
+            )
+        self.assertIn("real_one", m.call_args[0][0])
+
+    def test_stdout_only_call_still_supported(self):
+        # The stderr parameter defaults, so an old single-argument call
+        # site (or a caller that genuinely has only stdout) still works.
+        stats = rfs.extract_hermes_session_stats("nothing here")
         self.assertEqual(stats, rfs._EMPTY_SESSION_STATS)
 
     def test_export_subprocess_failure_degrades_gracefully(self):
@@ -253,7 +301,7 @@ class ExtractHermesSessionStatsTests(unittest.TestCase):
         }
         with unittest.mock.patch("run_fixture_suite.subprocess.run") as m:
             m.return_value = unittest.mock.Mock(returncode=0, stdout=json.dumps(session) + "\n")
-            stats = rfs.extract_hermes_session_stats("session_id: real_session_id\n")
+            stats = rfs.extract_hermes_session_stats("", "session_id: real_session_id\n")
         self.assertEqual(stats["hermes_turns"], 9)
         self.assertEqual(stats["hermes_tool_calls"], 10)
         self.assertEqual(stats["hermes_input_tokens"], 105920)
