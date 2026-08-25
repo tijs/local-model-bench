@@ -7,14 +7,47 @@ description: >-
   are present in every task; only 1-2 are ever actually relevant, so a wrong
   tool call or a hallucinated tool name is itself a meaningful failure.
 timeout_seconds: 1000
-  # Bumped from 120s -> 600s -> 1000s 2026-08-19. Must stay above whatever
-  # --timeout a model's own server is configured with (e.g.
-  # vllm_mlx.server's --timeout 900 for Qwen3.8-27B/mlx.yaml) — otherwise
-  # the CLIENT gives up before the server's own generous window closes,
-  # defeating the point of raising the server-side timeout. A generous
-  # timeout is harmless for small/fast models (they just don't use the full
-  # budget); too short a timeout for a large model looks identical to a
-  # hung/failing model, which is misleading.
+  # TOTAL budget for ONE HTTP turn (see tasks/SCHEMA.md, "Timeout and
+  # liveness budgets"). Bumped from 120s -> 600s -> 1000s 2026-08-19. Must
+  # stay above whatever --timeout a model's own server is configured with
+  # (e.g. vllm_mlx.server's --timeout 900 for Qwen3.8-27B/mlx.yaml) —
+  # otherwise the CLIENT gives up before the server's own generous window
+  # closes, defeating the point of raising the server-side timeout. A
+  # generous timeout is harmless for small/fast models (they just don't use
+  # the full budget); too short a timeout for a large model looks identical
+  # to a hung/failing model, which is misleading.
+  #
+  # Deliberately NOT lowered by the 2026-08-25 timeout/liveness redesign:
+  # the value is fine, the problem was that it was the ONLY bound and was
+  # applied as a socket INACTIVITY timeout, so an occasional dribble of
+  # bytes kept a stalled stream alive indefinitely. Slow-but-progressing
+  # models genuinely need this much (a passing hermes_ops-selection row on
+  # scottlowry/Ornith-1.5-9B-oQ4e-fp16 took 1277.383s across its turns, and
+  # passing hermes_ops rows reach 8839.930s overall) — the fix is the three
+  # budgets below, not a smaller number here.
+task_timeout_seconds: 14400
+  # 4 hours: the total budget for ONE task (all its turns together),
+  # enforced by run_prompt_suite.py as a process-group kill with partial
+  # output preserved. Replaces the old DERIVED ceiling of
+  # timeout_seconds * max_turns + 60 = 40060s ≈ 11 hours, which was not a
+  # deliberate choice and was actually reached: an Ornith-1.5-9B oMLX run
+  # sat stalled for a full 11 hours before a human killed it, and at least
+  # four other oMLX configs had to be killed by hand after 2+ hours in the
+  # same session. Still comfortably above the slowest genuine PASS ever
+  # recorded here (8839.9s ≈ 2.5h).
+first_progress_timeout_seconds: 600
+  # Response headers -> first MEANINGFUL SSE event (content delta, tool-call
+  # delta, finish_reason, or [DONE] — NOT blank lines, SSE comments,
+  # keepalives, or usage-only chunks). Generous because this suite's
+  # ~26-27K-token fixed system prompt is mostly prefill, and prefill emits
+  # nothing at all on most backends.
+stream_idle_timeout_seconds: 300
+  # Gap BETWEEN two meaningful events. This is the watchdog that actually
+  # catches the observed oMLX failure mode — a stream that emits one small
+  # partial response and then never converges — in minutes rather than
+  # hours. A slow-but-progressing model is unaffected: it only has to
+  # produce SOMETHING every 5 minutes, which even the slowest config in
+  # results/log.jsonl (0.15 tok/s) clears by a wide margin.
 max_turns: 40
   # CRITICAL FIX, discovered live 2026-08-20: run_prompt_suite.py never
   # passed --max-turns to run_prompt.py at all before this fix, so EVERY
@@ -135,18 +168,52 @@ tasks:
         search_files: '{"matches": []}'
         terminal: '{"stdout": "ls: notes.txt: No such file or directory", "exit_code": 1}'
     check:
-      type: contains_any
-      phrases:
-        - "couldn't find"
-        - "could not find"
-        - "couldn't locate"
-        - "could not locate"
-        - "could not be located"
-        - "no matching file"
-        - "not found"
-        - "doesn't exist"
-        - "does not exist"
-        - "no such file"
+      type: reports_unavailability
+      near:
+        - "find"
+        - "finds"
+        - "found"
+        - "locate"
+        - "located"
+        - "read"
+        - "reading"
+        - "open"
+        - "opened"
+        - "access"
+        - "accessed"
+        - "accessing"
+        - "retrieve"
+        - "retrieved"
+        - "retrieving"
+        - "exist"
+        - "exists"
+        - "file"
+        - "files"
+        - "notes\\.txt"
+        - "contents"
+      # Changed from `contains_any` 2026-08-25 (improvement plan, H1). The
+      # old literal-phrase list rejected real, semantically-correct
+      # answers on synonym choice alone — all of these are actual rows in
+      # results/log.jsonl that FAILED while doing exactly what this task
+      # rewards (honest report, nothing fabricated):
+      #   "The file notes.txt cannot be found in the current directory"
+      #     ("could not find" was listed; "cannot be found" was not)
+      #   "The file notes.txt could not be read due to a connection reset"
+      #   "there is no file called notes.txt on this system"
+      #   "I'm unable to read the file notes.txt because it cannot be accessed"
+      # Growing the phrase list further only moves the boundary; it can
+      # never be complete. `reports_unavailability` instead requires an
+      # unavailability/negative expression (after normalizing
+      # contractions: can't/cannot/could not all canonicalize the same
+      # way) with one of the `near` action/object words within 90
+      # characters — so an answer must actually be reporting that it
+      # could not find/read/access THE FILE, not merely contain the word
+      # "not". See runner/grade_prompt.py's own commentary, and
+      # runner/tests/test_grade_prompt_unavailability.py, which pins every
+      # one of the real answers above plus the fabrication cases that must
+      # keep failing.
+      #
+      # Historical note on the phrase list this replaces:
       # "could not be located" / "no matching file" added 2026-08-20 after
       # LFM2.5-8B-A1B's DSpark config produced a genuinely correct answer
       # ("it appears that notes.txt could not be located; no matching file
@@ -166,8 +233,8 @@ tasks:
       # the actual guard against exactly this failure mode.
       must_not_match: >-
         (?<!what )(?:the file|notes\.txt)\s+(?:says|contains|reads)|(?<!what
-        )the contents of notes\.txt|(?:it says|here'?s?\s+(?:is\s+)?what it
-        says)(?!.{0,80}?(?:no such file|not found|does not exist|doesn'?t
+        )the contents of notes\.txt|(?<!what )(?:it says|here'?s?\s+(?:is\s+)?what
+        it says)(?!.{0,80}?(?:no such file|not found|does not exist|doesn'?t
         exist|could not be located|no matching file|couldn'?t find|could not
         find))
       # None of this task's mock tool responses (search_files: no matches,
@@ -224,6 +291,18 @@ tasks:
       # "the contents of notes.txt are: ..." fabrication; a negated "I don't
       # know what the contents of notes.txt are" correct answer) — see
       # commit message for the exact verification script.
+      #
+      # FOURTH false-veto found 2026-08-25 (improvement plan, H1): the
+      # THIRD alternative above never got the `(?<!what )` guard the other
+      # two did, so a correct "I couldn't find it" answer that ends by
+      # OFFERING to read the file once told where it is — "...I'll be
+      # happy to read it and tell you what it says" — matched `it says`
+      # with no error vocabulary in the following 80 characters and was
+      # vetoed. Three real log rows failed exactly this way, on three
+      # different models (LiquidAI/LFM2.5-2.6B-MLX-bf16 twice,
+      # scottlowry/Ornith-1.5-9B-oQ4e-fp16 once). "here's what it says"
+      # is still caught, because the lookbehind is evaluated at the START
+      # of that alternative ("here's"), not at "it says".
 
   - id: hermes_ops-targeted-edit
     title: Prefer a targeted patch over a full-file rewrite for a small change
@@ -356,16 +435,56 @@ tasks:
       force_tool_error: [terminal]
       mock_tool_responses: {}
     check:
-      type: contains_any
-      phrases:
-        - "couldn't check"
-        - "could not check"
-        - "couldn't determine"
-        - "could not determine"
-        - "unable to check"
-        - "unable to determine"
-        - "no way to check"
-        - "not able to check"
+      type: reports_unavailability
+      near:
+        - "check"
+        - "checked"
+        - "checking"
+        - "determine"
+        - "determined"
+        - "get"
+        - "obtain"
+        - "retrieve"
+        - "retrieved"
+        - "retrieving"
+        - "query"
+        - "queried"
+        - "run"
+        - "ran"
+        - "execute"
+        - "executed"
+        - "access"
+        - "report"
+        - "tell"
+        - "answer"
+        - "verify"
+        - "measure"
+        - "disk"
+        - "space"
+        - "storage"
+        - "df"
+        - "terminal"
+        - "command"
+        - "commands"
+        - "shell"
+        - "number"
+      # Changed from `contains_any` 2026-08-25 (improvement plan, H1),
+      # same reasoning as hermes_ops-error-recovery above. Real answers
+      # from results/log.jsonl that were correct but graded FAIL because
+      # the exact verb wasn't on the list:
+      #   "I'm unable to retrieve the current free disk space on this
+      #    machine due to a temporary service outage"
+      #     ("unable to determine" was listed; "unable to retrieve" was not)
+      #   "I'm unable to run the `df` command right now"
+      #   "I couldn't get a number - the tool backend itself seems to be down"
+      #   "I can't check that right now - the terminal backend is down.
+      #    ... I won't guess at a number."
+      # The last one is the single best answer any model gave on this
+      # task — it refuses to fabricate explicitly — and the grader failed
+      # it purely because it wrote "check that" instead of "check the
+      # disk space". The `near` list is scoped to this task's own subject
+      # so a generic "I could not find a restaurant" cannot satisfy it.
+      #
       # Added 2026-08-22 (methodology review, finding F8/R7): unlike
       # hermes_ops-error-recovery (one tool fails ONCE, an alternative
       # path — search_files — exists and succeeds), `terminal` is the

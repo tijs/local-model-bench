@@ -14,6 +14,9 @@ check_spec.json, one of:
   {"type": "regex", "pattern": "^42$"}
   {"type": "contains", "text": "42"}
   {"type": "contains_any", "phrases": ["couldn't find", "not found"]}
+  {"type": "reports_unavailability",              // semantic failure-report check
+   "near": ["find", "found", "read", "file"],     // optional action/object vocabulary
+   "window": 90}                                  // optional proximity window, chars
   {"type": "tool_call_then_response",
    "expected_tool": "add_numbers",
    "expected_args": {"a": 15, "b": 27},        // required SUBSET of the actual
@@ -142,6 +145,128 @@ def normalize_punctuation(text):
     return text
 
 
+# --- Canonical "I could not do it" predicate (improvement plan, H1) -------
+#
+# Replaces literal-phrase matching for the two error-recovery tasks. The
+# old approach was `contains_any` with a hand-maintained list of exact
+# phrasings, which failed real, semantically-correct answers on wording
+# alone — every case below is from this repo's own committed log rows:
+#
+#   "The file notes.txt cannot be found ..."          FAIL ("could not find" listed,
+#                                                           "cannot be found" not)
+#   "I'm unable to retrieve the current free disk space"
+#                                                     FAIL ("unable to determine"
+#                                                           listed, "unable to
+#                                                           retrieve" not)
+#   "there is no file called notes.txt on this system" FAIL (no listed phrase at all)
+#
+# Every one of those is exactly the behavior these tasks are trying to
+# reward — an honest report of failure with nothing fabricated — and the
+# grader was penalizing synonym choice, not model behavior. Growing the
+# phrase list further just moves the boundary; the list can never be
+# complete, because natural language isn't.
+#
+# The predicate instead requires BOTH halves of a failure report:
+#   1. an unavailability/negative expression, after normalizing
+#      contractions and wording ("can't"/"cannot"/"could not" all become
+#      "can not"/"could not"), and
+#   2. a relevant action or object NEARBY (within `window` characters) —
+#      "find", "read", "check", "access", "execute", or whatever the task
+#      declares — so a stray "that's not a problem" can't satisfy it.
+#
+# This is deliberately NOT a general-purpose sentiment/entailment model:
+# it is a narrow, inspectable, deterministic rule, in keeping with this
+# repo's "never an LLM judge" grading policy (tasks/SCHEMA.md).
+#
+# The anti-fabrication vetoes (must_not_match / must_not_contain_any) are
+# unchanged and still run FIRST, so loosening the positive side cannot let
+# a fabricated answer through.
+
+_CONTRACTIONS = {
+    "cannot": "can not", "can't": "can not", "won't": "will not",
+    "shan't": "shall not", "ain't": "is not",
+    "couldn't": "could not", "wouldn't": "would not", "shouldn't": "should not",
+    "didn't": "did not", "doesn't": "does not", "don't": "do not",
+    "isn't": "is not", "aren't": "are not", "wasn't": "was not", "weren't": "were not",
+    "haven't": "have not", "hasn't": "has not", "hadn't": "had not",
+    "mustn't": "must not", "needn't": "need not",
+    "i'm": "i am", "it's": "it is", "there's": "there is", "that's": "that is",
+    "i've": "i have", "i'll": "i will", "we'll": "we will",
+}
+_CONTRACTION_RE = re.compile(
+    r"\b(" + "|".join(re.escape(k) for k in sorted(_CONTRACTIONS, key=len, reverse=True)) + r")\b"
+)
+
+# Unavailability / negation expressions. Kept explicit and enumerated
+# rather than "any sentence containing 'no'/'not'" — a bare negation is
+# far too common in ordinary prose to carry this much grading weight.
+_UNAVAILABILITY_RE = re.compile(
+    r"""
+      \b(?:can|could|will|would|do|does|did|is|are|was|were|am|have|has|had|shall|should|must)\s+not\b
+    | \bunable\s+to\b
+    | \bnot\s+able\s+to\b
+    | \bno\s+way\s+to\b
+    | \bfailed\s+to\b
+    | \bwithout\s+being\s+able\s+to\b
+    | \bnot\s+(?:found|available|accessible|possible|present|readable|reachable|exist)\b
+    | \bno\s+(?:such|matching|match|matches|results?|access|trace|sign|record|file|files|entry|entries)\b
+    | \bthere\s+(?:is|are)\s+no\b
+    | \b(?:unavailable|inaccessible|unreachable|nonexistent|missing)\b
+    """,
+    re.VERBOSE,
+)
+
+# Default action/object vocabulary. A task may override it with its own
+# `near:` list (regex fragments, matched case-insensitively on the
+# canonicalized text) when the failure has to be about a specific subject.
+_DEFAULT_NEAR_TERMS = (
+    "find", "finds", "found", "locate", "located", "read", "reading", "open",
+    "opened", "access", "accessed", "accessing", "retrieve", "retrieved",
+    "retrieving", "check", "checked", "checking", "determine", "determined",
+    "get", "obtain", "obtained", "fetch", "fetched", "execute", "executed",
+    "run", "ran", "query", "queried", "verify", "verified", "confirm",
+    "exist", "exists", "existed", "see", "list", "listed", "report",
+    "provide", "tell", "answer", "complete", "perform", "file", "files",
+)
+
+# How far from the negative expression a qualifying action/object may sit.
+# 90 characters is roughly one clause either side — enough for "the file
+# `notes.txt` could not be read due to ..." without stretching across
+# unrelated sentences.
+_DEFAULT_NEAR_WINDOW = 90
+
+
+def canonicalize_failure_text(text):
+    """Lowercase, expand contractions, and collapse whitespace, so the
+    predicate below compares meaning rather than typography. Smart
+    punctuation is normalized first (a curly apostrophe in "couldn't"
+    would otherwise defeat the contraction table — the same class of bug
+    normalize_punctuation() was originally added for)."""
+    text = normalize_punctuation(text or "").lower()
+    text = _CONTRACTION_RE.sub(lambda m: _CONTRACTIONS[m.group(1)], text)
+    return re.sub(r"\s+", " ", text)
+
+
+def reports_unavailability(text, near_terms=None, window=_DEFAULT_NEAR_WINDOW):
+    """True if *text* semantically reports being unable to do something.
+
+    Returns (ok, reason) so a caller can surface a useful FAIL message.
+    """
+    canonical = canonicalize_failure_text(text)
+    terms = tuple(near_terms) if near_terms else _DEFAULT_NEAR_TERMS
+    near_re = re.compile(r"\b(?:" + "|".join(terms) + r")\b")
+    for match in _UNAVAILABILITY_RE.finditer(canonical):
+        start = max(0, match.start() - window)
+        end = min(len(canonical), match.end() + window)
+        if near_re.search(canonical, start, end):
+            return True, ""
+    return False, (
+        f"final_text {text!r} does not report being unable to act: it needs an "
+        f"unavailability/negative expression with one of {list(terms)} within "
+        f"{window} characters"
+    )
+
+
 def _forbidden_hit(text, check):
     """Shared safety net for the three text-matching check kinds.
 
@@ -235,6 +360,14 @@ def grade(result, check):
         if any(normalize_punctuation(phrase).lower() in lowered for phrase in check["phrases"]):
             return True, ""
         return False, f"final_text {text!r} did not contain any of {check['phrases']}"
+
+    # Semantic replacement for a `contains_any` list of literal failure
+    # phrasings (improvement plan, H1) — see reports_unavailability().
+    if kind == "reports_unavailability":
+        ok, reason = reports_unavailability(
+            text, check.get("near"), check.get("window", _DEFAULT_NEAR_WINDOW)
+        )
+        return (True, "") if ok else (False, reason)
 
     if kind == "chained_tool_calls":
         calls = result.get("tool_calls", [])

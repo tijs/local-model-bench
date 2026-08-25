@@ -40,20 +40,252 @@ Prints a single JSON result to stdout:
     "prompt_tokens": N, "completion_tokens": N, "total_tokens": N,
     "wall_seconds": N,
     "tokens_per_second": N,      // completion_tokens / wall_seconds
-    "error": null | "message"    // set if the run failed (timeout, HTTP error, etc.)
+    "error": null | "message",   // set if the run failed (timeout, HTTP error, etc.)
+    "timeout_phase": null | "connect" | "first_progress" | "stream_idle" | "turn_total"
   }
 """
 import argparse
+import contextlib
 import http.client
 import json
 import os
+import queue
+import socket
 import sys
+import threading
 import time
 import urllib.request
 import urllib.error
 
 
 GUARDRAIL_WARN_AFTER = {"exact_failure": 2, "same_tool_failure": 3, "idempotent_no_progress": 2}
+
+# Layered streaming budgets (2026-08-25 timeout/liveness redesign). Before
+# this, ONE number (`--timeout`) was handed to urlopen() as a socket
+# INACTIVITY timeout and nothing else bounded a turn — so a stream that
+# kept dribbling *something* (a keepalive comment, a usage-only chunk, a
+# single tiny partial event) could hold the connection open indefinitely
+# while the suite's own derived subprocess deadline sat ~11 hours out.
+# Observed live and repeatedly during real oMLX runs: a hermes_ops task's
+# HTTP stream stalls mid-response and the whole run occupies a server slot
+# until a human notices and kills it by hand.
+#
+# Four DISTINCT budgets now, all measured on time.monotonic() (never
+# wall-clock, which a clock adjustment can move backwards):
+#
+#   connect        — TCP connect + request send + response headers. A
+#                    backend that accepts the socket and then never
+#                    answers hits this instead of hanging forever.
+#   first_progress — headers received, but no MEANINGFUL SSE event yet.
+#                    Deliberately generous: a 26-27K-token hermes_ops
+#                    system prompt is mostly prefill, and prefill emits
+#                    nothing at all on most backends.
+#   stream_idle    — gap BETWEEN two meaningful events. This is the
+#                    watchdog that actually catches the observed stall:
+#                    minutes, not hours.
+#   total          — hard ceiling on one HTTP turn regardless of progress.
+#
+# "Meaningful" deliberately EXCLUDES blank lines, SSE comment/keepalive
+# lines (":..."), and usage-only chunks — those are exactly what a stalled
+# stream can keep emitting while producing no actual response. See
+# _sse_event_is_meaningful().
+DEFAULT_CONNECT_TIMEOUT = 60.0
+DEFAULT_FIRST_PROGRESS_TIMEOUT = 600.0
+DEFAULT_STREAM_IDLE_TIMEOUT = 300.0
+
+
+class StreamStall(Exception):
+    """One HTTP turn ran out of one of its liveness/total budgets.
+
+    Carries the *phase* it ran out in so a caller can distinguish "the
+    model/engine stalled" (first_progress/stream_idle) from "the model was
+    progressing but is simply too slow for this turn's ceiling"
+    (turn_total) and from "the backend never answered at all" (connect) —
+    all four used to be indistinguishable "request failed" strings.
+    """
+
+    def __init__(self, phase, waited, budget):
+        self.phase = phase
+        self.waited = waited
+        self.budget = budget
+        super().__init__(
+            f"stream stalled in phase {phase!r}: no qualifying progress for "
+            f"{waited:.1f}s (budget {budget:.1f}s)"
+        )
+
+
+def _sse_event_is_meaningful(data):
+    """True if this `data:` payload is real forward progress.
+
+    Content deltas, tool-call deltas, a finish_reason, and the terminal
+    `[DONE]` sentinel all count. A usage-only chunk does NOT (some
+    backends emit one long after generation has stalled), and neither do
+    role-only opening deltas — neither carries any of the response the
+    caller is waiting for.
+    """
+    if data == "[DONE]":
+        return True
+    try:
+        chunk = json.loads(data)
+    except (json.JSONDecodeError, TypeError):
+        # Unparseable payload: not progress we can attribute to the model,
+        # but not a reason to keep waiting either — the caller's own
+        # json.loads below turns it into an explicit error.
+        return False
+    for choice in chunk.get("choices") or []:
+        delta = choice.get("delta") or {}
+        if delta.get("content") or delta.get("tool_calls"):
+            return True
+        if choice.get("finish_reason"):
+            return True
+    return False
+
+
+def _relax_socket_timeout(resp, seconds):
+    """Raise the response socket's own inactivity timeout to *seconds*.
+
+    urlopen(timeout=X) sets X as the socket timeout for the connect phase
+    AND for every subsequent read. Left alone, that means a short connect
+    budget would silently become the read-idle budget too: with
+    hermes_ops's real values (connect 60s, first-progress 600s) a
+    perfectly healthy 26K-token prefill emitting nothing for 90 seconds
+    would die at 60s with a bare TimeoutError, and the layered budgets
+    below would never get to make the decision. So once the headers are
+    in, hand the socket a timeout wide enough that the watchdogs in
+    _read_sse_events() are the only thing that can end the turn.
+
+    Best-effort: it reaches through http.client's buffered reader to the
+    underlying socket. If that fails on some future/alternate
+    implementation, _read_sse_events() also maps a socket TimeoutError
+    onto the right stall phase, so behavior degrades to "the watchdog
+    fires early" rather than to "a slow model is misreported".
+    """
+    try:
+        resp.fp.raw._sock.settimeout(seconds)
+        return True
+    except (AttributeError, OSError, ValueError):
+        return False
+
+
+def _safe_close(resp):
+    try:
+        resp.close()
+    except (OSError, ValueError):
+        pass
+
+
+def _abort_response(resp):
+    """Tear down a stalled response WITHOUT waiting on its socket.
+
+    resp.close() alone is not enough: the reader thread is blocked inside
+    readline() holding the buffered reader's lock, so close() waits for
+    that read to end — i.e. for the socket's own inactivity timeout, or
+    for the stalled server to eventually say something. Measured: a stall
+    detected in 0.3s still took 30s to return. Shutting the socket down
+    first makes the blocked read return immediately, which is the whole
+    point of detecting the stall early.
+    """
+    try:
+        resp.fp.raw._sock.shutdown(socket.SHUT_RDWR)
+    except (AttributeError, OSError, ValueError):
+        # Socket unreachable through this implementation — close on a
+        # daemon thread so a blocked reader can never hold up the caller.
+        threading.Thread(target=_safe_close, args=(resp,), daemon=True).start()
+        return
+    _safe_close(resp)
+
+
+def _read_sse_events(resp, total_deadline, first_progress_timeout, stream_idle_timeout):
+    """Yield (data, meaningful) for each `data:` line of an SSE response,
+    enforcing the first-progress / inter-event-idle / total budgets.
+
+    The blocking read runs on a daemon thread feeding a Queue, so the
+    deadline arithmetic here is never itself blocked by a socket that has
+    gone silent — urlopen(timeout=...) alone can only express ONE socket-
+    level inactivity value and cannot express "600s for the first token,
+    then 300s between tokens, and 1000s overall" at all.
+    """
+    events = queue.Queue()
+    # The widest of this turn's budgets (plus a small margin), so the
+    # socket's own inactivity timeout can never fire BEFORE one of the
+    # watchdogs below — they, not the socket, decide when a turn ends.
+    # It is still a finite timeout, so a socket that somehow outlives
+    # every budget cannot wedge the reader thread forever.
+    _relax_socket_timeout(
+        resp,
+        max(first_progress_timeout, stream_idle_timeout,
+            total_deadline - time.monotonic()) + 5,
+    )
+
+    def _pump():
+        try:
+            for raw_line in resp:
+                events.put(("line", raw_line))
+            events.put(("eof", None))
+        except BaseException as exc:  # noqa: BLE001 — re-raised on the consumer side
+            events.put(("error", exc))
+
+    pump = threading.Thread(target=_pump, name="sse-reader", daemon=True)
+    pump.start()
+
+    saw_meaningful = False
+    last_progress = time.monotonic()
+    try:
+        while True:
+            now = time.monotonic()
+            budget = stream_idle_timeout if saw_meaningful else first_progress_timeout
+            liveness_deadline = last_progress + budget
+            wait_until = min(liveness_deadline, total_deadline)
+            try:
+                kind, payload = events.get(timeout=max(0.0, wait_until - now))
+            except queue.Empty:
+                if total_deadline <= liveness_deadline:
+                    raise StreamStall(
+                        "turn_total", time.monotonic() - last_progress, budget
+                    ) from None
+                raise StreamStall(
+                    "stream_idle" if saw_meaningful else "first_progress",
+                    time.monotonic() - last_progress,
+                    budget,
+                ) from None
+
+            if kind == "error":
+                if isinstance(payload, TimeoutError):
+                    # A socket-level read timeout IS an idle stream, so
+                    # report it as the stall it is rather than as a bare
+                    # TimeoutError. Only reachable if
+                    # _relax_socket_timeout() could not widen the socket
+                    # (see its docstring) — belt and braces, so an
+                    # unexpected socket implementation degrades to "the
+                    # watchdog fires early", never to "a slow model is
+                    # misclassified as a connection failure".
+                    raise StreamStall(
+                        "stream_idle" if saw_meaningful else "first_progress",
+                        time.monotonic() - last_progress,
+                        budget,
+                    ) from payload
+                raise payload
+            if kind == "eof":
+                return
+
+            line = payload.decode("utf-8", "replace").strip()
+            # Blank lines are SSE event separators and ":"-prefixed lines
+            # are comments/keepalives — neither is progress, and a stalled
+            # server emitting only these is precisely the failure this
+            # watchdog exists to catch.
+            if not line or not line.startswith("data:"):
+                continue
+            data = line[len("data:"):].strip()
+            meaningful = _sse_event_is_meaningful(data)
+            if meaningful:
+                saw_meaningful = True
+                last_progress = time.monotonic()
+            yield data, meaningful
+    finally:
+        # Tearing the response down unblocks the pump thread's own recv()
+        # so a stalled turn doesn't leave a live socket (and, for a
+        # proxied backend, a queue slot) held open behind us.
+        _abort_response(resp)
 
 
 def guardrail_warning(tool_history, name, args_key, warned):
@@ -94,7 +326,10 @@ def guardrail_warning(tool_history, name, args_key, warned):
     return None
 
 
-def call_backend_streaming(base_url, model, messages, tools, temperature, timeout, max_tokens, api_key=None):
+def call_backend_streaming(base_url, model, messages, tools, temperature, timeout, max_tokens,
+                           api_key=None, connect_timeout=DEFAULT_CONNECT_TIMEOUT,
+                           first_progress_timeout=DEFAULT_FIRST_PROGRESS_TIMEOUT,
+                           stream_idle_timeout=DEFAULT_STREAM_IDLE_TIMEOUT):
     """Streams the response so we can measure real time-to-first-token
     (TTFT) — separate from total wall time, since a big fixed system prompt
     mostly costs prefill time, not generation time. Reassembles the stream
@@ -102,7 +337,13 @@ def call_backend_streaming(base_url, model, messages, tools, temperature, timeou
     need to know the difference. Backends that don't send true token-by-
     token deltas (e.g. buffer the whole response into one SSE chunk) will
     just report ttft ~= total generation time, which is itself useful
-    signal, not a bug."""
+    signal, not a bug.
+
+    *timeout* is the TOTAL budget for this one HTTP turn (it used to be a
+    socket inactivity timeout, which could never bound a turn at all —
+    see the module-level budget block). The liveness budgets are layered
+    on top of it and always clamped by it: no budget can extend a turn
+    past its total deadline."""
     body = {
         "model": model,
         "messages": messages,
@@ -124,18 +365,32 @@ def call_backend_streaming(base_url, model, messages, tools, temperature, timeou
     )
 
     start = time.time()
+    mono_start = time.monotonic()
+    total_deadline = mono_start + timeout
     ttft = None
     content_parts = []
     tool_calls_acc = {}
     usage = {}
     finish_reason = None
 
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        for raw_line in resp:
-            line = raw_line.decode("utf-8").strip()
-            if not line or not line.startswith("data:"):
-                continue
-            data = line[len("data:"):].strip()
+    # The connect budget covers TCP connect + request send + response
+    # headers, and is clamped to the turn's own total budget so a short
+    # total can never be overrun waiting for headers. urlopen() raises
+    # TimeoutError here for a backend that accepts the socket and then
+    # says nothing — translated into an explicit "connect" phase rather
+    # than the generic "request failed" every timeout used to produce.
+    try:
+        resp = urllib.request.urlopen(req, timeout=min(connect_timeout, timeout))
+    except TimeoutError as exc:
+        raise StreamStall("connect", min(connect_timeout, timeout), min(connect_timeout, timeout)) from exc
+
+    # contextlib.closing, not a bare `for`: breaking out of the loop on
+    # [DONE] must run the generator's own finally (which closes the HTTP
+    # response and unblocks its reader thread) deterministically, not
+    # whenever the generator happens to be collected.
+    events = _read_sse_events(resp, total_deadline, first_progress_timeout, stream_idle_timeout)
+    with contextlib.closing(events):
+        for data, _meaningful in events:
             if data == "[DONE]":
                 break
             chunk = json.loads(data)
@@ -215,7 +470,24 @@ def main():
     ap.add_argument("--spec", required=True, help="path to task_spec.json")
     ap.add_argument("--max-turns", type=int, default=6)
     ap.add_argument("--temperature", type=float, default=0)
-    ap.add_argument("--timeout", type=float, default=120)
+    ap.add_argument("--timeout", type=float, default=120,
+                     help="TOTAL budget for one HTTP turn, in seconds. Was a socket "
+                          "INACTIVITY timeout until the 2026-08-25 timeout/liveness "
+                          "redesign, which could not bound a turn at all: a stream "
+                          "dribbling keepalives or usage-only chunks stayed alive "
+                          "indefinitely (observed live on oMLX backends).")
+    ap.add_argument("--connect-timeout", type=float, default=DEFAULT_CONNECT_TIMEOUT,
+                     help="budget for TCP connect + request send + response headers "
+                          f"(default {DEFAULT_CONNECT_TIMEOUT:.0f}s); clamped to --timeout")
+    ap.add_argument("--first-progress-timeout", type=float, default=DEFAULT_FIRST_PROGRESS_TIMEOUT,
+                     help="budget from response headers to the first MEANINGFUL SSE event "
+                          f"(default {DEFAULT_FIRST_PROGRESS_TIMEOUT:.0f}s) — generous on "
+                          "purpose, since a large fixed system prompt is mostly prefill and "
+                          "prefill emits nothing")
+    ap.add_argument("--stream-idle-timeout", type=float, default=DEFAULT_STREAM_IDLE_TIMEOUT,
+                     help="budget between two MEANINGFUL SSE events "
+                          f"(default {DEFAULT_STREAM_IDLE_TIMEOUT:.0f}s) — the watchdog that "
+                          "actually catches a stalled response, in minutes rather than hours")
     ap.add_argument("--max-tokens", type=int, default=4096,
                      help="per-turn completion cap sent as the request's max_tokens "
                           "(default 4096, matching the bench profile's own cap in "
@@ -248,6 +520,7 @@ def main():
     prompt_tokens = completion_tokens = 0
     start = time.time()
     error = None
+    timeout_phase = None
     final_text = ""
     turns = 0
     ttft_seconds = None  # time-to-first-token of the FIRST API call in this run
@@ -260,6 +533,9 @@ def main():
             resp, turn_ttft = call_backend_streaming(
                 args.base_url, args.model, messages, tools, args.temperature, args.timeout,
                 args.max_tokens, api_key=api_key,
+                connect_timeout=args.connect_timeout,
+                first_progress_timeout=args.first_progress_timeout,
+                stream_idle_timeout=args.stream_idle_timeout,
             )
             if ttft_seconds is None:
                 ttft_seconds = turn_ttft
@@ -357,6 +633,13 @@ def main():
                 )
         else:
             error = f"exceeded max_turns ({args.max_turns}) without a final non-tool-call response"
+    except StreamStall as e:
+        # Explicitly phase-tagged so a log row can tell "the engine stalled
+        # mid-stream" (first_progress/stream_idle — the observed oMLX
+        # failure) apart from "this model is simply slower than one turn's
+        # ceiling" (turn_total) and "the backend never answered" (connect).
+        timeout_phase = e.phase
+        error = f"stream stalled ({e.phase}): {e}"
     except urllib.error.URLError as e:
         error = f"request failed: {e}"
     except (KeyError, IndexError, json.JSONDecodeError) as e:
@@ -395,6 +678,7 @@ def main():
         "usage_estimated": usage_estimated,
         "total_cost_usd": total_cost_usd,
         "error": error,
+        "timeout_phase": timeout_phase,
     }
     print(json.dumps(result, indent=2))
     sys.exit(1 if error else 0)

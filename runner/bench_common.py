@@ -85,16 +85,33 @@ def _find_listening_pid(port):
     -m vllm_mlx.server` under a shell=True Popen) — the one thing every
     launch style has in common is that exactly one process ends up bound
     to the port, so ask the OS which one that is rather than trying to
-    track through the process tree."""
+    track through the process tree.
+
+    When lsof reports MORE than one listener (a forking server, a socket
+    inherited by a child, IPv4 and IPv6 sockets held by different
+    processes, or a stale process mid-teardown), this deliberately returns
+    the LOWEST pid rather than lsof's first output line (improvement plan,
+    low finding): output order is not specified, so the previous
+    `pids[0]` could resolve to a different process on consecutive samples
+    within a single PeakRSSSampler run and silently splice two processes'
+    RSS into one "peak". Lowest pid is arbitrary but STABLE, and for a
+    fork-based server it is the parent, which is the process actually
+    holding the model weights. A non-numeric line is skipped rather than
+    aborting the whole lookup."""
     try:
         out = subprocess.run(
-            ["lsof", "-i", f":{port}", "-sTCP:LISTEN", "-t"],
+            ["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN", "-t"],
             capture_output=True, text=True, timeout=5,
-        ).stdout.strip()
-        pids = [p for p in out.splitlines() if p]
-        return int(pids[0]) if pids else None
-    except (subprocess.SubprocessError, ValueError, OSError):
+        ).stdout
+    except (subprocess.SubprocessError, OSError):
         return None
+    pids = []
+    for line in out.split():
+        try:
+            pids.append(int(line))
+        except ValueError:
+            continue
+    return min(pids) if pids else None
 
 
 def _rss_gb(pid):
