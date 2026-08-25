@@ -165,6 +165,36 @@ whitespace-stripped — for a prompt asking to write JUST a value, where
 `write_file_arg_path` (suffix match on the `path` argument — neither of the
 two content checks above verifies WHERE the model wrote to).
 
+`reports_unavailability` (added 2026-08-25, improvement plan H1) is the
+semantic replacement for a `contains_any` list of literal failure
+phrasings, used by the two error-recovery tasks:
+
+```yaml
+    check:
+      type: reports_unavailability
+      near: [find, found, read, access, "notes\\.txt", file]  # optional
+      window: 90                                              # optional, chars
+```
+
+It passes when the (contraction-normalized, lowercased) answer contains an
+unavailability/negative expression — `could not`, `cannot`, `can't`,
+`unable to`, `no way to`, `not found`, `there is no`, `unavailable`, … —
+with one of the `near` action/object terms within `window` characters.
+Both halves are required, so a stray "that's not a problem" cannot satisfy
+it, and `near` scopes the failure to the task's own subject (a
+persistent-failure task about disk space is not satisfied by "I could not
+find a restaurant"). `near` entries are regex fragments matched
+case-insensitively; omitting `near` uses a general action vocabulary.
+
+This exists because a literal-phrase list penalizes synonym choice rather
+than model behavior: real committed log rows failed on "cannot be found"
+(while "could not find" was listed) and "unable to retrieve the free disk
+space" (while "unable to determine" was listed), despite doing exactly
+what the task rewards. Growing the list only moves the boundary. The
+anti-fabrication vetoes (`must_not_match` / `must_not_contain_any`) are
+unchanged and still run FIRST, so the looser positive side cannot let a
+fabricated answer through.
+
 Check types: `regex`/`contains` match `final_text` directly and are
 case-sensitive (an exact literal/pattern check shouldn't silently accept
 a differently-cased answer). `contains_any` takes `phrases: [...]` and
