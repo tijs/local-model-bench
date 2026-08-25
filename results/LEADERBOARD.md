@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/903 rows below predate 2026-08-21
+> **⚠ 138/913 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -195,6 +195,7 @@ on the two synthetic suites," not "never hallucinated a tool".
 | mlx-community/Qwen3.8-27B-4bit | mlx | — | ? | ? | 2/2 | [bbaa3dfa1953](configs/Qwen3.8-27B/mlx.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 0 | n/a (all harness errors) | 0 | 8.6 | 3.76 | 0 | — | 0 | — | ? | ? | ? |
 | mlx-community/Qwen3.8-27B-4bit | mlx | — | ? | ? | — | [f894953f1f80](configs/Qwen3.8-27B/mlx.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 4 | 75% | 0 | 0.3 | 337.71 | 0 | — | 0 | — | ? | ? | ? |
 | mlx-community/Qwen3.8-27B-4bit | omlx | — | 1.0 | thinking | 2/2 | [1eec0081c5d6](configs/1eec0081c5d6.yaml) — *config since changed* | fc71ba2c66f8+dirty | 3 | 0% | 0 | 3.4 | 5.65 | 0 | — | 0 | — | MLX 4-bit | cold | off |
+| mlx-community/Qwen3.8-27B-4bit | omlx | — | 1.0 | thinking | 2/2 | [3fbfdcc4ec02](configs/3fbfdcc4ec02.yaml) | 24d38de98cb4 | 8 | 0% | 0 | 1.7 | 4.97 | 0 | — | 0 | 9.1 | MLX 4-bit | cold | off |
 | openai/gpt-5.6-luna | api | — | ? | ? | 2/2 | [1f7b55bd4401](configs/Luna/openrouter.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 100% | 0 | 15.2 | 4.30 | 0 | — | 0 | — | ? | ? | ? |
 | openai/gpt-5.6-luna | api | — | ? | ? | — | [bc97807766bc](configs/Luna/openrouter.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 1 | 100% | 0 | — | — | 0 | — | 0 | — | ? | ? | ? |
 | openai/gpt-5.6-luna | openrouter | — | None | unspecified | 2/2 | [f1e3043189f3](configs/f1e3043189f3.yaml) | 1e67356823c2 | 9 | 100% | 0 | 35.5 | 4.80 | 0 | — | 0 | — | — | — | — |
@@ -373,15 +374,16 @@ are omitted entirely rather than shown with a misleading score.
 | 127 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | b7b32d0eb150 | 0.01 | 2 | — | 0% (8) | 2.1 tok/s |
 | 128 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | a7867bea182c | 0.01 | 3 | 0% (2) | 0% (3) | 3.9 tok/s |
 | 129 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | a7867bea182c | 0.01 | 2 | — | 0% (8) | 1.9 tok/s |
-| 130 | poolside/Laguna-XS-2.1-GGUF:Q4_K_M | gguf | — | e427e7a50b14 | 0.00 | 1 | — | — | 0.1 tok/s |
-| 131 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | mlx | — | 57734ec83d1b | 0.00 | 1 | 0% (1) | — | — |
-| 132 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | mlx | — | b2dc92c2ed56 | 0.00 | 1 | 0% (1) | — | — |
-| 133 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | gguf | — | f4620fe8538d | 0.00 | 1 | 0% (1) | — | — |
-| 134 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | mlx | — | 5fd02e54bb9d | 0.00 | 1 | 0% (1) | — | — |
-| 135 | gpt-5.6-luna | api | — | dc55dd82a2c3 | 0.00 | 1 | 0% (1) | — | — |
-| 136 | mlx-community/LFM2.5-2.6B-8bit | vllm-mlx | — | 662a015ba0e6 | 0.00 | 1 | — | — | 0.0 tok/s |
+| 130 | mlx-community/Qwen3.8-27B-4bit | omlx | — | 3fbfdcc4ec02 | 0.01 | 2 | — | 0% (8) | 1.7 tok/s |
+| 131 | poolside/Laguna-XS-2.1-GGUF:Q4_K_M | gguf | — | e427e7a50b14 | 0.00 | 1 | — | — | 0.1 tok/s |
+| 132 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | mlx | — | 57734ec83d1b | 0.00 | 1 | 0% (1) | — | — |
+| 133 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | mlx | — | b2dc92c2ed56 | 0.00 | 1 | 0% (1) | — | — |
+| 134 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | gguf | — | f4620fe8538d | 0.00 | 1 | 0% (1) | — | — |
+| 135 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | mlx | — | 5fd02e54bb9d | 0.00 | 1 | 0% (1) | — | — |
+| 136 | gpt-5.6-luna | api | — | dc55dd82a2c3 | 0.00 | 1 | 0% (1) | — | — |
 | 137 | mlx-community/LFM2.5-2.6B-8bit | vllm-mlx | — | 662a015ba0e6 | 0.00 | 1 | — | — | 0.0 tok/s |
-| 138 | prism-ml/Ternary-Bonsai-27B-mlx-2bit | mlx | — | 8e85abe37e32 | 0.00 | 1 | 0% (1) | — | — |
+| 138 | mlx-community/LFM2.5-2.6B-8bit | vllm-mlx | — | 662a015ba0e6 | 0.00 | 1 | — | — | 0.0 tok/s |
+| 139 | prism-ml/Ternary-Bonsai-27B-mlx-2bit | mlx | — | 8e85abe37e32 | 0.00 | 1 | 0% (1) | — | — |
 
 ## Flaky tasks (mixed pass/fail under identical conditions)
 
@@ -615,6 +617,8 @@ confirmed-stable, just untested for flakiness.
 | mlx-community/Qwen3.8-27B-4bit | mlx | f894953f1f80 | *(predates tracking)* | hermes_ops | 3/4 |
 | mlx-community/Qwen3.8-27B-4bit | omlx | 1eec0081c5d6 | fc71ba2c66f8+dirty | hermes_ops | 0/3 |
 | mlx-community/Qwen3.8-27B-4bit | omlx | 1eec0081c5d6 | fc71ba2c66f8+dirty | sanity | 2/2 |
+| mlx-community/Qwen3.8-27B-4bit | omlx | 3fbfdcc4ec02 | 24d38de98cb4 | hermes_ops | 0/8 |
+| mlx-community/Qwen3.8-27B-4bit | omlx | 3fbfdcc4ec02 | 24d38de98cb4 | sanity | 2/2 |
 | openai/gpt-5.6-luna | api | 1f7b55bd4401 | *(predates tracking)* | hermes_ops | 3/3 |
 | openai/gpt-5.6-luna | api | 1f7b55bd4401 | *(predates tracking)* | sanity | 2/2 |
 | openai/gpt-5.6-luna | api | bc97807766bc | *(predates tracking)* | kiem_mini | 1/1 |
@@ -754,3 +758,4 @@ has to infer from a config missing coding rows.
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | vllm-mlx | configs/Ornith-1.5-35B-A3B/mlx.yaml | 3.32 | 0.95, 1.72, 2.02, 0.99, 4.69, 3.55, 2.11, 10.52 | 4.0 | 2026-08-23T13:26:02Z |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | vllm-mlx | configs/Ornith-1.5-35B-A3B/mlx.yaml | 3.10 | 0.95, 1.72, 2.20, 0.90, 4.35, 2.59, 1.57, 10.52 | 4.0 | 2026-08-24T23:00:20Z |
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | vllm-mlx | configs/Qwen3-Coder-30B-A3B/mlx.yaml | 0.68 | 0.22, 0.49, 0.58, 0.64, 0.54, 0.52, 0.48, 2.01 | 4.0 | 2026-08-25T00:08:49Z |
+| mlx-community/Qwen3.8-27B-4bit | omlx | configs/Qwen3.8-27B/omlx.yaml | 0.01 | 0.00, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01 | 4.0 | 2026-08-25T07:28:30Z |
