@@ -26,6 +26,7 @@ import sys
 import threading
 import time
 import unittest
+import unittest.mock
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -363,6 +364,130 @@ class TaskDeadlineTests(unittest.TestCase):
         )
         self.assertTrue(timed_out)
         self.assertIn("caught sigterm", stdout)
+
+
+class SuiteIntegrationTests(unittest.TestCase):
+    """The plan's verification step 5, scaled down: drive
+    run_prompt_suite.main() end to end against a fake backend and inspect
+    the RESULT ROWS it writes.
+
+    REPO is redirected to a throwaway tree, so the real
+    results/log.jsonl -- months of accumulated benchmark data -- is never
+    opened, let alone appended to.
+    """
+
+    def setUp(self):
+        import shutil
+        import tempfile
+
+        self.tmp = Path(tempfile.mkdtemp()).resolve()
+        (self.tmp / "runner").mkdir()
+        (self.tmp / "tasks").mkdir()
+        (self.tmp / "results").mkdir()
+        real_runner = Path(run_prompt.__file__).parent
+        for name in ("run_prompt.py", "grade_prompt.py"):
+            shutil.copy2(real_runner / name, self.tmp / "runner" / name)
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+
+    def _write_suite(self, **budgets):
+        spec = {
+            "suite": "faketest",
+            "runner": "prompt",
+            "timeout_seconds": 20,
+            "max_turns": 3,
+            **budgets,
+            "tasks": [{
+                "id": "faketest-one",
+                "type": "prompt-response",
+                "prompt_spec": {"user_prompt": "hello"},
+                "check": {"type": "contains", "text": "hello there"},
+            }],
+        }
+        import yaml
+        (self.tmp / "tasks" / "faketest.yaml").write_text(yaml.safe_dump(spec))
+
+    def _run_suite(self, base_url):
+        argv = [
+            "run_prompt_suite.py", "--suite", "faketest",
+            "--base-url", base_url, "--model", "fake-model",
+            "--inference-engine", "fake",
+            "--summary-out", str(self.tmp / "summary.json"),
+        ]
+        with unittest.mock.patch.object(run_prompt_suite, "REPO", self.tmp), \
+                unittest.mock.patch.object(sys, "argv", argv):
+            run_prompt_suite.main()
+        return json.loads((self.tmp / "summary.json").read_text())
+
+    def test_a_healthy_run_produces_a_clean_row(self):
+        script = [
+            (0.05, f"data: {_chunk(content='hello there')}\n\n".encode()),
+            (0.05, b"data: [DONE]\n\n"),
+        ]
+        self._write_suite()
+        with FakeSSEServer(script) as base_url:
+            rows = self._run_suite(base_url)
+        self.assertEqual(len(rows), 1)
+        row = rows[0]
+        self.assertTrue(row["pass"])
+        self.assertIsNone(row["timeout_phase"])
+        self.assertIsNone(row["partial_output_path"])
+        self.assertIsNone(row["run_error"])
+        self.assertFalse(row["harness_error"])
+
+    def test_a_stalled_stream_is_classified_not_left_hanging(self):
+        script = [
+            (0.05, f"data: {_chunk(content='partial')}\n\n".encode()),
+            (60.0, None),
+        ]
+        self._write_suite(
+            first_progress_timeout_seconds=2,
+            stream_idle_timeout_seconds=1,
+            task_timeout_seconds=60,
+        )
+        start = time.monotonic()
+        with FakeSSEServer(script) as base_url:
+            rows = self._run_suite(base_url)
+        elapsed = time.monotonic() - start
+        row = rows[0]
+        self.assertFalse(row["pass"])
+        self.assertEqual(row["timeout_phase"], "stream_idle")
+        self.assertIn("stream stalled", row["run_error"])
+        # NOT a harness error: the engine stalled, the harness worked.
+        self.assertFalse(row["harness_error"])
+        # And it gave up on the watchdog, not on the task budget.
+        self.assertLess(elapsed, 40)
+
+    def test_a_task_deadline_row_records_its_partial_output(self):
+        script = [(0.2, f"data: {_chunk(content='tok')}\n\n".encode())] * 400
+        self._write_suite(
+            task_timeout_seconds=3,
+            first_progress_timeout_seconds=30,
+            stream_idle_timeout_seconds=30,
+        )
+        with FakeSSEServer(script) as base_url:
+            rows = self._run_suite(base_url)
+        row = rows[0]
+        self.assertFalse(row["pass"])
+        self.assertEqual(row["timeout_phase"], "task_deadline")
+        self.assertIn("task deadline exceeded", row["run_error"])
+        self.assertFalse(row["harness_error"])
+        self.assertIsNotNone(row["partial_output_path"])
+        self.assertTrue((self.tmp / row["partial_output_path"]).exists())
+
+    def test_the_real_results_log_is_never_touched(self):
+        # Guard on the guard: this suite must not append to the months of
+        # accumulated benchmark data in the real results/log.jsonl.
+        real_log = Path(run_prompt.__file__).parents[1] / "results" / "log.jsonl"
+        before = real_log.stat().st_size if real_log.exists() else None
+        script = [
+            (0.05, f"data: {_chunk(content='hello there')}\n\n".encode()),
+            (0.05, b"data: [DONE]\n\n"),
+        ]
+        self._write_suite()
+        with FakeSSEServer(script) as base_url:
+            self._run_suite(base_url)
+        after = real_log.stat().st_size if real_log.exists() else None
+        self.assertEqual(before, after)
 
 
 class SuiteBudgetDefaultsTests(unittest.TestCase):
