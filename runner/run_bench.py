@@ -74,7 +74,7 @@ from statistics import mean
 
 import yaml
 
-from bench_common import MIN_HERMES_OPS_TOKENS_PER_SECOND
+from bench_common import MIN_FREE_DISK_GB_BEFORE_LAUNCH, MIN_HERMES_OPS_TOKENS_PER_SECOND
 
 REPO = Path(__file__).resolve().parent.parent
 CODING_SPOTCHECK_SUITE = "kiem_mini"
@@ -411,6 +411,15 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
         # otherwise-working config.
         print("\n--- reset bench hermes profile session/memory state ---")
         run(["bash", str(REPO / "runner" / "reset_bench_profile.sh")])
+
+        free_gb = shutil.disk_usage(REPO).free / (1024 ** 3)
+        if free_gb < MIN_FREE_DISK_GB_BEFORE_LAUNCH:
+            print(f"FAILED: only {free_gb:.1f}GB free (need at least "
+                  f"{MIN_FREE_DISK_GB_BEFORE_LAUNCH:.0f}GB) — refusing to launch "
+                  f"a candidate server whose own downloader could fail mid-fetch "
+                  f"and leave a truncated blob. Free up space and rerun this "
+                  f"config.")
+            return
 
         print("\n--- launch candidate server ---")
         alias = f"bench-{config_hash}" if inference_engine.startswith("llama.cpp") else None
