@@ -7,7 +7,8 @@ Requires PyYAML. Run benchmark orchestration through the repository's locked
 uv environment:
   uv run --locked python runner/run_bench.py --config configs/<model>/<backend>.yaml
   uv run --locked python runner/run_bench.py --all
-  uv run --locked python runner/run_bench.py --all --trials 3 --coding-suites kiem_mini,hearth_mini,kipclip_mini
+  uv run --locked python runner/run_bench.py --all --trials 3
+  uv run --locked python runner/run_bench.py --config configs/<model>/<backend>.yaml --coding-suites none  # quick spot-check only
 
 Reads the `orchestration:` block each configs/<model>/<backend>.yaml file
 carries (see configs/README.md for the schema) — that block is the single
@@ -36,9 +37,16 @@ What it does per config, in order:
      number (improvement plan, M5: it said "10" long after the active
      value became 4.0, so a reader taking this file at its word got the
      gate's behavior wrong)
-  7. the one coding-suite spot-check, kiem_mini-feature (unless
-     orchestration.viable says to skip it, hermes_provider is unset, or
-     the speed gate above tripped)
+  7. every task in every coding suite (kiem_mini, hearth_mini, kipclip_mini
+     — see tasks/*.yaml), unless orchestration.viable says to skip it,
+     hermes_provider is unset, or the speed gate above tripped. This was
+     the single kiem_mini-feature spot-check by default until 2026-08-25:
+     "run all tests"/"full benchmark" kept getting asked for and getting
+     the quick spot-check instead, a recurring, easy-to-miss
+     miscommunication (see AGENTS.md) — the full battery is now the
+     default. Pass --coding-suites none for the old quick single-task
+     check (useful for a fast sanity pass on a big/slow model where the
+     full ~11-task battery would take hours).
   8. regenerate results/LEADERBOARD.md
   9. tear down (unload_all.sh again) before moving to the next config,
      if running --all
@@ -131,6 +139,19 @@ def _majority_pass(rows):
 def _base_repo_name(model_id):
     """Strip a ':quant' suffix, e.g. 'foo/Bar-GGUF:Q4_K_M' -> 'foo/Bar-GGUF'."""
     return model_id.split(":")[0]
+
+
+def parse_coding_suites(raw):
+    """--coding-suites' raw string -> a list of suite names, or None for
+    the old quick single-task kiem_mini-feature spot-check.
+
+    None in, and the literal string "none" (any case/whitespace) -> None:
+    both mean "just the quick check" — the CLI default is the full-battery
+    string, not None, so a caller invoking main()'s argument parsing
+    always gets the full battery unless they explicitly ask for less."""
+    if raw is None or raw.strip().lower() == "none":
+        return None
+    return [s.strip() for s in raw.split(",")]
 
 
 def assert_serving_expected_model(raw_port, expected_model, alias=None, served_model_id=None):
@@ -555,12 +576,14 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
 
     if stage in ("all", "coding") and viable in ("full", "coding_only") and hermes_provider:
         if coding_suites:
-            # Adversarial review finding H1: the coding "suite" was
-            # structurally just ONE task (kiem_mini-feature) — hearth_mini,
-            # kipclip_mini, and every debug/test-writing task never ran
-            # against any model. Opt-in via --coding-suites so the default
-            # --all sweep's runtime/historical comparability doesn't change
-            # underneath existing results.
+            # Default since 2026-08-25 (see --coding-suites' own help and
+            # the top-of-file docstring for why: the coding "suite" was
+            # structurally just ONE task, kiem_mini-feature, until an
+            # adversarial review (finding H1) added the ability to run
+            # every suite/task — but left it opt-in, so "run all tests"/
+            # "full benchmark" kept getting asked for and getting the
+            # quick spot-check anyway. Pass --coding-suites none for that
+            # old quick behavior instead.
             for suite in coding_suites:
                 print(f"\n--- coding suite: {suite} (every task) ---")
                 run([sys.executable, str(REPO / "runner" / "run_fixture_suite.py"),
@@ -633,7 +656,7 @@ def sweep_stale_run_dirs(min_age_seconds=3600):
             shutil.rmtree(child, ignore_errors=True)
 
 
-def main():
+def build_arg_parser():
     ap = argparse.ArgumentParser()
     group = ap.add_mutually_exclusive_group(required=True)
     group.add_argument("--config", help="path to one configs/<model>/<backend>.yaml")
@@ -643,14 +666,16 @@ def main():
                           "run_fixture_suite.py's --trials help (adversarial review "
                           "finding C5: single-trial temperature=0 results aren't reliably "
                           "reproducible on MLX/Metal)")
-    ap.add_argument("--coding-suites", default=None,
-                     help="comma-separated tasks/<suite>.yaml names (e.g. "
-                          "'kiem_mini,hearth_mini,kipclip_mini') to run EVERY task from, "
-                          "instead of the single kiem_mini-feature spot-check this repo has "
-                          "run by default until now (adversarial review finding H1: "
-                          "hearth_mini/kipclip_mini and every debug/test-writing task had "
-                          "never been run against any model). Opt-in — omitting this leaves "
-                          "--all's runtime and existing results' comparability unchanged.")
+    ap.add_argument("--coding-suites", default="kiem_mini,hearth_mini,kipclip_mini",
+                     help="comma-separated tasks/<suite>.yaml names to run EVERY task from "
+                          "(default: all three — kiem_mini,hearth_mini,kipclip_mini). Pass "
+                          "'none' for the old quick single-task kiem_mini-feature spot-check "
+                          "instead — much cheaper, useful for a fast sanity pass on a big/"
+                          "slow model. Full-battery was opt-in until 2026-08-25 (adversarial "
+                          "review finding H1 added the capability; making it the default came "
+                          "later, after 'run all tests'/'full benchmark' repeatedly got asked "
+                          "for and got the single spot-check instead — see AGENTS.md). Changes "
+                          "--all's runtime substantially: budget for it.")
     ap.add_argument("--inference-engine", default=None,
                     help="with --all, run only configs whose top-level inference_engine "
                          "matches this value (for example: omlx); keeps an oMLX sweep from "
@@ -659,8 +684,12 @@ def main():
                     help="run the normal full config matrix (all), or only the coding "
                          "fixture stage after a harness repair (coding); identity, cold "
                          "load, and plain-completion gates still run")
-    args = ap.parse_args()
-    coding_suites = [s.strip() for s in args.coding_suites.split(",")] if args.coding_suites else None
+    return ap
+
+
+def main():
+    args = build_arg_parser().parse_args()
+    coding_suites = parse_coding_suites(args.coding_suites)
 
     # After parse_args(), not before (adversarial review finding L-7) — this
     # used to run before argument parsing at all, so it fired on --help and

@@ -199,6 +199,18 @@ somewhere else. A Swift task graded against CLT `swift` and one graded
 against Xcode `swift` are not the same task, and nothing in the log row
 would have shown which one ran.
 
+**Full coding-suite battery is the default (changed 2026-08-25):** an
+adversarial review (finding H1) added `--coding-suites` so `run_bench.py`
+could run every task in every suite instead of the single historical
+`kiem_mini-feature` spot-check, but left it opt-in. That kept causing a
+real, recurring miscommunication: "run all tests"/"full benchmark run"
+requests kept getting the quick single-task spot-check by default instead,
+more than once, because opt-in meant the flag had to be remembered every
+time. All three suites (11 tasks total) now run by default; pass
+`--coding-suites none` for the old quick behavior when a fast sanity pass
+on a big/slow model is what's actually wanted — the full battery can turn
+a few-minutes-per-config sweep into hours.
+
 ## Backends
 
 - **MLX**: three layers. `vllm_mlx.server --model <candidate>` is the raw

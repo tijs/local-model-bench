@@ -96,12 +96,13 @@ uv run --locked python runner/run_bench.py --config configs/Qwen3-Coder-30B-A3B/
 
 Either way, this launches the candidate server (and a tool-call-parsing
 proxy in front of it, if the config needs one), runs the `sanity` suite as
-a fail-fast gate, then `hermes_ops`, then one coding-suite spot-check
-(`kiem_mini-feature`) — skipping whichever of those a config's
-`orchestration.viable` says isn't reachable for that model (see the
-docstring at the top of `runner/run_bench.py` for exactly what each
-`viable` value means). Regenerates `results/LEADERBOARD.md` after every
-model, tears down the server, and moves to the next.
+a fail-fast gate, then `hermes_ops`, then every task in every coding suite
+(`kiem_mini`, `hearth_mini`, `kipclip_mini` — see `--coding-suites` below
+to run just the quick single-task spot-check instead) — skipping whichever
+of those a config's `orchestration.viable` says isn't reachable for that
+model (see the docstring at the top of `runner/run_bench.py` for exactly
+what each `viable` value means). Regenerates `results/LEADERBOARD.md`
+after every model, tears down the server, and moves to the next.
 
 Run only the sequential isolated oMLX matrix (never concurrently):
 ```
@@ -116,11 +117,13 @@ uv run --locked python runner/run_bench.py --all --inference-engine omlx
   `build_leaderboard.py` surfaces any task with a mixed pass/fail across
   its rows in a dedicated "Flaky tasks" section.
 - `--coding-suites kiem_mini,hearth_mini,kipclip_mini` — run EVERY task
-  (feature/debug/test-writing) in the named suites, instead of just the
-  single historical `kiem_mini-feature` spot-check. Omitting this leaves
-  the default single-spot-check behavior (and `--all`'s runtime)
-  unchanged — this can turn one config's coding evaluation into 9 tasks
-  instead of 1, so it's opt-in, not the default.
+  (feature/debug/test-writing) in the named suites. This is now the
+  **default** (as of 2026-08-25 — see AGENTS.md for why: "run all tests"/
+  "full benchmark" kept getting asked for and getting the old quick
+  single-task spot-check instead, a recurring miscommunication). Pass
+  `--coding-suites none` for that old quick `kiem_mini-feature`-only
+  behavior — much cheaper, useful for a fast sanity pass on a big/slow
+  model where the full ~11-task battery would take hours.
 
 **Config-driven, not hardcoded**: every port, launch flag, proxy
 requirement, and hermes provider name lives in that model's

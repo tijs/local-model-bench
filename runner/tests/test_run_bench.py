@@ -109,5 +109,38 @@ class MinTokensPerSecondValueTests(unittest.TestCase):
         self.assertEqual(rb.MIN_HERMES_OPS_TOKENS_PER_SECOND, 4.0)
 
 
+class CodingSuitesDefaultTests(unittest.TestCase):
+    """--coding-suites' default flipped from None (quick spot-check) to
+    the full battery on 2026-08-25 — "run all tests"/"full benchmark run"
+    kept getting the quick spot-check instead because the full battery was
+    opt-in and easy to forget to ask for (see AGENTS.md). Guards both the
+    CLI default itself and parse_coding_suites()'s "none" escape hatch."""
+
+    def test_cli_default_is_the_full_battery_not_none(self):
+        ap = rb.build_arg_parser()
+        args = ap.parse_args(["--config", "configs/whatever/gguf.yaml"])
+        self.assertEqual(args.coding_suites, "kiem_mini,hearth_mini,kipclip_mini")
+        self.assertEqual(
+            rb.parse_coding_suites(args.coding_suites),
+            ["kiem_mini", "hearth_mini", "kipclip_mini"],
+        )
+
+    def test_none_string_opts_out_to_the_quick_spot_check(self):
+        for raw in ("none", "None", " NONE "):
+            self.assertIsNone(rb.parse_coding_suites(raw))
+
+    def test_none_value_also_opts_out(self):
+        self.assertIsNone(rb.parse_coding_suites(None))
+
+    def test_explicit_single_suite_still_works(self):
+        self.assertEqual(rb.parse_coding_suites("kiem_mini"), ["kiem_mini"])
+
+    def test_whitespace_around_suite_names_is_stripped(self):
+        self.assertEqual(
+            rb.parse_coding_suites(" kiem_mini , hearth_mini "),
+            ["kiem_mini", "hearth_mini"],
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
