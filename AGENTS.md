@@ -57,7 +57,14 @@ new session that opens this repo.
   (`runner/grade_mutation.sh`) — otherwise an empty test file would trivially
   "pass."
 - **Bounded per-task timeout** — a hung/looping model fails the task rather
-  than stalling the run.
+  than stalling the run. For the prompt suites this is FOUR separate,
+  explicitly-declared budgets (per-turn total, per-task total, first-progress,
+  stream-idle) rather than one number reused as three things — see
+  "Timeout and liveness budgets" in `tasks/SCHEMA.md` for what each one bounds
+  and for the 11-hour oMLX stall that made the distinction necessary. A row
+  that times out records WHICH budget ran out (`timeout_phase`) and where its
+  partial output was preserved (`partial_output_path`), and counts as a
+  model/engine failure rather than a `harness_error`.
 - **Single trial by default** — LLM agentic runs are stochastic, but repeated
   trials are expensive on local hardware. Default to one attempt per
   task/model/engine; only re-run a specific task if the result looks flaky

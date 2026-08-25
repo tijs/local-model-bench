@@ -206,9 +206,11 @@ def _read_sse_events(resp, total_deadline, first_progress_timeout, stream_idle_t
     then 300s between tokens, and 1000s overall" at all.
     """
     events = queue.Queue()
-    # Wide enough that the layered budgets below, not the socket, decide
-    # when a turn ends. Clamped to the total deadline so it can never
-    # outlive the turn itself.
+    # The widest of this turn's budgets (plus a small margin), so the
+    # socket's own inactivity timeout can never fire BEFORE one of the
+    # watchdogs below — they, not the socket, decide when a turn ends.
+    # It is still a finite timeout, so a socket that somehow outlives
+    # every budget cannot wedge the reader thread forever.
     _relax_socket_timeout(
         resp,
         max(first_progress_timeout, stream_idle_timeout,
