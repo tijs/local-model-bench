@@ -50,6 +50,7 @@ import http.client
 import json
 import os
 import queue
+import socket
 import sys
 import threading
 import time
@@ -140,6 +141,60 @@ def _sse_event_is_meaningful(data):
     return False
 
 
+def _relax_socket_timeout(resp, seconds):
+    """Raise the response socket's own inactivity timeout to *seconds*.
+
+    urlopen(timeout=X) sets X as the socket timeout for the connect phase
+    AND for every subsequent read. Left alone, that means a short connect
+    budget would silently become the read-idle budget too: with
+    hermes_ops's real values (connect 60s, first-progress 600s) a
+    perfectly healthy 26K-token prefill emitting nothing for 90 seconds
+    would die at 60s with a bare TimeoutError, and the layered budgets
+    below would never get to make the decision. So once the headers are
+    in, hand the socket a timeout wide enough that the watchdogs in
+    _read_sse_events() are the only thing that can end the turn.
+
+    Best-effort: it reaches through http.client's buffered reader to the
+    underlying socket. If that fails on some future/alternate
+    implementation, _read_sse_events() also maps a socket TimeoutError
+    onto the right stall phase, so behavior degrades to "the watchdog
+    fires early" rather than to "a slow model is misreported".
+    """
+    try:
+        resp.fp.raw._sock.settimeout(seconds)
+        return True
+    except (AttributeError, OSError, ValueError):
+        return False
+
+
+def _safe_close(resp):
+    try:
+        resp.close()
+    except (OSError, ValueError):
+        pass
+
+
+def _abort_response(resp):
+    """Tear down a stalled response WITHOUT waiting on its socket.
+
+    resp.close() alone is not enough: the reader thread is blocked inside
+    readline() holding the buffered reader's lock, so close() waits for
+    that read to end — i.e. for the socket's own inactivity timeout, or
+    for the stalled server to eventually say something. Measured: a stall
+    detected in 0.3s still took 30s to return. Shutting the socket down
+    first makes the blocked read return immediately, which is the whole
+    point of detecting the stall early.
+    """
+    try:
+        resp.fp.raw._sock.shutdown(socket.SHUT_RDWR)
+    except (AttributeError, OSError, ValueError):
+        # Socket unreachable through this implementation — close on a
+        # daemon thread so a blocked reader can never hold up the caller.
+        threading.Thread(target=_safe_close, args=(resp,), daemon=True).start()
+        return
+    _safe_close(resp)
+
+
 def _read_sse_events(resp, total_deadline, first_progress_timeout, stream_idle_timeout):
     """Yield (data, meaningful) for each `data:` line of an SSE response,
     enforcing the first-progress / inter-event-idle / total budgets.
@@ -151,6 +206,14 @@ def _read_sse_events(resp, total_deadline, first_progress_timeout, stream_idle_t
     then 300s between tokens, and 1000s overall" at all.
     """
     events = queue.Queue()
+    # Wide enough that the layered budgets below, not the socket, decide
+    # when a turn ends. Clamped to the total deadline so it can never
+    # outlive the turn itself.
+    _relax_socket_timeout(
+        resp,
+        max(first_progress_timeout, stream_idle_timeout,
+            total_deadline - time.monotonic()) + 5,
+    )
 
     def _pump():
         try:
@@ -185,6 +248,20 @@ def _read_sse_events(resp, total_deadline, first_progress_timeout, stream_idle_t
                 ) from None
 
             if kind == "error":
+                if isinstance(payload, TimeoutError):
+                    # A socket-level read timeout IS an idle stream, so
+                    # report it as the stall it is rather than as a bare
+                    # TimeoutError. Only reachable if
+                    # _relax_socket_timeout() could not widen the socket
+                    # (see its docstring) — belt and braces, so an
+                    # unexpected socket implementation degrades to "the
+                    # watchdog fires early", never to "a slow model is
+                    # misclassified as a connection failure".
+                    raise StreamStall(
+                        "stream_idle" if saw_meaningful else "first_progress",
+                        time.monotonic() - last_progress,
+                        budget,
+                    ) from payload
                 raise payload
             if kind == "eof":
                 return
@@ -203,13 +280,10 @@ def _read_sse_events(resp, total_deadline, first_progress_timeout, stream_idle_t
                 last_progress = time.monotonic()
             yield data, meaningful
     finally:
-        # Closing the response unblocks the pump thread's own recv() so a
-        # stalled turn doesn't leave a live socket (and, for a proxied
-        # backend, a queue slot) held open behind us.
-        try:
-            resp.close()
-        except OSError:
-            pass
+        # Tearing the response down unblocks the pump thread's own recv()
+        # so a stalled turn doesn't leave a live socket (and, for a
+        # proxied backend, a queue slot) held open behind us.
+        _abort_response(resp)
 
 
 def guardrail_warning(tool_history, name, args_key, warned):

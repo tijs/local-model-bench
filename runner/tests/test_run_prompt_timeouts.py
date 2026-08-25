@@ -230,24 +230,62 @@ class StreamLivenessTests(unittest.TestCase):
                       stream_idle_timeout=10.0, connect_timeout=1.0)
         self.assertEqual(ctx.exception.phase, "turn_total")
 
+    def test_a_silent_prefill_longer_than_the_connect_budget_survives(self):
+        # The connect budget must NOT leak into the read path.
+        # urlopen(timeout=X) sets X for the connect phase AND every
+        # subsequent read, so a naive implementation makes a short
+        # connect budget silently become the read-idle budget: with
+        # hermes_ops's real values (connect 60s, first-progress 600s) a
+        # healthy 26K-token prefill emitting nothing for 90 seconds would
+        # die at 60s with a bare TimeoutError and the layered budgets
+        # would never get to decide.
+        script = [
+            (0.8, None),  # silent prefill, > connect_timeout below
+            (0.05, f"data: {_chunk(content='finally')}\n\n".encode()),
+            (0.05, b"data: [DONE]\n\n"),
+        ]
+        with FakeSSEServer(script) as base_url:
+            resp, _ttft = _call(
+                base_url, connect_timeout=0.3, first_progress_timeout=5.0,
+                stream_idle_timeout=5.0, timeout=20.0,
+            )
+        self.assertEqual(resp["choices"][0]["message"]["content"], "finally")
+
+    def test_a_socket_read_timeout_is_reported_as_a_stall_not_a_crash(self):
+        # Fallback path: if the socket timeout could not be widened, a
+        # read timeout must still be classified as a stall phase rather
+        # than escaping as a bare TimeoutError.
+        script = [(30.0, None)]
+        with FakeSSEServer(script) as base_url:
+            with unittest.mock.patch.object(
+                run_prompt, "_relax_socket_timeout", return_value=False
+            ):
+                with self.assertRaises(run_prompt.StreamStall) as ctx:
+                    _call(base_url, connect_timeout=0.4, first_progress_timeout=30.0,
+                          stream_idle_timeout=30.0, timeout=60.0)
+        self.assertEqual(ctx.exception.phase, "first_progress")
+
     def test_connection_that_never_sends_headers_hits_the_connect_deadline(self):
         with SilentServer() as base_url:
             with self.assertRaises(run_prompt.StreamStall) as ctx:
                 _call(base_url, connect_timeout=0.5, timeout=30.0)
         self.assertEqual(ctx.exception.phase, "connect")
 
-    def test_stall_closes_the_response_socket(self):
+    def test_stall_returns_promptly_and_tears_the_socket_down(self):
         # A stalled turn must not leave the connection (and, for a proxied
-        # backend, the single generation-queue slot) held open behind it.
+        # backend, the single generation-queue slot) held open behind it,
+        # AND must return on the watchdog rather than waiting for the
+        # socket. resp.close() alone does NOT achieve the second part: the
+        # reader thread is blocked in readline() holding the buffered
+        # reader's lock, so close() waits it out — measured at 30s for a
+        # stall detected in 0.3s, before _abort_response() shut the socket
+        # down first.
         script = [(30.0, None)]
         with FakeSSEServer(script) as base_url:
             start = time.monotonic()
             with self.assertRaises(run_prompt.StreamStall):
                 _call(base_url, first_progress_timeout=0.3, timeout=30.0)
-            # If the socket were left open the generator's finally would
-            # not have run; the wall time proves we returned on the
-            # watchdog rather than on the server finishing its script.
-            self.assertLess(time.monotonic() - start, 10.0)
+            self.assertLess(time.monotonic() - start, 5.0)
 
 
 class EndToEndStallTests(unittest.TestCase):
