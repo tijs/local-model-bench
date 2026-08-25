@@ -280,9 +280,14 @@ class CompositeRankingTests(unittest.TestCase):
         self.assertEqual(cells[9], "1")    # tasks: only the hermes_ops row counts
         self.assertEqual(cells[10], "0%")  # pass rate: sanity's PASS excluded, hermes_ops's FAIL counts
 
-    def test_group_with_only_hermes_ops_data_still_gets_a_score(self):
-        # No coding rows at all for this group — must NOT be scored as if
-        # coding_pass_rate were 0; it should score on hermes_ops+speed alone.
+    def test_group_with_zero_coding_rows_is_excluded_even_with_hermes_ops_data(self):
+        # Changed 2026-08-25: a group used to still get scored on
+        # hermes_ops+speed alone with zero coding rows — that let a fast
+        # model with no coding evidence at all rank above (or tie) a
+        # genuinely coding-tested one, since "Best overall" is a QUALITY
+        # ranking on a benchmark whose whole point is coding capability.
+        # Now such a group is omitted entirely, same as a harness-error-
+        # only group.
         self._write_log([
             {"suite": "hermes_ops", "task_id": "hermes_ops-selection", "task_type": "tool-selection",
              "model": "hermes-only-model", "inference_engine": "vllm-mlx", "quant": None, "config_path": None,
@@ -292,15 +297,65 @@ class CompositeRankingTests(unittest.TestCase):
         bl.main()
         text = (self.repo / "results" / "LEADERBOARD.md").read_text()
         section = self._best_overall_section(text)
-        self.assertIn("hermes-only-model", section)
-        row_line = next(l for l in section.splitlines() if "hermes-only-model" in l)
-        cells = [c.strip() for c in row_line.split("|")]
-        self.assertEqual(cells[7], "2")  # axes: hermes_ops + speed, not 3
+        self.assertNotIn("hermes-only-model", section)
+
+    def test_pure_speed_group_no_longer_outscores_a_real_coding_pass(self):
+        # The bug that prompted this whole rework: a group with ONLY a
+        # tok/s number (no coding, no hermes_ops) used to score a perfect
+        # 1.00 if it happened to be the fastest thing in the run — tied
+        # with, or beating, a group with genuine 100% coding evidence.
+        self._write_log([
+            {"suite": "hermes_ops", "task_id": "hermes_ops-selection", "task_type": "tool-selection",
+             "model": "speed-only-model", "inference_engine": "vllm-mlx", "quant": None, "config_path": None,
+             "config_hash": None, "runner_git_sha": "abc", "trial": 1, "pass": True,
+             "grade_output": "PASS", "tokens_per_second": 200.0},
+            {"suite": "kiem_mini", "task_id": "kiem_mini-feature", "task_type": "feature",
+             "model": "coding-tested-model", "inference_engine": "vllm-mlx", "quant": None, "config_path": None,
+             "config_hash": "h1", "runner_git_sha": "abc", "trial": 1, "pass": True,
+             "grade_output": "PASS", "tokens_per_second": 5.0},
+        ])
+        bl.main()
+        text = (self.repo / "results" / "LEADERBOARD.md").read_text()
+        section = self._best_overall_section(text)
+        self.assertNotIn("speed-only-model", section)
+        self.assertIn("coding-tested-model", section)
+
+    def test_dedups_to_the_most_evidenced_fragment_per_model_engine_quant(self):
+        # A model tested twice under different config_hash/runner_sha (a
+        # real config edit, or a harness-version change) used to show BOTH
+        # fragments as independently-ranked rows — an early 1-task
+        # fragment could then outrank that same model's own later, complete
+        # sweep. Only the more-evidenced fragment should appear.
+        rows = [
+            {"suite": "kiem_mini", "task_id": "kiem_mini-feature", "task_type": "feature",
+             "model": "m", "inference_engine": "vllm-mlx", "quant": None, "config_path": None,
+             "config_hash": "early", "runner_git_sha": "sha1", "trial": 1, "pass": True,
+             "grade_output": "PASS", "tokens_per_second": 50.0},
+        ]
+        for i, task_id in enumerate(["kiem_mini-feature", "kiem_mini-rename", "kiem_mini-debug"]):
+            rows.append({
+                "suite": "kiem_mini", "task_id": task_id, "task_type": "feature",
+                "model": "m", "inference_engine": "vllm-mlx", "quant": None, "config_path": None,
+                "config_hash": "later", "runner_git_sha": "sha2", "trial": 1,
+                "pass": i != 1,  # one deliberate fail, so this fragment isn't a perfect 100% either
+                "grade_output": "PASS" if i != 1 else "FAIL", "tokens_per_second": 40.0,
+            })
+        self._write_log(rows)
+        bl.main()
+        text = (self.repo / "results" / "LEADERBOARD.md").read_text()
+        section = self._best_overall_section(text)
+        matches = [l for l in section.splitlines() if l.startswith("| ") and " m " in l]
+        self.assertEqual(len(matches), 1, f"expected exactly one row for 'm', got: {matches}")
+        self.assertIn("later", matches[0])  # the 3-task fragment, not the 1-task one
 
     def test_higher_coding_pass_rate_ranks_above_faster_but_less_correct_model(self):
         # Coding is weighted 0.5, speed only 0.2 — a model that's 100%
         # correct on coding but slow must still outrank one that's fast
-        # but fails half its coding tasks.
+        # but fails half its coding tasks. Also guards that the mild
+        # coding-shrinkage added 2026-08-25 (k=1) doesn't invert this at
+        # the smallest possible sample size (n=1 for both models here) —
+        # a stronger k was tried first and DID invert it, which is why k=1
+        # was chosen instead of the more textbook k=5.
         self._write_log([
             {"suite": "kiem_mini", "task_id": "kiem_mini-feature", "task_type": "feature",
              "model": "correct-but-slow", "inference_engine": "vllm-mlx", "quant": None, "config_path": None,

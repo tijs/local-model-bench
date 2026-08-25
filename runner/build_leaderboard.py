@@ -450,15 +450,75 @@ def main():
     # unfairly zeroed out on coding it was never run against. This means
     # scores computed from different axis-subsets aren't perfectly
     # apples-to-apples — flagged in the section text, not hidden.
+    #
+    # Three fixes here (2026-08-25, user request: a quality-first ranking
+    # where high-quality-but-still-viable-speed models win — under the OLD
+    # code, a fast model with weak or ZERO coding evidence could rank #1):
+    #
+    # 1. A group needs at least one CODING-suite row to be scored at all.
+    #    Before this, a group with zero coding data (often zero hermes_ops
+    #    data too — a pure speed number) still got scored by renormalizing
+    #    the weights over whatever axes it DID have, which could leave
+    #    speed as the group's ENTIRE score, tied with a genuinely
+    #    coding-tested 100% group. A model never tried on this benchmark's
+    #    actual purpose (agentic coding) has no "overall" to speak of yet.
+    #
+    # 2. Collapse to ONE row per (model, inference_engine, quant): pick
+    #    whichever config_hash/runner_sha fragment has the most total
+    #    scored evidence (n_coding + n_hermes_ops), not every fragment
+    #    separately. Without this, an early 1-task fragment from before a
+    #    model was fully tested competed against — and could outrank —
+    #    that SAME model's own later, complete 11-task sweep, simply
+    #    because they're logged under different config_hash/runner_sha
+    #    keys (a real config edit or harness-version change genuinely
+    #    starts a new group elsewhere on this leaderboard, for good
+    #    reason — but "Best overall" wants each model's single best-
+    #    evidenced picture, not its full rerun history).
+    #
+    # 3. Mild small-sample shrinkage on the CODING pass rate only: a lucky
+    #    1/1 (100%) used to score identically to a properly-tested 10/11
+    #    (91%) or 11/11 (100%), because raw pass_rate carries no notion of
+    #    how much evidence backs it. Shrink toward a neutral 50% prior
+    #    with CODING_SHRINKAGE_K=1 pseudo-observation — equivalent to a
+    #    Beta(0.5, 0.5) prior's posterior mean (Wilson/Laplace-style
+    #    smoothing). Deliberately mild (not the more textbook k=5 tried
+    #    first): a stronger k let a single WRONG answer's shrunk-toward-
+    #    50% score be outweighted by that same group's higher relative
+    #    speed, inverting which of two n=1 groups should rank first —
+    #    k=1 keeps coding's 0.5 weight decisive at any sample size while
+    #    still discounting a lucky 1/1 (shrinks to 0.75) well below a
+    #    real 11/11 (0.96) or 10/11 (0.88). hermes_ops is left unshrunk —
+    #    it's always a fixed 8-task suite, so its sample size doesn't vary
+    #    group to group the way coding's does.
+    CODING_SHRINKAGE_K = 1.0
+
+    def _shrunk_coding_rate(pass_rate, n):
+        if pass_rate is None or not n:
+            return pass_rate
+        successes = pass_rate * n
+        return (successes + CODING_SHRINKAGE_K / 2) / (n + CODING_SHRINKAGE_K)
+
+    # Fix 2: keep only the most-evidenced fragment per (model, engine, quant).
+    best_fragment = {}
+    for gs in group_stats:
+        model, inference_engine, quant, _config_hash, _runner_sha = gs["key"]
+        dedup_key = (model, inference_engine, quant)
+        evidence = gs["n_coding"] + gs["n_hermes_ops"]
+        current = best_fragment.get(dedup_key)
+        if current is None or evidence > current["n_coding"] + current["n_hermes_ops"]:
+            best_fragment[dedup_key] = gs
+
     max_tps = max(
         (gs["avg_tps_val"] for gs in group_stats if gs["avg_tps_val"] is not None),
         default=None,
     )
     ranked = []
-    for gs in group_stats:
+    for gs in best_fragment.values():
+        if not gs["n_coding"]:  # fix 1
+            continue
         axes = []
         if gs["coding_pass_rate"] is not None:
-            axes.append((gs["coding_pass_rate"], 0.5))
+            axes.append((_shrunk_coding_rate(gs["coding_pass_rate"], gs["n_coding"]), 0.5))
         if gs["hermes_ops_pass_rate"] is not None:
             axes.append((gs["hermes_ops_pass_rate"], 0.3))
         if gs["avg_tps_val"] is not None and max_tps:
@@ -472,15 +532,23 @@ def main():
     lines.append("")
     lines.append("## Best overall (composite ranking)")
     lines.append("")
-    lines.append("`score = 0.5×coding_pass_rate + 0.3×hermes_ops_pass_rate + 0.2×speed_score`")
-    lines.append("(speed_score = this group's avg tok/s ÷ the fastest group's avg tok/s seen")
-    lines.append("in this run). Weights renormalize over whichever axes a group actually has")
-    lines.append("data for — a group with no coding rows yet is scored on hermes_ops+speed")
-    lines.append("alone, not penalized as if its missing coding score were 0. That also means")
-    lines.append("a 1-axis score and a 3-axis score aren't strictly apples-to-apples; `axes`")
-    lines.append("below shows how many contributed. Groups with zero scoreable axes (harness-")
-    lines.append("error-only, or sanity-only with `--coding-suites`/`hermes_ops` never run)")
-    lines.append("are omitted entirely rather than shown with a misleading score.")
+    lines.append("A quality-first ranking, not a speed leaderboard: `score = ")
+    lines.append("0.5×coding_pass_rate + 0.3×hermes_ops_pass_rate + 0.2×speed_score`, where")
+    lines.append("`coding_pass_rate` is shrunk toward a neutral 50% prior with 1 pseudo-")
+    lines.append("observation before scoring (a lucky 1/1 no longer ties a properly-tested")
+    lines.append("11/11 — see build_leaderboard.py's own comment for the exact numbers) and")
+    lines.append("`speed_score` is this group's avg tok/s ÷ the fastest group's avg tok/s seen")
+    lines.append("in this run. Two eligibility rules keep this a *quality* ranking: **a group")
+    lines.append("needs at least one coding-suite row to appear here at all** (raw speed or")
+    lines.append("hermes_ops alone, with zero coding evidence, isn't \"overall\" quality on a")
+    lines.append("benchmark whose whole point is coding capability), and **each model+engine+")
+    lines.append("quant appears at most once**, using whichever of its own config_hash/")
+    lines.append("runner_sha fragments has the most total coding+hermes_ops evidence — an")
+    lines.append("early 1-task fragment from before a model was fully tested can no longer")
+    lines.append("outrank that same model's own later, complete sweep. Weights still")
+    lines.append("renormalize over whichever of the two remaining axes (hermes_ops, speed) a")
+    lines.append("group has data for, so a 2-axis and 3-axis score aren't strictly apples-to-")
+    lines.append("apples; `axes` below shows how many contributed.")
     lines.append("")
     if not ranked:
         lines.append("No group has enough data yet to score.")

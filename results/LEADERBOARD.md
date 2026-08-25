@@ -135,7 +135,7 @@ on the two synthetic suites," not "never hallucinated a tool".
 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | llama.cpp | — | 0.2 | n/a | 2/2 | [05a5098cf4c6](configs/05a5098cf4c6.yaml) | 50298bcbe02d | 19 | 32% | 0 | 66.4 | 3.55 | 1 | — | 0 | 11.4 | — | — | — |
 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ DSpark F16 drafter) | gguf | — | ? | ? | 2/2 | [85636a621ce0](configs/LiquidAI-LFM2.5-8B-A1B/gguf-dspark.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 4 | 75% | 0 | 29.3 | 8.69 | 0 | — | 0 | — | ? | ? | ? |
 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF:F16 drafter) | gguf | — | 0.2 | n/a | 2/2 | [f6bb65acb160](configs/f6bb65acb160.yaml) — *config since changed* | 3182238013a3 | 9 | 67% | 0 | 27.0 | 7.47 | 1 | — | 0 | 13.7 | — | — | — |
-| LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF:F16 drafter) | llama.cpp-dspark | — | 0.2 | n/a | 2/2 | [4f8641aa7094](configs/4f8641aa7094.yaml) | f12e3bae97e9 | 9 | 67% | 0 | 26.9 | 7.48 | 1 | — | 0 | 13.8 | — | — | — |
+| LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF:F16 drafter) | llama.cpp-dspark | — | 0.2 | n/a | 2/2 | [4f8641aa7094](configs/4f8641aa7094.yaml) — *config since changed* | f12e3bae97e9 | 9 | 67% | 0 | 26.9 | 7.48 | 1 | — | 0 | 13.8 | — | — | — |
 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | mlx | — | ? | ? | — | [5fd02e54bb9d](configs/LiquidAI-LFM2.5-8B-A1B/mlx.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 1 | 0% | 0 | — | — | 0 | — | 0 | — | ? | ? | ? |
 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | mlx | — | ? | ? | 2/2 | [b9bea7cd700c](configs/LiquidAI-LFM2.5-8B-A1B/mlx.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 100% | 0 | 2.4 | 11.62 | 0 | — | 0 | — | ? | ? | ? |
 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | mlx | — | 0.2 | n/a | 2/2 | [da00492c3b46](configs/da00492c3b46.yaml) — *config since changed* | e155170f4c1d | 9 | 56% | 0 | 21.4 | n/a (proxied — not real TTFT) | 0 | — | 0 | 10.2 | — | — | — |
@@ -166,14 +166,14 @@ on the two synthetic suites," not "never hallucinated a tool".
 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | — | ? | ? | 2/2 | [e6a0628476cc](configs/Qwen3.8-27B/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 100% | 0 | 7.8 | 8.98 | 0 | — | 0 | — | ? | ? | ? |
 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | — | ? | ? | 4/4 | [f6397d624011](configs/Qwen3.8-27B/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 4 | 100% | 0 | 6.2 | 52.74 | 0 | — | 0 | — | ? | ? | ? |
 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | Q4_K_M+DFlash2 | ? | ? | 2/2 | [0686abeab746](configs/Qwen3.8-27B/gguf-dflash2.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 100% | 0 | 5.8 | 55.96 | 0 | — | 0 | — | ? | ? | ? |
-| bartowski/Qwen3.8-27B-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | 2/2 | [c02615b57f21](configs/c02615b57f21.yaml) | 9756e52a1739 | 19 | 84% | 11 | 7.9 | 38.00 | 0 | — | 0 | 23.7 | — | — | — |
-| bartowski/Qwen3.8-27B-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | 2/2 | [c7eb832ac1e8](configs/c7eb832ac1e8.yaml) | 8bf29fca2f15 | 19 | 79% | 12 | 5.2 | 63.62 | 0 | — | 0 | 23.6 | — | — | — |
+| bartowski/Qwen3.8-27B-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | 2/2 | [c02615b57f21](configs/c02615b57f21.yaml) — *config since changed* | 9756e52a1739 | 19 | 84% | 11 | 7.9 | 38.00 | 0 | — | 0 | 23.7 | — | — | — |
+| bartowski/Qwen3.8-27B-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | 2/2 | [c7eb832ac1e8](configs/c7eb832ac1e8.yaml) — *config since changed* | 8bf29fca2f15 | 19 | 79% | 12 | 5.2 | 63.62 | 0 | — | 0 | 23.6 | — | — | — |
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | gguf | — | ? | ? | 2/2 | [163fa63ffb83](configs/Qwen3.5-9B/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 67% | 0 | 20.2 | 15.45 | 0 | — | 0 | — | ? | ? | ? |
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | gguf | — | ? | ? | — | [29ed581f7054](configs/Qwen3.5-9B/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 1 | 100% | 0 | — | — | 0 | — | 0 | — | ? | ? | ? |
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | 0.6 | thinking | 2/2 | [a2d241742068](configs/a2d241742068.yaml) | 2e56f8121142 | 9 | 67% | 0 | 21.0 | 9.34 | 0 | — | 0 | 13.7 | — | — | — |
 | empero-ai/Qwen3.8-27B-Ridge-GGUF | gguf | — | ? | ? | 2/2 | [6a3700901e2b](configs/Qwen3.8-27B-Ridge/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 4 | 50% | 0 | 4.6 | 52.03 | 0 | — | 0 | — | ? | ? | ? |
 | empero-ai/Qwen3.8-27B-Ridge-GGUF | gguf | — | 0.7 | instruct | 2/2 | [d135df9d860f](configs/d135df9d860f.yaml) — *config since changed* | e155170f4c1d | 8 | 62% | 0 | 5.5 | 30.15 | 0 | — | 0 | 18.9 | — | — | — |
-| empero-ai/Qwen3.8-27B-Ridge-GGUF | llama.cpp | — | 0.7 | instruct | 2/2 | [7b1d82c8abab](configs/7b1d82c8abab.yaml) | a58bee1684ac | 19 | 84% | 8 | 5.5 | 30.14 | 0 | — | 0 | 20.8 | — | — | — |
+| empero-ai/Qwen3.8-27B-Ridge-GGUF | llama.cpp | — | 0.7 | instruct | 2/2 | [7b1d82c8abab](configs/7b1d82c8abab.yaml) — *config since changed* | a58bee1684ac | 19 | 84% | 8 | 5.5 | 30.14 | 0 | — | 0 | 20.8 | — | — | — |
 | gpt-5.6-luna | api | — | ? | ? | — | [86cbe69b94ae](configs/Luna/api.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 1 | 100% | 0 | — | — | 0 | — | 0 | — | ? | ? | ? |
 | gpt-5.6-luna | api | — | None | unspecified | — | [dc55dd82a2c3](configs/dc55dd82a2c3.yaml) — *config since changed* | e155170f4c1d | 1 | 0% | 0 | — | — | 0 | — | 0 | — | — | — | — |
 | mlx-community/Devstral-Small-2507-4bit-DWQ | mlx | — | 0.15 | n/a | 1/2 | [54b39a32dd69](configs/54b39a32dd69.yaml) — *config since changed* | 65bb6d23192e | 0 | n/a (all harness errors) | 0 | 6.9 | 9.13 | 0 | — | 0 | 8.7 | — | — | — |
@@ -231,169 +231,62 @@ on the two synthetic suites," not "never hallucinated a tool".
 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | gguf | — | ? | ? | — | [840ac866adff](configs/Qwen3-Coder-30B-A3B/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 1 | 100% | 0 | — | — | 0 | — | 0 | — | ? | ? | ? |
 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | gguf | — | ? | ? | 2/2 | [fe085c7fef30](configs/Qwen3-Coder-30B-A3B/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 100% | 0 | 18.0 | 18.49 | 0 | — | 0 | — | ? | ? | ? |
 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | — | 0.7 | instruct | 2/2 | [644415678c37](configs/644415678c37.yaml) | bf1cd0ed7a6f | 9 | 67% | 1 | 20.9 | 9.51 | 1 | — | 0 | 23.4 | — | — | — |
-| unsloth/Qwen3.6-35B-A3B-GGUF:UD-Q4_K_XL | llama.cpp | — | 0.6 | thinking | 2/2 | [436d6d25d30c](configs/436d6d25d30c.yaml) | 8d4f1f85f106 | 19 | 84% | 3 | 27.1 | 7.47 | 0 | — | 0 | 24.2 | — | — | — |
+| unsloth/Qwen3.6-35B-A3B-GGUF:UD-Q4_K_XL | llama.cpp | — | 0.6 | thinking | 2/2 | [436d6d25d30c](configs/436d6d25d30c.yaml) — *config since changed* | 8d4f1f85f106 | 19 | 84% | 3 | 27.1 | 7.47 | 0 | — | 0 | 24.2 | — | — | — |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q2_K_XL | gguf | UD-Q2_K_XL | ? | ? | 2/2 | [2233edb1c4f2](configs/Qwen3.8-27B/gguf-unsloth-ud-q2.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 100% | 0 | 6.3 | 55.08 | 0 | — | 0 | — | ? | ? | ? |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q4_K_M | gguf | — | ? | ? | 2/2 | [89f4d8d04793](configs/Qwen3.8-27B/gguf-unsloth-ud-q4.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 100% | 0 | 6.4 | 55.57 | 0 | — | 0 | — | ? | ? | ? |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | 1.0 | thinking | 2/2 | [6d148ccbfd2e](configs/6d148ccbfd2e.yaml) | 1166272411af | 9 | 67% | 2 | 6.7 | 46.41 | 0 | — | 0 | 24.5 | — | — | — |
 
 ## Best overall (composite ranking)
 
-`score = 0.5×coding_pass_rate + 0.3×hermes_ops_pass_rate + 0.2×speed_score`
-(speed_score = this group's avg tok/s ÷ the fastest group's avg tok/s seen
-in this run). Weights renormalize over whichever axes a group actually has
-data for — a group with no coding rows yet is scored on hermes_ops+speed
-alone, not penalized as if its missing coding score were 0. That also means
-a 1-axis score and a 3-axis score aren't strictly apples-to-apples; `axes`
-below shows how many contributed. Groups with zero scoreable axes (harness-
-error-only, or sanity-only with `--coding-suites`/`hermes_ops` never run)
-are omitted entirely rather than shown with a misleading score.
+A quality-first ranking, not a speed leaderboard: `score = 
+0.5×coding_pass_rate + 0.3×hermes_ops_pass_rate + 0.2×speed_score`, where
+`coding_pass_rate` is shrunk toward a neutral 50% prior with 1 pseudo-
+observation before scoring (a lucky 1/1 no longer ties a properly-tested
+11/11 — see build_leaderboard.py's own comment for the exact numbers) and
+`speed_score` is this group's avg tok/s ÷ the fastest group's avg tok/s seen
+in this run. Two eligibility rules keep this a *quality* ranking: **a group
+needs at least one coding-suite row to appear here at all** (raw speed or
+hermes_ops alone, with zero coding evidence, isn't "overall" quality on a
+benchmark whose whole point is coding capability), and **each model+engine+
+quant appears at most once**, using whichever of its own config_hash/
+runner_sha fragments has the most total coding+hermes_ops evidence — an
+early 1-task fragment from before a model was fully tested can no longer
+outrank that same model's own later, complete sweep. Weights still
+renormalize over whichever of the two remaining axes (hermes_ops, speed) a
+group has data for, so a 2-axis and 3-axis score aren't strictly apples-to-
+apples; `axes` below shows how many contributed.
 
 | rank | model | engine | quant | config | score | axes | coding | hermes_ops | speed |
 |---|---|---|---|---|---|---|---|---|---|
-| 1 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | gguf | — | 011816a7d0df | 1.00 | 1 | 100% (1) | — | — |
-| 2 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | — | c1ed322cee8c | 1.00 | 1 | — | — | 105.5 tok/s |
-| 3 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | gguf | — | 29ed581f7054 | 1.00 | 1 | 100% (1) | — | — |
-| 4 | gpt-5.6-luna | api | — | 86cbe69b94ae | 1.00 | 1 | 100% (1) | — | — |
-| 5 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | mlx | — | 92c4b9be230e | 1.00 | 1 | 100% (1) | — | — |
-| 6 | openai/gpt-5.6-luna | api | — | bc97807766bc | 1.00 | 1 | 100% (1) | — | — |
-| 7 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | gguf | — | 840ac866adff | 1.00 | 1 | 100% (1) | — | — |
-| 8 | mlx-community/LFM2.5-8B-A1B-MLX-8bit | mlx | — | 509fe12b4b1a | 0.94 | 1 | — | — | 99.4 tok/s |
-| 9 | mlx-community/LFM2.5-8B-A1B-MLX-8bit | vllm-mlx | — | 00878f13621f | 0.94 | 1 | — | — | 98.9 tok/s |
-| 10 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | — | 8c159510d3a5 | 0.93 | 1 | — | — | 98.2 tok/s |
-| 11 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 6fa6f52fdc56 | 0.91 | 1 | 91% (11) | — | — |
-| 12 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | — | c1ed322cee8c | 0.88 | 1 | — | — | 92.7 tok/s |
-| 13 | openai/gpt-5.6-luna | openrouter | — | f1e3043189f3 | 0.87 | 3 | 100% (1) | 100% (8) | 35.5 tok/s |
-| 14 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | gguf | — | 3047922de5b7 | 0.87 | 3 | 100% (1) | 100% (3) | 34.7 tok/s |
-| 15 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | — | 8c159510d3a5 | 0.85 | 1 | — | — | 89.9 tok/s |
-| 16 | LiquidAI/LFM2.5-2.6B-GGUF:BF16 | llama.cpp | — | 26670d622de5 | 0.85 | 3 | 100% (1) | 88% (8) | 44.5 tok/s |
-| 17 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | gguf | — | 303eba1d5495 | 0.83 | 2 | — | 100% (3) | 61.4 tok/s |
-| 18 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | 48d75180adbc | 0.82 | 3 | 100% (1) | 88% (8) | 31.0 tok/s |
-| 19 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | gguf | — | aa5d02c11bba | 0.81 | 2 | — | 100% (3) | 55.8 tok/s |
-| 20 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | — | b060a851140f | 0.81 | 1 | — | — | 85.2 tok/s |
-| 21 | LiquidAI/LFM2.5-2.6B-GGUF:BF16 | llama.cpp | — | 26670d622de5 | 0.78 | 2 | — | 100% (4) | 47.0 tok/s |
-| 22 | LiquidAI/LFM2.5-2.6B-GGUF:BF16 | llama.cpp | — | 26670d622de5 | 0.76 | 2 | — | 100% (3) | 41.9 tok/s |
-| 23 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | vllm-mlx | — | c1a7fd5d3135 | 0.73 | 2 | — | 100% (1) | 35.1 tok/s |
-| 24 | unsloth/Qwen3.6-35B-A3B-GGUF:UD-Q4_K_XL | llama.cpp | — | 436d6d25d30c | 0.73 | 3 | 91% (11) | 75% (8) | 27.1 tok/s |
-| 25 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | — | 644415678c37 | 0.73 | 3 | 100% (1) | 62% (8) | 20.9 tok/s |
-| 26 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | gguf | — | 1fea08092fdc | 0.73 | 3 | 100% (1) | 62% (8) | 20.8 tok/s |
-| 27 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | omlx | — | f3b91883da61 | 0.71 | 2 | — | 100% (3) | 28.7 tok/s |
-| 28 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | — | 3a740261a79c | 0.70 | 3 | 100% (11) | 62% (8) | 8.0 tok/s |
-| 29 | empero-ai/Qwen3.8-27B-Ridge-GGUF | llama.cpp | — | 7b1d82c8abab | 0.70 | 3 | 100% (11) | 62% (8) | 5.5 tok/s |
-| 30 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | llama.cpp | — | c02615b57f21 | 0.69 | 3 | 82% (11) | 88% (8) | 7.9 tok/s |
-| 31 | scottlowry/Ornith-1.5-9B-oQ4e-fp16 | omlx | — | a97504c7845e | 0.68 | 2 | — | 100% (1) | 22.4 tok/s |
-| 32 | ornith-ai/Ornith-1.5-9B-MLX-4bit | vllm-mlx | — | d0d250e59d4e | 0.68 | 2 | — | 100% (1) | 20.0 tok/s |
-| 33 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | gguf | — | fe085c7fef30 | 0.67 | 2 | — | 100% (3) | 18.0 tok/s |
-| 34 | openai/gpt-5.6-luna | api | — | 1f7b55bd4401 | 0.66 | 2 | — | 100% (3) | 15.2 tok/s |
-| 35 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | llama.cpp | — | c7eb832ac1e8 | 0.64 | 3 | 73% (11) | 88% (8) | 5.2 tok/s |
-| 36 | prism-ml/Ternary-Bonsai-27B-mlx-2bit | mlx | 2bit-native | c2576cd6b385 | 0.63 | 2 | — | 100% (2) | 9.0 tok/s |
-| 37 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | — | e6a0628476cc | 0.63 | 2 | — | 100% (3) | 7.8 tok/s |
-| 38 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M (+ incoai/Muse-Glimmer-30B-DFlash2-GGUF:Q4_K_M drafter) | gguf | — | 5e61e8c02089 | 0.63 | 2 | — | 100% (1) | 7.2 tok/s |
-| 39 | prism-ml/Ternary-Bonsai-27B-mlx-2bit | mlx | 2bit-native | 21faf0240ec3 | 0.63 | 2 | — | 100% (3) | 7.0 tok/s |
-| 40 | prism-ml/Ternary-Bonsai-27B-mlx-2bit | omlx | — | 40462ce69e01 | 0.62 | 2 | — | 100% (3) | 6.6 tok/s |
-| 41 | unsloth/Qwen3.8-27B-GGUF:UD-Q4_K_M | gguf | — | 89f4d8d04793 | 0.62 | 2 | — | 100% (3) | 6.4 tok/s |
-| 42 | unsloth/Qwen3.8-27B-GGUF:UD-Q2_K_XL | gguf | UD-Q2_K_XL | 2233edb1c4f2 | 0.62 | 2 | — | 100% (3) | 6.3 tok/s |
-| 43 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | — | f6397d624011 | 0.62 | 2 | — | 100% (4) | 6.2 tok/s |
-| 44 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | Q4_K_M+DFlash2 | 0686abeab746 | 0.62 | 2 | — | 100% (3) | 5.8 tok/s |
-| 45 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | gguf | — | b0b30ac444da | 0.62 | 3 | 100% (1) | 33% (3) | 8.0 tok/s |
-| 46 | mlx-community/Qwen3.8-27B-4bit | mlx | — | 152424abaa13 | 0.61 | 2 | — | 100% (3) | 3.1 tok/s |
-| 47 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | mlx | — | b9bea7cd700c | 0.61 | 2 | — | 100% (3) | 2.4 tok/s |
-| 48 | empero-ai/Qwen3.8-27B-Ridge-GGUF | gguf | — | 6a3700901e2b | 0.61 | 3 | 100% (1) | 33% (3) | 4.6 tok/s |
-| 49 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | mlx | — | a03394d84d27 | 0.61 | 2 | — | 100% (3) | 1.7 tok/s |
-| 50 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | mlx | — | 8dd47a586509 | 0.61 | 2 | — | 100% (2) | 1.6 tok/s |
-| 51 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 6fa6f52fdc56 | 0.56 | 2 | — | 75% (8) | 30.1 tok/s |
-| 52 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | — | 00fc47aef271 | 0.55 | 2 | — | 75% (8) | 26.1 tok/s |
-| 53 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | omlx | — | 6be3287df228 | 0.55 | 2 | — | 80% (5) | 18.0 tok/s |
-| 54 | prism-ml/Ternary-Bonsai-27B-mlx-2bit | omlx | — | 40462ce69e01 | 0.54 | 2 | — | 88% (8) | 4.5 tok/s |
-| 55 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | — | 38ccea45c281 | 0.53 | 3 | 73% (11) | 50% (8) | 8.5 tok/s |
-| 56 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | omlx | — | f3b91883da61 | 0.52 | 2 | — | 75% (8) | 19.5 tok/s |
-| 57 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | mlx | — | b2dc92c2ed56 | 0.52 | 2 | — | 75% (8) | 18.9 tok/s |
-| 58 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | omlx | — | 4ee1b9a806e5 | 0.48 | 2 | — | 67% (3) | 21.1 tok/s |
-| 59 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | gguf | — | 163fa63ffb83 | 0.48 | 2 | — | 67% (3) | 20.2 tok/s |
-| 60 | mlx-community/Laguna-XS-2.1-4bit | omlx | — | 9f649cd3051f | 0.47 | 2 | — | 67% (3) | 18.7 tok/s |
-| 61 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | vllm-mlx | — | fe9f7a44a702 | 0.46 | 2 | — | 75% (8) | 2.9 tok/s |
-| 62 | mlx-community/Qwen3.8-27B-4bit | mlx | — | f894953f1f80 | 0.45 | 2 | — | 75% (4) | 0.3 tok/s |
-| 63 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | omlx | — | e9ea1ba1fe73 | 0.45 | 2 | — | 62% (8) | 19.5 tok/s |
-| 64 | ornith-ai/Ornith-1.5-9B-MLX-4bit | vllm-mlx | — | d0d250e59d4e | 0.44 | 2 | — | 71% (7) | 2.5 tok/s |
-| 65 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | gguf | — | 3f3368f78d8d | 0.43 | 2 | — | 67% (3) | 7.7 tok/s |
-| 66 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | omlx | — | 4ee1b9a806e5 | 0.42 | 1 | — | — | 44.8 tok/s |
-| 67 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | mlx | — | 8b3cbca5d1b1 | 0.42 | 2 | — | 67% (3) | 4.6 tok/s |
-| 68 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | vllm-mlx | — | 76414c6ab37c | 0.41 | 2 | — | 62% (8) | 10.5 tok/s |
-| 69 | mlx-community/Qwen3.8-27B-4bit | mlx | — | 968652aede2d | 0.41 | 2 | — | 67% (3) | 3.6 tok/s |
-| 70 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | omlx | — | 4ee1b9a806e5 | 0.41 | 2 | — | 62% (8) | 9.7 tok/s |
-| 71 | scottlowry/Ornith-1.5-9B-oQ4e-fp16 | omlx | — | afecbd0a9f5f | 0.41 | 2 | — | 62% (8) | 9.4 tok/s |
-| 72 | empero-ai/Qwen3.8-27B-Ridge-GGUF | gguf | — | d135df9d860f | 0.40 | 2 | — | 62% (8) | 5.5 tok/s |
-| 73 | prism-ml/Ternary-Bonsai-27B-mlx-2bit | mlx | — | 2152fbd9febb | 0.39 | 2 | — | 62% (8) | 4.1 tok/s |
-| 74 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | llama.cpp | — | 05a5098cf4c6 | 0.36 | 3 | 9% (11) | 62% (8) | 66.4 tok/s |
-| 75 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ DSpark F16 drafter) | gguf | — | 85636a621ce0 | 0.36 | 3 | 0% (1) | 100% (3) | 29.3 tok/s |
-| 76 | mlx-community/Laguna-XS-2.1-4bit | omlx | — | f1037eaa5995 | 0.34 | 2 | — | 50% (8) | 11.0 tok/s |
-| 77 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | gguf | — | 413f324b943c | 0.33 | 2 | — | 50% (8) | 8.5 tok/s |
-| 78 | scottlowry/Ornith-1.5-9B-oQ4e-fp16 | omlx | — | afecbd0a9f5f | 0.33 | 3 | 0% (1) | 100% (3) | 13.9 tok/s |
-| 79 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | gguf | — | 5f50ca6ebdf3 | 0.31 | 3 | 0% (1) | 62% (8) | 66.7 tok/s |
-| 80 | scottlowry/Ornith-1.5-9B-oQ4e-fp16 | omlx | — | 7bceae5b4c3c | 0.31 | 1 | — | — | 33.1 tok/s |
-| 81 | scottlowry/Ornith-1.5-9B-oQ4e-fp16 | omlx | — | ab16f8d988bf | 0.31 | 1 | — | — | 33.0 tok/s |
-| 82 | scottlowry/Ornith-1.5-9B-oQ4e-fp16 | omlx | — | 520aba6e3536 | 0.31 | 1 | — | — | 32.8 tok/s |
-| 83 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | llama.cpp | — | 0840d8e3ee87 | 0.31 | 3 | 0% (1) | 62% (8) | 62.5 tok/s |
-| 84 | scottlowry/Ornith-1.5-9B-oQ4e-fp16 | omlx | — | 7bceae5b4c3c | 0.31 | 1 | — | — | 32.3 tok/s |
-| 85 | scottlowry/Ornith-1.5-9B-oQ4e-fp16 | omlx | — | 520aba6e3536 | 0.31 | 1 | — | — | 32.3 tok/s |
-| 86 | scottlowry/Ornith-1.5-9B-oQ4e-fp16 | omlx | — | 73b0cf925fea | 0.30 | 1 | — | — | 32.0 tok/s |
-| 87 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | vllm-mlx | — | c1a7fd5d3135 | 0.30 | 3 | 0% (1) | 88% (8) | 19.3 tok/s |
-| 88 | LiquidAI/LFM2.5-8B-A1B-GGUF:BF16 | llama.cpp | — | a148c29637e6 | 0.29 | 3 | 0% (1) | 62% (8) | 55.7 tok/s |
-| 89 | LiquidAI/LFM2.5-8B-A1B-GGUF:BF16 | llama.cpp | — | a148c29637e6 | 0.29 | 3 | 0% (1) | 62% (8) | 55.4 tok/s |
-| 90 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | — | 00fc47aef271 | 0.28 | 3 | 0% (3) | 67% (6) | 42.3 tok/s |
-| 91 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF:F16 drafter) | gguf | — | f6bb65acb160 | 0.28 | 3 | 0% (1) | 75% (8) | 27.0 tok/s |
-| 92 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF:F16 drafter) | llama.cpp-dspark | — | 4f8641aa7094 | 0.28 | 3 | 0% (1) | 75% (8) | 26.9 tok/s |
-| 93 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | — | b4a63fbb6a67 | 0.27 | 3 | 0% (1) | 75% (8) | 25.3 tok/s |
-| 94 | LiquidAI/LFM2.5-2.6B-GGUF:BF16 | llama.cpp | — | 26670d622de5 | 0.27 | 3 | 0% (1) | 62% (8) | 44.6 tok/s |
-| 95 | LiquidAI/LFM2.5-2.6B-GGUF:BF16 | llama.cpp | — | 26670d622de5 | 0.27 | 3 | 0% (1) | 62% (8) | 44.5 tok/s |
-| 96 | mlx-community/LFM2.5-8B-A1B-MLX-8bit | vllm-mlx | — | 00878f13621f | 0.27 | 3 | 0% (1) | 75% (8) | 24.5 tok/s |
-| 97 | LiquidAI/LFM2.5-2.6B-GGUF:BF16 | llama.cpp | — | 26670d622de5 | 0.27 | 3 | 36% (11) | 0% (1) | 47.0 tok/s |
-| 98 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | a2d241742068 | 0.26 | 3 | 0% (1) | 75% (8) | 21.0 tok/s |
-| 99 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | vllm-mlx | — | 9693319bc3a1 | 0.26 | 3 | 0% (1) | 75% (8) | 20.7 tok/s |
-| 100 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | vllm-mlx | — | 76414c6ab37c | 0.26 | 2 | — | 38% (8) | 10.2 tok/s |
-| 101 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | mlx | — | 5e09e98f8c60 | 0.25 | 3 | 0% (1) | 75% (8) | 12.9 tok/s |
-| 102 | ornith-ai/Ornith-1.5-9B-MLX-4bit | vllm-mlx | — | d0d250e59d4e | 0.24 | 1 | — | — | 25.9 tok/s |
-| 103 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | 6d148ccbfd2e | 0.24 | 3 | 0% (1) | 75% (8) | 6.7 tok/s |
-| 104 | mlx-community/LFM2.5-8B-A1B-MLX-8bit | vllm-mlx | — | 00878f13621f | 0.24 | 3 | 0% (1) | 62% (8) | 26.4 tok/s |
-| 105 | mlx-community/Laguna-XS-2.1-4bit | omlx | — | f1037eaa5995 | 0.24 | 3 | 0% (2) | 67% (3) | 18.8 tok/s |
-| 106 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M (+ incoai/Muse-Glimmer-30B-DFlash2-GGUF:Q4_K_M drafter) | gguf | — | fd29e9c067f8 | 0.23 | 2 | — | 33% (3) | 8.3 tok/s |
-| 107 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | mlx | — | da00492c3b46 | 0.23 | 3 | 0% (1) | 62% (8) | 21.4 tok/s |
-| 108 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | omlx | — | 08e51e50397d | 0.12 | 1 | — | — | 13.1 tok/s |
-| 109 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M (+ incoai/Muse-Glimmer-30B-DFlash2-GGUF:Q4_K_M drafter) | llama.cpp-dflash2 | — | 17768c195364 | 0.11 | 1 | — | — | 12.0 tok/s |
-| 110 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | 6f8f1c7b8d48 | 0.10 | 1 | — | — | 11.0 tok/s |
-| 111 | mlx-community/Qwen2.5-Coder-14B-Instruct-4bit | vllm-mlx | — | 389d88115d2d | 0.10 | 1 | — | — | 11.0 tok/s |
-| 112 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | f9648093327f | 0.10 | 1 | — | — | 11.0 tok/s |
-| 113 | mlx-community/Qwen2.5-Coder-14B-Instruct-4bit | mlx | — | c6d10ac83efc | 0.10 | 1 | — | — | 10.9 tok/s |
-| 114 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | f9648093327f | 0.10 | 1 | — | — | 10.9 tok/s |
-| 115 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | b6112a82c243 | 0.10 | 1 | — | — | 10.6 tok/s |
-| 116 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | gguf | — | 1d65d14c63a8 | 0.10 | 3 | 0% (1) | 12% (8) | 32.8 tok/s |
-| 117 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | b6112a82c243 | 0.10 | 1 | — | — | 10.5 tok/s |
-| 118 | bartowski/Qwen2.5-Coder-14B-Instruct-GGUF:Q4_K_M | llama.cpp | — | e54758f4db2f | 0.10 | 1 | — | — | 10.4 tok/s |
-| 119 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | 6f8f1c7b8d48 | 0.10 | 1 | — | — | 10.4 tok/s |
-| 120 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | 3618a30940bc | 0.09 | 1 | — | — | 9.6 tok/s |
-| 121 | bartowski/Qwen2.5-Coder-14B-Instruct-GGUF:Q4_K_M | gguf | — | 0a014488283a | 0.09 | 1 | — | — | 9.2 tok/s |
-| 122 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M (+ incoai/Muse-Glimmer-30B-DFlash2-GGUF:Q4_K_M drafter) | llama.cpp-dflash2 | — | 17768c195364 | 0.09 | 1 | — | — | 9.2 tok/s |
-| 123 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | omlx | — | 08e51e50397d | 0.09 | 2 | — | 12% (8) | 2.9 tok/s |
-| 124 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | 3618a30940bc | 0.09 | 1 | — | — | 9.0 tok/s |
-| 125 | mlx-community/Qwen3.8-27B-4bit | mlx | — | bbaa3dfa1953 | 0.08 | 1 | — | — | 8.6 tok/s |
-| 126 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M (+ incoai/Muse-Glimmer-30B-DFlash2-GGUF:Q4_K_M drafter) | llama.cpp-dflash2 | — | 17768c195364 | 0.08 | 2 | — | 12% (8) | 0.9 tok/s |
-| 127 | mlx-community/Devstral-Small-2507-4bit-DWQ | vllm-mlx | — | 8d60440a81e5 | 0.07 | 1 | — | — | 7.0 tok/s |
-| 128 | mlx-community/Devstral-Small-2507-4bit-DWQ | mlx | — | 54b39a32dd69 | 0.07 | 1 | — | — | 6.9 tok/s |
-| 129 | mlx-community/Qwen3.8-27B-4bit | omlx | — | 1eec0081c5d6 | 0.01 | 2 | — | 0% (3) | 3.4 tok/s |
-| 130 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M (+ incoai/Muse-Glimmer-30B-DFlash2-GGUF:Q4_K_M drafter) | gguf | — | 5e61e8c02089 | 0.01 | 2 | — | 0% (7) | 3.0 tok/s |
-| 131 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | b7b32d0eb150 | 0.01 | 3 | 0% (1) | 0% (3) | 4.4 tok/s |
-| 132 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | b7b32d0eb150 | 0.01 | 2 | — | 0% (8) | 2.1 tok/s |
-| 133 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | a7867bea182c | 0.01 | 3 | 0% (2) | 0% (3) | 3.9 tok/s |
-| 134 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | a7867bea182c | 0.01 | 2 | — | 0% (8) | 1.9 tok/s |
-| 135 | mlx-community/Qwen3.8-27B-4bit | omlx | — | 3fbfdcc4ec02 | 0.01 | 2 | — | 0% (8) | 1.7 tok/s |
-| 136 | poolside/Laguna-XS-2.1-GGUF:Q4_K_M | gguf | — | e427e7a50b14 | 0.00 | 1 | — | — | 0.1 tok/s |
-| 137 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | mlx | — | 57734ec83d1b | 0.00 | 1 | 0% (1) | — | — |
-| 138 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | mlx | — | b2dc92c2ed56 | 0.00 | 1 | 0% (1) | — | — |
-| 139 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | gguf | — | f4620fe8538d | 0.00 | 1 | 0% (1) | — | — |
-| 140 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | mlx | — | 5fd02e54bb9d | 0.00 | 1 | 0% (1) | — | — |
-| 141 | gpt-5.6-luna | api | — | dc55dd82a2c3 | 0.00 | 1 | 0% (1) | — | — |
-| 142 | mlx-community/LFM2.5-2.6B-8bit | vllm-mlx | — | 662a015ba0e6 | 0.00 | 1 | — | — | 0.0 tok/s |
-| 143 | mlx-community/LFM2.5-2.6B-8bit | vllm-mlx | — | 662a015ba0e6 | 0.00 | 1 | — | — | 0.0 tok/s |
-| 144 | prism-ml/Ternary-Bonsai-27B-mlx-2bit | mlx | — | 8e85abe37e32 | 0.00 | 1 | 0% (1) | — | — |
+| 1 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 6fa6f52fdc56 | 0.88 | 1 | 91% (11) | — | — |
+| 2 | gpt-5.6-luna | api | — | 86cbe69b94ae | 0.75 | 1 | 100% (1) | — | — |
+| 3 | openai/gpt-5.6-luna | openrouter | — | f1e3043189f3 | 0.74 | 3 | 100% (1) | 100% (8) | 35.5 tok/s |
+| 4 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | gguf | — | 3047922de5b7 | 0.74 | 3 | 100% (1) | 100% (3) | 34.7 tok/s |
+| 5 | unsloth/Qwen3.6-35B-A3B-GGUF:UD-Q4_K_XL | llama.cpp | — | 436d6d25d30c | 0.71 | 3 | 91% (11) | 75% (8) | 27.1 tok/s |
+| 6 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | 48d75180adbc | 0.70 | 3 | 100% (1) | 88% (8) | 31.0 tok/s |
+| 7 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | — | 3a740261a79c | 0.68 | 3 | 100% (11) | 62% (8) | 8.0 tok/s |
+| 8 | empero-ai/Qwen3.8-27B-Ridge-GGUF | llama.cpp | — | 7b1d82c8abab | 0.68 | 3 | 100% (11) | 62% (8) | 5.5 tok/s |
+| 9 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | llama.cpp | — | c02615b57f21 | 0.67 | 3 | 82% (11) | 88% (8) | 7.9 tok/s |
+| 10 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | — | 644415678c37 | 0.60 | 3 | 100% (1) | 62% (8) | 20.9 tok/s |
+| 11 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | gguf | — | 1fea08092fdc | 0.60 | 3 | 100% (1) | 62% (8) | 20.8 tok/s |
+| 12 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | — | 38ccea45c281 | 0.52 | 3 | 73% (11) | 50% (8) | 8.5 tok/s |
+| 13 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ DSpark F16 drafter) | gguf | — | 85636a621ce0 | 0.48 | 3 | 0% (1) | 100% (3) | 29.3 tok/s |
+| 14 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | gguf | — | 5f50ca6ebdf3 | 0.44 | 3 | 0% (1) | 62% (8) | 66.7 tok/s |
+| 15 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | llama.cpp | — | 0840d8e3ee87 | 0.43 | 3 | 0% (1) | 62% (8) | 62.5 tok/s |
+| 16 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | vllm-mlx | — | c1a7fd5d3135 | 0.42 | 3 | 0% (1) | 88% (8) | 19.3 tok/s |
+| 17 | LiquidAI/LFM2.5-8B-A1B-GGUF:BF16 | llama.cpp | — | a148c29637e6 | 0.42 | 3 | 0% (1) | 62% (8) | 55.4 tok/s |
+| 18 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF:F16 drafter) | gguf | — | f6bb65acb160 | 0.40 | 3 | 0% (1) | 75% (8) | 27.0 tok/s |
+| 19 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF:F16 drafter) | llama.cpp-dspark | — | 4f8641aa7094 | 0.40 | 3 | 0% (1) | 75% (8) | 26.9 tok/s |
+| 20 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | a2d241742068 | 0.39 | 3 | 0% (1) | 75% (8) | 21.0 tok/s |
+| 21 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | vllm-mlx | — | 9693319bc3a1 | 0.39 | 3 | 0% (1) | 75% (8) | 20.7 tok/s |
+| 22 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | llama.cpp | — | 05a5098cf4c6 | 0.38 | 3 | 9% (11) | 62% (8) | 66.4 tok/s |
+| 23 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | mlx | — | 5e09e98f8c60 | 0.37 | 3 | 0% (1) | 75% (8) | 12.9 tok/s |
+| 24 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | 6d148ccbfd2e | 0.36 | 3 | 0% (1) | 75% (8) | 6.7 tok/s |
+| 25 | mlx-community/LFM2.5-8B-A1B-MLX-8bit | vllm-mlx | — | 00878f13621f | 0.36 | 3 | 0% (1) | 62% (8) | 26.4 tok/s |
+| 26 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | mlx | — | da00492c3b46 | 0.35 | 3 | 0% (1) | 62% (8) | 21.4 tok/s |
+| 27 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | — | 00fc47aef271 | 0.34 | 3 | 0% (3) | 67% (6) | 42.3 tok/s |
+| 28 | LiquidAI/LFM2.5-2.6B-GGUF:BF16 | llama.cpp | — | 26670d622de5 | 0.28 | 3 | 36% (11) | 0% (1) | 47.0 tok/s |
+| 29 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | gguf | — | 1d65d14c63a8 | 0.22 | 3 | 0% (1) | 12% (8) | 32.8 tok/s |
 
 ## Flaky tasks (mixed pass/fail under identical conditions)
 
