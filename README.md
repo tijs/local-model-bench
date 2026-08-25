@@ -4,10 +4,22 @@ A benchmark harness for picking the best local LLM to run as the inference
 engine for [Hermes](https://hermes-agent.nousresearch.com/docs) (a local
 agent framework) for agentic coding work — JS/TS, Rust, Swift, a large
 system prompt, and a large tool manifest. Compares candidate models across
-three inference engines (vllm-mlx, isolated oMLX, and GGUF/llama.cpp) on
 three axes: tool-use reliability, speed, and coding capability under
 realistic agentic conditions, on a Mac Studio (M1 Max, 32GB unified
 memory).
+
+**MLX-backend investigation closed (2026-08-25): GGUF/llama.cpp is now the
+primary engine.** vllm-mlx and isolated oMLX were both compared against
+llama.cpp across many models and consistently lost by a wide, structural
+margin — often several times slower at matched quantization, and the
+isolated oMLX backend additionally hung repeatedly (2+ hours, sometimes
+11+) in a non-convergent tool-calling loop on several models. The gap was
+too large and too consistent to close with config tuning, so further MLX
+investigation is deprioritized; existing MLX results stay in
+`results/LEADERBOARD.md` as historical data, and the `mlx.yaml`/`omlx.yaml`
+configs and the harness support for both engines remain in the repo for
+reproducibility, but new model additions and speed/reliability work should
+target GGUF/llama.cpp first.
 
 This harness (every runner script, config, task, and fix) was built and is
 run by Claude (Anthropic) working autonomously in the terminal, directed
@@ -42,15 +54,19 @@ outcome the speed data already answered.
   and vllm-mlx serving with `uv run --locked ...`. Set
   `BENCH_HERMES_BIN=/path/to/hermes` only if your external Hermes install
   isn't at `~/.hermes/hermes-agent/venv/bin/hermes`.
-- **`llama.cpp`** (`brew install llama.cpp`) for the `llama.cpp` inference engine.
+- **`llama.cpp`** (`brew install llama.cpp`) for the `llama.cpp` inference
+  engine — the primary one; only prerequisite most people need.
 - **`vllm-mlx` 0.4.1 or newer** for the `vllm-mlx` inference engine, included
-  in the locked project environment. See AGENTS.md's "vllm-mlx version note".
+  in the locked project environment. See AGENTS.md's "vllm-mlx version
+  note". Only needed to reproduce/extend the closed-out MLX comparison
+  (see the note at the top of this file) — not required for new work.
 - **oMLX 0.6.2** for the isolated `omlx` inference engine. Bootstrap it with
   `runner/bootstrap_omlx.sh`; that script creates/manages the separate
   environment under `~/.local/share/local-model-bench/`, pins source commit
   `f2d36f3d25a7e7a2401a92eecafc28b8f8968ec7`, and never installs oMLX into
   the project `.venv`, `~/.omlx`, or the CoCore Python environment. See
-  `runner/start_omlx_server.sh`.
+  `runner/start_omlx_server.sh`. Same status as vllm-mlx above — closed
+  out, not required for new work.
 - **[Hermes](https://hermes-agent.nousresearch.com/docs)** installed
   locally, with an isolated `bench` profile
   (`~/.hermes/profiles/bench/config.yaml`) — this is what the coding-suite

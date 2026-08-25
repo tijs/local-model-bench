@@ -73,13 +73,18 @@ throughput. Most of these have no current-grading coding data at all yet
 (Full list, plus everything dismissed and why, in `LEADERBOARD.md`'s
 "Speed-gated configs" / "Blocked configs" sections.)
 
-## The pattern worth internalizing
+## Decision (2026-08-25): MLX-backend investigation closed
 
-**Plain llama.cpp/GGUF wins essentially every real speed comparison so
-far** — often several times faster than the same model on vllm-mlx or
+**Plain llama.cpp/GGUF wins essentially every real speed comparison run
+so far** — often several times faster than the same model on vllm-mlx or
 oMLX, including at matched quantization (ruling out "it's just a
-lower-precision quant" as the explanation). If you're choosing a serving
-engine independent of model, start there.
+lower-precision quant" as the explanation). The isolated oMLX backend
+additionally hung repeatedly (2+ hours, once 11+) in a non-convergent
+tool-calling loop across multiple models. The gap was judged too large and
+too consistent to close with config tuning, so further MLX investigation
+is closed — GGUF/llama.cpp is the primary engine going forward. If you're
+choosing a serving engine independent of model, start there; existing
+MLX-backend rows below stay as historical record, not open questions.
 
 ## What to do next, if picking today
 
