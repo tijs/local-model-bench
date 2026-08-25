@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/969 rows below predate 2026-08-21
+> **⚠ 138/990 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -133,6 +133,7 @@ on the two synthetic suites," not "never hallucinated a tool".
 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | gguf | — | ? | ? | 2/2 | [303eba1d5495](configs/LiquidAI-LFM2.5-8B-A1B/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 100% | 0 | 61.4 | 5.03 | 0 | — | 0 | — | ? | ? | ? |
 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | gguf | — | 0.2 | n/a | 2/2 | [5f50ca6ebdf3](configs/5f50ca6ebdf3.yaml) — *config since changed* | 3182238013a3 | 9 | 56% | 0 | 66.7 | 3.54 | 1 | — | 0 | 9.5 | — | — | — |
 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | gguf | — | ? | ? | — | [f4620fe8538d](configs/LiquidAI-LFM2.5-8B-A1B/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 1 | 0% | 0 | — | — | 0 | — | 0 | — | ? | ? | ? |
+| LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | llama.cpp | — | 0.2 | n/a | 2/2 | [05a5098cf4c6](configs/05a5098cf4c6.yaml) | 13be39c4b506 | 19 | 32% | 0 | 67.6 | 3.52 | 1 | 5.1 | 12 | 11.3 | — | — | — |
 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | llama.cpp | — | 0.2 | n/a | 2/2 | [05a5098cf4c6](configs/05a5098cf4c6.yaml) | 50298bcbe02d | 19 | 32% | 0 | 66.4 | 3.55 | 1 | — | 0 | 11.4 | — | — | — |
 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ DSpark F16 drafter) | gguf | — | ? | ? | 2/2 | [85636a621ce0](configs/LiquidAI-LFM2.5-8B-A1B/gguf-dspark.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 4 | 75% | 0 | 29.3 | 8.69 | 0 | — | 0 | — | ? | ? | ? |
 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF:F16 drafter) | gguf | — | 0.2 | n/a | 2/2 | [f6bb65acb160](configs/f6bb65acb160.yaml) — *config since changed* | 3182238013a3 | 9 | 67% | 0 | 27.0 | 7.47 | 1 | — | 0 | 13.7 | — | — | — |
@@ -280,8 +281,8 @@ apples; `axes` below shows how many contributed.
 | 19 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF:F16 drafter) | llama.cpp-dspark | — | 4f8641aa7094 | 0.40 | 3 | 0% (1) | 75% (8) | 26.9 tok/s |
 | 20 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | a2d241742068 | 0.39 | 3 | 0% (1) | 75% (8) | 21.0 tok/s |
 | 21 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | vllm-mlx | — | 9693319bc3a1 | 0.39 | 3 | 0% (1) | 75% (8) | 20.7 tok/s |
-| 22 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | llama.cpp | — | 05a5098cf4c6 | 0.38 | 3 | 9% (11) | 62% (8) | 66.4 tok/s |
-| 23 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | mlx | — | 5e09e98f8c60 | 0.37 | 3 | 0% (1) | 75% (8) | 12.9 tok/s |
+| 22 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | mlx | — | 5e09e98f8c60 | 0.37 | 3 | 0% (1) | 75% (8) | 12.9 tok/s |
+| 23 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | llama.cpp | — | 05a5098cf4c6 | 0.37 | 3 | 0% (11) | 75% (8) | 67.6 tok/s |
 | 24 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | 6d148ccbfd2e | 0.36 | 3 | 0% (1) | 75% (8) | 6.7 tok/s |
 | 25 | mlx-community/LFM2.5-8B-A1B-MLX-8bit | vllm-mlx | — | 00878f13621f | 0.36 | 3 | 0% (1) | 62% (8) | 26.4 tok/s |
 | 26 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | mlx | — | da00492c3b46 | 0.35 | 3 | 0% (1) | 62% (8) | 21.4 tok/s |
@@ -400,6 +401,11 @@ confirmed-stable, just untested for flakiness.
 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | gguf | 5f50ca6ebdf3 | 3182238013a3 | kiem_mini | 0/1 |
 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | gguf | 5f50ca6ebdf3 | 3182238013a3 | sanity | 2/2 |
 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | gguf | f4620fe8538d | *(predates tracking)* | kiem_mini | 0/1 |
+| LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | llama.cpp | 05a5098cf4c6 | 13be39c4b506 | hearth_mini | 0/3 |
+| LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | llama.cpp | 05a5098cf4c6 | 13be39c4b506 | hermes_ops | 6/8 |
+| LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | llama.cpp | 05a5098cf4c6 | 13be39c4b506 | kiem_mini | 0/5 |
+| LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | llama.cpp | 05a5098cf4c6 | 13be39c4b506 | kipclip_mini | 0/3 |
+| LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | llama.cpp | 05a5098cf4c6 | 13be39c4b506 | sanity | 2/2 |
 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | llama.cpp | 05a5098cf4c6 | 50298bcbe02d | hearth_mini | 0/3 |
 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | llama.cpp | 05a5098cf4c6 | 50298bcbe02d | hermes_ops | 5/8 |
 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | llama.cpp | 05a5098cf4c6 | 50298bcbe02d | kiem_mini | 0/5 |
