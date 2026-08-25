@@ -127,9 +127,9 @@ def _blocked_configs():
 def _speed_gated_configs():
     """Configs that run_bench.py itself stopped early because that
     config's own hermes_ops run averaged under
-    bench_common.MIN_HERMES_OPS_TOKENS_PER_SECOND (4 tok/s as of
-    2026-08-23 — see that constant's own comment for why this was lowered
-    from an initial 10 tok/s) across
+    bench_common.MIN_HERMES_OPS_TOKENS_PER_SECOND (see that constant's own
+    comment for its current value and why it has been changed twice; the
+    number is deliberately not restated here — improvement plan M5) across
     every hermes_ops task — see run_bench.py's speed-gate block, right
     after the hermes_ops suite call. Read from results/speed_gate.jsonl, a
     dedicated append-only log kept separate from log.jsonl (whose task/

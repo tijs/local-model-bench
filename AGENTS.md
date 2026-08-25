@@ -179,8 +179,18 @@ every other app on this machine is in the system-wide folder). The system
 default toolchain is still Command Line Tools
 (`xcode-select -p` unset via sudo would need Tijs's password to change) — so
 Swift/Xcode commands in this project must set
-`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` explicitly, as the
-`kiem_mini-debug` check command already does.
+`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` explicitly.
+
+Corrected 2026-08-25 (improvement plan, low finding): this paragraph used
+to end "…as the `kiem_mini-debug` check command already does", but that
+check actually ran `DEVELOPER_DIR=$(xcode-select -p)` — i.e. it took
+whatever the machine's *ambient* default happened to be, which is exactly
+the Command Line Tools toolchain this note warns against. Both Swift
+checks in `tasks/kiem_mini.yaml` now pin the path literally, with
+`BENCH_DEVELOPER_DIR` as an override for a machine where Xcode lives
+somewhere else. A Swift task graded against CLT `swift` and one graded
+against Xcode `swift` are not the same task, and nothing in the log row
+would have shown which one ran.
 
 ## Backends
 

@@ -27,11 +27,15 @@ What it does per config, in order:
   5. sanity suite — fail-fast: if sanity-basic fails, stop here
   6. hermes_ops suite (unless orchestration.viable says to skip it) —
      followed by a speed gate: if this run's own avg tok/s across every
-     hermes_ops task is below bench_common.MIN_HERMES_OPS_TOKENS_PER_SECOND
-     (10, a floor for practical interactive use — see that constant's own
-     comment), skip the coding suite (typically far more expensive: real
-     builds + multi-turn agentic loops) rather than spend that time
-     confirming an outcome hermes_ops already answered
+     hermes_ops task is below bench_common.MIN_HERMES_OPS_TOKENS_PER_SECOND,
+     skip the coding suite (typically far more expensive: real builds +
+     multi-turn agentic loops) rather than spend that time confirming an
+     outcome hermes_ops already answered. The threshold's current value
+     and the reasoning behind it live with the constant itself in
+     bench_common.py — this docstring deliberately does NOT restate the
+     number (improvement plan, M5: it said "10" long after the active
+     value became 4.0, so a reader taking this file at its word got the
+     gate's behavior wrong)
   7. the one coding-suite spot-check, kiem_mini-feature (unless
      orchestration.viable says to skip it, hermes_provider is unset, or
      the speed gate above tripped)

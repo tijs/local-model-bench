@@ -265,6 +265,28 @@ def extract_hermes_session_stats(stdout, stderr=""):
     }
 
 
+def tail_snippet(text, limit):
+    """Last *limit* characters of *text*, cut at a line boundary.
+
+    The log row keeps the TAIL of grade_output (compiler errors and test
+    summaries land at the end — see grade_command()'s own CR3-9 note), but
+    a blind `[-500:]` slices mid-token: a row could start with
+    "rror[E0433]: failed to resolve", which is neither greppable as an
+    error code nor obviously truncated (improvement plan, low finding).
+    This drops the partial first line and marks the cut instead.
+    """
+    text = (text or "").strip()
+    if len(text) <= limit:
+        return text
+    tail = text[-limit:]
+    newline = tail.find("\n")
+    # Only realign if a line boundary exists reasonably early — otherwise
+    # one very long line would shrink the snippet to almost nothing.
+    if 0 <= newline <= limit // 4:
+        tail = tail[newline + 1:]
+    return "[...truncated...]\n" + tail
+
+
 def isolated_agent_prompt(prompt, run_dir):
     """Anchor agent file tools to the disposable copy, not the source fixture.
 
@@ -572,7 +594,17 @@ def overlay_check_files(suite, task_id, run_dir, check_dest):
     dest_dir.mkdir(parents=True, exist_ok=True)
     for item in src_dir.iterdir():
         if item.is_file():
-            shutil.copy2(item, dest_dir / item.name)
+            dest = dest_dir / item.name
+            shutil.copy2(item, dest)
+            # Mode normalized explicitly (improvement plan, low finding):
+            # copy2 preserves the SOURCE file's mode, so a checks/ file
+            # that ended up 600 on one machine (a restrictive umask when
+            # it was authored, a copy out of a temp dir) and 644 on
+            # another produced two subtly different run trees for the same
+            # committed bytes. Everything under checks/ is a plain
+            # world-readable test file; pin that rather than inherit
+            # whatever the working copy happens to carry.
+            os.chmod(dest, 0o644)
             copied.append(item.name)
     if not copied:
         raise FileNotFoundError(
@@ -1051,7 +1083,7 @@ def main():
                     # INTERACTIVE_BUDGET_SECONDS for why this is a
                     # separate, distinct signal from timeout/pass.
                     "within_budget": wall <= INTERACTIVE_BUDGET_SECONDS,
-                    "grade_output": grade_output.strip()[-500:],
+                    "grade_output": tail_snippet(grade_output, 500),
                     # Own dedicated field, not prepended into grade_output
                     # (3rd adversarial review, finding CR3-9): grade_output
                     # above is truncated to its LAST 500 chars — M-11's
@@ -1062,7 +1094,7 @@ def main():
                     # ("truncation always keeps the tail"). Capped
                     # independently here so it survives regardless of
                     # grade_output's length.
-                    "diff_stat": (diff_stat or "").strip()[-1000:] or None,
+                    "diff_stat": tail_snippet(diff_stat, 1000) or None,
                     "peak_rss_gb": round(peak_rss_gb, 2) if peak_rss_gb is not None else None,
                     # Pulled from hermes's own SQLite session store
                     # (methodology review, finding F6) — turns/tool-calls/
