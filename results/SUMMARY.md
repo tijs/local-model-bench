@@ -86,6 +86,61 @@ is closed — GGUF/llama.cpp is the primary engine going forward. If you're
 choosing a serving engine independent of model, start there; existing
 MLX-backend rows below stay as historical record, not open questions.
 
+## Decision (2026-08-25): retired near-duplicate configs
+
+After the harness improvement plan landed (layered timeout/liveness
+budgets, semantic error-recovery grading — see `AGENTS.md`), the surviving
+GGUF candidate list was reviewed for near-duplicates: model families with
+multiple fine-tune/quant variants where one variant already clearly
+dominates (or ties) another. Retired configs are NOT marked
+`viable: blocked` — they still work, they're just not being actively
+retested going forward. Each carries its own inline retirement note; this
+is the consolidated rationale.
+
+**Qwen3.8-27B family** — `Qwen3.8-27B-Uncensored/gguf.yaml` is the clear
+winner (11/11 coding, 8.0 tok/s) and is now the sole active representative
+of this family. Retired:
+- `Qwen3.8-27B/gguf.yaml` (base) — 9/11 coding, 7.9 tok/s, beaten outright.
+- `Qwen3.8-27B-Ridge/gguf.yaml` — ties Uncensored's 11/11 coding but slower
+  (5.5 vs 8.0 tok/s), strictly worse once pass rates tie.
+- `Qwen3.8-27B/gguf-mtp-speed.yaml` — already a confirmed NEGATIVE result
+  on its own terms (8/11 coding, 5.2 tok/s, 3 genuine timeouts vs the base
+  config's 9/11 @ 7.9 tok/s) — the MTP+quantized-KV speed tactic doesn't
+  help on this Mac.
+- `Qwen3.8-27B/gguf-unsloth-ud-q2.yaml`, `gguf-unsloth-ud-q4.yaml`,
+  `gguf-dflash2.yaml` — all `sanity_and_hermes_ops_only` (ctx-size
+  structurally below hermes's 64K coding minimum), never real coding
+  candidates regardless of this decision.
+- Still active from this family: `gguf-unsloth-ud-q5-64k.yaml` (genuinely
+  larger usable context at Q5, different enough to keep evaluating).
+
+**Qwen3.6-35B-A3B family** — checked the real numbers and this one is a
+**near-tie**, not a clear win: base and `Qwen3.6-35B-A3B-Uncensored/gguf.yaml`
+both scored 10/11 coding (identical single failure,
+`kipclip_mini-testwrite`), both 6/8 hermes_ops, both ~27 tok/s. Retired the
+base config anyway per standing preference for the uncensored variant when
+tied-or-better — flagging explicitly that this is preference-driven, not
+evidence-driven, unlike the 27B family above.
+
+**LiquidAI-LFM2.5-8B-A1B family** — `gguf-dspark.yaml` (DSpark speculative
+decoding) measured slower (26.9 tok/s) than the plain `gguf.yaml` it
+modifies (66.4 tok/s) — the same negative-speed-tactic pattern as the
+Qwen3.8-27B MTP finding above. Only one coding data point on record so not
+fully conclusive, but consistent enough to retire rather than spend a full
+rerun on it.
+
+**Model caches deleted** (2026-08-25, freeing disk space for the models
+still queued to (re)test): `unsloth/Qwen3.6-35B-A3B-GGUF` (~22GB, base
+quant, since the Uncensored variant is a separate HF repo — no overlap),
+`LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF` (~633MB, the DSpark drafter only —
+the shared Q8_0 base repo used by the kept `gguf.yaml` was left untouched).
+`bartowski/Qwen3.8-27B-GGUF`, `empero-ai/Qwen3.8-27B-Ridge-GGUF`, and
+`incoai/Qwen3.8-27B-DFlash2-GGUF` were already deleted in an earlier
+disk-space cleanup. `unsloth/Qwen3.8-27B-GGUF` (~19GB) was deliberately
+**not** deleted despite holding two retired quants (Q2/Q4), because it
+also holds the Q5_K_M quant the still-active `gguf-unsloth-ud-q5-64k.yaml`
+config needs, in the same repo snapshot.
+
 ## What to do next, if picking today
 
 Use `Qwen3-Coder-30B-A3B` on `llama.cpp`. If you want a second option to
