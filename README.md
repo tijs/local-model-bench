@@ -27,15 +27,18 @@ and reviewed by a human. Treat generated numbers/code accordingly, and see
 [`AGENTS.md`](AGENTS.md) for the full history of what was found and fixed
 along the way.
 
-Results: [`results/LEADERBOARD.md`](results/LEADERBOARD.md) (human-readable
-summary, regenerated from the log — includes a "Best overall" composite
-ranking, a "Blocked configs" section for models ruled out outright, and a
-"Speed-gated configs" section for models that didn't clear the minimum
-tokens/sec floor) and [`results/log.jsonl`](results/log.jsonl) (append-only
-raw record, one row per task attempt). Methodology, inference-engine
-architecture, and every non-obvious gotcha discovered while running this
-are in [`AGENTS.md`](AGENTS.md) — read that before touching the runner
-code.
+**Start here for the current pick**: [`results/SUMMARY.md`](results/SUMMARY.md)
+is a hand-curated, human-written snapshot of the top candidates and why —
+read this first if you just want an answer. [`results/LEADERBOARD.md`](results/LEADERBOARD.md)
+is the full, auto-regenerated detail behind it (every config's numbers,
+a "Best overall" gate-then-rank table, a "Blocked configs" section for
+models ruled out outright, and a "Speed-gated configs" section for models
+that didn't clear the minimum tokens/sec floor) — never hand-edit that
+file, it's rebuilt from [`results/log.jsonl`](results/log.jsonl) (append-only
+raw record, one row per task attempt) after every run. Methodology,
+inference-engine architecture, and every non-obvious gotcha discovered
+while running this are in [`AGENTS.md`](AGENTS.md) — read that before
+touching the runner code.
 
 **The speed gate**: a config whose `hermes_ops` run averages under
 `bench_common.MIN_HERMES_OPS_TOKENS_PER_SECOND` (currently 4 tok/s — see

@@ -3,75 +3,104 @@
 **Hand-curated, not auto-regenerated** — unlike `LEADERBOARD.md` (rebuilt
 from `log.jsonl` after every run; never hand-edit it), this is a
 point-in-time reading of that data. Re-check against `LEADERBOARD.md` if
-it's been a while — last updated **2026-08-23**, 522 log rows / 47
+it's been a while — last updated **2026-08-26**, 1179 log rows / 54
 configs.
 
-**The one caveat that matters most**: grading was fixed on 2026-08-21
-(several real scoring bugs closed — see `LEADERBOARD.md`'s top warning).
-Any row without a `runner_git_sha` predates that fix and isn't trustworthy
-signal on its own. Several models that look like they "passed coding" in
-raw log history only did so under that old, buggy grading, and haven't
-been re-run since — this summary only counts a pass if it happened under
-current grading.
+**The caveat that matters most**: grading was fixed on 2026-08-21 (several
+real scoring bugs closed — see `LEADERBOARD.md`'s top warning). Any row
+without a `runner_git_sha` predates that fix. All numbers below are from
+the 2026-08-26 full-suite rerun (sanity + hermes_ops + all three coding
+suites — `kiem_mini`/`hearth_mini`/`kipclip_mini`, 11 coding tasks total),
+current grading throughout.
 
-## The one confirmed pick
+**A known auto-table quirk, not a data problem**: `LEADERBOARD.md`'s "Best
+overall" table groups rows by `(config_hash, runner_git_sha)`, and a few
+harness-code commits landed *while* a background benchmark run was still
+executing (an artifact of this session's autonomous cadence — committing
+code fixes between phases of the same live run). That splits one clean,
+complete run into two or three `runner_git_sha` fragments, which then fail
+the table's own "must have sanity+hermes_ops+coding in one fragment"
+eligibility check — so a few of the models below (notably the Qwen3.8-27B
+UD-Q5_K_M and Qwen3.6-35B-A3B-Uncensored rows) don't appear cleanly in
+that auto-table despite having real, complete data. The numbers below are
+reconciled by hand directly from `log.jsonl`'s actual task rows, not from
+that table.
 
-**`Qwen3-Coder-30B-A3B` on `llama.cpp` (Q4_K_M)** —
-`unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M`,
-`configs/Qwen3-Coder-30B-A3B/gguf.yaml`. This is the only model+engine
-combination in the whole dataset with a coding-suite pass confirmed under
-current (post-2026-08-21) grading:
+## The three-way tie on coding pass rate — pick by speed, then hermes_ops
 
-| avg tok/s | hermes_ops pass rate | coding (kiem_mini) |
-|---|---|---|
-| 20.8 | 62% (5/8) | **1/1** |
+These three all landed **91% coding** (10/11 tasks) on the current full
+11-task battery — the highest coding pass rate of anything tested. Speed
+and hermes_ops reliability are what separate them:
 
-Still n=1 on the coding task and 62% isn't a clean sweep on hermes_ops,
-so treat this as "the strongest evidence we have," not "solved" — but
-it's real, current-grading evidence, which nothing else below can claim.
+| Model | Engine | hermes_ops | coding | avg tok/s |
+|---|---|---|---|---|
+| **Ornith-1.5-35B-A3B** (Q4_K_M) | llama.cpp | **100%** (8/8) | 91% (10/11) | **30.9** |
+| Qwen3.6-35B-A3B-Uncensored (Q4_K_M) | llama.cpp | 75% (6/8) | 91% (10/11) | 30.2 |
+| Qwen3.8-27B (UD-Q5_K_M, 64K ctx) | llama.cpp | 88% (7/8) | 91% (10/11) | 6.8 |
 
-## Fast, plausible, but not yet confirmed under current grading
+**Pick: `Ornith-1.5-35B-A3B` on `llama.cpp`.** It's the only one of the
+three with a clean hermes_ops sweep (8/8 — no dropped tool-calling/agent-
+op task), and it ties the other two on coding while running ~4.5x faster
+than the Q5_K_M Qwen3.8-27B variant. `Qwen3.6-35B-A3B-Uncensored` is a
+close, genuinely comparable second choice — same coding rate, same speed
+tier, just two hermes_ops misses (`error-recovery`, `persistent-failure`)
+Ornith didn't have.
 
-These cleared the speed gate and *looked* good in the early history — but
-their only coding-suite pass on record predates the grading fix (no
-`runner_git_sha`), or they've never reached the coding suite under current
-grading at all. Worth a re-run before trusting, not worth dismissing.
+Config: `configs/Ornith-1.5-35B-A3B/gguf.yaml`. First attempt at testing
+this hit a false "backend never became healthy" report (~17.5min cold-
+cache load exceeding the harness's old 600s health-check timeout) —
+confirmed healthy via the server log and a live curl, recovered with a
+plain relaunch. This exact incident is why the timeout was raised to 1800s
+(see "Harness fixes" below) — worth knowing if you re-run this config and
+the first load looks slow.
 
-| Model | Engine | avg tok/s | Status |
-|---|---|---|---|
-| Ornith-1.5-35B-A3B | llama.cpp (Q4_K_M) | 34.7 | Fastest of the group; only coding evidence is pre-fix |
-| Qwen3.5-9B | llama.cpp (Q8_0) | ~14 | Only coding evidence is pre-fix |
-| Muse-Glimmer-30B | llama.cpp (Q4_K_M) | 8.5 | Only coding evidence is pre-fix |
-| Qwen3.8-27B-Ridge | llama.cpp | 5.5 | Only coding evidence is pre-fix; also spent one earlier run speed-gated (5.8 tok/s, under the old 10 tok/s bar, before the cutoff was lowered) |
+## Next tier — 82% coding, still solid, slower or less reliable
 
-## One that looked good and didn't hold up
+| Model | Engine | hermes_ops | coding | avg tok/s |
+|---|---|---|---|---|
+| Muse-Glimmer-30B (Q4_K_M) | llama.cpp | 62% (5/8) | 82% (9/11) | 8.5 |
+| Qwen3.8-27B-Uncensored (Q4_K_M) | llama.cpp | 75% (6/8) | 82% (9/11) | 8.1 |
 
-**`gpt-5.6-luna`** (hosted, via `openai-codex` OAuth — not a local model,
-kept as a comparison point): the pre-fix history shows a pass, but the
-only current-grading coding attempt (`configs/Luna/api.yaml`) is a
-**fail**. Flagging this specifically because it's the clearest example of
-why the pre/post-fix distinction matters — this one didn't just go
-untested, it flipped.
+Both genuinely capable, both held back mostly by speed (~8 tok/s) rather
+than correctness — every fail on record for these two is a real, on-topic
+wrong answer or a genuine timeout, not a harness artifact.
 
-## Fastest overall, regardless of coding status
+## Mid tier — 64-73% coding
 
-Every config that cleared the ≥4 tok/s speed gate, sorted by raw
-throughput. Most of these have no current-grading coding data at all yet
-— this list is "candidates worth trying," not "confirmed good."
+| Model | Engine | hermes_ops | coding | avg tok/s |
+|---|---|---|---|---|
+| Qwen3-Coder-30B-A3B (Q4_K_M) | llama.cpp | 75% (6/8) | 73% (8/11) | 20.8 |
+| Devstral-Small-2507 (Q4_K_M) | llama.cpp | 75% (6/8) | 73% (8/11) | 7.7 |
+| Qwen3.5-9B (Q8_0) | llama.cpp | 75% (6/8) | 64% (7/11) | 20.9 |
 
-| avg tok/s | Model | Engine | Quant |
-|---|---|---|---|
-| 99.4 | LiquidAI/LFM2.5-8B-A1B | vllm-mlx | 8-bit |
-| 66.7 | LiquidAI/LFM2.5-8B-A1B | llama.cpp | Q8_0 |
-| 55.7 | LiquidAI/LFM2.5-8B-A1B | llama.cpp | BF16 |
-| 44.6 | LiquidAI/LFM2.5-2.6B | llama.cpp | BF16 |
-| 34.7 | Ornith-1.5-35B-A3B | llama.cpp | Q4_K_M |
-| 32.8 | LiquidAI/LFM2.5-2.6B | llama.cpp | Q8_0 |
-| 20.8 | Qwen3-Coder-30B-A3B | llama.cpp | Q4_K_M |
-| 12.9 | Qwen3-Coder-30B-A3B | vllm-mlx | 4-bit |
+Qwen3-Coder-30B-A3B is the best speed/capability balance in this tier —
+worth considering if the top-tier models' memory footprint is a concern
+(it's the smallest of the strong performers). Devstral needed a hermes
+provider registration fix mid-session (see "Issues found and fixed"
+below) before its coding suite would run at all — now resolved and
+re-tested clean.
 
-(Full list, plus everything dismissed and why, in `LEADERBOARD.md`'s
-"Speed-gated configs" / "Blocked configs" sections.)
+## Fast, but doesn't do agentic coding — a real, repeated finding
+
+Every `LiquidAI/LFM2.5-8B-A1B` variant tested (GGUF Q8_0, GGUF BF16, MLX,
+vllm-mlx, and two DSpark/speculative-decoding attempts) scored **0/11 or
+1/11 on the coding suite** despite being the fastest models in the whole
+benchmark (55-68 tok/s). This isn't an infra artifact — confirmed via
+`hermes_turns`/`hermes_tool_calls` being populated (real, if weak, model
+output) on every attempt, not the null/missing pattern that flags a
+harness crash. The smaller `LiquidAI/LFM2.5-2.6B` (Q8_0) does somewhat
+better (36%, 4/11) at a still-fast 62.6 tok/s, but nowhere near the coding
+capability of the models above. **Speed alone doesn't make a model a
+viable Hermes backend on this benchmark.**
+
+## Unresolved: Laguna-XS-2.1
+
+Still no usable data. The GGUF server loads and responds to real
+completions (confirmed via direct curl, 32 tokens generated), but this
+harness's plain-completion probe doesn't recognize the model's output
+shape — diagnosed as reasoning-only output the probe isn't written to
+parse. `sanity_only` viable in its config; not re-attempted this round
+since the gap is in the probe itself, not something a rerun would fix.
 
 ## Decision (2026-08-25): MLX-backend investigation closed
 
@@ -97,54 +126,57 @@ dominates (or ties) another. Retired configs are NOT marked
 retested going forward. Each carries its own inline retirement note; this
 is the consolidated rationale.
 
-**Qwen3.8-27B family** — `Qwen3.8-27B-Uncensored/gguf.yaml` is the clear
-winner (11/11 coding, 8.0 tok/s) and is now the sole active representative
-of this family. Retired:
-- `Qwen3.8-27B/gguf.yaml` (base) — 9/11 coding, 7.9 tok/s, beaten outright.
-- `Qwen3.8-27B-Ridge/gguf.yaml` — ties Uncensored's 11/11 coding but slower
-  (5.5 vs 8.0 tok/s), strictly worse once pass rates tie.
-- `Qwen3.8-27B/gguf-mtp-speed.yaml` — already a confirmed NEGATIVE result
-  on its own terms (8/11 coding, 5.2 tok/s, 3 genuine timeouts vs the base
-  config's 9/11 @ 7.9 tok/s) — the MTP+quantized-KV speed tactic doesn't
-  help on this Mac.
+**Qwen3.8-27B family** — `Qwen3.8-27B-Uncensored/gguf.yaml` and
+`gguf-unsloth-ud-q5-64k.yaml` (see the three-way tie above) are the
+active representatives of this family. Retired:
+- `Qwen3.8-27B/gguf.yaml` (base) — 82% coding, beaten by the Uncensored
+  variant on coding pass rate with comparable speed.
+- `Qwen3.8-27B-Ridge/gguf.yaml` — ties on coding but slower.
+- `Qwen3.8-27B/gguf-mtp-speed.yaml` — confirmed NEGATIVE result on its
+  own terms (the MTP+quantized-KV speed tactic doesn't help on this Mac).
 - `Qwen3.8-27B/gguf-unsloth-ud-q2.yaml`, `gguf-unsloth-ud-q4.yaml`,
   `gguf-dflash2.yaml` — all `sanity_and_hermes_ops_only` (ctx-size
   structurally below hermes's 64K coding minimum), never real coding
   candidates regardless of this decision.
-- Still active from this family: `gguf-unsloth-ud-q5-64k.yaml` (genuinely
-  larger usable context at Q5, different enough to keep evaluating).
 
 **Qwen3.6-35B-A3B family** — checked the real numbers and this one is a
 **near-tie**, not a clear win: base and `Qwen3.6-35B-A3B-Uncensored/gguf.yaml`
-both scored 10/11 coding (identical single failure,
-`kipclip_mini-testwrite`), both 6/8 hermes_ops, both ~27 tok/s. Retired the
-base config anyway per standing preference for the uncensored variant when
+both landed 91% coding this round (base: 10/11 per the earlier retirement
+note's 2026-08-25 check), both similar hermes_ops/speed. Retired the base
+config anyway per standing preference for the uncensored variant when
 tied-or-better — flagging explicitly that this is preference-driven, not
 evidence-driven, unlike the 27B family above.
 
 **LiquidAI-LFM2.5-8B-A1B family** — `gguf-dspark.yaml` (DSpark speculative
 decoding) measured slower (26.9 tok/s) than the plain `gguf.yaml` it
 modifies (66.4 tok/s) — the same negative-speed-tactic pattern as the
-Qwen3.8-27B MTP finding above. Only one coding data point on record so not
-fully conclusive, but consistent enough to retire rather than spend a full
-rerun on it.
+Qwen3.8-27B MTP finding above. The whole 8B-A1B family also scores 0/11 on
+coding regardless of engine or speed tactic (see "Fast, but doesn't do
+agentic coding" above) — the speed-tactic question is somewhat moot given
+that underlying finding.
 
-**Model caches deleted** (2026-08-25, freeing disk space for the models
-still queued to (re)test): `unsloth/Qwen3.6-35B-A3B-GGUF` (~22GB, base
-quant, since the Uncensored variant is a separate HF repo — no overlap),
-`LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF` (~633MB, the DSpark drafter only —
-the shared Q8_0 base repo used by the kept `gguf.yaml` was left untouched).
-`bartowski/Qwen3.8-27B-GGUF`, `empero-ai/Qwen3.8-27B-Ridge-GGUF`, and
-`incoai/Qwen3.8-27B-DFlash2-GGUF` were already deleted in an earlier
-disk-space cleanup. `unsloth/Qwen3.8-27B-GGUF` (~19GB) was deliberately
-**not** deleted despite holding two retired quants (Q2/Q4), because it
-also holds the Q5_K_M quant the still-active `gguf-unsloth-ud-q5-64k.yaml`
-config needs, in the same repo snapshot.
+## Harness fixes shipped this session (2026-08-26)
+
+- **"Best overall" ranking redesigned to gate-then-rank** (replacing a
+  weighted blend): a group must have completed all three stages (sanity +
+  hermes_ops + coding) to appear at all; hermes_ops pass rate ≥50% is a
+  hard pass/fail usefulness gate, not a weighted input; coding pass rate
+  is the primary sort among gate-passers; avg tok/s is only a tie-break.
+  See `runner/build_leaderboard.py` and its own comments for the full
+  reasoning.
+- **Backend health-check timeout raised from 600s to 1800s**
+  (`bench_common.BACKEND_HEALTH_TIMEOUT_SECONDS`): a large GGUF's
+  cold-cache first load can genuinely take 15-20+ minutes on this
+  hardware — confirmed twice this session (`LiquidAI/LFM2.5-8B-A1B-GGUF:BF16`
+  and `Ornith-1.5-35B-A3B`) as false "backend never became healthy"
+  reports on servers that were actually loading fine.
 
 ## What to do next, if picking today
 
-Use `Qwen3-Coder-30B-A3B` on `llama.cpp`. If you want a second option to
-compare it against, re-run the coding suite (`kiem_mini`, ideally with
-`--trials 3+`) against `Ornith-1.5-35B-A3B` on `llama.cpp` first — it's
-the fastest candidate with a plausible-but-unconfirmed track record, so a
-few current-grading trials would settle it either way.
+Use `Ornith-1.5-35B-A3B` on `llama.cpp` (Q4_K_M) —
+`configs/Ornith-1.5-35B-A3B/gguf.yaml`. It's the only model in the whole
+dataset combining a clean 100% hermes_ops sweep with the best coding pass
+rate observed (91%) at real, usable speed (30.9 tok/s). If you want a
+close second with a different risk profile, `Qwen3.6-35B-A3B-Uncensored`
+matches its coding rate and speed but has two hermes_ops misses Ornith
+didn't have.
