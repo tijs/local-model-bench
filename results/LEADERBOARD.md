@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/1158 rows below predate 2026-08-21
+> **⚠ 138/1179 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -91,6 +91,7 @@ on the two synthetic suites," not "never hallucinated a tool".
 | model | engine | quant | temp (coding only)¹ | reasoning | sanity gate⁴ | config | runner | tasks | pass rate⁴ | slow passes² | avg tok/s | avg TTFT (s) | hallucinated tools⁵ | avg coding turns³ | coding tool errors³ | peak RSS (GB) | quant family | cache | MTP |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 0.6 | thinking | 2/2 | [6fa6f52fdc56](configs/6fa6f52fdc56.yaml) | 5fc289161e34 | 8 | 75% | 0 | 30.1 | 7.05 | 0 | — | 0 | 23.1 | — | — | — |
+| HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 0.6 | thinking | 2/2 | [6fa6f52fdc56](configs/6fa6f52fdc56.yaml) | 6bb085a043fe | 19 | 84% | 3 | 30.2 | 7.05 | 0 | 15.8 | 30 | 23.6 | — | — | — |
 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 0.6 | thinking | — | [6fa6f52fdc56](configs/6fa6f52fdc56.yaml) | 8e7b1897f7e8+dirty | 11 | 91% | 1 | — | — | 0 | — | 0 | 23.8 | — | — | — |
 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 0.6 | thinking | — | [6fa6f52fdc56](configs/6fa6f52fdc56.yaml) | d39c9c37bb8c+dirty | 0 | n/a (all harness errors) | 0 | — | — | 0 | — | 0 | — | — | — | — |
 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | 2/2 | [3a740261a79c](configs/3a740261a79c.yaml) | 2477ca2ba371 | 19 | 79% | 11 | 8.1 | 44.53 | 0 | 11.9 | 14 | 22.6 | — | — | — |
@@ -272,27 +273,28 @@ evidence.
 | 3 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | gguf | — | 1fea08092fdc | PASS (62%, 8) | 100% (1) | 20.8 tok/s |
 | 4 | empero-ai/Qwen3.8-27B-Ridge-GGUF | llama.cpp | — | 7b1d82c8abab | PASS (62%, 8) | 100% (11) | 5.5 tok/s |
 | 5 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | 48d75180adbc | PASS (100%, 8) | 91% (11) | 30.9 tok/s |
-| 6 | unsloth/Qwen3.6-35B-A3B-GGUF:UD-Q4_K_XL | llama.cpp | — | 436d6d25d30c | PASS (75%, 8) | 91% (11) | 27.1 tok/s |
-| 7 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | — | 38ccea45c281 | PASS (62%, 8) | 82% (11) | 8.5 tok/s |
-| 8 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | — | 3a740261a79c | PASS (75%, 8) | 82% (11) | 8.1 tok/s |
-| 9 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | llama.cpp | — | c02615b57f21 | PASS (88%, 8) | 82% (11) | 7.9 tok/s |
-| 10 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | — | 644415678c37 | PASS (75%, 8) | 73% (11) | 20.8 tok/s |
-| 11 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | ffa862c18cff | PASS (75%, 8) | 73% (11) | 7.7 tok/s |
-| 12 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | a2d241742068 | PASS (75%, 8) | 64% (11) | 20.9 tok/s |
-| 13 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | llama.cpp | — | 0840d8e3ee87 | PASS (88%, 8) | 36% (11) | 62.6 tok/s |
-| 14 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | llama.cpp | — | 05a5098cf4c6 | PASS (75%, 8) | 0% (11) | 67.6 tok/s |
-| 15 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | gguf | — | 5f50ca6ebdf3 | PASS (62%, 8) | 0% (1) | 66.7 tok/s |
-| 16 | LiquidAI/LFM2.5-8B-A1B-GGUF:BF16 | llama.cpp | — | a148c29637e6 | PASS (75%, 8) | 0% (11) | 55.3 tok/s |
-| 17 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | — | 00fc47aef271 | PASS (67%, 6) | 0% (3) | 42.3 tok/s |
-| 18 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ DSpark F16 drafter) | gguf | — | 85636a621ce0 | PASS (100%, 3) | 0% (1) | 29.3 tok/s |
-| 19 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF:F16 drafter) | gguf | — | f6bb65acb160 | PASS (75%, 8) | 0% (1) | 27.0 tok/s |
-| 20 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF:F16 drafter) | llama.cpp-dspark | — | 4f8641aa7094 | PASS (75%, 8) | 0% (1) | 26.9 tok/s |
-| 21 | mlx-community/LFM2.5-8B-A1B-MLX-8bit | vllm-mlx | — | 00878f13621f | PASS (62%, 8) | 0% (1) | 26.4 tok/s |
-| 22 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | mlx | — | da00492c3b46 | PASS (62%, 8) | 0% (1) | 21.4 tok/s |
-| 23 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | vllm-mlx | — | 9693319bc3a1 | PASS (75%, 8) | 0% (1) | 20.7 tok/s |
-| 24 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | vllm-mlx | — | c1a7fd5d3135 | PASS (88%, 8) | 0% (1) | 19.3 tok/s |
-| 25 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | mlx | — | 5e09e98f8c60 | PASS (75%, 8) | 0% (1) | 12.9 tok/s |
-| 26 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | gguf | — | 1d65d14c63a8 | FAIL (12%, 8) | 0% (1) | 32.8 tok/s |
+| 6 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 6fa6f52fdc56 | PASS (75%, 8) | 91% (11) | 30.2 tok/s |
+| 7 | unsloth/Qwen3.6-35B-A3B-GGUF:UD-Q4_K_XL | llama.cpp | — | 436d6d25d30c | PASS (75%, 8) | 91% (11) | 27.1 tok/s |
+| 8 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | — | 38ccea45c281 | PASS (62%, 8) | 82% (11) | 8.5 tok/s |
+| 9 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | — | 3a740261a79c | PASS (75%, 8) | 82% (11) | 8.1 tok/s |
+| 10 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | llama.cpp | — | c02615b57f21 | PASS (88%, 8) | 82% (11) | 7.9 tok/s |
+| 11 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | — | 644415678c37 | PASS (75%, 8) | 73% (11) | 20.8 tok/s |
+| 12 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | ffa862c18cff | PASS (75%, 8) | 73% (11) | 7.7 tok/s |
+| 13 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | a2d241742068 | PASS (75%, 8) | 64% (11) | 20.9 tok/s |
+| 14 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | llama.cpp | — | 0840d8e3ee87 | PASS (88%, 8) | 36% (11) | 62.6 tok/s |
+| 15 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | llama.cpp | — | 05a5098cf4c6 | PASS (75%, 8) | 0% (11) | 67.6 tok/s |
+| 16 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | gguf | — | 5f50ca6ebdf3 | PASS (62%, 8) | 0% (1) | 66.7 tok/s |
+| 17 | LiquidAI/LFM2.5-8B-A1B-GGUF:BF16 | llama.cpp | — | a148c29637e6 | PASS (75%, 8) | 0% (11) | 55.3 tok/s |
+| 18 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | — | 00fc47aef271 | PASS (67%, 6) | 0% (3) | 42.3 tok/s |
+| 19 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ DSpark F16 drafter) | gguf | — | 85636a621ce0 | PASS (100%, 3) | 0% (1) | 29.3 tok/s |
+| 20 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF:F16 drafter) | gguf | — | f6bb65acb160 | PASS (75%, 8) | 0% (1) | 27.0 tok/s |
+| 21 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF:F16 drafter) | llama.cpp-dspark | — | 4f8641aa7094 | PASS (75%, 8) | 0% (1) | 26.9 tok/s |
+| 22 | mlx-community/LFM2.5-8B-A1B-MLX-8bit | vllm-mlx | — | 00878f13621f | PASS (62%, 8) | 0% (1) | 26.4 tok/s |
+| 23 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | mlx | — | da00492c3b46 | PASS (62%, 8) | 0% (1) | 21.4 tok/s |
+| 24 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | vllm-mlx | — | 9693319bc3a1 | PASS (75%, 8) | 0% (1) | 20.7 tok/s |
+| 25 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | vllm-mlx | — | c1a7fd5d3135 | PASS (88%, 8) | 0% (1) | 19.3 tok/s |
+| 26 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | mlx | — | 5e09e98f8c60 | PASS (75%, 8) | 0% (1) | 12.9 tok/s |
+| 27 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | gguf | — | 1d65d14c63a8 | FAIL (12%, 8) | 0% (1) | 32.8 tok/s |
 
 ## Flaky tasks (mixed pass/fail under identical conditions)
 
@@ -318,6 +320,11 @@ confirmed-stable, just untested for flakiness.
 |---|---|---|---|---|---|
 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | 6fa6f52fdc56 | 5fc289161e34 | hermes_ops | 6/8 |
 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | 6fa6f52fdc56 | 5fc289161e34 | sanity | 2/2 |
+| HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | 6fa6f52fdc56 | 6bb085a043fe | hearth_mini | 3/3 |
+| HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | 6fa6f52fdc56 | 6bb085a043fe | hermes_ops | 6/8 |
+| HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | 6fa6f52fdc56 | 6bb085a043fe | kiem_mini | 4/5 |
+| HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | 6fa6f52fdc56 | 6bb085a043fe | kipclip_mini | 3/3 |
+| HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | 6fa6f52fdc56 | 6bb085a043fe | sanity | 2/2 |
 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | 6fa6f52fdc56 | 8e7b1897f7e8+dirty | hearth_mini | 3/3 |
 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | 6fa6f52fdc56 | 8e7b1897f7e8+dirty | kiem_mini | 5/5 |
 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | 6fa6f52fdc56 | 8e7b1897f7e8+dirty | kipclip_mini | 2/3 |
