@@ -3,7 +3,7 @@
 **Hand-curated, not auto-regenerated** — unlike `LEADERBOARD.md` (rebuilt
 from `log.jsonl` after every run; never hand-edit it), this is a
 point-in-time reading of that data. Re-check against `LEADERBOARD.md` if
-it's been a while — last updated **2026-08-26**, 1179 log rows / 54
+it's been a while — last updated **2026-08-26**, 1221 log rows / 55
 configs.
 
 **The caveat that matters most**: grading was fixed on 2026-08-21 (several
@@ -102,6 +102,44 @@ shape — diagnosed as reasoning-only output the probe isn't written to
 parse. `sanity_only` viable in its config; not re-attempted this round
 since the gap is in the probe itself, not something a rerun would fix.
 
+## Hosted-model reference set (2026-08-26)
+
+Two hosted models, run through the exact same full suite (sanity +
+hermes_ops + all 11 coding tasks) via real, metered OpenRouter API keys —
+included as a cost/quality reference point, **not** as a candidate to pick
+instead of a local model. The whole point of this benchmark is finding the
+best *local* Hermes backend; these two exist so a reader can see what
+paying for a hosted model actually buys, in the same units as everything
+above.
+
+| Model | hermes_ops | coding | avg tok/s¹ | real cost (sanity+hermes_ops) |
+|---|---|---|---|---|
+| `openai/gpt-5.6-luna` (OpenRouter) | 100% (8/8) | 91% (10/11) | 20.5 | $0.0235 |
+| `anthropic/claude-haiku-4.5` (OpenRouter) | 100% (8/8) | 82% (9/11) | 36.3 | $0.82 |
+
+¹ Hosted-model tok/s is a network-latency-inclusive API measurement, not a
+pure decode rate the way local `avg tok/s` is elsewhere in this doc — not
+strictly apples-to-apples with the local models' numbers, but still a
+useful relative signal.
+
+**Luna genuinely ties the best local models** (91% coding, matching the
+three-way tie above) with a clean 100% hermes_ops sweep, at a real cost of
+about 2 cents for the sanity+hermes_ops portion of a full run — this is
+the old FAIL-under-old-single-task-grading result flipping to a strong
+PASS once retested under the current full 11-task battery. **Haiku** lands
+respectably at 82% (matching the "next tier" local models) but costs
+roughly 35x more than Luna for the same sanity+hermes_ops slice ($0.82 vs
+$0.0235) — consistent with its higher per-token OpenRouter pricing ($1/$5
+vs Luna's $0.20/$1.20 per 1M input/output tokens). Neither hosted model's
+coding-suite cost is tracked (hermes chat's CLI has no simple per-run
+usage export — see each config's own `known_gaps`), so the real full-run
+cost is higher than the sanity+hermes_ops figure shown, by an unknown
+amount.
+
+Configs: `configs/Luna/openrouter.yaml`, `configs/Haiku/openrouter.yaml`.
+Both need `OPENROUTER_API_KEY` set as an environment variable — never
+committed to this repo.
+
 ## Decision (2026-08-25): MLX-backend investigation closed
 
 **Plain llama.cpp/GGUF wins essentially every real speed comparison run
@@ -179,4 +217,7 @@ dataset combining a clean 100% hermes_ops sweep with the best coding pass
 rate observed (91%) at real, usable speed (30.9 tok/s). If you want a
 close second with a different risk profile, `Qwen3.6-35B-A3B-Uncensored`
 matches its coding rate and speed but has two hermes_ops misses Ornith
-didn't have.
+didn't have. For context: the hosted `openai/gpt-5.6-luna` (via
+OpenRouter) ties this exact coding pass rate for about 2 cents per full
+sanity+hermes_ops run — worth knowing as a ceiling reference, but Ornith
+gets the same result locally, for free, at comparable speed.
