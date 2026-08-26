@@ -480,3 +480,76 @@ manual discipline to remember — but the underlying cause (urllib can't
 cancel an in-flight request) is unfixable short of a different HTTP client,
 so the hazard itself still exists; this just stops it from silently
 producing a bad result.
+
+## "Best overall" leaderboard ranking (redesigned 2026-08-26)
+
+`runner/build_leaderboard.py`'s composite ranking has gone through two
+designs. **Round 1** (2026-08-25, commit `fa0046f`, methodology review
+finding F3): a weighted blend, `score = 0.5*coding_pass_rate +
+0.3*hermes_ops_pass_rate + 0.2*speed_score`, gated so a group needed at
+least one coding-suite row, deduped to the most-evidenced fragment per
+`(model, inference_engine, quant)`, with mild small-sample shrinkage on
+the coding rate so a lucky 1/1 didn't tie a properly-tested 11/11.
+
+**Round 2** (2026-08-26, user feedback): the blend still let speed and
+hermes_ops act as *peers* of coding instead of subordinate to it — a fast,
+hermes_ops-competent model with weak coding evidence could outscore a
+slower model that actually demonstrated real coding ability. Replaced with
+a staged gate-then-rank: (1) eligibility now requires sanity **and**
+hermes_ops **and** coding all present (a genuinely completed run, not just
+one coding row); (2) hermes_ops pass rate ≥50% is a hard pass/fail
+usefulness gate, not a weighted input — every gate-passing group ranks
+above every gate-failing one regardless of coding or speed; (3) coding
+pass rate, raw (no shrinkage — the blend's failure mode doesn't apply to a
+plain sort), is the primary sort among gate-passers; (4) avg tok/s is only
+a tie-break. The dedup-to-most-evidenced-fragment rule is unchanged from
+round 1.
+
+**Known side-effect, not yet fixed**: the strict "all three axes in one
+`(config_hash, runner_git_sha)` fragment" eligibility check is sensitive
+to `runner_git_sha` changing mid-run. If a harness-code commit lands while
+a background benchmark process is still executing (this happened during
+the 2026-08-26 trimmed-list rerun — see below), that config's rows split
+across two or three `runner_git_sha` values purely because git HEAD moved,
+not because anything about the run itself was incomplete — and the split
+fragments then each fail the eligibility check individually even though
+the full run really did complete. Confirmed affecting at least three
+configs (Ornith-1.5-35B-A3B, Qwen3.8-27B UD-Q5_K_M, Qwen3.6-35B-A3B-
+Uncensored) in `results/LEADERBOARD.md`'s auto-generated "Best overall"
+table as of 2026-08-26 — `results/SUMMARY.md` reconciles the real numbers
+by hand from `log.jsonl` directly for these. Worth avoiding (don't commit
+harness code while a benchmark process is mid-run) rather than fixing in
+the grouping logic, unless it keeps recurring.
+
+## Backend health-check timeout raised 600s -> 1800s (2026-08-26)
+
+`bench_common.BACKEND_HEALTH_TIMEOUT_SECONDS` (used as `wait_for_health()`'s
+default in `run_bench.py`) was 600s from the start of the project. Confirmed
+twice this session that a large GGUF's cold-cache first load can genuinely
+exceed that on this hardware while the server is loading fine, not hung:
+`LiquidAI/LFM2.5-8B-A1B-GGUF:BF16` and `ornith-ai/Ornith-1.5-35B-A3B-
+GGUF:Q4_K_M` (~17.5min real load time) both reported "backend never became
+healthy" at 600s — verified both times via the server log ("model
+loaded"/"listening") and a live curl showing the server actually up and
+responding. Each false negative cost a manual `unload_all.sh` + relaunch
+cycle (the model is OS-cached after the failed attempt, so the retry loads
+fast). Raised to 1800s — a genuinely dead backend still gets caught, just
+later, which is cheap for a benchmark that already runs unattended for
+hours per config.
+
+## 12-config trimmed-list full rerun (2026-08-25 to 2026-08-26)
+
+After the near-duplicate retirement decision (see `results/SUMMARY.md`'s
+"retired near-duplicate configs" section) trimmed the active GGUF
+candidate list to 12 configs, every one of them was rerun with the full
+3-suite battery (sanity, hermes_ops, all three coding suites) under
+current grading, one config at a time, autonomously, committing after
+each. Result: a three-way tie at 91% coding pass rate between
+Ornith-1.5-35B-A3B, Qwen3.6-35B-A3B-Uncensored, and Qwen3.8-27B
+(UD-Q5_K_M) — see `results/SUMMARY.md` for the full comparison and current
+pick. Two genuine harness issues surfaced and were fixed during this rerun
+(both documented above): the leaderboard ranking redesign and the
+health-check timeout raise. One config (Laguna-XS-2.1) remains unresolved
+— its GGUF server responds to real completions but this harness's plain-
+completion probe doesn't recognize its reasoning-only output shape; not a
+model failure, a probe gap.
