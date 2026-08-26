@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/1116 rows below predate 2026-08-21
+> **⚠ 138/1137 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -243,6 +243,8 @@ on the two synthetic suites," not "never hallucinated a tool".
 | unsloth/Qwen3.8-27B-GGUF:UD-Q2_K_XL | gguf | UD-Q2_K_XL | ? | ? | 2/2 | [2233edb1c4f2](configs/Qwen3.8-27B/gguf-unsloth-ud-q2.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 100% | 0 | 6.3 | 55.08 | 0 | — | 0 | — | ? | ? | ? |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q4_K_M | gguf | — | ? | ? | 2/2 | [89f4d8d04793](configs/Qwen3.8-27B/gguf-unsloth-ud-q4.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 100% | 0 | 6.4 | 55.57 | 0 | — | 0 | — | ? | ? | ? |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | 1.0 | thinking | 2/2 | [6d148ccbfd2e](configs/6d148ccbfd2e.yaml) | 1166272411af | 9 | 67% | 2 | 6.7 | 46.41 | 0 | — | 0 | 24.5 | — | — | — |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | 1.0 | thinking | 2/2 | [6d148ccbfd2e](configs/6d148ccbfd2e.yaml) | 1b3350819dae | 5 | 80% | 1 | 6.4 | 45.73 | 0 | — | 0 | 24.6 | — | — | — |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | 1.0 | thinking | — | [6d148ccbfd2e](configs/6d148ccbfd2e.yaml) | 53a9cfb2edfe | 14 | 93% | 10 | 7.6 | 47.78 | 0 | 10.9 | 9 | 24.1 | — | — | — |
 
 ## Best overall (gate-then-rank)
 
@@ -289,8 +291,7 @@ evidence.
 | 23 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | vllm-mlx | — | 9693319bc3a1 | PASS (75%, 8) | 0% (1) | 20.7 tok/s |
 | 24 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | vllm-mlx | — | c1a7fd5d3135 | PASS (88%, 8) | 0% (1) | 19.3 tok/s |
 | 25 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | mlx | — | 5e09e98f8c60 | PASS (75%, 8) | 0% (1) | 12.9 tok/s |
-| 26 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | 6d148ccbfd2e | PASS (75%, 8) | 0% (1) | 6.7 tok/s |
-| 27 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | gguf | — | 1d65d14c63a8 | FAIL (12%, 8) | 0% (1) | 32.8 tok/s |
+| 26 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | gguf | — | 1d65d14c63a8 | FAIL (12%, 8) | 0% (1) | 32.8 tok/s |
 
 ## Flaky tasks (mixed pass/fail under identical conditions)
 
@@ -644,6 +645,12 @@ confirmed-stable, just untested for flakiness.
 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 6d148ccbfd2e | 1166272411af | hermes_ops | 6/8 |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 6d148ccbfd2e | 1166272411af | kiem_mini | 0/1 |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 6d148ccbfd2e | 1166272411af | sanity | 2/2 |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 6d148ccbfd2e | 1b3350819dae | hermes_ops | 4/5 |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 6d148ccbfd2e | 1b3350819dae | sanity | 2/2 |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 6d148ccbfd2e | 53a9cfb2edfe | hearth_mini | 3/3 |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 6d148ccbfd2e | 53a9cfb2edfe | hermes_ops | 3/3 |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 6d148ccbfd2e | 53a9cfb2edfe | kiem_mini | 4/5 |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 6d148ccbfd2e | 53a9cfb2edfe | kipclip_mini | 3/3 |
 
 ## Harness errors (excluded from every table above)
 
