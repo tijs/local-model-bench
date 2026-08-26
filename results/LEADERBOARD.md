@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/1032 rows below predate 2026-08-21
+> **⚠ 138/1053 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -174,6 +174,7 @@ on the two synthetic suites," not "never hallucinated a tool".
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | gguf | — | ? | ? | 2/2 | [163fa63ffb83](configs/Qwen3.5-9B/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 67% | 0 | 20.2 | 15.45 | 0 | — | 0 | — | ? | ? | ? |
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | gguf | — | ? | ? | — | [29ed581f7054](configs/Qwen3.5-9B/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 1 | 100% | 0 | — | — | 0 | — | 0 | — | ? | ? | ? |
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | 0.6 | thinking | 2/2 | [a2d241742068](configs/a2d241742068.yaml) | 2e56f8121142 | 9 | 67% | 0 | 21.0 | 9.34 | 0 | — | 0 | 13.7 | — | — | — |
+| bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | 0.6 | thinking | 2/2 | [a2d241742068](configs/a2d241742068.yaml) | c8d9bde5c6d6 | 19 | 68% | 3 | 20.9 | 9.34 | 0 | 20.9 | 29 | 22.1 | — | — | — |
 | empero-ai/Qwen3.8-27B-Ridge-GGUF | gguf | — | ? | ? | 2/2 | [6a3700901e2b](configs/Qwen3.8-27B-Ridge/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 4 | 50% | 0 | 4.6 | 52.03 | 0 | — | 0 | — | ? | ? | ? |
 | empero-ai/Qwen3.8-27B-Ridge-GGUF | gguf | — | 0.7 | instruct | 2/2 | [d135df9d860f](configs/d135df9d860f.yaml) — *config since changed* | e155170f4c1d | 8 | 62% | 0 | 5.5 | 30.15 | 0 | — | 0 | 18.9 | — | — | — |
 | empero-ai/Qwen3.8-27B-Ridge-GGUF | llama.cpp | — | 0.7 | instruct | 2/2 | [7b1d82c8abab](configs/7b1d82c8abab.yaml) — *config since changed* | a58bee1684ac | 19 | 84% | 8 | 5.5 | 30.14 | 0 | — | 0 | 20.8 | — | — | — |
@@ -274,14 +275,14 @@ apples; `axes` below shows how many contributed.
 | 10 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | — | 644415678c37 | 0.60 | 3 | 100% (1) | 62% (8) | 20.9 tok/s |
 | 11 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | gguf | — | 1fea08092fdc | 0.60 | 3 | 100% (1) | 62% (8) | 20.8 tok/s |
 | 12 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | ffa862c18cff | 0.59 | 3 | 73% (11) | 75% (8) | 7.7 tok/s |
-| 13 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | llama.cpp | — | 0840d8e3ee87 | 0.57 | 3 | 36% (11) | 88% (8) | 62.6 tok/s |
-| 14 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | — | 38ccea45c281 | 0.52 | 3 | 73% (11) | 50% (8) | 8.5 tok/s |
-| 15 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ DSpark F16 drafter) | gguf | — | 85636a621ce0 | 0.48 | 3 | 0% (1) | 100% (3) | 29.3 tok/s |
-| 16 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | gguf | — | 5f50ca6ebdf3 | 0.44 | 3 | 0% (1) | 62% (8) | 66.7 tok/s |
-| 17 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | vllm-mlx | — | c1a7fd5d3135 | 0.42 | 3 | 0% (1) | 88% (8) | 19.3 tok/s |
-| 18 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF:F16 drafter) | gguf | — | f6bb65acb160 | 0.40 | 3 | 0% (1) | 75% (8) | 27.0 tok/s |
-| 19 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF:F16 drafter) | llama.cpp-dspark | — | 4f8641aa7094 | 0.40 | 3 | 0% (1) | 75% (8) | 26.9 tok/s |
-| 20 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | a2d241742068 | 0.39 | 3 | 0% (1) | 75% (8) | 21.0 tok/s |
+| 13 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | a2d241742068 | 0.58 | 3 | 64% (11) | 75% (8) | 20.9 tok/s |
+| 14 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | llama.cpp | — | 0840d8e3ee87 | 0.57 | 3 | 36% (11) | 88% (8) | 62.6 tok/s |
+| 15 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | — | 38ccea45c281 | 0.52 | 3 | 73% (11) | 50% (8) | 8.5 tok/s |
+| 16 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ DSpark F16 drafter) | gguf | — | 85636a621ce0 | 0.48 | 3 | 0% (1) | 100% (3) | 29.3 tok/s |
+| 17 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | gguf | — | 5f50ca6ebdf3 | 0.44 | 3 | 0% (1) | 62% (8) | 66.7 tok/s |
+| 18 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | vllm-mlx | — | c1a7fd5d3135 | 0.42 | 3 | 0% (1) | 88% (8) | 19.3 tok/s |
+| 19 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF:F16 drafter) | gguf | — | f6bb65acb160 | 0.40 | 3 | 0% (1) | 75% (8) | 27.0 tok/s |
+| 20 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF:F16 drafter) | llama.cpp-dspark | — | 4f8641aa7094 | 0.40 | 3 | 0% (1) | 75% (8) | 26.9 tok/s |
 | 21 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | vllm-mlx | — | 9693319bc3a1 | 0.39 | 3 | 0% (1) | 75% (8) | 20.7 tok/s |
 | 22 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | mlx | — | 5e09e98f8c60 | 0.37 | 3 | 0% (1) | 75% (8) | 12.9 tok/s |
 | 23 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | llama.cpp | — | 05a5098cf4c6 | 0.37 | 3 | 0% (11) | 75% (8) | 67.6 tok/s |
@@ -500,6 +501,11 @@ confirmed-stable, just untested for flakiness.
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | a2d241742068 | 2e56f8121142 | hermes_ops | 6/8 |
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | a2d241742068 | 2e56f8121142 | kiem_mini | 0/1 |
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | a2d241742068 | 2e56f8121142 | sanity | 2/2 |
+| bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | a2d241742068 | c8d9bde5c6d6 | hearth_mini | 3/3 |
+| bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | a2d241742068 | c8d9bde5c6d6 | hermes_ops | 6/8 |
+| bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | a2d241742068 | c8d9bde5c6d6 | kiem_mini | 2/5 |
+| bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | a2d241742068 | c8d9bde5c6d6 | kipclip_mini | 2/3 |
+| bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | a2d241742068 | c8d9bde5c6d6 | sanity | 2/2 |
 | empero-ai/Qwen3.8-27B-Ridge-GGUF | gguf | 6a3700901e2b | *(predates tracking)* | hermes_ops | 1/3 |
 | empero-ai/Qwen3.8-27B-Ridge-GGUF | gguf | 6a3700901e2b | *(predates tracking)* | kiem_mini | 1/1 |
 | empero-ai/Qwen3.8-27B-Ridge-GGUF | gguf | 6a3700901e2b | *(predates tracking)* | sanity | 2/2 |
