@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/1095 rows below predate 2026-08-21
+> **⚠ 138/1116 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -211,6 +211,7 @@ on the two synthetic suites," not "never hallucinated a tool".
 | openai/gpt-5.6-luna | openrouter | — | None | unspecified | 2/2 | [f1e3043189f3](configs/f1e3043189f3.yaml) | 1e67356823c2 | 9 | 100% | 0 | 35.5 | 4.80 | 0 | — | 0 | — | — | — | — |
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | gguf | — | ? | ? | 2/2 | [3047922de5b7](configs/Ornith-1.5-35B-A3B/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 4 | 100% | 0 | 34.7 | 1.90 | 0 | — | 0 | — | ? | ? | ? |
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | 0.6 | unspecified | 2/2 | [48d75180adbc](configs/48d75180adbc.yaml) | 0b3a2a523049 | 9 | 89% | 0 | 31.0 | 6.96 | 0 | — | 0 | 22.8 | — | — | — |
+| ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | 0.6 | unspecified | 2/2 | [48d75180adbc](configs/48d75180adbc.yaml) | 6cc8b646db2e | 19 | 95% | 2 | 30.9 | 6.96 | 0 | 17.7 | 20 | 23.9 | — | — | — |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | vllm-mlx | — | 0.6 | unspecified | 2/2 | [76414c6ab37c](configs/76414c6ab37c.yaml) | 0620219fd55e | 8 | 38% | 0 | 10.2 | 41.53 | 2 | — | 0 | 2.1 | — | — | — |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | vllm-mlx | — | 0.6 | unspecified | 2/2 | [76414c6ab37c](configs/76414c6ab37c.yaml) | dd3232d96137 | 8 | 62% | 1 | 10.5 | 41.50 | 2 | — | 0 | 2.4 | — | — | — |
 | ornith-ai/Ornith-1.5-9B-MLX-4bit | vllm-mlx | — | 0.7 | instruct | 2/2 | [d0d250e59d4e](configs/d0d250e59d4e.yaml) | 9235ceaef852 | 1 | 100% | 0 | 20.0 | 31.46 | 0 | — | 0 | 8.2 | — | — | — |
@@ -265,10 +266,10 @@ evidence.
 |---|---|---|---|---|---|---|---|
 | 1 | openai/gpt-5.6-luna | openrouter | — | f1e3043189f3 | PASS (100%, 8) | 100% (1) | 35.5 tok/s |
 | 2 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | gguf | — | 3047922de5b7 | PASS (100%, 3) | 100% (1) | 34.7 tok/s |
-| 3 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | 48d75180adbc | PASS (88%, 8) | 100% (1) | 31.0 tok/s |
-| 4 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | gguf | — | 1fea08092fdc | PASS (62%, 8) | 100% (1) | 20.8 tok/s |
-| 5 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | — | 3a740261a79c | PASS (62%, 8) | 100% (11) | 8.0 tok/s |
-| 6 | empero-ai/Qwen3.8-27B-Ridge-GGUF | llama.cpp | — | 7b1d82c8abab | PASS (62%, 8) | 100% (11) | 5.5 tok/s |
+| 3 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | gguf | — | 1fea08092fdc | PASS (62%, 8) | 100% (1) | 20.8 tok/s |
+| 4 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | — | 3a740261a79c | PASS (62%, 8) | 100% (11) | 8.0 tok/s |
+| 5 | empero-ai/Qwen3.8-27B-Ridge-GGUF | llama.cpp | — | 7b1d82c8abab | PASS (62%, 8) | 100% (11) | 5.5 tok/s |
+| 6 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | 48d75180adbc | PASS (100%, 8) | 91% (11) | 30.9 tok/s |
 | 7 | unsloth/Qwen3.6-35B-A3B-GGUF:UD-Q4_K_XL | llama.cpp | — | 436d6d25d30c | PASS (75%, 8) | 91% (11) | 27.1 tok/s |
 | 8 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | — | 38ccea45c281 | PASS (62%, 8) | 82% (11) | 8.5 tok/s |
 | 9 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | llama.cpp | — | c02615b57f21 | PASS (88%, 8) | 82% (11) | 7.9 tok/s |
@@ -574,6 +575,11 @@ confirmed-stable, just untested for flakiness.
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | 48d75180adbc | 0b3a2a523049 | hermes_ops | 7/8 |
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | 48d75180adbc | 0b3a2a523049 | kiem_mini | 1/1 |
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | 48d75180adbc | 0b3a2a523049 | sanity | 2/2 |
+| ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | 48d75180adbc | 6cc8b646db2e | hearth_mini | 3/3 |
+| ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | 48d75180adbc | 6cc8b646db2e | hermes_ops | 8/8 |
+| ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | 48d75180adbc | 6cc8b646db2e | kiem_mini | 4/5 |
+| ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | 48d75180adbc | 6cc8b646db2e | kipclip_mini | 3/3 |
+| ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | 48d75180adbc | 6cc8b646db2e | sanity | 2/2 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | vllm-mlx | 76414c6ab37c | 0620219fd55e | hermes_ops | 3/8 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | vllm-mlx | 76414c6ab37c | 0620219fd55e | sanity | 2/2 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | vllm-mlx | 76414c6ab37c | dd3232d96137 | hermes_ops | 5/8 |

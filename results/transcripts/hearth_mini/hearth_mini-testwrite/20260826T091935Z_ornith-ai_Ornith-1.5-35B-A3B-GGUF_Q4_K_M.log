@@ -1,0 +1,188 @@
+$ hermes chat --profile bench --provider ornith-gguf -m ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M --max-turns 40
+
+--- stdout ---
+
+┌─ Reasoning ──────────────────────────────────────────────────────────────────┐
+Let me start by understanding the codebase. I need to look at the existing files to
+ understand the structure, the `repairBuilding` function, and the test setup conventions
+.
+
+Let me read the relevant files first.
+Let me start by understanding the codebase. I need to look at the existing files to understand the structure, the `repairBuilding` function, and the test setup conventions.
+
+Let me read the relevant files first.
+Let me read the types file and the existing test file to understand conventions.
+Let me read the types file and the existing test file to understand conventions.
+Now I understand the structure. Let me analyze the `repairBuilding` function:
+
+```ts
+export function repairBuilding(settlement: Settlement, kind: BuildingKind): Settlement
+ {
+  if (!settlement.buildings.includes(kind)) {
+    return settlement;
+  }
+  const cost = BUILDING_COSTS[kind];
+  const resources = { ...settlement.resources };
+  for (const [res, amount] of Object.entries(cost) as [keyof Resources, number][])
+ {
+    const repairCost = Math.ceil(amount / 2);
+    resources[res] = Math.max(0, resources[res] - repairCost);
+  }
+  return { ...settlement, resources };
+}
+```
+
+Behaviors to test:
+1. Repairs an already-built building for half its original cost (rounded up, per resource
+).
+2. No-op if the settlement doesn't have that building.
+3. Never takes any resource below 0.
+
+Rounding-up case: an odd-numbered cost. Looking at BUILDING_COSTS:
+- hut: { wood: 10 } → ceil(10/2) = 5
+- farm: { wood: 15, stone: 5 } → ceil(15/2) = 8, ceil(5/2) = 3
+- quarry: { wood: 20 } → ceil(20/2) = 10
+
+The farm has an odd cost (wood: 15), so ceil(15/2) = 8. That's the rounding-up case
+. Good.
+
+Case where the settlement has less of a resource than the repair would cost: e.g.,
+ a settlement with wood: 3, repairing a hut (costs 5). Result: max(0, 3-5) = 0.
+
+Let me write the tests. I'll match the existing style with a `settlement` helper.
+
+
+Let me write the test file.
+
+For the rounding-up case with farm: wood 15 → 8, stone 5 → 3. So if settlement has
+ wood: 30, stone: 10, buildings: ["farm"], after repair: wood = 30 - 8 = 22, stone
+ = 10 - 3 = 7.
+
+For the "less than cost" case: hut costs wood 10, repair = 5. Settlement with wood
+: 3, buildings: ["hut"]. After repair: wood = max(0, 3-5) = 0.
+
+Let me also add a no-op case: settlement without the building returns the same settlement
+ (same reference, since it returns `settlement`).
+
+Let me write comprehensive tests.
+Now I understand the structure. Let me analyze the `repairBuilding` function:
+
+```ts
+export function repairBuilding(settlement: Settlement, kind: BuildingKind): Settlement {
+  if (!settlement.buildings.includes(kind)) {
+    return settlement;
+  }
+  const cost = BUILDING_COSTS[kind];
+  const resources = { ...settlement.resources };
+  for (const [res, amount] of Object.entries(cost) as [keyof Resources, number][]) {
+    const repairCost = Math.ceil(amount / 2);
+    resources[res] = Math.max(0, resources[res] - repairCost);
+  }
+  return { ...settlement, resources };
+}
+```
+
+Behaviors to test:
+1. Repairs an already-built building for half its original cost (rounded up, per resource).
+2. No-op if the settlement doesn't have that building.
+3. Never takes any resource below 0.
+
+Rounding-up case: an odd-numbered cost. Looking at BUILDING_COSTS:
+- hut: { wood: 10 } → ceil(10/2) = 5
+- farm: { wood: 15, stone: 5 } → ceil(15/2) = 8, ceil(5/2) = 3
+- quarry: { wood: 20 } → ceil(20/2) = 10
+
+The farm has an odd cost (wood: 15), so ceil(15/2) = 8. That's the rounding-up case. Good.
+
+Case where the settlement has less of a resource than the repair would cost: e.g., a settlement with wood: 3, repairing a hut (costs 5). Result: max(0, 3-5) = 0.
+
+Let me write the tests. I'll match the existing style with a `settlement` helper.
+
+Let me write the test file.
+
+For the rounding-up case with farm: wood 15 → 8, stone 5 → 3. So if settlement has wood: 30, stone: 10, buildings: ["farm"], after repair: wood = 30 - 8 = 22, stone = 10 - 3 = 7.
+
+For the "less than cost" case: hut costs wood 10, repair = 5. Settlement with wood: 3, buildings: ["hut"]. After repair: wood = max(0, 3-5) = 0.
+
+Let me also add a no-op case: settlement without the building returns the same settlement (same reference, since it returns `settlement`).
+
+Let me write comprehensive tests.
+  ┊ review diff
+a/tests/repair.test.ts → b/tests/repair.test.ts
+@@ -0,0 +1,56 @@
++import { describe, expect, it } from "vitest";
++import { repairBuilding } from "../src/sim";
++import type { Settlement } from "../src/types";
++
++function settlement(overrides: Partial<Settlement> = {}): Settlement {
++  return {
++    resources: { wood: 30, food: 10, stone: 10 },
++    population: 2,
++    buildings: [],
++    ...overrides,
++  };
++}
++
++describe("repairBuilding", () => {
++  it("repairs an already-built building for half its original cost", () => {
++    const s = settlement({ resources: { wood: 30, food: 10, stone: 10 }, buildings: ["hut"] });
++    const repaired = repairBuilding(s, "hut");
++
++    // hut costs 10 wood; half is 5.
++    expect(repaired.resources.wood).toBe(25);
++    // The building is still there; population and other fields are preserved.
++    expect(repaired.buildings).toEqual(["hut"]);
++    expect(repaired.population).toBe(2);
++  });
++
++  it("rounds the half-cost up per resource for an odd original cost", () => {
++    // farm costs wood 15 (odd) and stone 5 (odd); half rounded up is 8 and 3.
++    const s = settlement({ resources: { wood: 30, food: 10, stone: 10 }, buildings: ["farm"] });
++    const repaired = repairBuilding(s, "farm");
++
++    expect(repaired.resources.wood).toBe(30 - 8);
++    expect(repaired.resources.stone).toBe(10 - 3);
++  });
++
++  it("is a no-op when the settlement does not have that building", () => {
++    const s = settlement({ resources: { wood: 30, food: 10, stone: 10 }, buildings: ["hut"] });
++    const repaired = repairBuilding(s, "quarry");
++
++    // No quarry present: the settlement is returned unchanged.
++    expect(repaired).toBe(s);
++    expect(repaired.resources.wood).toBe(30);
++    expect(repaired.resources.stone).toBe(10);
++    expect(repaired.buildings).toEqual(["hut"]);
++  });
++
++  it("never takes a resource below 0 when the settlement cannot afford the repair", () => {
++    // hut repair costs 5 wood, but the settlement only has 3.
++    const s = settlement({ resources: { wood: 3, food: 10, stone: 10 }, buildings: ["hut"] });
++    const repaired = repairBuilding(s, "hut");
++
++    expect(repaired.resources.wood).toBe(0);
++    // Other resources are untouched.
++    expect(repaired.resources.food).toBe(10);
++    expect(repaired.resources.stone).toBe(10);
++  });
++});
+Now let me run the tests and typecheck.
+Now let me run the tests and typecheck.
+All tests pass and typecheck passes. Done.
+All tests pass and typecheck passes. Done.
+All 8 tests pass and typecheck is clean.
+
+Created `tests/repair.test.ts` with 4 tests covering all three required behaviors:
+
+- **Repairs an already-built building for half its original cost** — repairs a `hut` (cost 10 wood → −5 wood).
+- **Rounding-up case (odd cost)** — repairs a `farm` (wood 15 → −8, stone 5 → −3, both `Math.ceil(amount/2)`).
+- **No-op when the settlement lacks the building** — repairing `quarry` on a settlement with only a `hut` returns the same object unchanged.
+- **Never below 0** — repairing a `hut` (costs 5 wood) when the settlement has only 3 wood leaves wood at 0 and leaves other resources untouched.
+
+`src/sim.ts` was not modified. Verified with `npm test` (8 passed) and `npm run typecheck` (clean).
+
+
+--- stderr ---
+
+session_id: 20260826_111817_1ed25d
+
