@@ -86,7 +86,7 @@ from statistics import mean
 
 import yaml
 
-from bench_common import MIN_FREE_DISK_GB_BEFORE_LAUNCH, MIN_HERMES_OPS_TOKENS_PER_SECOND
+from bench_common import BACKEND_HEALTH_TIMEOUT_SECONDS, MIN_FREE_DISK_GB_BEFORE_LAUNCH, MIN_HERMES_OPS_TOKENS_PER_SECOND
 
 REPO = Path(__file__).resolve().parent.parent
 CODING_SPOTCHECK_SUITE = "kiem_mini"
@@ -99,7 +99,7 @@ def run(cmd, **kw):
     return subprocess.run(cmd, shell=isinstance(cmd, str), cwd=str(REPO), **kw)
 
 
-def wait_for_health(url, timeout=600, proc=None):
+def wait_for_health(url, timeout=BACKEND_HEALTH_TIMEOUT_SECONDS, proc=None):
     """proc, if given, is the just-launched server's Popen handle — if it
     has already exited, fail immediately instead of waiting out the full
     timeout only to report a generic "never became healthy" (adversarial

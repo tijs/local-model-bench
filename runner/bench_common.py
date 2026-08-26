@@ -77,6 +77,20 @@ MIN_HERMES_OPS_TOKENS_PER_SECOND = 4.0
 # plus the temp space some downloaders use during the fetch.
 MIN_FREE_DISK_GB_BEFORE_LAUNCH = 30.0
 
+# A large GGUF's first (cold-cache) load can genuinely take well past the
+# old 600s ceiling on this hardware — confirmed live twice (2026-08-2x):
+# LiquidAI/LFM2.5-8B-A1B-GGUF:BF16 and ornith-ai/Ornith-1.5-35B-A3B-
+# GGUF:Q4_K_M both reported "backend never became healthy" at 600s while
+# the server log showed "model loaded"/"listening" shortly after (Ornith's
+# real load took ~17.5min = ~1050s) — a false negative, not a real hang,
+# each time requiring a manual unload_all.sh + relaunch to recover (the
+# 2nd load is fast once the model is OS-cached). 1800s (30min) covers both
+# observed cases plus headroom for a still-larger model not yet tried,
+# while a genuinely dead backend still gets caught — just half an hour
+# later instead of ten minutes later, which is cheap for a benchmark that
+# already runs unattended for hours per config.
+BACKEND_HEALTH_TIMEOUT_SECONDS = 1800
+
 
 def _find_listening_pid(port):
     """PID of whatever process is actually listening on *port*, or None.

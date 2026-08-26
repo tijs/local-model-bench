@@ -109,6 +109,25 @@ class MinTokensPerSecondValueTests(unittest.TestCase):
         self.assertEqual(rb.MIN_HERMES_OPS_TOKENS_PER_SECOND, 4.0)
 
 
+class BackendHealthTimeoutTests(unittest.TestCase):
+    """Raised 2026-08-26 from 600s to 1800s after two confirmed false
+    negatives: a large GGUF's cold-cache first load (LiquidAI/LFM2.5-8B-
+    A1B-GGUF:BF16, then ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M at
+    ~17.5min) can genuinely exceed 600s while the server is loading fine —
+    confirmed both times via the server log ("model loaded"/"listening")
+    and a live curl, not a real hang. wait_for_health()'s own default must
+    track BACKEND_HEALTH_TIMEOUT_SECONDS, not silently drift back to a
+    hardcoded 600."""
+
+    def test_constant_is_1800_seconds(self):
+        self.assertEqual(rb.BACKEND_HEALTH_TIMEOUT_SECONDS, 1800)
+
+    def test_wait_for_health_default_uses_the_constant(self):
+        import inspect
+        default = inspect.signature(rb.wait_for_health).parameters["timeout"].default
+        self.assertEqual(default, rb.BACKEND_HEALTH_TIMEOUT_SECONDS)
+
+
 class CodingSuitesDefaultTests(unittest.TestCase):
     """--coding-suites' default flipped from None (quick spot-check) to
     the full battery on 2026-08-25 — "run all tests"/"full benchmark run"
