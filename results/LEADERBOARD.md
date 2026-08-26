@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/1053 rows below predate 2026-08-21
+> **⚠ 138/1074 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -157,6 +157,7 @@ on the two synthetic suites," not "never hallucinated a tool".
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | gguf | — | ? | ? | 2/2 | [3f3368f78d8d](configs/Muse-Glimmer-30B/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 67% | 0 | 7.7 | 58.80 | 0 | — | 0 | — | ? | ? | ? |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | gguf | — | 1.0 | thinking | 2/2 | [413f324b943c](configs/413f324b943c.yaml) — *config since changed* | 3182238013a3 | 8 | 50% | 1 | 8.5 | 35.49 | 0 | — | 0 | 21.2 | — | — | — |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | gguf | — | ? | ? | 2/2 | [b0b30ac444da](configs/Muse-Glimmer-30B/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 4 | 50% | 0 | 8.0 | 57.94 | 0 | — | 0 | — | ? | ? | ? |
+| bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | 2/2 | [38ccea45c281](configs/38ccea45c281.yaml) | 141399e74bd0 | 19 | 74% | 10 | 8.5 | 35.50 | 0 | 28.1 | 23 | 22.2 | — | — | — |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | 2/2 | [38ccea45c281](configs/38ccea45c281.yaml) | cf45f7655a7c | 19 | 63% | 9 | 8.5 | 35.47 | 0 | — | 0 | 21.8 | — | — | — |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M (+ incoai/Muse-Glimmer-30B-DFlash2-GGUF:Q4_K_M drafter) | gguf | — | 1.0 | thinking | 2/2 | [5e61e8c02089](configs/5e61e8c02089.yaml) — *config since changed* | 3182238013a3 | 1 | 100% | 0 | 7.2 | 89.00 | 0 | — | 0 | 23.4 | — | — | — |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M (+ incoai/Muse-Glimmer-30B-DFlash2-GGUF:Q4_K_M drafter) | gguf | — | 1.0 | thinking | — | [5e61e8c02089](configs/5e61e8c02089.yaml) — *config since changed* | 3182238013a3+dirty | 7 | 0% | 0 | 3.0 | 27.90 | 0 | — | 0 | 23.2 | — | — | — |
@@ -241,58 +242,53 @@ on the two synthetic suites," not "never hallucinated a tool".
 | unsloth/Qwen3.8-27B-GGUF:UD-Q4_K_M | gguf | — | ? | ? | 2/2 | [89f4d8d04793](configs/Qwen3.8-27B/gguf-unsloth-ud-q4.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 100% | 0 | 6.4 | 55.57 | 0 | — | 0 | — | ? | ? | ? |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | 1.0 | thinking | 2/2 | [6d148ccbfd2e](configs/6d148ccbfd2e.yaml) | 1166272411af | 9 | 67% | 2 | 6.7 | 46.41 | 0 | — | 0 | 24.5 | — | — | — |
 
-## Best overall (composite ranking)
+## Best overall (gate-then-rank)
 
-A quality-first ranking, not a speed leaderboard: `score = 
-0.5×coding_pass_rate + 0.3×hermes_ops_pass_rate + 0.2×speed_score`, where
-`coding_pass_rate` is shrunk toward a neutral 50% prior with 1 pseudo-
-observation before scoring (a lucky 1/1 no longer ties a properly-tested
-11/11 — see build_leaderboard.py's own comment for the exact numbers) and
-`speed_score` is this group's avg tok/s ÷ the fastest group's avg tok/s seen
-in this run. Two eligibility rules keep this a *quality* ranking: **a group
-needs at least one coding-suite row to appear here at all** (raw speed or
-hermes_ops alone, with zero coding evidence, isn't "overall" quality on a
-benchmark whose whole point is coding capability), and **each model+engine+
-quant appears at most once**, using whichever of its own config_hash/
-runner_sha fragments has the most total coding+hermes_ops evidence — an
-early 1-task fragment from before a model was fully tested can no longer
-outrank that same model's own later, complete sweep. Weights still
-renormalize over whichever of the two remaining axes (hermes_ops, speed) a
-group has data for, so a 2-axis and 3-axis score aren't strictly apples-to-
-apples; `axes` below shows how many contributed.
+Not a blended score: a staged gate, then a lexicographic sort. **Eligibility**
+— a group must have completed all three stages (sanity + hermes_ops +
+coding, at least one row each) to appear here at all; a partial run is
+excluded outright rather than scored on whichever axes it happens to have.
+**Usefulness gate** (pass/fail tier, not a weighted input) — hermes_ops pass
+rate must be ≥50% (majority-pass, same concept as run_bench.py's sanity
+fail-fast gate); every gate-passing group ranks above every gate-failing one
+regardless of coding or speed. **Primary sort** among gate-passers is
+coding pass rate, descending — the actual discerning factor once basic
+agent usefulness is established. **Tie-break** is avg tok/s, descending —
+speed only decides between comparably-correct models, and can never outrank
+better coding ability. Dedup rule unchanged from the prior ranking design:
+each model+engine+quant appears at most once, using whichever of its own
+config_hash/runner_sha fragments has the most total coding+hermes_ops
+evidence.
 
-| rank | model | engine | quant | config | score | axes | coding | hermes_ops | speed |
-|---|---|---|---|---|---|---|---|---|---|
-| 1 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 6fa6f52fdc56 | 0.88 | 1 | 91% (11) | — | — |
-| 2 | gpt-5.6-luna | api | — | 86cbe69b94ae | 0.75 | 1 | 100% (1) | — | — |
-| 3 | openai/gpt-5.6-luna | openrouter | — | f1e3043189f3 | 0.74 | 3 | 100% (1) | 100% (8) | 35.5 tok/s |
-| 4 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | gguf | — | 3047922de5b7 | 0.74 | 3 | 100% (1) | 100% (3) | 34.7 tok/s |
-| 5 | unsloth/Qwen3.6-35B-A3B-GGUF:UD-Q4_K_XL | llama.cpp | — | 436d6d25d30c | 0.71 | 3 | 91% (11) | 75% (8) | 27.1 tok/s |
-| 6 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | 48d75180adbc | 0.70 | 3 | 100% (1) | 88% (8) | 31.0 tok/s |
-| 7 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | — | 3a740261a79c | 0.68 | 3 | 100% (11) | 62% (8) | 8.0 tok/s |
-| 8 | empero-ai/Qwen3.8-27B-Ridge-GGUF | llama.cpp | — | 7b1d82c8abab | 0.68 | 3 | 100% (11) | 62% (8) | 5.5 tok/s |
-| 9 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | llama.cpp | — | c02615b57f21 | 0.67 | 3 | 82% (11) | 88% (8) | 7.9 tok/s |
-| 10 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | — | 644415678c37 | 0.60 | 3 | 100% (1) | 62% (8) | 20.9 tok/s |
-| 11 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | gguf | — | 1fea08092fdc | 0.60 | 3 | 100% (1) | 62% (8) | 20.8 tok/s |
-| 12 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | ffa862c18cff | 0.59 | 3 | 73% (11) | 75% (8) | 7.7 tok/s |
-| 13 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | a2d241742068 | 0.58 | 3 | 64% (11) | 75% (8) | 20.9 tok/s |
-| 14 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | llama.cpp | — | 0840d8e3ee87 | 0.57 | 3 | 36% (11) | 88% (8) | 62.6 tok/s |
-| 15 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | — | 38ccea45c281 | 0.52 | 3 | 73% (11) | 50% (8) | 8.5 tok/s |
-| 16 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ DSpark F16 drafter) | gguf | — | 85636a621ce0 | 0.48 | 3 | 0% (1) | 100% (3) | 29.3 tok/s |
-| 17 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | gguf | — | 5f50ca6ebdf3 | 0.44 | 3 | 0% (1) | 62% (8) | 66.7 tok/s |
-| 18 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | vllm-mlx | — | c1a7fd5d3135 | 0.42 | 3 | 0% (1) | 88% (8) | 19.3 tok/s |
-| 19 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF:F16 drafter) | gguf | — | f6bb65acb160 | 0.40 | 3 | 0% (1) | 75% (8) | 27.0 tok/s |
-| 20 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF:F16 drafter) | llama.cpp-dspark | — | 4f8641aa7094 | 0.40 | 3 | 0% (1) | 75% (8) | 26.9 tok/s |
-| 21 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | vllm-mlx | — | 9693319bc3a1 | 0.39 | 3 | 0% (1) | 75% (8) | 20.7 tok/s |
-| 22 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | mlx | — | 5e09e98f8c60 | 0.37 | 3 | 0% (1) | 75% (8) | 12.9 tok/s |
-| 23 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | llama.cpp | — | 05a5098cf4c6 | 0.37 | 3 | 0% (11) | 75% (8) | 67.6 tok/s |
-| 24 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | 6d148ccbfd2e | 0.36 | 3 | 0% (1) | 75% (8) | 6.7 tok/s |
-| 25 | mlx-community/LFM2.5-8B-A1B-MLX-8bit | vllm-mlx | — | 00878f13621f | 0.36 | 3 | 0% (1) | 62% (8) | 26.4 tok/s |
-| 26 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | mlx | — | da00492c3b46 | 0.35 | 3 | 0% (1) | 62% (8) | 21.4 tok/s |
-| 27 | LiquidAI/LFM2.5-8B-A1B-GGUF:BF16 | llama.cpp | — | a148c29637e6 | 0.35 | 3 | 0% (11) | 75% (8) | 55.3 tok/s |
-| 28 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | — | 00fc47aef271 | 0.34 | 3 | 0% (3) | 67% (6) | 42.3 tok/s |
-| 29 | LiquidAI/LFM2.5-2.6B-GGUF:BF16 | llama.cpp | — | 26670d622de5 | 0.28 | 3 | 36% (11) | 0% (1) | 47.0 tok/s |
-| 30 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | gguf | — | 1d65d14c63a8 | 0.22 | 3 | 0% (1) | 12% (8) | 32.8 tok/s |
+| rank | model | engine | quant | config | usefulness gate | coding | speed |
+|---|---|---|---|---|---|---|---|
+| 1 | openai/gpt-5.6-luna | openrouter | — | f1e3043189f3 | PASS (100%, 8) | 100% (1) | 35.5 tok/s |
+| 2 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | gguf | — | 3047922de5b7 | PASS (100%, 3) | 100% (1) | 34.7 tok/s |
+| 3 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | 48d75180adbc | PASS (88%, 8) | 100% (1) | 31.0 tok/s |
+| 4 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | — | 644415678c37 | PASS (62%, 8) | 100% (1) | 20.9 tok/s |
+| 5 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | gguf | — | 1fea08092fdc | PASS (62%, 8) | 100% (1) | 20.8 tok/s |
+| 6 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | — | 3a740261a79c | PASS (62%, 8) | 100% (11) | 8.0 tok/s |
+| 7 | empero-ai/Qwen3.8-27B-Ridge-GGUF | llama.cpp | — | 7b1d82c8abab | PASS (62%, 8) | 100% (11) | 5.5 tok/s |
+| 8 | unsloth/Qwen3.6-35B-A3B-GGUF:UD-Q4_K_XL | llama.cpp | — | 436d6d25d30c | PASS (75%, 8) | 91% (11) | 27.1 tok/s |
+| 9 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | — | 38ccea45c281 | PASS (62%, 8) | 82% (11) | 8.5 tok/s |
+| 10 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | llama.cpp | — | c02615b57f21 | PASS (88%, 8) | 82% (11) | 7.9 tok/s |
+| 11 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | ffa862c18cff | PASS (75%, 8) | 73% (11) | 7.7 tok/s |
+| 12 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | a2d241742068 | PASS (75%, 8) | 64% (11) | 20.9 tok/s |
+| 13 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | llama.cpp | — | 0840d8e3ee87 | PASS (88%, 8) | 36% (11) | 62.6 tok/s |
+| 14 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | llama.cpp | — | 05a5098cf4c6 | PASS (75%, 8) | 0% (11) | 67.6 tok/s |
+| 15 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | gguf | — | 5f50ca6ebdf3 | PASS (62%, 8) | 0% (1) | 66.7 tok/s |
+| 16 | LiquidAI/LFM2.5-8B-A1B-GGUF:BF16 | llama.cpp | — | a148c29637e6 | PASS (75%, 8) | 0% (11) | 55.3 tok/s |
+| 17 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | — | 00fc47aef271 | PASS (67%, 6) | 0% (3) | 42.3 tok/s |
+| 18 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ DSpark F16 drafter) | gguf | — | 85636a621ce0 | PASS (100%, 3) | 0% (1) | 29.3 tok/s |
+| 19 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF:F16 drafter) | gguf | — | f6bb65acb160 | PASS (75%, 8) | 0% (1) | 27.0 tok/s |
+| 20 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF:F16 drafter) | llama.cpp-dspark | — | 4f8641aa7094 | PASS (75%, 8) | 0% (1) | 26.9 tok/s |
+| 21 | mlx-community/LFM2.5-8B-A1B-MLX-8bit | vllm-mlx | — | 00878f13621f | PASS (62%, 8) | 0% (1) | 26.4 tok/s |
+| 22 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | mlx | — | da00492c3b46 | PASS (62%, 8) | 0% (1) | 21.4 tok/s |
+| 23 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | vllm-mlx | — | 9693319bc3a1 | PASS (75%, 8) | 0% (1) | 20.7 tok/s |
+| 24 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | vllm-mlx | — | c1a7fd5d3135 | PASS (88%, 8) | 0% (1) | 19.3 tok/s |
+| 25 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | mlx | — | 5e09e98f8c60 | PASS (75%, 8) | 0% (1) | 12.9 tok/s |
+| 26 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | 6d148ccbfd2e | PASS (75%, 8) | 0% (1) | 6.7 tok/s |
+| 27 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | gguf | — | 1d65d14c63a8 | FAIL (12%, 8) | 0% (1) | 32.8 tok/s |
 
 ## Flaky tasks (mixed pass/fail under identical conditions)
 
@@ -464,6 +460,11 @@ confirmed-stable, just untested for flakiness.
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | gguf | b0b30ac444da | *(predates tracking)* | hermes_ops | 1/3 |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | gguf | b0b30ac444da | *(predates tracking)* | kiem_mini | 1/1 |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | gguf | b0b30ac444da | *(predates tracking)* | sanity | 2/2 |
+| bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | 38ccea45c281 | 141399e74bd0 | hearth_mini | 3/3 |
+| bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | 38ccea45c281 | 141399e74bd0 | hermes_ops | 5/8 |
+| bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | 38ccea45c281 | 141399e74bd0 | kiem_mini | 3/5 |
+| bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | 38ccea45c281 | 141399e74bd0 | kipclip_mini | 3/3 |
+| bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | 38ccea45c281 | 141399e74bd0 | sanity | 2/2 |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | 38ccea45c281 | cf45f7655a7c | hearth_mini | 3/3 |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | 38ccea45c281 | cf45f7655a7c | hermes_ops | 4/8 |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | 38ccea45c281 | cf45f7655a7c | kiem_mini | 2/5 |

@@ -236,11 +236,28 @@ class SlowPassColumnTests(unittest.TestCase):
 
 
 class CompositeRankingTests(unittest.TestCase):
-    """F3: the leaderboard didn't rank anything — no composite score, no
-    tie-break, alphabetical order. score = 0.5*coding + 0.3*hermes_ops +
-    0.2*speed, renormalized over whichever axes a group actually has data
-    for (a group with no coding rows yet must not be scored as if its
-    missing coding axis were 0)."""
+    """Round 2 (2026-08-26) of the "Best overall" ranking, replacing the
+    weighted-blend design from round 1 (fa0046f / methodology review F3).
+    User feedback made the philosophy explicit: this benchmark isn't
+    measuring "coding ability" as one input among peers — it measures
+    USEFULNESS AS AN AGENT, and only then coding ability. "If the sanity
+    check or full Hermes pass does not complete it fails the basic
+    usefulness check. Then coding ability is the discerning next factor +
+    speed which improves usability." That's a staged gate-then-rank, not a
+    blend:
+
+    1. ELIGIBILITY — a group needs at least one row on ALL THREE axes
+       (sanity, hermes_ops, coding) to represent a genuinely completed
+       run; a partial run (missing an entire axis) is excluded outright,
+       not scored on whatever subset it happens to have.
+    2. USEFULNESS GATE (hard pass/fail tier, not a weighted input):
+       hermes_ops_pass_rate >= 0.5 (majority-pass, same threshold concept
+       as run_bench.py's own `_majority_pass()`). Every gate-passing group
+       ranks above every gate-failing group, regardless of coding or speed.
+    3. PRIMARY SORT among gate-passers: coding_pass_rate, descending.
+    4. TIE-BREAK: avg tok/s, descending — speed only decides between
+       comparably-correct models, never outranks better coding ability.
+    """
 
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
@@ -261,64 +278,103 @@ class CompositeRankingTests(unittest.TestCase):
     def _best_overall_section(self, text):
         return text[text.index("## Best overall"):text.index("## Flaky tasks")]
 
-    def test_sanity_excluded_from_pass_rate_and_shown_as_its_own_gate(self):
-        self._write_log([
-            {"suite": "sanity", "task_id": "sanity-basic", "task_type": "sanity",
-             "model": "m", "inference_engine": "vllm-mlx", "quant": None, "config_path": None,
-             "config_hash": None, "runner_git_sha": "abc", "trial": 1, "pass": True,
-             "grade_output": "PASS"},
-            {"suite": "hermes_ops", "task_id": "hermes_ops-selection", "task_type": "tool-selection",
-             "model": "m", "inference_engine": "vllm-mlx", "quant": None, "config_path": None,
-             "config_hash": None, "runner_git_sha": "abc", "trial": 1, "pass": False,
-             "grade_output": "FAIL"},
-        ])
-        bl.main()
-        text = (self.repo / "results" / "LEADERBOARD.md").read_text()
-        row_line = next(l for l in text.splitlines() if l.startswith("| m |"))
-        cells = [c.strip() for c in row_line.split("|")]
-        self.assertEqual(cells[6], "1/1")  # sanity gate: passed
-        self.assertEqual(cells[9], "1")    # tasks: only the hermes_ops row counts
-        self.assertEqual(cells[10], "0%")  # pass rate: sanity's PASS excluded, hermes_ops's FAIL counts
+    def _complete_rows(self, model, hermes_ops_passes, coding_passes, tps,
+                        config_hash="h", runner_sha="abc", quant=None,
+                        inference_engine="vllm-mlx"):
+        """Builds a full (sanity + hermes_ops + coding) row set for one
+        group — one sanity-basic PASS, one hermes_ops row per bool in
+        `hermes_ops_passes`, one kiem_mini row per bool in `coding_passes`,
+        all carrying the same tokens_per_second so avg tok/s == tps."""
+        rows = [{
+            "suite": "sanity", "task_id": "sanity-basic", "task_type": "sanity",
+            "model": model, "inference_engine": inference_engine, "quant": quant,
+            "config_path": None, "config_hash": config_hash, "runner_git_sha": runner_sha,
+            "trial": 1, "pass": True, "grade_output": "PASS", "tokens_per_second": tps,
+        }]
+        for i, ok in enumerate(hermes_ops_passes):
+            rows.append({
+                "suite": "hermes_ops", "task_id": f"hermes_ops-task{i}", "task_type": "tool-selection",
+                "model": model, "inference_engine": inference_engine, "quant": quant,
+                "config_path": None, "config_hash": config_hash, "runner_git_sha": runner_sha,
+                "trial": 1, "pass": ok, "grade_output": "PASS" if ok else "FAIL",
+                "tokens_per_second": tps,
+            })
+        for i, ok in enumerate(coding_passes):
+            rows.append({
+                "suite": "kiem_mini", "task_id": f"kiem_mini-task{i}", "task_type": "feature",
+                "model": model, "inference_engine": inference_engine, "quant": quant,
+                "config_path": None, "config_hash": config_hash, "runner_git_sha": runner_sha,
+                "trial": 1, "pass": ok, "grade_output": "PASS" if ok else "FAIL",
+                "tokens_per_second": tps,
+            })
+        return rows
 
-    def test_group_with_zero_coding_rows_is_excluded_even_with_hermes_ops_data(self):
-        # Changed 2026-08-25: a group used to still get scored on
-        # hermes_ops+speed alone with zero coding rows — that let a fast
-        # model with no coding evidence at all rank above (or tie) a
-        # genuinely coding-tested one, since "Best overall" is a QUALITY
-        # ranking on a benchmark whose whole point is coding capability.
-        # Now such a group is omitted entirely, same as a harness-error-
-        # only group.
-        self._write_log([
-            {"suite": "hermes_ops", "task_id": "hermes_ops-selection", "task_type": "tool-selection",
-             "model": "hermes-only-model", "inference_engine": "vllm-mlx", "quant": None, "config_path": None,
-             "config_hash": None, "runner_git_sha": "abc", "trial": 1, "pass": True,
-             "grade_output": "PASS", "tokens_per_second": 20.0},
-        ])
+    def test_group_missing_any_axis_is_excluded_entirely(self):
+        cases = {
+            "no-sanity": [r for r in self._complete_rows("no-sanity", [True], [True], 10.0)
+                          if r["suite"] != "sanity"],
+            "no-hermes-ops": self._complete_rows("no-hermes-ops", [], [True], 10.0),
+            "no-coding": self._complete_rows("no-coding", [True], [], 10.0),
+        }
+        for label, rows in cases.items():
+            with self.subTest(label=label):
+                self.repo_log_rows = rows
+                self._write_log(rows)
+                bl.main()
+                text = (self.repo / "results" / "LEADERBOARD.md").read_text()
+                section = self._best_overall_section(text)
+                self.assertNotIn(label, section)
+
+    def test_gate_failing_group_ranks_below_all_gate_passing_groups(self):
+        # A model that fails the usefulness gate (hermes_ops < 50%) must
+        # rank below EVERY gate-passing group, even one with weaker coding
+        # and slower speed — the gate is a hard tier boundary, not a
+        # weighted input that a great coding score could outweigh.
+        rows = (
+            self._complete_rows("gate-fails", hermes_ops_passes=[False, False, True],
+                                 coding_passes=[True, True], tps=100.0, config_hash="h1")
+            + self._complete_rows("gate-passes-weaker", hermes_ops_passes=[True, False],
+                                   coding_passes=[False], tps=1.0, config_hash="h2")
+        )
+        self._write_log(rows)
         bl.main()
         text = (self.repo / "results" / "LEADERBOARD.md").read_text()
         section = self._best_overall_section(text)
-        self.assertNotIn("hermes-only-model", section)
+        fail_rank = next(i for i, l in enumerate(section.splitlines()) if "gate-fails" in l)
+        pass_rank = next(i for i, l in enumerate(section.splitlines()) if "gate-passes-weaker" in l)
+        self.assertLess(pass_rank, fail_rank, "the gate-passing group must rank above the gate-failing one")
+        row_line = next(l for l in section.splitlines() if "gate-fails" in l)
+        self.assertIn("FAIL", row_line)
 
-    def test_pure_speed_group_no_longer_outscores_a_real_coding_pass(self):
-        # The bug that prompted this whole rework: a group with ONLY a
-        # tok/s number (no coding, no hermes_ops) used to score a perfect
-        # 1.00 if it happened to be the fastest thing in the run — tied
-        # with, or beating, a group with genuine 100% coding evidence.
-        self._write_log([
-            {"suite": "hermes_ops", "task_id": "hermes_ops-selection", "task_type": "tool-selection",
-             "model": "speed-only-model", "inference_engine": "vllm-mlx", "quant": None, "config_path": None,
-             "config_hash": None, "runner_git_sha": "abc", "trial": 1, "pass": True,
-             "grade_output": "PASS", "tokens_per_second": 200.0},
-            {"suite": "kiem_mini", "task_id": "kiem_mini-feature", "task_type": "feature",
-             "model": "coding-tested-model", "inference_engine": "vllm-mlx", "quant": None, "config_path": None,
-             "config_hash": "h1", "runner_git_sha": "abc", "trial": 1, "pass": True,
-             "grade_output": "PASS", "tokens_per_second": 5.0},
-        ])
+    def test_higher_coding_pass_rate_ranks_first_among_gate_passers(self):
+        rows = (
+            self._complete_rows("correct-but-slow", hermes_ops_passes=[True], coding_passes=[True, True],
+                                 tps=5.0, config_hash="h1")
+            + self._complete_rows("fast-but-wrong", hermes_ops_passes=[True], coding_passes=[True, False],
+                                   tps=50.0, config_hash="h2")
+        )
+        self._write_log(rows)
         bl.main()
         text = (self.repo / "results" / "LEADERBOARD.md").read_text()
         section = self._best_overall_section(text)
-        self.assertNotIn("speed-only-model", section)
-        self.assertIn("coding-tested-model", section)
+        correct_rank = next(i for i, l in enumerate(section.splitlines()) if "correct-but-slow" in l)
+        wrong_rank = next(i for i, l in enumerate(section.splitlines()) if "fast-but-wrong" in l)
+        self.assertLess(correct_rank, wrong_rank, "the higher-coding-pass-rate model must rank first")
+
+    def test_equal_coding_pass_rate_broken_by_higher_speed(self):
+        rows = (
+            self._complete_rows("equal-coding-fast", hermes_ops_passes=[True], coding_passes=[True, False],
+                                 tps=80.0, config_hash="h1")
+            + self._complete_rows("equal-coding-slow", hermes_ops_passes=[True], coding_passes=[True, False],
+                                   tps=8.0, config_hash="h2")
+        )
+        self._write_log(rows)
+        bl.main()
+        text = (self.repo / "results" / "LEADERBOARD.md").read_text()
+        section = self._best_overall_section(text)
+        fast_rank = next(i for i, l in enumerate(section.splitlines()) if "equal-coding-fast" in l)
+        slow_rank = next(i for i, l in enumerate(section.splitlines()) if "equal-coding-slow" in l)
+        self.assertLess(fast_rank, slow_rank, "with tied coding pass rate, the faster model must rank first")
 
     def test_dedups_to_the_most_evidenced_fragment_per_model_engine_quant(self):
         # A model tested twice under different config_hash/runner_sha (a
@@ -326,68 +382,20 @@ class CompositeRankingTests(unittest.TestCase):
         # fragments as independently-ranked rows — an early 1-task
         # fragment could then outrank that same model's own later, complete
         # sweep. Only the more-evidenced fragment should appear.
-        rows = [
-            {"suite": "kiem_mini", "task_id": "kiem_mini-feature", "task_type": "feature",
-             "model": "m", "inference_engine": "vllm-mlx", "quant": None, "config_path": None,
-             "config_hash": "early", "runner_git_sha": "sha1", "trial": 1, "pass": True,
-             "grade_output": "PASS", "tokens_per_second": 50.0},
-        ]
-        for i, task_id in enumerate(["kiem_mini-feature", "kiem_mini-rename", "kiem_mini-debug"]):
-            rows.append({
-                "suite": "kiem_mini", "task_id": task_id, "task_type": "feature",
-                "model": "m", "inference_engine": "vllm-mlx", "quant": None, "config_path": None,
-                "config_hash": "later", "runner_git_sha": "sha2", "trial": 1,
-                "pass": i != 1,  # one deliberate fail, so this fragment isn't a perfect 100% either
-                "grade_output": "PASS" if i != 1 else "FAIL", "tokens_per_second": 40.0,
-            })
+        rows = self._complete_rows(
+            "m", hermes_ops_passes=[True], coding_passes=[True], tps=50.0,
+            config_hash="early", runner_sha="sha1",
+        ) + self._complete_rows(
+            "m", hermes_ops_passes=[True, True], coding_passes=[True, False, True], tps=40.0,
+            config_hash="later", runner_sha="sha2",
+        )
         self._write_log(rows)
         bl.main()
         text = (self.repo / "results" / "LEADERBOARD.md").read_text()
         section = self._best_overall_section(text)
         matches = [l for l in section.splitlines() if l.startswith("| ") and " m " in l]
         self.assertEqual(len(matches), 1, f"expected exactly one row for 'm', got: {matches}")
-        self.assertIn("later", matches[0])  # the 3-task fragment, not the 1-task one
-
-    def test_higher_coding_pass_rate_ranks_above_faster_but_less_correct_model(self):
-        # Coding is weighted 0.5, speed only 0.2 — a model that's 100%
-        # correct on coding but slow must still outrank one that's fast
-        # but fails half its coding tasks. Also guards that the mild
-        # coding-shrinkage added 2026-08-25 (k=1) doesn't invert this at
-        # the smallest possible sample size (n=1 for both models here) —
-        # a stronger k was tried first and DID invert it, which is why k=1
-        # was chosen instead of the more textbook k=5.
-        self._write_log([
-            {"suite": "kiem_mini", "task_id": "kiem_mini-feature", "task_type": "feature",
-             "model": "correct-but-slow", "inference_engine": "vllm-mlx", "quant": None, "config_path": None,
-             "config_hash": "h1", "runner_git_sha": "abc", "trial": 1, "pass": True,
-             "grade_output": "PASS", "tokens_per_second": 5.0},
-            {"suite": "kiem_mini", "task_id": "kiem_mini-feature", "task_type": "feature",
-             "model": "fast-but-wrong", "inference_engine": "vllm-mlx", "quant": None, "config_path": None,
-             "config_hash": "h2", "runner_git_sha": "abc", "trial": 1, "pass": False,
-             "grade_output": "FAIL", "tokens_per_second": 50.0},
-        ])
-        bl.main()
-        text = (self.repo / "results" / "LEADERBOARD.md").read_text()
-        section = self._best_overall_section(text)
-        correct_rank = next(i for i, l in enumerate(section.splitlines()) if "correct-but-slow" in l)
-        wrong_rank = next(i for i, l in enumerate(section.splitlines()) if "fast-but-wrong" in l)
-        self.assertLess(correct_rank, wrong_rank, "the correct-but-slow model must rank first")
-
-    def test_group_with_zero_scoreable_axes_is_omitted_not_zero_scored(self):
-        # A harness-error-only group has no pass/fail signal at all on any
-        # axis (harness_error rows are excluded from `scored` upstream) —
-        # it must be left out of the ranking, not shown with a misleading
-        # score of 0.
-        self._write_log([
-            {"suite": "hermes_ops", "task_id": "hermes_ops-selection", "task_type": "tool-selection",
-             "model": "all-harness-errors", "inference_engine": "vllm-mlx", "quant": None, "config_path": None,
-             "config_hash": None, "runner_git_sha": "abc", "trial": 1, "pass": False,
-             "harness_error": True, "grade_output": "HARNESS ERROR"},
-        ])
-        bl.main()
-        text = (self.repo / "results" / "LEADERBOARD.md").read_text()
-        section = self._best_overall_section(text)
-        self.assertNotIn("all-harness-errors", section)
+        self.assertIn("later", matches[0])  # the more-evidenced fragment, not the 1-task one
 
 
 class BlockedConfigsSectionTests(unittest.TestCase):

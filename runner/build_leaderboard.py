@@ -425,6 +425,7 @@ def main():
             "avg_tps_val": avg_tps_val,
             "coding_pass_rate": coding_pass_rate,
             "hermes_ops_pass_rate": hermes_ops_pass_rate,
+            "n_sanity": len(sanity_scored),
             "n_coding": len(coding_scored),
             "n_hermes_ops": len(hermes_ops_scored),
         })
@@ -432,73 +433,56 @@ def main():
     for gs in group_stats:
         lines.append(gs["line"])
 
-    # Composite "Best overall" ranking (methodology review, finding F3):
-    # the table above is 20 independent columns the reader has to weigh
-    # by hand — there was no ordering by quality, no tie-break, no single
-    # answer to "which one is best." score = 0.5*coding_pass_rate +
-    # 0.3*hermes_ops_pass_rate + 0.2*speed_score, per the review's own
-    # suggested starting point: "the exact weights matter far less than
-    # writing SOME weighting down and sorting by it." speed_score is each
-    # group's avg_tps normalized against the FASTEST group seen in this
-    # run (0.0-1.0), not an absolute tok/s target, since "fast enough" is
-    # relative to what this hardware can actually produce for any model.
+    # "Best overall" ranking, round 2 (2026-08-26 user feedback, replacing
+    # the weighted-blend design from round 1 / fa0046f / methodology review
+    # F3). The user's own framing: this benchmark isn't measuring "coding
+    # ability" as one input among peers — it's measuring USEFULNESS AS AN
+    # AGENT, and only THEN coding ability. "If the sanity check or full
+    # Hermes pass does not complete it fails the basic usefulness check.
+    # Then coding ability is the discerning next factor + speed which
+    # improves usability." A weighted blend (0.5/0.3/0.2) let speed and
+    # hermes_ops act as PEERS of coding, so a fast, hermes_ops-competent
+    # model with weak coding evidence could still outscore a slower model
+    # that actually demonstrated coding ability — the exact bug this round
+    # of feedback is about. This is now a staged gate-then-rank, not a
+    # blend:
     #
-    # A group missing an axis entirely (most groups have zero coding rows
-    # today, per finding F1) does NOT get scored as if that axis were 0 —
-    # the weights renormalize over whichever axes actually have data, so a
-    # hermes_ops-only group is judged on hermes_ops+speed alone, not
-    # unfairly zeroed out on coding it was never run against. This means
-    # scores computed from different axis-subsets aren't perfectly
-    # apples-to-apples — flagged in the section text, not hidden.
+    # 1. ELIGIBILITY (stricter than round 1, which only required
+    #    n_coding >= 1): a group must have at least one row on ALL THREE
+    #    axes — sanity, hermes_ops, coding — to represent a genuinely
+    #    COMPLETED benchmark run. A group that never reached hermes_ops or
+    #    coding (e.g. stopped by the speed gate, or still mid-run) isn't
+    #    "for which we have all numbers" and has no place here at all,
+    #    complete or not — it doesn't get scored on whatever subset of axes
+    #    it happens to have, the way round 1 allowed.
     #
-    # Three fixes here (2026-08-25, user request: a quality-first ranking
-    # where high-quality-but-still-viable-speed models win — under the OLD
-    # code, a fast model with weak or ZERO coding evidence could rank #1):
+    # 2. USEFULNESS GATE — a hard pass/fail TIER, not a weighted input:
+    #    hermes_ops_pass_rate >= 0.5 (majority-pass; same threshold concept
+    #    as run_bench.py's own `_majority_pass()` sanity-gate helper). A
+    #    model that can't reliably do basic tool-use/agent operations isn't
+    #    "useful as an agent" regardless of how well it codes or how fast
+    #    it is — every gate-PASSING group ranks above every gate-FAILING
+    #    group, full stop, no matter their coding or speed numbers.
     #
-    # 1. A group needs at least one CODING-suite row to be scored at all.
-    #    Before this, a group with zero coding data (often zero hermes_ops
-    #    data too — a pure speed number) still got scored by renormalizing
-    #    the weights over whatever axes it DID have, which could leave
-    #    speed as the group's ENTIRE score, tied with a genuinely
-    #    coding-tested 100% group. A model never tried on this benchmark's
-    #    actual purpose (agentic coding) has no "overall" to speak of yet.
+    # 3. PRIMARY SORT among gate-passers: coding_pass_rate, descending —
+    #    the actual discerning factor, once basic usefulness is
+    #    established. Raw pass rate, not shrunk: round 1's small-sample
+    #    shrinkage existed to keep a lucky 1/1 from tying a properly-tested
+    #    11/11 inside a single blended score, but a plain descending sort
+    #    doesn't have that failure mode (a real 1/1 legitimately ties
+    #    another real 1/1, and any group with more evidence for the SAME
+    #    rate will typically differ from it anyway) — so the shrinkage
+    #    machinery is dropped entirely along with the blend it was tuned for.
     #
-    # 2. Collapse to ONE row per (model, inference_engine, quant): pick
-    #    whichever config_hash/runner_sha fragment has the most total
-    #    scored evidence (n_coding + n_hermes_ops), not every fragment
-    #    separately. Without this, an early 1-task fragment from before a
-    #    model was fully tested competed against — and could outrank —
-    #    that SAME model's own later, complete 11-task sweep, simply
-    #    because they're logged under different config_hash/runner_sha
-    #    keys (a real config edit or harness-version change genuinely
-    #    starts a new group elsewhere on this leaderboard, for good
-    #    reason — but "Best overall" wants each model's single best-
-    #    evidenced picture, not its full rerun history).
+    # 4. TIE-BREAK: avg tok/s, descending — this is precisely where "speed
+    #    which improves usability" belongs: it only discriminates between
+    #    models that are already comparably capable at coding, and can
+    #    never let a faster model outrank a more-correct one.
     #
-    # 3. Mild small-sample shrinkage on the CODING pass rate only: a lucky
-    #    1/1 (100%) used to score identically to a properly-tested 10/11
-    #    (91%) or 11/11 (100%), because raw pass_rate carries no notion of
-    #    how much evidence backs it. Shrink toward a neutral 50% prior
-    #    with CODING_SHRINKAGE_K=1 pseudo-observation — equivalent to a
-    #    Beta(0.5, 0.5) prior's posterior mean (Wilson/Laplace-style
-    #    smoothing). Deliberately mild (not the more textbook k=5 tried
-    #    first): a stronger k let a single WRONG answer's shrunk-toward-
-    #    50% score be outweighted by that same group's higher relative
-    #    speed, inverting which of two n=1 groups should rank first —
-    #    k=1 keeps coding's 0.5 weight decisive at any sample size while
-    #    still discounting a lucky 1/1 (shrinks to 0.75) well below a
-    #    real 11/11 (0.96) or 10/11 (0.88). hermes_ops is left unshrunk —
-    #    it's always a fixed 8-task suite, so its sample size doesn't vary
-    #    group to group the way coding's does.
-    CODING_SHRINKAGE_K = 1.0
-
-    def _shrunk_coding_rate(pass_rate, n):
-        if pass_rate is None or not n:
-            return pass_rate
-        successes = pass_rate * n
-        return (successes + CODING_SHRINKAGE_K / 2) / (n + CODING_SHRINKAGE_K)
-
-    # Fix 2: keep only the most-evidenced fragment per (model, engine, quant).
+    # Dedup-to-most-evidenced-fragment-per-(model, inference_engine, quant)
+    # from round 1 is unchanged — still needed so an early 1-task fragment
+    # from before a model was fully tested can't outrank that same model's
+    # own later, complete sweep.
     best_fragment = {}
     for gs in group_stats:
         model, inference_engine, quant, _config_hash, _runner_sha = gs["key"]
@@ -508,63 +492,55 @@ def main():
         if current is None or evidence > current["n_coding"] + current["n_hermes_ops"]:
             best_fragment[dedup_key] = gs
 
-    max_tps = max(
-        (gs["avg_tps_val"] for gs in group_stats if gs["avg_tps_val"] is not None),
-        default=None,
-    )
+    GATE_HERMES_OPS_THRESHOLD = 0.5  # majority-pass — same concept as run_bench.py's _majority_pass()
+
     ranked = []
     for gs in best_fragment.values():
-        if not gs["n_coding"]:  # fix 1
-            continue
-        axes = []
-        if gs["coding_pass_rate"] is not None:
-            axes.append((_shrunk_coding_rate(gs["coding_pass_rate"], gs["n_coding"]), 0.5))
-        if gs["hermes_ops_pass_rate"] is not None:
-            axes.append((gs["hermes_ops_pass_rate"], 0.3))
-        if gs["avg_tps_val"] is not None and max_tps:
-            axes.append((gs["avg_tps_val"] / max_tps, 0.2))
-        if not axes:
-            continue
-        total_weight = sum(w for _, w in axes)
-        score = sum(v * w for v, w in axes) / total_weight
-        ranked.append((score, len(axes), gs))
+        if not (gs["n_sanity"] and gs["n_hermes_ops"] and gs["n_coding"]):
+            continue  # not a completed run — missing an entire axis
+        gate_pass = gs["hermes_ops_pass_rate"] >= GATE_HERMES_OPS_THRESHOLD
+        # Sort key is lexicographic, most-significant field first: gate
+        # status beats coding rate beats speed, always — never traded off
+        # against each other the way a blended score would.
+        ranked.append((gate_pass, gs["coding_pass_rate"], gs["avg_tps_val"] or 0.0, gs))
 
     lines.append("")
-    lines.append("## Best overall (composite ranking)")
+    lines.append("## Best overall (gate-then-rank)")
     lines.append("")
-    lines.append("A quality-first ranking, not a speed leaderboard: `score = ")
-    lines.append("0.5×coding_pass_rate + 0.3×hermes_ops_pass_rate + 0.2×speed_score`, where")
-    lines.append("`coding_pass_rate` is shrunk toward a neutral 50% prior with 1 pseudo-")
-    lines.append("observation before scoring (a lucky 1/1 no longer ties a properly-tested")
-    lines.append("11/11 — see build_leaderboard.py's own comment for the exact numbers) and")
-    lines.append("`speed_score` is this group's avg tok/s ÷ the fastest group's avg tok/s seen")
-    lines.append("in this run. Two eligibility rules keep this a *quality* ranking: **a group")
-    lines.append("needs at least one coding-suite row to appear here at all** (raw speed or")
-    lines.append("hermes_ops alone, with zero coding evidence, isn't \"overall\" quality on a")
-    lines.append("benchmark whose whole point is coding capability), and **each model+engine+")
-    lines.append("quant appears at most once**, using whichever of its own config_hash/")
-    lines.append("runner_sha fragments has the most total coding+hermes_ops evidence — an")
-    lines.append("early 1-task fragment from before a model was fully tested can no longer")
-    lines.append("outrank that same model's own later, complete sweep. Weights still")
-    lines.append("renormalize over whichever of the two remaining axes (hermes_ops, speed) a")
-    lines.append("group has data for, so a 2-axis and 3-axis score aren't strictly apples-to-")
-    lines.append("apples; `axes` below shows how many contributed.")
+    lines.append("Not a blended score: a staged gate, then a lexicographic sort. **Eligibility**")
+    lines.append("— a group must have completed all three stages (sanity + hermes_ops +")
+    lines.append("coding, at least one row each) to appear here at all; a partial run is")
+    lines.append("excluded outright rather than scored on whichever axes it happens to have.")
+    lines.append("**Usefulness gate** (pass/fail tier, not a weighted input) — hermes_ops pass")
+    lines.append("rate must be ≥50% (majority-pass, same concept as run_bench.py's sanity")
+    lines.append("fail-fast gate); every gate-passing group ranks above every gate-failing one")
+    lines.append("regardless of coding or speed. **Primary sort** among gate-passers is")
+    lines.append("coding pass rate, descending — the actual discerning factor once basic")
+    lines.append("agent usefulness is established. **Tie-break** is avg tok/s, descending —")
+    lines.append("speed only decides between comparably-correct models, and can never outrank")
+    lines.append("better coding ability. Dedup rule unchanged from the prior ranking design:")
+    lines.append("each model+engine+quant appears at most once, using whichever of its own")
+    lines.append("config_hash/runner_sha fragments has the most total coding+hermes_ops")
+    lines.append("evidence.")
     lines.append("")
     if not ranked:
-        lines.append("No group has enough data yet to score.")
+        lines.append("No group has completed all three stages (sanity + hermes_ops + coding) yet.")
     else:
-        lines.append("| rank | model | engine | quant | config | score | axes | coding | hermes_ops | speed |")
-        lines.append("|---|---|---|---|---|---|---|---|---|---|")
-        for i, (score, n_axes, gs) in enumerate(
-            sorted(ranked, key=lambda t: t[0], reverse=True), start=1
+        lines.append("| rank | model | engine | quant | config | usefulness gate | coding | speed |")
+        lines.append("|---|---|---|---|---|---|---|---|")
+        for i, (gate_pass, coding_rate, tps, gs) in enumerate(
+            sorted(ranked, key=lambda t: (t[0], t[1], t[2]), reverse=True), start=1
         ):
             model, inference_engine, quant, config_hash, runner_sha = gs["key"]
-            coding_disp = f"{100 * gs['coding_pass_rate']:.0f}% ({gs['n_coding']})" if gs["coding_pass_rate"] is not None else "—"
-            hermes_disp = f"{100 * gs['hermes_ops_pass_rate']:.0f}% ({gs['n_hermes_ops']})" if gs["hermes_ops_pass_rate"] is not None else "—"
+            gate_disp = (
+                f"{'PASS' if gate_pass else 'FAIL'} "
+                f"({100 * gs['hermes_ops_pass_rate']:.0f}%, {gs['n_hermes_ops']})"
+            )
+            coding_disp = f"{100 * coding_rate:.0f}% ({gs['n_coding']})"
             speed_disp = f"{gs['avg_tps_val']:.1f} tok/s" if gs["avg_tps_val"] is not None else "—"
             lines.append(
                 f"| {i} | {model} | {inference_engine} | {quant or '—'} | {config_hash or '—'} | "
-                f"{score:.2f} | {n_axes} | {coding_disp} | {hermes_disp} | {speed_disp} |"
+                f"{gate_disp} | {coding_disp} | {speed_disp} |"
             )
 
     lines.append("")
