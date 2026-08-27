@@ -227,6 +227,237 @@ def _config_label(config_hash, config_path):
     return link
 
 
+def compute_group_stats(groups):
+    """One row of the main leaderboard table (and the raw scoring inputs
+    the composite "Best overall" ranking below needs) per (model,
+    inference_engine, quant, config_hash, runner_git_sha) group. A
+    separate pass from rank_groups() below: rank_groups() needs every
+    group's raw numeric avg_tps/avg_coding_wall/avg_coding_turns visible
+    at once before it can normalize any one group's speed/time/turns
+    against the best value seen this run — that global best isn't known
+    until all groups have been computed once. group_stats carries both
+    the raw numbers (for scoring) and the pre-formatted display string
+    (for the main table), computed once, so the two can never drift
+    apart."""
+    group_stats = []
+    for (model, inference_engine, quant, config_hash, runner_sha), group in sorted(
+        groups.items(), key=lambda kv: (kv[0][0], kv[0][1], kv[0][2] or "", kv[0][3] or "", kv[0][4] or "")
+    ):
+        scored = [r for r in group if not r.get("harness_error")]
+        sanity_scored = [r for r in scored if r["suite"] == "sanity"]
+        non_sanity_scored = [r for r in scored if r["suite"] != "sanity"]
+        sanity_gate = (
+            f"{sum(1 for r in sanity_scored if r.get('pass'))}/{len(sanity_scored)}"
+            if sanity_scored else "—"
+        )
+        n = len(non_sanity_scored)
+        n_pass = sum(1 for r in non_sanity_scored if r.get("pass"))
+        pass_rate = f"{100 * n_pass / n:.0f}%" if n else "n/a (all harness errors)"
+        tps_values = [r["tokens_per_second"] for r in scored if r.get("tokens_per_second") is not None]
+        avg_tps_val = mean(tps_values) if tps_values else None
+        avg_tps = f"{avg_tps_val:.1f}" if avg_tps_val is not None else "—"
+        if any(r.get("ttft_measurable") is False for r in scored):
+            avg_ttft = "n/a (proxied — not real TTFT)"
+        else:
+            ttft_values = [r["ttft_seconds"] for r in scored if r.get("ttft_seconds") is not None]
+            avg_ttft = f"{mean(ttft_values):.2f}" if ttft_values else "—"
+        n_hallucinated = sum(1 for r in scored if r.get("grade_output", "").startswith("FAIL: model called tool"))
+        turn_values = [r["hermes_turns"] for r in scored if r.get("hermes_turns") is not None]
+        avg_turns = f"{mean(turn_values):.1f}" if turn_values else "—"
+        n_tool_errors = sum(r["hermes_tool_errors"] for r in scored if r.get("hermes_tool_errors") is not None)
+        n_slow_pass = sum(1 for r in scored if r.get("pass") and r.get("within_budget") is False)
+        rss_values = [r["peak_rss_gb"] for r in scored if r.get("peak_rss_gb") is not None]
+        peak_rss = f"{max(rss_values):.1f}" if rss_values else "—"
+        config_path = next((r.get("config_path") for r in group if r.get("config_path")), None)
+        config_label = _config_label(config_hash, config_path)
+        temp, reasoning_mode, reasoning_effort = _fairness_fields(config_hash, config_path)
+        quant_family, cache_mode, mtp_mode = _experiment_fields(config_hash, config_path)
+        runner_label = runner_sha or "*(predates tracking)*"
+
+        coding_scored = [r for r in non_sanity_scored if r["suite"] in CODING_SUITES]
+        hermes_ops_scored = [r for r in non_sanity_scored if r["suite"] not in CODING_SUITES]
+        coding_pass_rate = (
+            sum(1 for r in coding_scored if r.get("pass")) / len(coding_scored)
+            if coding_scored else None
+        )
+        hermes_ops_pass_rate = (
+            sum(1 for r in hermes_ops_scored if r.get("pass")) / len(hermes_ops_scored)
+            if hermes_ops_scored else None
+        )
+
+        coding_wall_values = [r["wall_seconds"] for r in coding_scored if r.get("wall_seconds") is not None]
+        avg_coding_wall = mean(coding_wall_values) if coding_wall_values else None
+        coding_turns_values = [
+            r["hermes_turns"] if r.get("hermes_turns") is not None else CODING_TURNS_CEILING_FOR_TIMEOUT
+            for r in coding_scored
+        ]
+        avg_coding_turns = mean(coding_turns_values) if coding_turns_values else None
+
+        group_stats.append({
+            "key": (model, inference_engine, quant, config_hash, runner_sha),
+            "line": (
+                f"| {model} | {inference_engine} | {quant or '—'} | {temp} | {reasoning_mode} | "
+                f"{reasoning_effort} | {sanity_gate} | {config_label} | {runner_label} | {n} | {pass_rate} | "
+                f"{n_slow_pass} | {avg_tps} | {avg_ttft} | {n_hallucinated} | {avg_turns} | "
+                f"{n_tool_errors} | {peak_rss} | {quant_family} | {cache_mode} | {mtp_mode} |"
+            ),
+            "avg_tps_val": avg_tps_val,
+            "reasoning_mode": reasoning_mode,
+            "reasoning_effort": reasoning_effort,
+            "coding_pass_rate": coding_pass_rate,
+            "hermes_ops_pass_rate": hermes_ops_pass_rate,
+            "avg_coding_wall": avg_coding_wall,
+            "avg_coding_turns": avg_coding_turns,
+            "n_sanity": len(sanity_scored),
+            "n_coding": len(coding_scored),
+            "n_hermes_ops": len(hermes_ops_scored),
+        })
+    return group_stats
+
+
+GATE_HERMES_OPS_THRESHOLD = 0.5  # majority-pass — same concept as run_bench.py's _majority_pass()
+
+
+def rank_groups(group_stats):
+    """"Best overall" ranking, round 2 (2026-08-26 user feedback, replacing
+    the weighted-blend design from round 1 / fa0046f / methodology review
+    F3). The user's own framing: this benchmark isn't measuring "coding
+    ability" as one input among peers — it's measuring USEFULNESS AS AN
+    AGENT, and only THEN coding ability. "If the sanity check or full
+    Hermes pass does not complete it fails the basic usefulness check.
+    Then coding ability is the discerning next factor + speed which
+    improves usability." A weighted blend (0.5/0.3/0.2) let speed and
+    hermes_ops act as PEERS of coding, so a fast, hermes_ops-competent
+    model with weak coding evidence could still outscore a slower model
+    that actually demonstrated coding ability — the exact bug this round
+    of feedback is about. This is now a staged gate-then-rank, not a
+    blend:
+
+    1. ELIGIBILITY (stricter than round 1, which only required
+       n_coding >= 1): a group must have at least one row on ALL THREE
+       axes — sanity, hermes_ops, coding — to represent a genuinely
+       COMPLETED benchmark run. A group that never reached hermes_ops or
+       coding (e.g. stopped by the speed gate, or still mid-run) isn't
+       "for which we have all numbers" and has no place here at all,
+       complete or not — it doesn't get scored on whatever subset of axes
+       it happens to have, the way round 1 allowed.
+
+    2. USEFULNESS GATE — a hard pass/fail TIER, not a weighted input:
+       hermes_ops_pass_rate >= 0.5 (majority-pass; same threshold concept
+       as run_bench.py's own `_majority_pass()` sanity-gate helper). A
+       model that can't reliably do basic tool-use/agent operations isn't
+       "useful as an agent" regardless of how well it codes or how fast
+       it is — every gate-PASSING group ranks above every gate-FAILING
+       group, full stop, no matter their coding or speed numbers.
+
+    3. PRIMARY SORT among gate-passers (round 3, see CODING_SCORE_WEIGHTS):
+       a weighted composite of pass rate, speed, time taken, and turns
+       used — see module docstring on CODING_SCORE_WEIGHTS for the exact
+       numbers and why.
+
+    4. Dedup-to-most-evidenced-fragment-per-(model, inference_engine,
+       quant) from round 1 is unchanged — still needed so an early
+       1-task fragment from before a model was fully tested can't outrank
+       that same model's own later, complete sweep.
+
+    Round 3 (2026-08-27, benchmark v2, user request): round 2's primary
+    sort was plain coding_pass_rate, tie-broken by speed — clean, but it
+    couldn't distinguish "genuinely better at coding" from "took forever
+    and used every one of its turns to barely scrape a pass," and gave
+    slow-but-correct models no credit at all for eventually finishing
+    once the coding-suite timeouts were bumped (see tasks/kiem_mini.yaml
+    etc.) to let them run to completion instead of being hard-killed.
+    This replaces that primary sort with a weighted composite over four
+    axes the user specifically asked to be tracked together: pass rate
+    and speed matter most (equal top weight), then time taken, then
+    turns used — see CODING_SCORE_WEIGHTS's own comment for the exact
+    numbers and where they come from.
+
+    Each axis is normalized 0.0-1.0 against the best value seen among
+    this run's ELIGIBLE (fully-completed, gate-passing candidates for
+    normalization purposes — see eligible_for_norm below) groups, not
+    against an absolute target, since "fast" and "few turns" are only
+    meaningful relative to what this hardware/task-set actually
+    produces:
+      pass  = coding_pass_rate directly (already 0.0-1.0)
+      speed = avg_tps / fastest group's avg_tps
+      time  = fastest (lowest) group's avg_coding_wall / this group's
+              avg_coding_wall (shorter is better, so INVERTED)
+      turns = fewest-turns group's avg_coding_turns / this group's
+              avg_coding_turns (fewer is better, so INVERTED)
+    A group missing a denominator input (e.g. every coding row somehow
+    lacked wall_seconds) scores 0.0 on that one axis rather than being
+    excluded outright — conservative, not a crash.
+
+    The usefulness GATE (hermes_ops >= 50%, hard tier boundary) and the
+    eligibility rule (all three axes present) from round 2 are BOTH
+    unchanged — this round only changes how gate-passers are ordered
+    relative to each other, not who's allowed to compete at all.
+
+    Returns a list of (gate_pass, score, gs) tuples, unsorted — callers
+    sort by (gate_pass, score) descending themselves, since some callers
+    (e.g. the chart script) want the ranking without re-deriving the
+    display formatting that lives alongside the sort in main().
+    """
+    best_fragment = {}
+    for gs in group_stats:
+        model, inference_engine, quant, _config_hash, _runner_sha = gs["key"]
+        dedup_key = (model, inference_engine, quant)
+        evidence = gs["n_coding"] + gs["n_hermes_ops"]
+        current = best_fragment.get(dedup_key)
+        if current is None or evidence > current["n_coding"] + current["n_hermes_ops"]:
+            best_fragment[dedup_key] = gs
+
+    eligible_for_norm = [
+        gs for gs in best_fragment.values()
+        if gs["n_sanity"] and gs["n_hermes_ops"] and gs["n_coding"]
+        and gs["hermes_ops_pass_rate"] >= GATE_HERMES_OPS_THRESHOLD
+    ]
+    max_tps_for_score = max(
+        (gs["avg_tps_val"] for gs in eligible_for_norm if gs["avg_tps_val"]), default=None,
+    )
+    min_wall_for_score = min(
+        (gs["avg_coding_wall"] for gs in eligible_for_norm if gs["avg_coding_wall"]), default=None,
+    )
+    min_turns_for_score = min(
+        (gs["avg_coding_turns"] for gs in eligible_for_norm if gs["avg_coding_turns"]), default=None,
+    )
+
+    def _composite_coding_score(gs):
+        pass_component = gs["coding_pass_rate"] or 0.0
+        speed_component = (
+            gs["avg_tps_val"] / max_tps_for_score
+            if gs["avg_tps_val"] and max_tps_for_score else 0.0
+        )
+        time_component = (
+            min_wall_for_score / gs["avg_coding_wall"]
+            if gs["avg_coding_wall"] and min_wall_for_score else 0.0
+        )
+        turns_component = (
+            min_turns_for_score / gs["avg_coding_turns"]
+            if gs["avg_coding_turns"] and min_turns_for_score else 0.0
+        )
+        return (
+            CODING_SCORE_WEIGHTS["pass"] * pass_component
+            + CODING_SCORE_WEIGHTS["speed"] * speed_component
+            + CODING_SCORE_WEIGHTS["time"] * time_component
+            + CODING_SCORE_WEIGHTS["turns"] * turns_component
+        )
+
+    ranked = []
+    for gs in best_fragment.values():
+        if not (gs["n_sanity"] and gs["n_hermes_ops"] and gs["n_coding"]):
+            continue  # not a completed run — missing an entire axis
+        gate_pass = gs["hermes_ops_pass_rate"] >= GATE_HERMES_OPS_THRESHOLD
+        score = _composite_coding_score(gs) if gate_pass else 0.0
+        # Sort key is lexicographic, most-significant field first: gate
+        # status beats the composite score, always — never traded off
+        # against each other the way folding hermes_ops into the same
+        # blend would allow.
+        ranked.append((gate_pass, score, gs))
+    return ranked
+
+
 def main():
     log_path = REPO / "results" / "log.jsonl"
     rows = []
@@ -373,283 +604,12 @@ def main():
         "| model | engine | quant | temp (coding only)¹ | reasoning | reasoning effort⁶ | sanity gate⁴ | config | runner | tasks | pass rate⁴ | slow passes² | avg tok/s | avg TTFT (s) | hallucinated tools⁵ | avg coding turns³ | coding tool errors³ | peak RSS (GB) | quant family | cache | MTP |",
         "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
-    # Two passes, not one (methodology review, finding F3): the composite
-    # "Best overall" ranking below needs the raw numeric avg_tps for every
-    # group BEFORE it can normalize any one group's speed against the
-    # fastest group seen this run — that global max isn't known until all
-    # groups have been visited once. group_stats carries both the raw
-    # numbers (for scoring) and the pre-formatted display strings (for the
-    # main table), computed once, so the two never drift apart.
-    group_stats = []
-    for (model, inference_engine, quant, config_hash, runner_sha), group in sorted(
-        groups.items(), key=lambda kv: (kv[0][0], kv[0][1], kv[0][2] or "", kv[0][3] or "", kv[0][4] or "")
-    ):
-        # harness_error rows excluded from n/n_pass (3rd adversarial
-        # review, finding CR3-6): a harness crash (npm ci network blip, a
-        # missing tools_file, etc.) is not a model failure — counting it in
-        # `n` deflated pass_rate for reasons unrelated to the model, and
-        # counting it as a "trial" polluted the flaky-task detection below
-        # too. Confirmed live: a synthetic 2-pass/1-harness-crash group
-        # showed 67% before this fix (should read 100%, 2/2 real trials).
-        # Surfaced separately in their own "Harness errors" section instead
-        # of being silently dropped.
-        scored = [r for r in group if not r.get("harness_error")]
-        # sanity is a fail-fast GATE (see CODING_SUITES comment above), not
-        # a quality signal — excluded from pass_rate and shown as its own
-        # column instead (methodology review, finding F3). Confirmed live
-        # against the committed data: sanity-basic and sanity-tool sit at
-        # 26/26 and 25/26, so blending them in only compresses the real
-        # differences between models on hermes_ops/coding.
-        sanity_scored = [r for r in scored if r["suite"] == "sanity"]
-        non_sanity_scored = [r for r in scored if r["suite"] != "sanity"]
-        sanity_gate = (
-            f"{sum(1 for r in sanity_scored if r.get('pass'))}/{len(sanity_scored)}"
-            if sanity_scored else "—"
-        )
-        n = len(non_sanity_scored)
-        n_pass = sum(1 for r in non_sanity_scored if r.get("pass"))
-        pass_rate = f"{100 * n_pass / n:.0f}%" if n else "n/a (all harness errors)"
-        tps_values = [r["tokens_per_second"] for r in scored if r.get("tokens_per_second") is not None]
-        avg_tps_val = mean(tps_values) if tps_values else None
-        avg_tps = f"{avg_tps_val:.1f}" if avg_tps_val is not None else "—"
-        # bench_local_proxy.py buffers the whole response into one SSE
-        # chunk, so "ttft_seconds" for any proxied config structurally
-        # equals total generation time, not real time-to-first-token —
-        # showing it in the same column as genuine TTFT numbers silently
-        # mixed two different measurements (adversarial review finding
-        # H6). Any row explicitly marked unmeasurable blanks the whole
-        # group's cell instead.
-        if any(r.get("ttft_measurable") is False for r in scored):
-            avg_ttft = "n/a (proxied — not real TTFT)"
-        else:
-            ttft_values = [r["ttft_seconds"] for r in scored if r.get("ttft_seconds") is not None]
-            avg_ttft = f"{mean(ttft_values):.2f}" if ttft_values else "—"
-        n_hallucinated = sum(1 for r in scored if r.get("grade_output", "").startswith("FAIL: model called tool"))
-        # Pulled from hermes's own session store, coding-suite rows only —
-        # sanity/hermes_ops rows never populate these (they call the raw
-        # API directly, no hermes session involved), so this is silently
-        # 0 for prompt-suite-only groups rather than misleadingly blank
-        # (methodology review, finding F6: the coding suite previously
-        # had zero performance data of any kind).
-        turn_values = [r["hermes_turns"] for r in scored if r.get("hermes_turns") is not None]
-        avg_turns = f"{mean(turn_values):.1f}" if turn_values else "—"
-        n_tool_errors = sum(r["hermes_tool_errors"] for r in scored if r.get("hermes_tool_errors") is not None)
-        # A PASS that took longer than INTERACTIVE_BUDGET_SECONDS isn't a
-        # failure (it's still counted in pass_rate above), but it's not a
-        # practically usable result in a real interactive session either
-        # — surfaced as its own count rather than silently blending into
-        # the same pass_rate number as a 5-second pass (methodology
-        # review, finding F5). None (row has no wall_seconds at all, e.g.
-        # a harness crash) is not counted as slow.
-        n_slow_pass = sum(1 for r in scored if r.get("pass") and r.get("within_budget") is False)
-        # Peak, not average, across the group (methodology review, finding
-        # F7) — the 32GB unified-memory ceiling is a hard capacity limit,
-        # so the worst observed footprint is the number that actually
-        # matters for "does this fit," not a smoothed-out mean that could
-        # hide a run that came close to swapping.
-        rss_values = [r["peak_rss_gb"] for r in scored if r.get("peak_rss_gb") is not None]
-        peak_rss = f"{max(rss_values):.1f}" if rss_values else "—"
-        config_path = next((r.get("config_path") for r in group if r.get("config_path")), None)
-        config_label = _config_label(config_hash, config_path)
-        temp, reasoning_mode, reasoning_effort = _fairness_fields(config_hash, config_path)
-        quant_family, cache_mode, mtp_mode = _experiment_fields(config_hash, config_path)
-        runner_label = runner_sha or "*(predates tracking)*"
-
-        # Per-axis pass rates for the composite score below — kept as raw
-        # fractions (0.0-1.0) here, not the display-formatted `pass_rate`
-        # string above, and computed separately per suite category rather
-        # than reused from the blended one, since "coding" and
-        # "hermes_ops" need to combine at DIFFERENT weights, not get
-        # averaged together first and lose that distinction.
-        coding_scored = [r for r in non_sanity_scored if r["suite"] in CODING_SUITES]
-        hermes_ops_scored = [r for r in non_sanity_scored if r["suite"] not in CODING_SUITES]
-        coding_pass_rate = (
-            sum(1 for r in coding_scored if r.get("pass")) / len(coding_scored)
-            if coding_scored else None
-        )
-        hermes_ops_pass_rate = (
-            sum(1 for r in hermes_ops_scored if r.get("pass")) / len(hermes_ops_scored)
-            if hermes_ops_scored else None
-        )
-
-        # Benchmark v2 composite-score inputs (coding axis only -- see
-        # CODING_SCORE_WEIGHTS's own comment for why hermes_ops stays a
-        # pure gate rather than folding into this same weighted score).
-        # wall_seconds is populated even for a genuine wall-clock TIMEOUT
-        # row (it equals the timeout ceiling) -- no substitution needed,
-        # unlike hermes_turns below.
-        coding_wall_values = [r["wall_seconds"] for r in coding_scored if r.get("wall_seconds") is not None]
-        avg_coding_wall = mean(coding_wall_values) if coding_wall_values else None
-        coding_turns_values = [
-            r["hermes_turns"] if r.get("hermes_turns") is not None else CODING_TURNS_CEILING_FOR_TIMEOUT
-            for r in coding_scored
-        ]
-        avg_coding_turns = mean(coding_turns_values) if coding_turns_values else None
-
-        group_stats.append({
-            "key": (model, inference_engine, quant, config_hash, runner_sha),
-            "line": (
-                f"| {model} | {inference_engine} | {quant or '—'} | {temp} | {reasoning_mode} | "
-                f"{reasoning_effort} | {sanity_gate} | {config_label} | {runner_label} | {n} | {pass_rate} | "
-                f"{n_slow_pass} | {avg_tps} | {avg_ttft} | {n_hallucinated} | {avg_turns} | "
-                f"{n_tool_errors} | {peak_rss} | {quant_family} | {cache_mode} | {mtp_mode} |"
-            ),
-            "avg_tps_val": avg_tps_val,
-            "reasoning_mode": reasoning_mode,
-            "reasoning_effort": reasoning_effort,
-            "coding_pass_rate": coding_pass_rate,
-            "hermes_ops_pass_rate": hermes_ops_pass_rate,
-            "avg_coding_wall": avg_coding_wall,
-            "avg_coding_turns": avg_coding_turns,
-            "n_sanity": len(sanity_scored),
-            "n_coding": len(coding_scored),
-            "n_hermes_ops": len(hermes_ops_scored),
-        })
+    group_stats = compute_group_stats(groups)
 
     for gs in group_stats:
         lines.append(gs["line"])
 
-    # "Best overall" ranking, round 2 (2026-08-26 user feedback, replacing
-    # the weighted-blend design from round 1 / fa0046f / methodology review
-    # F3). The user's own framing: this benchmark isn't measuring "coding
-    # ability" as one input among peers — it's measuring USEFULNESS AS AN
-    # AGENT, and only THEN coding ability. "If the sanity check or full
-    # Hermes pass does not complete it fails the basic usefulness check.
-    # Then coding ability is the discerning next factor + speed which
-    # improves usability." A weighted blend (0.5/0.3/0.2) let speed and
-    # hermes_ops act as PEERS of coding, so a fast, hermes_ops-competent
-    # model with weak coding evidence could still outscore a slower model
-    # that actually demonstrated coding ability — the exact bug this round
-    # of feedback is about. This is now a staged gate-then-rank, not a
-    # blend:
-    #
-    # 1. ELIGIBILITY (stricter than round 1, which only required
-    #    n_coding >= 1): a group must have at least one row on ALL THREE
-    #    axes — sanity, hermes_ops, coding — to represent a genuinely
-    #    COMPLETED benchmark run. A group that never reached hermes_ops or
-    #    coding (e.g. stopped by the speed gate, or still mid-run) isn't
-    #    "for which we have all numbers" and has no place here at all,
-    #    complete or not — it doesn't get scored on whatever subset of axes
-    #    it happens to have, the way round 1 allowed.
-    #
-    # 2. USEFULNESS GATE — a hard pass/fail TIER, not a weighted input:
-    #    hermes_ops_pass_rate >= 0.5 (majority-pass; same threshold concept
-    #    as run_bench.py's own `_majority_pass()` sanity-gate helper). A
-    #    model that can't reliably do basic tool-use/agent operations isn't
-    #    "useful as an agent" regardless of how well it codes or how fast
-    #    it is — every gate-PASSING group ranks above every gate-FAILING
-    #    group, full stop, no matter their coding or speed numbers.
-    #
-    # 3. PRIMARY SORT among gate-passers: coding_pass_rate, descending —
-    #    the actual discerning factor, once basic usefulness is
-    #    established. Raw pass rate, not shrunk: round 1's small-sample
-    #    shrinkage existed to keep a lucky 1/1 from tying a properly-tested
-    #    11/11 inside a single blended score, but a plain descending sort
-    #    doesn't have that failure mode (a real 1/1 legitimately ties
-    #    another real 1/1, and any group with more evidence for the SAME
-    #    rate will typically differ from it anyway) — so the shrinkage
-    #    machinery is dropped entirely along with the blend it was tuned for.
-    #
-    # 4. TIE-BREAK: avg tok/s, descending — this is precisely where "speed
-    #    which improves usability" belongs: it only discriminates between
-    #    models that are already comparably capable at coding, and can
-    #    never let a faster model outrank a more-correct one.
-    #
-    # Dedup-to-most-evidenced-fragment-per-(model, inference_engine, quant)
-    # from round 1 is unchanged — still needed so an early 1-task fragment
-    # from before a model was fully tested can't outrank that same model's
-    # own later, complete sweep.
-    best_fragment = {}
-    for gs in group_stats:
-        model, inference_engine, quant, _config_hash, _runner_sha = gs["key"]
-        dedup_key = (model, inference_engine, quant)
-        evidence = gs["n_coding"] + gs["n_hermes_ops"]
-        current = best_fragment.get(dedup_key)
-        if current is None or evidence > current["n_coding"] + current["n_hermes_ops"]:
-            best_fragment[dedup_key] = gs
-
-    GATE_HERMES_OPS_THRESHOLD = 0.5  # majority-pass — same concept as run_bench.py's _majority_pass()
-
-    # Round 3 (2026-08-27, benchmark v2, user request): round 2's primary
-    # sort was plain coding_pass_rate, tie-broken by speed — clean, but it
-    # couldn't distinguish "genuinely better at coding" from "took forever
-    # and used every one of its turns to barely scrape a pass," and gave
-    # slow-but-correct models no credit at all for eventually finishing
-    # once the coding-suite timeouts were bumped (see tasks/kiem_mini.yaml
-    # etc.) to let them run to completion instead of being hard-killed.
-    # This replaces that primary sort with a weighted composite over four
-    # axes the user specifically asked to be tracked together: pass rate
-    # and speed matter most (equal top weight), then time taken, then
-    # turns used — see CODING_SCORE_WEIGHTS's own comment for the exact
-    # numbers and where they come from.
-    #
-    # Each axis is normalized 0.0-1.0 against the best value seen among
-    # this run's ELIGIBLE (fully-completed, gate-passing candidates for
-    # normalization purposes — see eligible_for_norm below) groups, not
-    # against an absolute target, since "fast" and "few turns" are only
-    # meaningful relative to what this hardware/task-set actually
-    # produces:
-    #   pass  = coding_pass_rate directly (already 0.0-1.0)
-    #   speed = avg_tps / fastest group's avg_tps
-    #   time  = fastest (lowest) group's avg_coding_wall / this group's
-    #           avg_coding_wall (shorter is better, so INVERTED)
-    #   turns = fewest-turns group's avg_coding_turns / this group's
-    #           avg_coding_turns (fewer is better, so INVERTED)
-    # A group missing a denominator input (e.g. every coding row somehow
-    # lacked wall_seconds) scores 0.0 on that one axis rather than being
-    # excluded outright — conservative, not a crash.
-    #
-    # The usefulness GATE (hermes_ops >= 50%, hard tier boundary) and the
-    # eligibility rule (all three axes present) from round 2 are BOTH
-    # unchanged — this round only changes how gate-passers are ordered
-    # relative to each other, not who's allowed to compete at all.
-    eligible_for_norm = [
-        gs for gs in best_fragment.values()
-        if gs["n_sanity"] and gs["n_hermes_ops"] and gs["n_coding"]
-        and gs["hermes_ops_pass_rate"] >= GATE_HERMES_OPS_THRESHOLD
-    ]
-    max_tps_for_score = max(
-        (gs["avg_tps_val"] for gs in eligible_for_norm if gs["avg_tps_val"]), default=None,
-    )
-    min_wall_for_score = min(
-        (gs["avg_coding_wall"] for gs in eligible_for_norm if gs["avg_coding_wall"]), default=None,
-    )
-    min_turns_for_score = min(
-        (gs["avg_coding_turns"] for gs in eligible_for_norm if gs["avg_coding_turns"]), default=None,
-    )
-
-    def _composite_coding_score(gs):
-        pass_component = gs["coding_pass_rate"] or 0.0
-        speed_component = (
-            gs["avg_tps_val"] / max_tps_for_score
-            if gs["avg_tps_val"] and max_tps_for_score else 0.0
-        )
-        time_component = (
-            min_wall_for_score / gs["avg_coding_wall"]
-            if gs["avg_coding_wall"] and min_wall_for_score else 0.0
-        )
-        turns_component = (
-            min_turns_for_score / gs["avg_coding_turns"]
-            if gs["avg_coding_turns"] and min_turns_for_score else 0.0
-        )
-        return (
-            CODING_SCORE_WEIGHTS["pass"] * pass_component
-            + CODING_SCORE_WEIGHTS["speed"] * speed_component
-            + CODING_SCORE_WEIGHTS["time"] * time_component
-            + CODING_SCORE_WEIGHTS["turns"] * turns_component
-        )
-
-    ranked = []
-    for gs in best_fragment.values():
-        if not (gs["n_sanity"] and gs["n_hermes_ops"] and gs["n_coding"]):
-            continue  # not a completed run — missing an entire axis
-        gate_pass = gs["hermes_ops_pass_rate"] >= GATE_HERMES_OPS_THRESHOLD
-        score = _composite_coding_score(gs) if gate_pass else 0.0
-        # Sort key is lexicographic, most-significant field first: gate
-        # status beats the composite score, always — never traded off
-        # against each other the way folding hermes_ops into the same
-        # blend would allow.
-        ranked.append((gate_pass, score, gs))
+    ranked = rank_groups(group_stats)
 
     lines.append("")
     lines.append("## Best overall (gate, then weighted composite score)")
