@@ -1,0 +1,136 @@
+$ hermes chat --profile bench --provider qwen-gguf-q5-64k -m unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M --max-turns 40
+
+--- stdout ---
+
+┌─ Reasoning ──────────────────────────────────────────────────────────────────┐
+Let me look at the files to understand the structure.
+Let me look at the files to understand the structure.
+Let me look at the types and the existing test files to match the style.
+Let me look at the types and the existing test files to match the style.
+I'll write a test. Repair costs:
+- hut: wood 10 → ceil(10/2)=5
+- farm: wood 15 → ceil(15/2)=8, stone 5 → ceil(5/2)=3 (both round up, farm is odd
+ in both)
+- quarry: wood 20 → 10
+
+Tests:
+1. Repairs an existing building, and the cost is half rounded up per resource (farm
+: wood 15→8, stone 5→3).
+2. No-op if the settlement doesn't have that building — returns the same settlement
+ (or at least unchanged resources/buildings).
+3. Never goes below 0: settlement has less of a resource than the repair cost (e.g
+. wood: 3 < 8 → 0).
+4. Round-up case with an odd cost — farm covers it. Maybe I could use hut's even cost
+ as a contrast, but it's already covered.
+
+Should I also test that it doesn't modify the input? Not required. Stay focused.
+I'll write a test. Repair costs:
+- hut: wood 10 → ceil(10/2)=5
+- farm: wood 15 → ceil(15/2)=8, stone 5 → ceil(5/2)=3 (both round up, farm is odd in both)
+- quarry: wood 20 → 10
+
+Tests:
+1. Repairs an existing building, and the cost is half rounded up per resource (farm: wood 15→8, stone 5→3).
+2. No-op if the settlement doesn't have that building — returns the same settlement (or at least unchanged resources/buildings).
+3. Never goes below 0: settlement has less of a resource than the repair cost (e.g. wood: 3 < 8 → 0).
+4. Round-up case with an odd cost — farm covers it. Maybe I could use hut's even cost as a contrast, but it's already covered.
+
+Should I also test that it doesn't modify the input? Not required. Stay focused.
+  ┊ review diff
+a/tests/repair.test.ts → b/tests/repair.test.ts
+@@ -0,0 +1,59 @@
++import { describe, expect, it } from "vitest";
++import { repairBuilding } from "../src/sim";
++import type { Settlement } from "../src/types";
++
++function settlement(overrides: Partial<Settlement> = {}): Settlement {
++  return {
++    resources: { wood: 30, food: 10, stone: 10 },
++    population: 2,
++    buildings: [],
++    ...overrides,
++  };
++}
++
++describe("repairBuilding", () => {
++  it("repairs a built building for half its original cost, rounded up per resource", () => {
++    // farm costs wood 15, stone 5 -> repair ceil(15/2)=8 wood, ceil(5/2)=3 stone
++    const s = settlement({ buildings: ["farm"] });
++    const result = repairBuilding(s, "farm");
++    expect(result.resources.wood).toBe(22);
++    expect(result.resources.stone).toBe(7);
++    expect(result.resources.food).toBe(10);
++    expect(result.buildings).toEqual(["farm"]);
++  });
++
++  it("uses exact half cost when the original cost is even", () => {
++    // hut costs wood 10 -> repair ceil(10/2)=5 wood
++    const s = settlement({ buildings: ["hut"] });
++    const result = repairBuilding(s, "hut");
++    expect(result.resources.wood).toBe(25);
++    expect(result.resources.stone).toBe(10);
++  });
++
++  it("is a no-op if the settlement doesn't have that building", () => {
++    const s = settlement({ buildings: ["hut"] });
++    const result = repairBuilding(s, "farm");
++    expect(result).toBe(s);
++    expect(result.resources).toEqual({ wood: 30, food: 10, stone: 10 });
++    expect(result.buildings).toEqual(["hut"]);
++  });
++
++  it("never takes any resource below 0", () => {
++    // farm repair costs 8 wood and 3 stone; settlement has only 3 wood, 1 stone
++    const s = settlement({
++      buildings: ["farm"],
++      resources: { wood: 3, food: 10, stone: 1 },
++    });
++    const result = repairBuilding(s, "farm");
++    expect(result.resources.wood).toBe(0);
++    expect(result.resources.stone).toBe(0);
++    expect(result.resources.food).toBe(10);
++  });
++
++  it("does not mutate the input settlement", () => {
++    const s = settlement({ buildings: ["farm"] });
++    const result = repairBuilding(s, "farm");
++    expect(s.resources).toEqual({ wood: 30, food: 10, stone: 10 });
++    expect(result).not.toBe(s);
++  });
++});
+Wait—there's one nuance: the "doesn't go below 0" case. The spec says "never drops
+ resources below 0," but it doesn't say repair only happens if you can afford it.
+ Looking at the implementation: it just does Math.max(0, ...) per resource regardless
+ of whether you can afford it. So repair happens and gets clamped at 0. My test reflects
+ the actual behavior. Good.
+
+Also "no-op if the settlement doesn't have that building"—returns the same settlement
+ object (identity). My test checks both identity and resources. Good.
+
+Rounding up: farm wood 15 → 8, stone 5 → 3. Good.
+
+Running the tests and type check.
+Wait—there's one nuance: the "doesn't go below 0" case. The spec says "never drops resources below 0," but it doesn't say repair only happens if you can afford it. Looking at the implementation: it just does Math.max(0, ...) per resource regardless of whether you can afford it. So repair happens and gets clamped at 0. My test reflects the actual behavior. Good.
+
+Also "no-op if the settlement doesn't have that building"—returns the same settlement object (identity). My test checks both identity and resources. Good.
+
+Rounding up: farm wood 15 → 8, stone 5 → 3. Good.
+
+Running the tests and type check.
+All tests pass, and the type check also passes. Done.
+All tests pass, and the type check also passes. Done.
+Done. Created tests/repair.test.ts with 5 tests covering all required behaviors:
+
+- Half-cost repair with rounding up (odd cost): farm (wood 15, stone 5) → deducts 8 wood, 3 stone
+- Exact-half case with even cost: hut (wood 10) → deducts 5 wood
+- No-op when the settlement lacks the building (returns the same object, unchanged)
+- Resource floor at 0 when the settlement has less than the repair costs (3 wood / 1 stone → both 0, food untouched)
+- Bonus: input settlement is not mutated
+
+Verified: npm run test → 9 passed (2 files), npm run typecheck → clean. src/sim.ts untouched.
+
+
+--- stderr ---
+
+session_id: 20260827_165035_6bc765
+

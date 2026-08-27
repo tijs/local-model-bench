@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/1305 rows below predate 2026-08-21
+> **⚠ 138/1326 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -268,6 +268,7 @@ added explicitly to record that default rather than leave it invisible.
 | unsloth/Qwen3.6-35B-A3B-GGUF:UD-Q4_K_XL | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [436d6d25d30c](configs/436d6d25d30c.yaml) — *config since changed* | 8d4f1f85f106 | 19 | 84% | 3 | 27.1 | 7.47 | 0 | — | 0 | 24.2 | — | — | — |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q2_K_XL | gguf | UD-Q2_K_XL | ? | ? | ? | 2/2 | [2233edb1c4f2](configs/Qwen3.8-27B/gguf-unsloth-ud-q2.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 100% | 0 | 6.3 | 55.08 | 0 | — | 0 | — | ? | ? | ? |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q4_K_M | gguf | — | ? | ? | ? | 2/2 | [89f4d8d04793](configs/Qwen3.8-27B/gguf-unsloth-ud-q4.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 100% | 0 | 6.4 | 55.57 | 0 | — | 0 | — | ? | ? | ? |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | 1.0 | thinking | medium | 2/2 | [340ca3032e6c](configs/340ca3032e6c.yaml) | bfdc95c44bcb | 19 | 89% | 11 | 6.8 | 46.37 | 0 | 14.5 | 15 | 24.4 | — | — | — |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | 1.0 | thinking | n/a | 2/2 | [6d148ccbfd2e](configs/6d148ccbfd2e.yaml) — *config since changed* | 1166272411af | 9 | 67% | 2 | 6.7 | 46.41 | 0 | — | 0 | 24.5 | — | — | — |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | 1.0 | thinking | n/a | 2/2 | [6d148ccbfd2e](configs/6d148ccbfd2e.yaml) — *config since changed* | 1b3350819dae | 5 | 80% | 1 | 6.4 | 45.73 | 0 | — | 0 | 24.6 | — | — | — |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | 1.0 | thinking | n/a | — | [6d148ccbfd2e](configs/6d148ccbfd2e.yaml) — *config since changed* | 53a9cfb2edfe | 14 | 93% | 10 | 7.6 | 47.78 | 0 | 10.9 | 9 | 24.1 | — | — | — |
@@ -302,27 +303,28 @@ total coding+hermes_ops evidence.
 | 5 | anthropic/claude-haiku-4.5 | openrouter | — | unspecified | 6cc890a25129 | PASS (100%, 8) | 0.536 | 82% (11) | 36.3 tok/s | 67 | 16.6 |
 | 6 | unsloth/Qwen3.6-35B-A3B-GGUF:UD-Q4_K_XL | llama.cpp | — | thinking | 436d6d25d30c | PASS (75%, 8) | 0.523 | 91% (11) | 27.1 tok/s | 202 | 40.0 |
 | 7 | empero-ai/Qwen3.8-27B-Ridge-GGUF | llama.cpp | — | instruct | 7b1d82c8abab | PASS (62%, 8) | 0.483 | 100% (11) | 5.5 tok/s | 511 | 40.0 |
-| 8 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | — | thinking | 3a740261a79c | PASS (75%, 8) | 0.434 | 82% (11) | 8.1 tok/s | 685 | 14.5 |
-| 9 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q5_K_M | llama.cpp | — | thinking | 7103a8c7677c | PASS (62%, 8) | 0.424 | 82% (11) | 6.7 tok/s | 817 | 16.7 |
-| 10 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | — | instruct | 644415678c37 | PASS (75%, 8) | 0.422 | 73% (11) | 20.8 tok/s | 280 | 29.5 |
-| 11 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | llama.cpp | — | n/a | 0840d8e3ee87 | PASS (88%, 8) | 0.417 | 36% (11) | 62.6 tok/s | 263 | 23.8 |
-| 12 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | — | thinking | 38ccea45c281 | PASS (62%, 8) | 0.417 | 82% (11) | 8.5 tok/s | 956 | 30.3 |
-| 13 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | llama.cpp | — | thinking | c02615b57f21 | PASS (88%, 8) | 0.410 | 82% (11) | 7.9 tok/s | 811 | 40.0 |
-| 14 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | thinking | a2d241742068 | PASS (75%, 8) | 0.389 | 64% (11) | 20.9 tok/s | 416 | 20.9 |
-| 15 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | n/a | ffa862c18cff | PASS (75%, 8) | 0.378 | 73% (11) | 7.7 tok/s | 764 | 23.5 |
-| 16 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | llama.cpp | — | n/a | 05a5098cf4c6 | PASS (75%, 8) | 0.356 | 0% (11) | 67.6 tok/s | 34 | 5.1 |
-| 17 | mlx-community/LFM2.5-8B-A1B-MLX-8bit | vllm-mlx | — | n/a | 00878f13621f | PASS (62%, 8) | 0.311 | 0% (1) | 26.4 tok/s | 1 | 40.0 |
-| 18 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | gguf | — | n/a | 5f50ca6ebdf3 | PASS (62%, 8) | 0.285 | 0% (1) | 66.7 tok/s | 9 | 40.0 |
-| 19 | LiquidAI/LFM2.5-8B-A1B-GGUF:BF16 | llama.cpp | — | n/a | a148c29637e6 | PASS (75%, 8) | 0.250 | 0% (11) | 55.3 tok/s | 60 | 12.1 |
-| 20 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | — | n/a | 00fc47aef271 | PASS (67%, 6) | 0.170 | 0% (3) | 42.3 tok/s | 312 | 40.0 |
-| 21 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF:F16 drafter) | gguf | — | n/a | f6bb65acb160 | PASS (75%, 8) | 0.135 | 0% (1) | 27.0 tok/s | 10 | 40.0 |
-| 22 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ DSpark F16 drafter) | gguf | — | ? | 85636a621ce0 | PASS (100%, 3) | 0.134 | 0% (1) | 29.3 tok/s | 17 | 40.0 |
-| 23 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF:F16 drafter) | llama.cpp-dspark | — | n/a | 4f8641aa7094 | PASS (75%, 8) | 0.134 | 0% (1) | 26.9 tok/s | 10 | 40.0 |
-| 24 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | mlx | — | n/a | da00492c3b46 | PASS (62%, 8) | 0.099 | 0% (1) | 21.4 tok/s | 31 | 40.0 |
-| 25 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | vllm-mlx | — | n/a | 9693319bc3a1 | PASS (75%, 8) | 0.097 | 0% (1) | 20.7 tok/s | 29 | 40.0 |
-| 26 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | vllm-mlx | — | n/a | c1a7fd5d3135 | PASS (88%, 8) | 0.086 | 0% (1) | 19.3 tok/s | 155 | 40.0 |
-| 27 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | mlx | — | instruct | 5e09e98f8c60 | PASS (75%, 8) | 0.063 | 0% (1) | 12.9 tok/s | 93 | 40.0 |
-| 28 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | gguf | — | n/a | 1d65d14c63a8 | FAIL (12%, 8) | — | 0% (1) | 32.8 tok/s | 10 | 40.0 |
+| 8 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | thinking (medium) | 340ca3032e6c | PASS (88%, 8) | 0.470 | 91% (11) | 6.8 tok/s | 935 | 14.5 |
+| 9 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | — | thinking | 3a740261a79c | PASS (75%, 8) | 0.434 | 82% (11) | 8.1 tok/s | 685 | 14.5 |
+| 10 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q5_K_M | llama.cpp | — | thinking | 7103a8c7677c | PASS (62%, 8) | 0.424 | 82% (11) | 6.7 tok/s | 817 | 16.7 |
+| 11 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | — | instruct | 644415678c37 | PASS (75%, 8) | 0.422 | 73% (11) | 20.8 tok/s | 280 | 29.5 |
+| 12 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | llama.cpp | — | n/a | 0840d8e3ee87 | PASS (88%, 8) | 0.417 | 36% (11) | 62.6 tok/s | 263 | 23.8 |
+| 13 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | — | thinking | 38ccea45c281 | PASS (62%, 8) | 0.417 | 82% (11) | 8.5 tok/s | 956 | 30.3 |
+| 14 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | llama.cpp | — | thinking | c02615b57f21 | PASS (88%, 8) | 0.410 | 82% (11) | 7.9 tok/s | 811 | 40.0 |
+| 15 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | thinking | a2d241742068 | PASS (75%, 8) | 0.389 | 64% (11) | 20.9 tok/s | 416 | 20.9 |
+| 16 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | n/a | ffa862c18cff | PASS (75%, 8) | 0.378 | 73% (11) | 7.7 tok/s | 764 | 23.5 |
+| 17 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | llama.cpp | — | n/a | 05a5098cf4c6 | PASS (75%, 8) | 0.356 | 0% (11) | 67.6 tok/s | 34 | 5.1 |
+| 18 | mlx-community/LFM2.5-8B-A1B-MLX-8bit | vllm-mlx | — | n/a | 00878f13621f | PASS (62%, 8) | 0.311 | 0% (1) | 26.4 tok/s | 1 | 40.0 |
+| 19 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | gguf | — | n/a | 5f50ca6ebdf3 | PASS (62%, 8) | 0.285 | 0% (1) | 66.7 tok/s | 9 | 40.0 |
+| 20 | LiquidAI/LFM2.5-8B-A1B-GGUF:BF16 | llama.cpp | — | n/a | a148c29637e6 | PASS (75%, 8) | 0.250 | 0% (11) | 55.3 tok/s | 60 | 12.1 |
+| 21 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | — | n/a | 00fc47aef271 | PASS (67%, 6) | 0.170 | 0% (3) | 42.3 tok/s | 312 | 40.0 |
+| 22 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF:F16 drafter) | gguf | — | n/a | f6bb65acb160 | PASS (75%, 8) | 0.135 | 0% (1) | 27.0 tok/s | 10 | 40.0 |
+| 23 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ DSpark F16 drafter) | gguf | — | ? | 85636a621ce0 | PASS (100%, 3) | 0.134 | 0% (1) | 29.3 tok/s | 17 | 40.0 |
+| 24 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF:F16 drafter) | llama.cpp-dspark | — | n/a | 4f8641aa7094 | PASS (75%, 8) | 0.134 | 0% (1) | 26.9 tok/s | 10 | 40.0 |
+| 25 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | mlx | — | n/a | da00492c3b46 | PASS (62%, 8) | 0.099 | 0% (1) | 21.4 tok/s | 31 | 40.0 |
+| 26 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | vllm-mlx | — | n/a | 9693319bc3a1 | PASS (75%, 8) | 0.097 | 0% (1) | 20.7 tok/s | 29 | 40.0 |
+| 27 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | vllm-mlx | — | n/a | c1a7fd5d3135 | PASS (88%, 8) | 0.086 | 0% (1) | 19.3 tok/s | 155 | 40.0 |
+| 28 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | mlx | — | instruct | 5e09e98f8c60 | PASS (75%, 8) | 0.063 | 0% (1) | 12.9 tok/s | 93 | 40.0 |
+| 29 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | gguf | — | n/a | 1d65d14c63a8 | FAIL (12%, 8) | — | 0% (1) | 32.8 tok/s | 10 | 40.0 |
 
 ![Best overall composite score by model](score_chart.png)
 
@@ -719,6 +721,11 @@ confirmed-stable, just untested for flakiness.
 | unsloth/Qwen3.8-27B-GGUF:UD-Q2_K_XL | gguf | 2233edb1c4f2 | *(predates tracking)* | sanity | 2/2 |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q4_K_M | gguf | 89f4d8d04793 | *(predates tracking)* | hermes_ops | 3/3 |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q4_K_M | gguf | 89f4d8d04793 | *(predates tracking)* | sanity | 2/2 |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 340ca3032e6c | bfdc95c44bcb | hearth_mini | 3/3 |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 340ca3032e6c | bfdc95c44bcb | hermes_ops | 7/8 |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 340ca3032e6c | bfdc95c44bcb | kiem_mini | 5/5 |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 340ca3032e6c | bfdc95c44bcb | kipclip_mini | 2/3 |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 340ca3032e6c | bfdc95c44bcb | sanity | 2/2 |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 6d148ccbfd2e | 1166272411af | hermes_ops | 6/8 |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 6d148ccbfd2e | 1166272411af | kiem_mini | 0/1 |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 6d148ccbfd2e | 1166272411af | sanity | 2/2 |
