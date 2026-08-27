@@ -1,0 +1,90 @@
+model: unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M
+# Added 2026-08-27 (user-directed follow-up to gguf-unsloth-ud-q5-64k.yaml,
+# after externally-sourced sampler research was checked against this
+# repo's real llama-server build and existing data): same model/quant/
+# context as that config (see it for the full quant-choice and KV-cache
+# math), but with two changes verified as real, actionable deltas rather
+# than assumed from the research wholesale:
+#
+# 1. --min-p 0.0 — llama.cpp's ACTUAL default (confirmed via
+#    `llama-server --help`) is min-p=0.05 (enabled), not 0.0/disabled.
+#    Every prior Qwen3.8-27B result on record has silently run with this
+#    filter active, which doesn't match Qwen's own documented official
+#    sampler recipe for thinking mode (temp 1.0 / top-p 0.95 / top-k 20 /
+#    min-p 0.0 / presence-penalty 0.0 / repeat-penalty 1.0). This is the
+#    one previously-unnoticed gap that survived verification.
+#
+# 2. --reasoning-effort xhigh — explicit override of chat_template.jinja's
+#    hardcoded 'medium' fallback (see gguf-unsloth-ud-q5-64k.yaml's own
+#    comment on that default). This config exists specifically to test
+#    Qwen's own "closest thing to Opus" preset (max reasoning effort)
+#    against the medium-effort baseline every other result on this family
+#    used, not to replace that baseline.
+#
+# NOT carried over from that same research: --spec-type draft-mtp (this
+# repo already has a real, negative Mac data point for MTP on this exact
+# model/quant — see gguf-mtp-speed.yaml's retirement note: 8/11 coding
+# vs 9/11 baseline, 5.2 vs 7.9 tok/s, slower not faster) and
+# --cache-type-k/v q8_0 (marginal memory savings on a hybrid architecture
+# whose KV cache is already cheap — not worth conflating with the two
+# changes actually worth isolating here). -ngl, --flash-attn, --parallel,
+# --batch-size/--ubatch-size were all checked against llama-server's real
+# defaults (auto/auto/auto/2048/512) and already match the research's
+# recommendation without needing to be set explicitly.
+temperature: 1.0
+reasoning_mode: thinking
+reasoning_effort: xhigh
+  # Explicit override via --reasoning-effort xhigh (see above) -- unlike
+  # every other Qwen3.8-27B config on record, this one does NOT rely on
+  # the chat template's silent 'medium' fallback.
+inference_engine: llama.cpp
+
+benchmark_launch_command: |
+  HF_TOKEN=$(cat ~/.cache/huggingface/token) llama-server \
+    --hf-repo unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M \
+    --host 127.0.0.1 --port 8017 \
+    --temp 1.0 --top-p 0.95 --top-k 20 --min-p 0.0 --ctx-size 65536 \
+    --jinja --chat-template-file configs/Qwen3.8-27B/chat_template.jinja \
+    --reasoning-effort xhigh
+
+benchmark_endpoint: http://127.0.0.1:8017/v1
+  # no proxy needed — native tool_calls, same Qwen family as gguf.yaml.
+
+orchestration:
+  raw_port: 8017
+  needs_proxy: false
+  hermes_provider: qwen-gguf-q5-64k-xhigh   # registered in
+    # ~/.hermes/profiles/bench/config.yaml, context_length: 65536 matching
+    # this config's real --ctx-size (same pattern as qwen-gguf-q5-64k).
+  viable: full   # same viability basis as gguf-unsloth-ud-q5-64k.yaml,
+    # which this config only changes sampler/reasoning-effort flags on top
+    # of -- no reason to expect a different memory/viability profile.
+
+settings:
+  - name: quant / context_length
+    value: "UD-Q5_K_M, 65536 -- identical to gguf-unsloth-ud-q5-64k.yaml,
+      see that file for full citations."
+  - name: min_p
+    value: "0.0 (disabled) -- Qwen's own documented official thinking-mode
+      sampler recipe. llama.cpp's actual default (0.05) was never
+      overridden in any prior Qwen3.8-27B config on this repo."
+    source: "Confirmed via `llama-server --help` (default: 0.05, 0.0 =
+      disabled) -- this was a real, previously-unverified gap, not an
+      assumption carried over from external research."
+  - name: reasoning_effort
+    value: "xhigh -- explicit override, testing Qwen's own 'maximum
+      quality' preset against every other result on this family (all
+      silently run at the chat template's 'medium' fallback)."
+    source: "gguf-unsloth-ud-q5-64k.yaml's own reasoning_effort comment
+      documents the silent medium default this config now overrides."
+
+known_gaps:
+  - "Never run live as of authoring. xhigh reasoning effort is expected to
+    produce substantially more thinking tokens per turn than medium --
+    watch hermes_turns/wall_seconds against gguf-unsloth-ud-q5-64k.yaml's
+    own numbers (10/11 coding, hermes_ops 7/8) for whether the quality
+    gain (if any) is worth the added time under this benchmark's
+    time/turns-weighted composite score."
+
+last_updated: 2026-08-27
+last_verified_against_docs: 2026-08-27
