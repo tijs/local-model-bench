@@ -1,0 +1,109 @@
+model: JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q5_K_M
+# Added 2026-08-26 (user request, following up on the Kiem "Qwen3.8 +
+# llama.cpp speed and agentic-efficiency investigation" plan): this
+# family's own data already shows quant choice is the dominant lever on
+# coding quality, not engine flags — the base Qwen3.8-27B jumped from
+# 73-82% coding (Q4_K_M variants) to 91% at UD-Q5_K_M
+# (gguf-unsloth-ud-q5-64k.yaml), tying this benchmark's best performers.
+# This fine-tune had only ever been tested at Q4_K_M (82% coding, see
+# gguf.yaml) — this config combines the Uncensored fine-tune (the user's
+# stated preference when tied-or-better, see results/SUMMARY.md's
+# retired-near-duplicates section) with the higher quant that already
+# drove a real quality jump for the base model, to see if the same effect
+# holds here.
+#
+# NOTE — not a perfectly matched comparison to gguf-unsloth-ud-q5-64k.yaml:
+# that config uses Unsloth's DYNAMIC quant (UD-Q5_K_M), which uses mixed
+# per-layer precision; this repo only publishes a plain (non-dynamic)
+# Q5_K_M for this fine-tune (confirmed via the HF file listing — no
+# "UD-" variant exists here). Two variables differ (fine-tune AND quant
+# method), not just fine-tune — treat any capability delta as evidence
+# about "this specific quant file," not a clean single-variable A/B
+# against the base model's UD-Q5_K_M result.
+#
+# Memory math (same hybrid-architecture reasoning as gguf-unsloth-ud-q5-64k.yaml
+# — Qwen3.8-27B is 64 layers total, only 16 full Gated Attention, the
+# other 48 Gated DeltaNet linear-attention with fixed-size recurrent
+# state that doesn't grow with context): file size confirmed 18.2GB via
+# a live HF resolve HEAD request 2026-08-26 (19,535,701,408 bytes) —
+# actually SMALLER than the base model's UD-Q5_K_M (19.77GB), consistent
+# with this being a plain quant rather than Unsloth's mixed-precision
+# dynamic one. Budget: ~18.2GB weights + ~4GB KV cache (64K ctx, 16
+# full-attention layers only) + ~2GB runtime/OS overhead ~= ~24.2GB,
+# comfortably inside 32GB — lower risk than the base UD-Q5_K_M config was
+# at authoring time.
+temperature: 1.0
+reasoning_mode: thinking
+inference_engine: llama.cpp
+
+benchmark_launch_command: |
+  HF_TOKEN=$(cat ~/.cache/huggingface/token) llama-server \
+    --hf-repo JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q5_K_M \
+    --host 127.0.0.1 --port 8017 \
+    --temp 1.0 --top-p 0.95 --top-k 20 \
+    --ctx-size 65536 \
+    --jinja --chat-template-file configs/Qwen3.8-27B/chat_template.jinja
+
+benchmark_endpoint: http://127.0.0.1:8017/v1
+  # native tool_calls expected — same precedent as gguf.yaml (this fine-
+  # tune's Q4_K_M sibling) and the base model's own configs. Not
+  # independently re-verified for this specific quant file; the Q4_K_M
+  # sibling's own known_gaps flags the same open question for the
+  # fine-tune generally, unresolved by that config's run either.
+
+orchestration:
+  raw_port: 8017
+  needs_proxy: false
+  hermes_provider: qwen38-uncensored-q5-gguf   # registered in
+    # ~/.hermes/profiles/bench/config.yaml alongside the other Qwen3.8-27B
+    # providers, with context_length: 65536 matching this config's real
+    # --ctx-size (same discipline as qwen-gguf-q5-64k's own comment on
+    # this point — don't repeat the qwen-gguf entry's 262144 mismatch).
+  viable: full
+
+settings:
+  - name: quant
+    value: "Q5_K_M, plain (not Unsloth Dynamic) — 18.2GB on disk
+      (19,535,701,408 bytes, confirmed via HF resolve HEAD request
+      2026-08-26)."
+    source: "https://huggingface.co/JonathanColetti/Qwen3.8-27B-Uncensored-GGUF"
+  - name: fine-tune method (uncensoring)
+    value: "Abliteration (refusal-direction ablation) — same method/repo
+      as this fine-tune's Q4_K_M sibling (gguf.yaml); see that file's own
+      settings entry for the full selection rationale (most-downloaded/
+      most-liked uncensored Qwen3.8-27B GGUF found, MTP draft head
+      retained and verified)."
+    source: "https://huggingface.co/JonathanColetti/Qwen3.8-27B-Uncensored-GGUF"
+  - name: context_length
+    value: 65536
+    source: "Same reasoning as gguf-unsloth-ud-q5-64k.yaml's own ctx-size
+      entry — hermes's hard >=64K minimum for the coding suite, and this
+      model family's hybrid architecture keeps KV cache small enough at
+      this length to stay well within 32GB even at Q5."
+  - name: temperature / top_p / top_k (thinking mode)
+    value: 1.0 / 0.95 / 20
+    source: "Same as every other config in this model family — no
+      separate sampling guidance published for this fine-tune or this
+      specific quant."
+  - name: chat_template (community fix, inherited defensively)
+    value: "Same file as every other Qwen3.8-27B config
+      (configs/Qwen3.8-27B/chat_template.jinja) — not confirmed necessary
+      for this fine-tune's own shipped template, applied defensively per
+      the Q4_K_M sibling's own unresolved note on this."
+
+known_gaps:
+  - "run_prompt.py hardcodes temperature=0 for sanity/hermes_ops — see
+    every sibling config's own note on this, unchanged here."
+  - "Native tool_calls format not independently verified live for this
+    specific quant file — confirm before trusting hermes_ops/coding
+    results, same open question as the Q4_K_M sibling."
+  - "Not a clean single-variable comparison against
+    gguf-unsloth-ud-q5-64k.yaml (base model, Unsloth Dynamic Q5_K_M) — see
+    the header comment above. A capability difference between the two
+    could come from the fine-tune, the quant method, or both."
+  - "First run should watch for OOM/swap behavior, same standing caution
+    as every new ctx-size/quant combination in this repo — the ~24.2GB
+    estimate above is arithmetic, not yet measured live."
+
+last_updated: 2026-08-26
+last_verified_against_docs: 2026-08-26

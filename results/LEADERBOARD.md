@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/1221 rows below predate 2026-08-21
+> **⚠ 138/1242 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -96,6 +96,7 @@ on the two synthetic suites," not "never hallucinated a tool".
 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 0.6 | thinking | — | [6fa6f52fdc56](configs/6fa6f52fdc56.yaml) | d39c9c37bb8c+dirty | 0 | n/a (all harness errors) | 0 | — | — | 0 | — | 0 | — | — | — | — |
 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | 2/2 | [3a740261a79c](configs/3a740261a79c.yaml) | 2477ca2ba371 | 19 | 79% | 11 | 8.1 | 44.53 | 0 | 11.9 | 14 | 22.6 | — | — | — |
 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | 2/2 | [3a740261a79c](configs/3a740261a79c.yaml) | a04f5cd07f20 | 19 | 84% | 13 | 8.0 | 44.53 | 0 | — | 0 | 22.6 | — | — | — |
+| JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q5_K_M | llama.cpp | — | 1.0 | thinking | 2/2 | [7103a8c7677c](configs/7103a8c7677c.yaml) | ba9bffb50e12+dirty | 19 | 74% | 10 | 6.7 | 46.45 | 0 | 11.6 | 9 | 23.9 | — | — | — |
 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | 1.0 | xhigh | 2/2 | [3618a30940bc](configs/3618a30940bc.yaml) — *config since changed* | e155170f4c1d | 0 | n/a (all harness errors) | 0 | 9.6 | 4.90 | 0 | — | 0 | 6.2 | oQ4e-fp16 mixed precision + MTP tensors | cold | lightning |
 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | 1.0 | xhigh | 2/2 | [3618a30940bc](configs/3618a30940bc.yaml) — *config since changed* | fc71ba2c66f8+dirty | 0 | n/a (all harness errors) | 0 | 9.0 | 4.15 | 0 | — | 0 | — | oQ4e-fp16 mixed precision + MTP tensors | cold | lightning |
 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | 1.0 | medium | 2/2 | [6f8f1c7b8d48](configs/6f8f1c7b8d48.yaml) — *config since changed* | e155170f4c1d | 0 | n/a (all harness errors) | 0 | 10.4 | 3.52 | 0 | — | 0 | 8.0 | oQ4e-fp16 mixed precision + MTP tensors | ssd | off |
@@ -281,23 +282,24 @@ evidence.
 | 8 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | — | 38ccea45c281 | PASS (62%, 8) | 82% (11) | 8.5 tok/s |
 | 9 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | — | 3a740261a79c | PASS (75%, 8) | 82% (11) | 8.1 tok/s |
 | 10 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | llama.cpp | — | c02615b57f21 | PASS (88%, 8) | 82% (11) | 7.9 tok/s |
-| 11 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | — | 644415678c37 | PASS (75%, 8) | 73% (11) | 20.8 tok/s |
-| 12 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | ffa862c18cff | PASS (75%, 8) | 73% (11) | 7.7 tok/s |
-| 13 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | a2d241742068 | PASS (75%, 8) | 64% (11) | 20.9 tok/s |
-| 14 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | llama.cpp | — | 0840d8e3ee87 | PASS (88%, 8) | 36% (11) | 62.6 tok/s |
-| 15 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | llama.cpp | — | 05a5098cf4c6 | PASS (75%, 8) | 0% (11) | 67.6 tok/s |
-| 16 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | gguf | — | 5f50ca6ebdf3 | PASS (62%, 8) | 0% (1) | 66.7 tok/s |
-| 17 | LiquidAI/LFM2.5-8B-A1B-GGUF:BF16 | llama.cpp | — | a148c29637e6 | PASS (75%, 8) | 0% (11) | 55.3 tok/s |
-| 18 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | — | 00fc47aef271 | PASS (67%, 6) | 0% (3) | 42.3 tok/s |
-| 19 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ DSpark F16 drafter) | gguf | — | 85636a621ce0 | PASS (100%, 3) | 0% (1) | 29.3 tok/s |
-| 20 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF:F16 drafter) | gguf | — | f6bb65acb160 | PASS (75%, 8) | 0% (1) | 27.0 tok/s |
-| 21 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF:F16 drafter) | llama.cpp-dspark | — | 4f8641aa7094 | PASS (75%, 8) | 0% (1) | 26.9 tok/s |
-| 22 | mlx-community/LFM2.5-8B-A1B-MLX-8bit | vllm-mlx | — | 00878f13621f | PASS (62%, 8) | 0% (1) | 26.4 tok/s |
-| 23 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | mlx | — | da00492c3b46 | PASS (62%, 8) | 0% (1) | 21.4 tok/s |
-| 24 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | vllm-mlx | — | 9693319bc3a1 | PASS (75%, 8) | 0% (1) | 20.7 tok/s |
-| 25 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | vllm-mlx | — | c1a7fd5d3135 | PASS (88%, 8) | 0% (1) | 19.3 tok/s |
-| 26 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | mlx | — | 5e09e98f8c60 | PASS (75%, 8) | 0% (1) | 12.9 tok/s |
-| 27 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | gguf | — | 1d65d14c63a8 | FAIL (12%, 8) | 0% (1) | 32.8 tok/s |
+| 11 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q5_K_M | llama.cpp | — | 7103a8c7677c | PASS (62%, 8) | 82% (11) | 6.7 tok/s |
+| 12 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | — | 644415678c37 | PASS (75%, 8) | 73% (11) | 20.8 tok/s |
+| 13 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | ffa862c18cff | PASS (75%, 8) | 73% (11) | 7.7 tok/s |
+| 14 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | a2d241742068 | PASS (75%, 8) | 64% (11) | 20.9 tok/s |
+| 15 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | llama.cpp | — | 0840d8e3ee87 | PASS (88%, 8) | 36% (11) | 62.6 tok/s |
+| 16 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | llama.cpp | — | 05a5098cf4c6 | PASS (75%, 8) | 0% (11) | 67.6 tok/s |
+| 17 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | gguf | — | 5f50ca6ebdf3 | PASS (62%, 8) | 0% (1) | 66.7 tok/s |
+| 18 | LiquidAI/LFM2.5-8B-A1B-GGUF:BF16 | llama.cpp | — | a148c29637e6 | PASS (75%, 8) | 0% (11) | 55.3 tok/s |
+| 19 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | — | 00fc47aef271 | PASS (67%, 6) | 0% (3) | 42.3 tok/s |
+| 20 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ DSpark F16 drafter) | gguf | — | 85636a621ce0 | PASS (100%, 3) | 0% (1) | 29.3 tok/s |
+| 21 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF:F16 drafter) | gguf | — | f6bb65acb160 | PASS (75%, 8) | 0% (1) | 27.0 tok/s |
+| 22 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF:F16 drafter) | llama.cpp-dspark | — | 4f8641aa7094 | PASS (75%, 8) | 0% (1) | 26.9 tok/s |
+| 23 | mlx-community/LFM2.5-8B-A1B-MLX-8bit | vllm-mlx | — | 00878f13621f | PASS (62%, 8) | 0% (1) | 26.4 tok/s |
+| 24 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | mlx | — | da00492c3b46 | PASS (62%, 8) | 0% (1) | 21.4 tok/s |
+| 25 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | vllm-mlx | — | 9693319bc3a1 | PASS (75%, 8) | 0% (1) | 20.7 tok/s |
+| 26 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | vllm-mlx | — | c1a7fd5d3135 | PASS (88%, 8) | 0% (1) | 19.3 tok/s |
+| 27 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | mlx | — | 5e09e98f8c60 | PASS (75%, 8) | 0% (1) | 12.9 tok/s |
+| 28 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | gguf | — | 1d65d14c63a8 | FAIL (12%, 8) | 0% (1) | 32.8 tok/s |
 
 ## Flaky tasks (mixed pass/fail under identical conditions)
 
@@ -341,6 +343,11 @@ confirmed-stable, just untested for flakiness.
 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | 3a740261a79c | a04f5cd07f20 | kiem_mini | 5/5 |
 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | 3a740261a79c | a04f5cd07f20 | kipclip_mini | 3/3 |
 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | 3a740261a79c | a04f5cd07f20 | sanity | 2/2 |
+| JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q5_K_M | llama.cpp | 7103a8c7677c | ba9bffb50e12+dirty | hearth_mini | 3/3 |
+| JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q5_K_M | llama.cpp | 7103a8c7677c | ba9bffb50e12+dirty | hermes_ops | 5/8 |
+| JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q5_K_M | llama.cpp | 7103a8c7677c | ba9bffb50e12+dirty | kiem_mini | 3/5 |
+| JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q5_K_M | llama.cpp | 7103a8c7677c | ba9bffb50e12+dirty | kipclip_mini | 3/3 |
+| JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q5_K_M | llama.cpp | 7103a8c7677c | ba9bffb50e12+dirty | sanity | 2/2 |
 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | 3618a30940bc | e155170f4c1d | sanity | 2/2 |
 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | 3618a30940bc | fc71ba2c66f8+dirty | sanity | 2/2 |
 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | 6f8f1c7b8d48 | e155170f4c1d | sanity | 2/2 |
