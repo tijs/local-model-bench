@@ -1,0 +1,127 @@
+$ hermes chat --profile bench --provider qwen36-uncensored-gguf -m HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M --max-turns 40
+
+--- stdout ---
+
+┌─ Reasoning ──────────────────────────────────────────────────────────────────┐
+Let me start by reading the relevant files to understand the codebase structure, the
+ `repairBuilding` function, and the existing test patterns.
+Let me start by reading the relevant files to understand the codebase structure, the `repairBuilding` function, and the existing test patterns.
+Let me check the types file to understand the data structures.
+Let me check the types file to understand the data structures.
+Now I have a clear picture:
+
+- `repairBuilding(settlement, kind)`:
+  1. No-op if settlement doesn't have the building (returns the settlement unchanged
+).
+  2. Costs half the original cost, rounded up per resource.
+  3. Never takes resources below 0 (uses `Math.max(0, ...)`).
+
+BUILDING_COSTS:
+- hut: { wood: 10 } → repair cost: ceil(10/2) = 5 wood
+- farm: { wood: 15, stone: 5 } → repair cost: ceil(15/2) = 8 wood, ceil(5/2) = 3 stone
+
+- quarry: { wood: 20 } → repair cost: ceil(20/2) = 10 wood
+
+For the rounding-up case, farm has wood: 15 → ceil(15/2) = 8 (odd number, rounds up
+).
+
+For the "less resource than cost" case, I need a settlement with fewer of a resource
+ than the repair cost requires. E.g., a hut repair costs 5 wood, so a settlement with
+ 3 wood should end up with 0 wood (not -2).
+
+Let me write the test file.
+Now I have a clear picture:
+
+- `repairBuilding(settlement, kind)`:
+  1. No-op if settlement doesn't have the building (returns the settlement unchanged).
+  2. Costs half the original cost, rounded up per resource.
+  3. Never takes resources below 0 (uses `Math.max(0, ...)`).
+
+BUILDING_COSTS:
+- hut: { wood: 10 } → repair cost: ceil(10/2) = 5 wood
+- farm: { wood: 15, stone: 5 } → repair cost: ceil(15/2) = 8 wood, ceil(5/2) = 3 stone
+- quarry: { wood: 20 } → repair cost: ceil(20/2) = 10 wood
+
+For the rounding-up case, farm has wood: 15 → ceil(15/2) = 8 (odd number, rounds up).
+
+For the "less resource than cost" case, I need a settlement with fewer of a resource than the repair cost requires. E.g., a hut repair costs 5 wood, so a settlement with 3 wood should end up with 0 wood (not -2).
+
+Let me write the test file.
+  ┊ review diff
+a/tests/repair.test.ts → b/tests/repair.test.ts
+@@ -0,0 +1,42 @@
++import { describe, it, expect } from "vitest";
++import { repairBuilding } from "../src/sim";
++import type { Settlement } from "../src/types";
++
++function makeSettlement(buildings: string[] = [], resources = { wood: 100, food: 100, stone: 100 }): Settlement {
++  return {
++    resources: { ...resources },
++    population: 1,
++    buildings: buildings as Settlement["buildings"],
++  };
++}
++
++describe("repairBuilding", () => {
++  it("is a no-op when the settlement does not have the building", () => {
++    const settlement = makeSettlement(["hut"]);
++    const result = repairBuilding(settlement, "farm");
++
++    expect(result).toBe(settlement);
++  });
++
++  it("charges half the original cost, rounded up per resource", () => {
++    // farm costs { wood: 15, stone: 5 }
++    // repair should cost ceil(15/2) = 8 wood, ceil(5/2) = 3 stone
++    const settlement = makeSettlement(["farm"], { wood: 100, food: 100, stone: 100 });
++    const result = repairBuilding(settlement, "farm");
++
++    expect(result.resources.wood).toBe(92);   // 100 - 8
++    expect(result.resources.stone).toBe(97);   // 100 - 3
++    expect(result.resources.food).toBe(100);   // unchanged
++  });
++
++  it("never takes a resource below 0 when the settlement has less than the repair cost", () => {
++    // hut costs { wood: 10 }, repair costs ceil(10/2) = 5 wood
++    // settlement has only 3 wood, so it should drop to 0, not -2
++    const settlement = makeSettlement(["hut"], { wood: 3, food: 100, stone: 100 });
++    const result = repairBuilding(settlement, "hut");
++
++    expect(result.resources.wood).toBe(0);
++    expect(result.resources.food).toBe(100);
++    expect(result.resources.stone).toBe(100);
++  });
++});
+Let me run the tests to verify they pass.
+Let me run the tests to verify they pass.
+Wait, the first test says `result.toBe(settlement)` — but looking at the implementation
+, when the building isn't present, it returns the original settlement object directly
+ (line 62: `return settlement;`). So `toBe` (strict equality) passes. Good.
+
+But wait — let me re-check. The implementation returns `settlement` directly when
+ the building isn't present. So `result.toBe(settlement)` is correct because it's
+ the same reference.
+
+All 3 tests pass. Let me also run typecheck.
+Wait, the first test says `result.toBe(settlement)` — but looking at the implementation, when the building isn't present, it returns the original settlement object directly (line 62: `return settlement;`). So `toBe` (strict equality) passes. Good.
+
+But wait — let me re-check. The implementation returns `settlement` directly when the building isn't present. So `result.toBe(settlement)` is correct because it's the same reference.
+
+All 3 tests pass. Let me also run typecheck.
+<think>
+
+<think>
+
+Done. Created `tests/repair.test.ts` with three tests covering all required behaviors:
+
+1. **No-op when building not present** — settlement has a `hut`, we repair a `farm`; result is the exact same object.
+2. **Rounding-up case** — farm costs `{ wood: 15, stone: 5 }`, repair costs `ceil(15/2)=8` wood and `ceil(5/2)=3` stone (odd numbers triggering the ceil).
+3. **Resource clamping** — settlement has 3 wood, hut repair costs 5 wood; resource drops to 0, not -2.
+
+All 7 tests pass and typecheck is clean.
+
+
+--- stderr ---
+
+session_id: 20260827_100954_483f70
+
