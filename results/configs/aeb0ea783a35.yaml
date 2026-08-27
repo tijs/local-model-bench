@@ -1,0 +1,134 @@
+model: poolside/Laguna-XS-2.1-GGUF:Q4_K_M
+# Added 2026-08-21 (adversarial review finding H7): reasoning-mode and
+# temperature differ across models presented in one ranked leaderboard
+# table with no column showing it — e.g. Qwen3.8-27B vs Qwen3.8-27B-Ridge
+# looked like a quant comparison but also differed in reasoning mode,
+# temperature, and presence_penalty (three confounds, one conclusion).
+# These two fields are read by build_leaderboard.py and shown as columns;
+# keep them in sync with benchmark_launch_command by hand.
+temperature: 1.0
+reasoning_mode: thinking
+inference_engine: llama.cpp
+
+benchmark_launch_command: |
+  HF_TOKEN=$(cat ~/.cache/huggingface/token) llama-server \
+    --hf-repo poolside/Laguna-XS-2.1-GGUF:Q4_K_M \
+    --host 127.0.0.1 --port 8017 \
+    --temp 1.0 --top-p 1.0 --top-k 20 \
+    --ctx-size 65536 --timeout 1800 \
+    --chat-template-kwargs '{"enable_thinking": true}'
+
+benchmark_endpoint: http://127.0.0.1:8015/v1
+  # PROXY REQUIRED — resolved 2026-08-20 (was "UNKNOWN" before the raw
+  # format was confirmed live). llama-server does NOT reliably surface
+  # this model's tool calls as a native tool_calls array: the whole
+  # <tool_call>...</tool_call> block sometimes lands in reasoning_content
+  # instead of content, untouched. bench_local_proxy.py's 'poolside_v1'
+  # parser handles this (also patches normalize_response to fall back to
+  # reasoning_content when content is empty). Launch the proxy after the
+  # raw server:
+  #   BENCH_TOOL_PARSER=poolside_v1 BENCH_PROXY_UPSTREAM=http://127.0.0.1:8017 \
+  #     BENCH_PROXY_PORT=8015 uv run --locked python runner/bench_local_proxy.py
+
+orchestration:
+  raw_port: 8017
+  needs_proxy: true
+  proxy_parser: poolside_v1
+  proxy_port: 8015
+  hermes_provider: null   # never registered — hermes_ops/coding suites
+    # were skipped per the sanity-tool failure below (established scope
+    # rule: sanity-basic pass + sanity-tool fail => stop there)
+  viable: sanity_only   # sanity-tool FAILED (confirmed genuine, see
+    # known_gaps) — do not attempt hermes_ops/coding for this config
+
+settings:
+  - name: "thinking_mode (enable_thinking) — TRACK THIS EXPLICITLY PER RUN,
+      per Tijs (2026-08-20): thinking-capable models should each get a
+      reasonable/comparable setting, but since that's often not directly
+      comparable across model families, always record which value was
+      actually used for a given result rather than leaving it implicit."
+    value: "true (enabled) — set via --chat-template-kwargs
+      '{\"enable_thinking\": true}'"
+    source: "https://huggingface.co/poolside/Laguna-XS-2.1 model card /
+      poolside.ai blog cite 'thinking mode enabled' for their own official
+      benchmarking. The cached chat_template.jinja defaults
+      enable_thinking to FALSE if unset (confirmed by reading the raw
+      template file), so this had to be set explicitly — it is NOT the
+      model's out-of-the-box default behavior. Discovered live 2026-08-20:
+      re-tested the exact sanity-tool request that produced completely
+      empty output under the (unset) default — got the IDENTICAL result
+      (393 completion tokens, empty content, finish_reason=stop) with
+      enable_thinking explicitly true. This rules out thinking-mode as the
+      cause of that specific bug (it reproduces identically either way) —
+      recorded here so a future revisit doesn't waste time re-checking
+      that hypothesis."
+  - name: architecture
+    value: "MoE, 33B total / 3B active per token, 256 experts + 1 shared
+      expert, 40 layers (10 global attention, 30 sliding-window, 3:1
+      ratio)"
+    source: "https://huggingface.co/poolside/Laguna-XS-2.1 model card."
+  - name: quant
+    value: Q4_K_M (20.3GB, official poolside/Laguna-XS-2.1-GGUF, marked
+      'recommended default for local use' on the model card itself)
+    source: "https://huggingface.co/poolside/Laguna-XS-2.1-GGUF"
+  - name: temperature / top_p / top_k
+    value: 1.0 / 1.0 / 20
+    source: "https://huggingface.co/poolside/Laguna-XS-2.1 model card —
+      'as used in official benchmarking' for agentic/coding tasks."
+  - name: context_length
+    value: 65536 (native 262144, capped per hermes's >=64K hard minimum
+      and this benchmark's standard ceiling)
+    source: "https://huggingface.co/poolside/Laguna-XS-2.1 model card +
+      AGENTS.md hermes hard-minimum note."
+  - name: DFlash (poolside's own speculative-decoding drafter)
+    value: "NOT attempted — poolside/Laguna-XS-2.1-DFlash (5-layer, ~70%
+      per-position acceptance on coding per the model card) exists, but
+      this is a DIFFERENT mechanism from the abandoned Inco AI/z-lab
+      'DFlash2' (see AGENTS.md's do-not-retry note — that was a distinct
+      vendor's drafter format that hit a llama.cpp GGUF-loader tensor-count
+      bug on two unrelated checkpoints). Poolside's support matrix lists
+      vLLM/SGLang as in-progress and TRT-LLM as pending — llama.cpp support
+      not mentioned at all, so this would need its own live feasibility
+      check, not assumed compatible just because --spec-type draft-dflash
+      exists in this llama.cpp build (that flag is for Inco/z-lab's
+      DFlash2 specifically, not necessarily poolside's own format)."
+    source: "https://huggingface.co/poolside/Laguna-XS-2.1-DFlash model
+      card."
+
+known_gaps:
+  - "RESOLVED 2026-08-20: raw format confirmed live —
+    <tool_call>NAME<arg_key>K</arg_key><arg_value>V</arg_value>...
+    </tool_call>. llama-server's native chat-template tool-call handling is
+    UNRELIABLE for this format: sometimes produces a clean native
+    tool_calls array, sometimes dumps the whole block (untouched XML tags
+    and all) into reasoning_content instead of content, with content left
+    empty. Added a new bench_local_proxy.py parser ('poolside_v1') and
+    extended normalize_response to also scan reasoning_content when
+    content is empty, matching the qwen3_coder precedent."
+  - "MAJOR RELIABILITY CONCERN, discovered live 2026-08-20: this model
+    is markedly unstable at Q4_K_M. At temperature=1.0 (the model card's
+    own 'official benchmarking' setting), a simple weather-tool-call
+    prompt produced a completely unrelated hallucinated fairy tale (a
+    story about a girl and a lost bird) with zero tool-call attempt — not
+    a subtle error, a total non-sequitur. At temperature=0 (what this
+    benchmark's sanity/hermes_ops actually use), the same prompt sometimes
+    produces a clean correct tool call and sometimes produces 393 tokens
+    of generation collapsing into a completely EMPTY content field (no
+    text, no tool call, nothing) — confirmed via a direct raw-endpoint
+    reproduction of the exact sanity-tool request, not a proxy/parsing
+    artifact (nothing for a parser to find; the field is genuinely empty).
+    sanity-tool FAILED on this basis: 1/2 sanity, hermes_ops/coding suites
+    SKIPPED per this benchmark's established scope rule (sanity-tool
+    failing means every downstream suite depending on tool use is
+    skipped, not run-and-failed). Plausible causes, not yet distinguished:
+    (a) a broken/mismatched embedded chat template (less mainstream
+    architecture, likely less battle-tested in llama.cpp's ecosystem than
+    Qwen/Llama), (b) genuine Q4_K_M quantization damage to a
+    less-quantization-robust architecture, (c) an actual base-model
+    reliability issue independent of quantization. Worth revisiting with a
+    higher-precision quant (Q8_0/BF16) if this model is ever prioritized
+    again, to isolate (a)/(b) from (c) — not attempted this session given
+    time budget."
+
+last_updated: 2026-08-20
+last_verified_against_docs: 2026-08-20

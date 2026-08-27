@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/1326 rows below predate 2026-08-21
+> **⚠ 138/1347 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -109,6 +109,8 @@ added explicitly to record that default rather than leave it invisible.
 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | — | [6fa6f52fdc56](configs/6fa6f52fdc56.yaml) | d39c9c37bb8c+dirty | 0 | n/a (all harness errors) | 0 | — | — | 0 | — | 0 | — | — | — | — |
 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [6fa6f52fdc56](configs/6fa6f52fdc56.yaml) | d60debfa3654 | 1 | 100% | 0 | 29.0 | 17.32 | 0 | — | 0 | 21.6 | — | — | — |
 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | — | [6fa6f52fdc56](configs/6fa6f52fdc56.yaml) | d60debfa3654+dirty | 18 | 89% | 1 | 30.6 | 2.66 | 0 | 14.6 | 18 | 23.1 | — | — | — |
+| JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | medium | — | [32924ffd3dd9](configs/32924ffd3dd9.yaml) | 18b93c687e8d+dirty | 7 | 100% | 6 | — | — | 0 | 11.6 | 9 | 22.7 | — | — | — |
+| JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | medium | 2/2 | [32924ffd3dd9](configs/32924ffd3dd9.yaml) | 7336e84ce111 | 11 | 82% | 6 | 8.1 | 44.52 | 0 | 18.0 | 6 | 22.2 | — | — | — |
 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | n/a | 2/2 | [3a740261a79c](configs/3a740261a79c.yaml) — *config since changed* | 2477ca2ba371 | 19 | 79% | 11 | 8.1 | 44.53 | 0 | 11.9 | 14 | 22.6 | — | — | — |
 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | n/a | 2/2 | [3a740261a79c](configs/3a740261a79c.yaml) — *config since changed* | a04f5cd07f20 | 19 | 84% | 13 | 8.0 | 44.53 | 0 | — | 0 | 22.6 | — | — | — |
 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q5_K_M | llama.cpp | — | 1.0 | thinking | n/a | 2/2 | [7103a8c7677c](configs/7103a8c7677c.yaml) — *config since changed* | ba9bffb50e12+dirty | 19 | 74% | 10 | 6.7 | 46.45 | 0 | 11.6 | 9 | 23.9 | — | — | — |
@@ -366,6 +368,12 @@ confirmed-stable, just untested for flakiness.
 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | 6fa6f52fdc56 | d60debfa3654+dirty | hermes_ops | 5/7 |
 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | 6fa6f52fdc56 | d60debfa3654+dirty | kiem_mini | 5/5 |
 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | 6fa6f52fdc56 | d60debfa3654+dirty | kipclip_mini | 3/3 |
+| JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | 32924ffd3dd9 | 18b93c687e8d+dirty | hearth_mini | 3/3 |
+| JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | 32924ffd3dd9 | 18b93c687e8d+dirty | kiem_mini | 1/1 |
+| JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | 32924ffd3dd9 | 18b93c687e8d+dirty | kipclip_mini | 3/3 |
+| JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | 32924ffd3dd9 | 7336e84ce111 | hermes_ops | 6/8 |
+| JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | 32924ffd3dd9 | 7336e84ce111 | kiem_mini | 3/3 |
+| JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | 32924ffd3dd9 | 7336e84ce111 | sanity | 2/2 |
 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | 3a740261a79c | 2477ca2ba371 | hearth_mini | 3/3 |
 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | 3a740261a79c | 2477ca2ba371 | hermes_ops | 6/8 |
 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | 3a740261a79c | 2477ca2ba371 | kiem_mini | 4/5 |
@@ -738,7 +746,7 @@ confirmed-stable, just untested for flakiness.
 
 ## Harness errors (excluded from every table above)
 
-13 row(s) where the harness itself crashed (e.g. a network blip during `npm ci`, a malformed task spec) rather than the model producing a graded result — shown separately so they don't deflate pass rates or masquerade as model flakiness.
+14 row(s) where the harness itself crashed (e.g. a network blip during `npm ci`, a malformed task spec) rather than the model producing a graded result — shown separately so they don't deflate pass rates or masquerade as model flakiness.
 
 | model | engine | suite | task | grade_output (truncated) |
 |---|---|---|---|---|
@@ -750,6 +758,7 @@ confirmed-stable, just untested for flakiness.
 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | kiem_mini | kiem_mini-rename | HARNESS ERROR: PermissionError: [Errno 13] Permission denied: '/Users/tijs/projects/local-model-bench/runner/.dspark-hea |
 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | kiem_mini | kiem_mini-rename | HARNESS ERROR: PermissionError: [Errno 13] Permission denied: '/Users/tijs/projects/local-model-bench/runner/.dspark-hea |
 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | kiem_mini | kiem_mini-testwrite | HARNESS ERROR: PermissionError: [Errno 13] Permission denied: '/Users/tijs/projects/local-model-bench/runner/.dspark-hea |
+| JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | kiem_mini | kiem_mini-parse-note | [...truncated...] ✘ Test malformedInputThrowsRatherThanCrashingOrGuessing() failed after 0.001 seconds with 1 issue. ✘ T |
 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | kiem_mini | kiem_mini-feature | HARNESS ERROR: child agent escaped the disposable workspace and modified the source fixture; result invalidated and sour |
 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | kiem_mini | kiem_mini-feature | HARNESS ERROR: child agent escaped the disposable workspace and created repository-root src/lib.rs; result invalidated a |
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | kiem_mini | kiem_mini-feature | [...truncated...]      Running unittests src/lib.rs (target/debug/deps/notekeep-49d36e61ba6dd38e)      Running unittests |
