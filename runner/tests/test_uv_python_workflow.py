@@ -105,9 +105,17 @@ class UvPythonWorkflowTests(unittest.TestCase):
     def test_leaderboard_subprocess_uses_current_interpreter(self):
         with patch.object(run_bench, "run") as run:
             run_bench._leaderboard()
+        # _leaderboard() calls run() twice: build_leaderboard.py to
+        # regenerate the table, then plot_leaderboard.py (2026-08-27) to
+        # regenerate the chart embedded alongside it — both must use the
+        # current interpreter, not a bare "python" that might not be the
+        # project's uv-managed one.
         self.assertEqual(
-            run.call_args.args[0],
-            [sys.executable, str(REPO / "runner" / "build_leaderboard.py")],
+            [c.args[0] for c in run.call_args_list],
+            [
+                [sys.executable, str(REPO / "runner" / "build_leaderboard.py")],
+                [sys.executable, str(REPO / "runner" / "plot_leaderboard.py")],
+            ],
         )
 
 

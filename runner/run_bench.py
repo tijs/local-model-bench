@@ -636,6 +636,16 @@ def run_one(config_path: Path, trials: int = 1, coding_suites=None, stage="all")
 
 def _leaderboard():
     run([sys.executable, str(REPO / "runner" / "build_leaderboard.py")])
+    # Best-effort: regenerate the composite-score chart alongside the
+    # table every time (2026-08-27, user request) so LEADERBOARD.md's
+    # embedded image never lags behind a real leaderboard rebuild. Not
+    # fatal if it fails (e.g. too early in a run for any group to have
+    # cleared the "all three axes present" eligibility check yet) --
+    # losing the chart for one cycle is not worth aborting the leaderboard
+    # rebuild that just succeeded.
+    result = run([sys.executable, str(REPO / "runner" / "plot_leaderboard.py")])
+    if result.returncode != 0:
+        print(f"plot_leaderboard.py exited {result.returncode} (non-fatal)")
 
 
 def sweep_stale_run_dirs(min_age_seconds=3600):
