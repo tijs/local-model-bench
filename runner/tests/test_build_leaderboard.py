@@ -64,14 +64,14 @@ class HarnessErrorExclusionTests(unittest.TestCase):
         ])
         bl.main()
         text = (self.repo / "results" / "LEADERBOARD.md").read_text()
-        # sanity gate column added (finding F3) since this assertion was
-        # first written — match on the surrounding cells rather than an
-        # exact full-row string, so an unrelated column addition doesn't
-        # make this brittle.
+        # sanity gate and reasoning-effort columns added since this
+        # assertion was first written — match on the surrounding cells
+        # rather than an exact full-row string, so an unrelated column
+        # addition doesn't make this brittle.
         row_line = next(l for l in text.splitlines() if l.startswith("| test-model |"))
         cells = [c.strip() for c in row_line.split("|")]
-        self.assertEqual(cells[9], "2")     # tasks
-        self.assertEqual(cells[10], "100%")  # pass rate
+        self.assertEqual(cells[10], "2")     # tasks
+        self.assertEqual(cells[11], "100%")  # pass rate
 
     def test_harness_error_row_not_flagged_as_flaky(self):
         self._write_log([
@@ -232,7 +232,7 @@ class SlowPassColumnTests(unittest.TestCase):
         text = (self.repo / "results" / "LEADERBOARD.md").read_text()
         row_line = next(l for l in text.splitlines() if l.startswith("| test-model |"))
         cells = [c.strip() for c in row_line.split("|")]
-        self.assertEqual(cells[11], "0")  # "slow passes" column
+        self.assertEqual(cells[12], "0")  # "slow passes" column
 
 
 class CompositeRankingTests(unittest.TestCase):

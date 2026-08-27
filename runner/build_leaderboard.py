@@ -55,33 +55,48 @@ CODING_SCORE_WEIGHTS = {"pass": 0.45, "speed": 0.25, "time": 0.20, "turns": 0.10
 
 
 def _fairness_fields(config_hash, config_path):
-    """temperature/reasoning_mode as declared in the config that produced
-    this group — surfaced as their own columns so two configs that differ
-    in these (not just quant) can't be silently read as an apples-to-apples
-    comparison (adversarial review finding H7). Prefers the exact snapshot
-    (what was actually run) over the live file (which may have changed) —
-    and, found by a second independent adversarial review (finding M-8):
-    when falling back to the live file, only trusts it if its CURRENT hash
+    """temperature/reasoning_mode/reasoning_effort as declared in the
+    config that produced this group — surfaced as their own columns so
+    two configs that differ in these (not just quant) can't be silently
+    read as an apples-to-apples comparison (adversarial review finding
+    H7). reasoning_effort added 2026-08-27 (user request): reasoning is a
+    large part of a thinking-mode model's output, and it was previously
+    invisible even though it materially affects results — e.g. the
+    Qwen3.8-27B family's own chat_template.jinja silently defaults to
+    'medium' effort whenever no --reasoning-effort flag is passed (which
+    every GGUF config for this family does, this whole session), so
+    every result from that family has actually been produced at a
+    specific, non-default-looking effort level nobody could previously
+    see in any table. Missing from a config entirely (non-thinking
+    models, or thinking models that don't expose a tunable effort level)
+    renders as "n/a", not "?" — "?" is reserved for a config that SHOULD
+    have this field (thinking mode + effort-tunable family) but the
+    lookup itself failed (missing snapshot, hash mismatch), same
+    precedent as temp/mode below. Prefers the exact snapshot (what was
+    actually run) over the live file (which may have changed) — and,
+    found by a second independent adversarial review (finding M-8): when
+    falling back to the live file, only trusts it if its CURRENT hash
     still matches this row's config_hash. Confirmed live: without this
     check, a synthetic row carrying an unrelated config_hash rendered
     fairness values sourced entirely from today's live config content —
     which is what every pre-snapshot row in this repo currently does."""
     if not config_hash:
-        return "—", "—"
+        return "—", "—", "—"
     snapshot = REPO / "results" / "configs" / f"{config_hash}.yaml"
     if snapshot.exists():
         src = snapshot
     elif config_path and _current_config_hash(config_path) == config_hash:
         src = REPO / config_path
     else:
-        return "?", "?"
+        return "?", "?", "?"
     try:
         cfg = yaml.safe_load(src.read_text()) or {}
     except yaml.YAMLError:
-        return "?", "?"
+        return "?", "?", "?"
     temp = cfg.get("temperature", "?")
     mode = cfg.get("reasoning_mode", "?")
-    return str(temp), str(mode)
+    effort = cfg.get("reasoning_effort", "n/a")
+    return str(temp), str(mode), str(effort)
 
 
 def _experiment_fields(config_hash, config_path):
@@ -342,8 +357,21 @@ def main():
         "regardless of what actually happened. Read this column as \"not observed",
         "on the two synthetic suites,\" not \"never hallucinated a tool\".",
         "",
-        "| model | engine | quant | temp (coding only)¹ | reasoning | sanity gate⁴ | config | runner | tasks | pass rate⁴ | slow passes² | avg tok/s | avg TTFT (s) | hallucinated tools⁵ | avg coding turns³ | coding tool errors³ | peak RSS (GB) | quant family | cache | MTP |",
-        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+        "**⁶ `reasoning effort`**: added 2026-08-27 (reasoning is a large part of",
+        "a thinking-mode model's output, so it needs to be as visible as quant or",
+        "temperature). `n/a` means the config has no tunable effort level (a",
+        "non-thinking model, or a thinking model whose template doesn't expose",
+        "one) -- not the same as `?`, which means the lookup itself failed (see",
+        "`_fairness_fields()`'s own comment). A blank-looking value here can",
+        "still be a real, active setting: e.g. the Qwen3.8-27B/Qwen3.6-35B-A3B",
+        "family's own chat_template.jinja silently defaults to `medium` whenever",
+        "no `--reasoning-effort` flag is passed, which every GGUF config for",
+        "that family does -- read `n/a`/missing here as \"not yet labeled,\" not",
+        "\"no reasoning was used.\" Configs for this family have had this field",
+        "added explicitly to record that default rather than leave it invisible.",
+        "",
+        "| model | engine | quant | temp (coding only)¹ | reasoning | reasoning effort⁶ | sanity gate⁴ | config | runner | tasks | pass rate⁴ | slow passes² | avg tok/s | avg TTFT (s) | hallucinated tools⁵ | avg coding turns³ | coding tool errors³ | peak RSS (GB) | quant family | cache | MTP |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     # Two passes, not one (methodology review, finding F3): the composite
     # "Best overall" ranking below needs the raw numeric avg_tps for every
@@ -423,7 +451,7 @@ def main():
         peak_rss = f"{max(rss_values):.1f}" if rss_values else "—"
         config_path = next((r.get("config_path") for r in group if r.get("config_path")), None)
         config_label = _config_label(config_hash, config_path)
-        temp, reasoning_mode = _fairness_fields(config_hash, config_path)
+        temp, reasoning_mode, reasoning_effort = _fairness_fields(config_hash, config_path)
         quant_family, cache_mode, mtp_mode = _experiment_fields(config_hash, config_path)
         runner_label = runner_sha or "*(predates tracking)*"
 
@@ -462,11 +490,13 @@ def main():
             "key": (model, inference_engine, quant, config_hash, runner_sha),
             "line": (
                 f"| {model} | {inference_engine} | {quant or '—'} | {temp} | {reasoning_mode} | "
-                f"{sanity_gate} | {config_label} | {runner_label} | {n} | {pass_rate} | "
+                f"{reasoning_effort} | {sanity_gate} | {config_label} | {runner_label} | {n} | {pass_rate} | "
                 f"{n_slow_pass} | {avg_tps} | {avg_ttft} | {n_hallucinated} | {avg_turns} | "
                 f"{n_tool_errors} | {peak_rss} | {quant_family} | {cache_mode} | {mtp_mode} |"
             ),
             "avg_tps_val": avg_tps_val,
+            "reasoning_mode": reasoning_mode,
+            "reasoning_effort": reasoning_effort,
             "coding_pass_rate": coding_pass_rate,
             "hermes_ops_pass_rate": hermes_ops_pass_rate,
             "avg_coding_wall": avg_coding_wall,
@@ -652,8 +682,8 @@ def main():
     if not ranked:
         lines.append("No group has completed all three stages (sanity + hermes_ops + coding) yet.")
     else:
-        lines.append("| rank | model | engine | quant | config | usefulness gate | score | coding | speed | avg time (s) | avg turns |")
-        lines.append("|---|---|---|---|---|---|---|---|---|---|---|")
+        lines.append("| rank | model | engine | quant | reasoning⁶ | config | usefulness gate | score | coding | speed | avg time (s) | avg turns |")
+        lines.append("|---|---|---|---|---|---|---|---|---|---|---|---|")
         for i, (gate_pass, score, gs) in enumerate(
             sorted(ranked, key=lambda t: (t[0], t[1]), reverse=True), start=1
         ):
@@ -667,8 +697,12 @@ def main():
             speed_disp = f"{gs['avg_tps_val']:.1f} tok/s" if gs["avg_tps_val"] is not None else "—"
             time_disp = f"{gs['avg_coding_wall']:.0f}" if gs["avg_coding_wall"] is not None else "—"
             turns_disp = f"{gs['avg_coding_turns']:.1f}" if gs["avg_coding_turns"] is not None else "—"
+            reasoning_disp = (
+                gs["reasoning_mode"] if gs["reasoning_effort"] in ("n/a", "?", "None")
+                else f"{gs['reasoning_mode']} ({gs['reasoning_effort']})"
+            )
             lines.append(
-                f"| {i} | {model} | {inference_engine} | {quant or '—'} | {config_hash or '—'} | "
+                f"| {i} | {model} | {inference_engine} | {quant or '—'} | {reasoning_disp} | {config_hash or '—'} | "
                 f"{gate_disp} | {score_disp} | {coding_disp} | {speed_disp} | {time_disp} | {turns_disp} |"
             )
 
