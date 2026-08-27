@@ -122,12 +122,30 @@ viable Hermes backend on this benchmark.**
 
 ## Unresolved: Laguna-XS-2.1
 
-Still no usable data. The GGUF server loads and responds to real
-completions (confirmed via direct curl, 32 tokens generated), but this
-harness's plain-completion probe doesn't recognize the model's output
-shape — diagnosed as reasoning-only output the probe isn't written to
-parse. `sanity_only` viable in its config; not re-attempted this round
-since the gap is in the probe itself, not something a rerun would fix.
+Root cause found 2026-08-27, not yet fixed. The original finding
+(sanity-tool failing at Q4_K_M — empty content at temp=0, a hallucinated
+unrelated response instead of a tool call at temp=1.0) is **not** a
+reasoning-mode or harness-probe issue. Reading the upstream llama.cpp PR
+discussion (ggml-org/llama.cpp#25165, the model's own support PR) found
+that Laguna XS 2.1 produces unusually large activations in its later MoE
+layers, and on **Metal** (Apple Silicon — this benchmark's exact
+hardware), `mul_mm_id`'s f16 operand narrowing overflows above 65504 into
+NaN, surfacing as empty or incoherent output. A first attempted fix
+(PR #25442) was closed as "not the right fix"; the real fix, PR #26223
+("metal: fix NaN in mul_mm_id when activations exceed f16 range"), is
+**still open/unmerged** as of this writing.
+
+Confirmed via a CPU-only diagnostic (`-ngl 0`, disabling the Metal path
+entirely, same temp/settings as the original config otherwise unchanged):
+**9/9 clean results** — sanity-tool 5/5 at temp=0 (previously failed with
+empty content), and a repeated tool-call prompt 4/4 at temp=1.0
+(previously hallucinated an unrelated response). This strongly confirms
+the Metal NaN diagnosis. CPU-only is not a viable benchmark config on its
+own (far too slow for a 33B MoE to be a real Hermes backend candidate) —
+this was a diagnostic test, not a benchmark result. A proper GPU-speed
+retest would require building llama.cpp from PR #26223's branch
+(`mdegans:fix/metal-mul-mm-id-f16-overflow`) rather than waiting for
+Homebrew's release to pick it up.
 
 ## Hosted-model reference set (2026-08-26)
 
