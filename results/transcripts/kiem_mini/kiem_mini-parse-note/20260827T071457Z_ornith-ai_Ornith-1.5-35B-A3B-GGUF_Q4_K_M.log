@@ -1,0 +1,485 @@
+$ hermes chat --profile bench --provider ornith-gguf -m ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M --max-turns 40
+
+--- stdout ---
+
+┌─ Reasoning ──────────────────────────────────────────────────────────────────┐
+Let me start by understanding the codebase structure. I need to look at the existing
+ files in the project, particularly the `Note` struct and the `extractTags(from:)
+` function.
+
+Let me explore the project first.
+Let me start by understanding the codebase structure. I need to look at the existing files in the project, particularly the `Note` struct and the `extractTags(from:)` function.
+
+Let me explore the project first.
+Let me look at the relevant files.
+Let me look at the relevant files.
+Now I understand the structure. Let me note the key details:
+
+1. `Note` struct has fields: `id`, `title`, `body`, `tags`, `pinned`.
+2. `extractTags(from:)` returns `[String]`.
+3. The format is: four fields joined by the literal separator "\n---\n" — id, title
+, pinned flag ("1" or "0"), then body.
+4. Note the pinned flag is a String "1" or "0", but `Note.pinned` is a `Bool`.
+
+Important detail from Package.swift: the tools-version is 5.9, and there's a note
+ about `String.split(separator:maxSplits:omittingEmptySubsequences:)` being macOS
+ 13+ only. The comment says they set `.macOS(.v13)` so that API is available. So I
+ can use `split(maxSplits:3, omittingEmptySubsequences: false)`.
+
+Let me think about the parsing logic:
+- Split on "\n---\n".
+- Must produce exactly 4 parts, else throw `NoteParseError.malformedFormat`.
+- Part 0: id
+- Part 1: title
+- Part 2: pinned ("1" or "0")
+- Part 3: body
+- tags: extractTags(from: body)
+
+For pinned: I need to convert "1" -> true, "0" -> false. What about other values?
+ The spec says the pinned flag is "1" or "0". It doesn't say what to do with other
+ values. The instruction says "If the text doesn't split into exactly 4 parts, throw
+ NoteParseError.malformedFormat rather than guessing, defaulting missing fields, or
+ crashing." This is specifically about the number of parts. For the pinned field,
+ I should handle "1" and "0". For safety, I'll treat "1" as true and everything else
+ as false, OR I could be strict. 
+
+Actually, let me re-read: "build a Note (id, title, pinned, body, and tags...)". The
+ pinned flag is "1" or "0". Let me handle it cleanly: `pinned = (parts[2] == "1")
+`. This treats "1" as true and anything else as false. That's the most common interpretation
+. But should I throw on invalid pinned? The spec only mandates throwing when there
+ aren't exactly 4 parts. I'll go with `== "1"` which is simple and doesn't crash.
+
+
+Actually, let me reconsider. Being strict might be "guessing". But `== "1"` isn't
+ guessing — it's a clear definition. I think `parts[2] == "1"` is the cleanest. Let
+ me use that.
+
+For splitting: I need exactly 4 parts. Using `split(separator:maxSplits:omittingEmpty
+Subsequences:)` with `maxSplits: 3` and `omittingEmptySubsequences: false` gives the
+ maximum number of parts (4). But if the string has MORE than 3 separators, it returns
+ more than 4 parts. So checking `parts.count == 4` after `split(maxSplits: 3, omitting
+EmptySubsequences: false)` works correctly:
+- If exactly 3 separators → 4 parts ✓
+- If fewer than 3 separators → fewer parts → throw
+- If more than 3 separators → more than 4 parts → throw
+
+Wait, let me verify the semantics of `maxSplits`. From Swift docs: "maxSplits: The
+ maximum number of substrings to divide text by, and hence the maximum length of the
+ resulting array." So `split(maxSplits: 3, ...)` on a string with 3 separators produces
+ 4 substrings. If there are more than 3 separators, it still produces more than 4
+ (the last substring contains the remaining separators). So checking count == 4 is
+ correct.
+
+Let me double check: "split(maxSplits: 3, omittingEmptySubsequences: false)". If the
+ string is "a---b---c---d" (3 separators), result is ["a", "b", "c", "d"] — 4 parts
+. Good. If "a---b---c---d---e" (4 separators), result is ["a", "b", "c", "d---e"]
+ — 5 parts. So count != 4 → throw. 
+
+Now, the separator is the literal "\n---\n". Let me write the code.
+
+```swift
+import Foundation
+
+/// Extracts #tags from a note's body text, in the order they appear.
+public func extractTags(from text: String) -> [String] {
+    return text.split(separator: " ")
+        .filter { $0.hasPrefix("#") }
+        .map { String($0.dropFirst()) }
+}
+
+public struct Note: Equatable {
+    public let id: String
+    public let title: String
+    public let body: String
+    public let tags: [String]
+    public let pinned: Bool
+}
+
+public enum NoteParseError: Error, Equatable {
+    case malformedFormat
+}
+
+/// Parses a note serialized in the note file format: four fields joined by
+/// the literal separator "\n---\n" in the order id, title, pinned ("1" or
+/// "0"), body.
+public func parseNote(from text: String) throws -> Note {
+    let parts = text.split(separator: "\n---\n", maxSplits: 3, omittingEmptySubsequences
+: false)
+    guard parts.count == 4 else {
+        throw NoteParseError.malformedFormat
+    }
+    return Note(
+        id: parts[0],
+        title: parts[1],
+        pinned: parts[2] == "1",
+        body: parts[3],
+        tags: extractTags(from: parts[3])
+    )
+}
+```
+
+Wait, I need to check the `Note` initializer order. The struct fields are: id, title
+, body, tags, pinned. So the memberwise initializer is `Note(id:title:body:tags:p
+inned:)`. I wrote it as `id:title:pinned:body:tags:`. Let me fix that — the labels
+ are what matter, not order, but I must match the label names. Let me use the correct
+ labels:
+
+`Note(id: title: body: tags: pinned:)`
+
+Let me rewrite:
+
+```swift
+    return Note(
+        id: parts[0],
+        title: parts[1],
+        body: parts[3],
+        tags: extractTags(from: parts[3]),
+        pinned: parts[2] == "1"
+    )
+```
+
+Good.
+
+Now, one concern: `split` with a `SubSequence` return type. `parts` is `[String.Sub
+Sequence]`. When I pass `parts[3]` to `Note.body` which is a `String`, and to `extract
+Tags(from:)` which takes a `String`, there will be an implicit conversion from `Sub
+Sequence` to `String`. Actually, `parts[0]` is of type `String.SubSequence` (specific
+ally `Substring`). Swift allows implicit conversion from `Substring` to `String` in
+ many contexts, but assigning to a `String` parameter — yes, there's an initializer
+ `String(_ subsequence: some Sequence)` but specifically for Substring there's `String
+(_ s: Substring)`? Actually, `Substring` conforms to `StringProtocol` and there's
+ an implicit conversion available. In practice, passing a `Substring` where a `String
+` is expected works via the implicit conversion. Let me confirm — yes, Swift provides
+ an implicit conversion between `Substring` and `String`. It's commonly used. So `
+parts[0]` assigned to `String` works.
+
+Actually, to be safe and explicit, I could wrap with `String(parts[0])`. But that
+'s redundant. The implicit conversion is well-established. However, since the Package
+.swift comment is very careful about API availability, let me be safe and explicit
+ with `String(...)` conversions to avoid any ambiguity or potential issues. Actually
+ no — `String(substring)` calls `String(_:)` which requires `Subsequence: StringProtocol
+`... hmm. Let me just use the implicit conversion which definitely works. It's the
+ idiomatic approach.
+
+Hmm, but let me reconsider. To be maximally safe and avoid any compiler ambiguity
+, I'll keep implicit conversion. It's fine.
+
+Let me also think about whether I should write a test. The task says "Implement...
+". The user didn't explicitly ask for tests, but there's a test file. Let me add tests
+ to verify the implementation works, since that's good practice and helps confirm
+ correctness. Actually, let me re-read the task.
+
+"Implement, in Sources/NoteKit/NoteKit.swift: [the code]. It should split on that
+ separator and build a Note..."
+
+The task is to implement the function. I should verify it compiles and works. Let
+ me add tests too since there's a test target, and it's good practice. But I want
+ to be careful not to over-engineer. Let me add a couple of focused tests to verify
+ the behavior, then run `swift build` and `swift test`.
+
+Let me check if swift is available first. Let me write the implementation and tests
+, then build/test.
+
+Let me write the implementation first.
+Now I understand the structure. Let me note the key details:
+
+1. `Note` struct has fields: `id`, `title`, `body`, `tags`, `pinned`.
+2. `extractTags(from:)` returns `[String]`.
+3. The format is: four fields joined by the literal separator "\n---\n" — id, title, pinned flag ("1" or "0"), then body.
+4. Note the pinned flag is a String "1" or "0", but `Note.pinned` is a `Bool`.
+
+Important detail from Package.swift: the tools-version is 5.9, and there's a note about `String.split(separator:maxSplits:omittingEmptySubsequences:)` being macOS 13+ only. The comment says they set `.macOS(.v13)` so that API is available. So I can use `split(maxSplits:3, omittingEmptySubsequences: false)`.
+
+Let me think about the parsing logic:
+- Split on "\n---\n".
+- Must produce exactly 4 parts, else throw `NoteParseError.malformedFormat`.
+- Part 0: id
+- Part 1: title
+- Part 2: pinned ("1" or "0")
+- Part 3: body
+- tags: extractTags(from: body)
+
+For pinned: I need to convert "1" -> true, "0" -> false. What about other values? The spec says the pinned flag is "1" or "0". It doesn't say what to do with other values. The instruction says "If the text doesn't split into exactly 4 parts, throw NoteParseError.malformedFormat rather than guessing, defaulting missing fields, or crashing." This is specifically about the number of parts. For the pinned field, I should handle "1" and "0". For safety, I'll treat "1" as true and everything else as false, OR I could be strict. 
+
+Actually, let me re-read: "build a Note (id, title, pinned, body, and tags...)". The pinned flag is "1" or "0". Let me handle it cleanly: `pinned = (parts[2] == "1")`. This treats "1" as true and anything else as false. That's the most common interpretation. But should I throw on invalid pinned? The spec only mandates throwing when there aren't exactly 4 parts. I'll go with `== "1"` which is simple and doesn't crash.
+
+Actually, let me reconsider. Being strict might be "guessing". But `== "1"` isn't guessing — it's a clear definition. I think `parts[2] == "1"` is the cleanest. Let me use that.
+
+For splitting: I need exactly 4 parts. Using `split(separator:maxSplits:omittingEmptySubsequences:)` with `maxSplits: 3` and `omittingEmptySubsequences: false` gives the maximum number of parts (4). But if the string has MORE than 3 separators, it returns more than 4 parts. So checking `parts.count == 4` after `split(maxSplits: 3, omittingEmptySubsequences: false)` works correctly:
+- If exactly 3 separators → 4 parts ✓
+- If fewer than 3 separators → fewer parts → throw
+- If more than 3 separators → more than 4 parts → throw
+
+Wait, let me verify the semantics of `maxSplits`. From Swift docs: "maxSplits: The maximum number of substrings to divide text by, and hence the maximum length of the resulting array." So `split(maxSplits: 3, ...)` on a string with 3 separators produces 4 substrings. If there are more than 3 separators, it still produces more than 4 (the last substring contains the remaining separators). So checking count == 4 is correct.
+
+Let me double check: "split(maxSplits: 3, omittingEmptySubsequences: false)". If the string is "a---b---c---d" (3 separators), result is ["a", "b", "c", "d"] — 4 parts. Good. If "a---b---c---d---e" (4 separators), result is ["a", "b", "c", "d---e"] — 5 parts. So count != 4 → throw. 
+
+Now, the separator is the literal "\n---\n". Let me write the code.
+
+```swift
+import Foundation
+
+/// Extracts #tags from a note's body text, in the order they appear.
+public func extractTags(from text: String) -> [String] {
+    return text.split(separator: " ")
+        .filter { $0.hasPrefix("#") }
+        .map { String($0.dropFirst()) }
+}
+
+public struct Note: Equatable {
+    public let id: String
+    public let title: String
+    public let body: String
+    public let tags: [String]
+    public let pinned: Bool
+}
+
+public enum NoteParseError: Error, Equatable {
+    case malformedFormat
+}
+
+/// Parses a note serialized in the note file format: four fields joined by
+/// the literal separator "\n---\n" in the order id, title, pinned ("1" or
+/// "0"), body.
+public func parseNote(from text: String) throws -> Note {
+    let parts = text.split(separator: "\n---\n", maxSplits: 3, omittingEmptySubsequences: false)
+    guard parts.count == 4 else {
+        throw NoteParseError.malformedFormat
+    }
+    return Note(
+        id: parts[0],
+        title: parts[1],
+        pinned: parts[2] == "1",
+        body: parts[3],
+        tags: extractTags(from: parts[3])
+    )
+}
+```
+
+Wait, I need to check the `Note` initializer order. The struct fields are: id, title, body, tags, pinned. So the memberwise initializer is `Note(id:title:body:tags:pinned:)`. I wrote it as `id:title:pinned:body:tags:`. Let me fix that — the labels are what matter, not order, but I must match the label names. Let me use the correct labels:
+
+`Note(id: title: body: tags: pinned:)`
+
+Let me rewrite:
+
+```swift
+    return Note(
+        id: parts[0],
+        title: parts[1],
+        body: parts[3],
+        tags: extractTags(from: parts[3]),
+        pinned: parts[2] == "1"
+    )
+```
+
+Good.
+
+Now, one concern: `split` with a `SubSequence` return type. `parts` is `[String.SubSequence]`. When I pass `parts[3]` to `Note.body` which is a `String`, and to `extractTags(from:)` which takes a `String`, there will be an implicit conversion from `SubSequence` to `String`. Actually, `parts[0]` is of type `String.SubSequence` (specifically `Substring`). Swift allows implicit conversion from `Substring` to `String` in many contexts, but assigning to a `String` parameter — yes, there's an initializer `String(_ subsequence: some Sequence)` but specifically for Substring there's `String(_ s: Substring)`? Actually, `Substring` conforms to `StringProtocol` and there's an implicit conversion available. In practice, passing a `Substring` where a `String` is expected works via the implicit conversion. Let me confirm — yes, Swift provides an implicit conversion between `Substring` and `String`. It's commonly used. So `parts[0]` assigned to `String` works.
+
+Actually, to be safe and explicit, I could wrap with `String(parts[0])`. But that's redundant. The implicit conversion is well-established. However, since the Package.swift comment is very careful about API availability, let me be safe and explicit with `String(...)` conversions to avoid any ambiguity or potential issues. Actually no — `String(substring)` calls `String(_:)` which requires `Subsequence: StringProtocol`... hmm. Let me just use the implicit conversion which definitely works. It's the idiomatic approach.
+
+Hmm, but let me reconsider. To be maximally safe and avoid any compiler ambiguity, I'll keep implicit conversion. It's fine.
+
+Let me also think about whether I should write a test. The task says "Implement...". The user didn't explicitly ask for tests, but there's a test file. Let me add tests to verify the implementation works, since that's good practice and helps confirm correctness. Actually, let me re-read the task.
+
+"Implement, in Sources/NoteKit/NoteKit.swift: [the code]. It should split on that separator and build a Note..."
+
+The task is to implement the function. I should verify it compiles and works. Let me add tests too since there's a test target, and it's good practice. But I want to be careful not to over-engineer. Let me add a couple of focused tests to verify the behavior, then run `swift build` and `swift test`.
+
+Let me check if swift is available first. Let me write the implementation and tests, then build/test.
+
+Let me write the implementation first.
+Now let me implement the function. I need to:
+1. Add `NoteParseError` enum
+2. Add `parseNote(from:)` function
+
+The format is: id, title, pinned ("1" or "0"), body joined by "\n---\n". Split on
+ that separator → 4 parts.
+
+Let me think about the parsing carefully:
+- Split on "\n---\n"
+- If not exactly 4 parts → throw malformedFormat
+- id = parts[0]
+- title = parts[1]
+- pinned = parts[2] == "1"
+- body = parts[3]
+- tags = extractTags(from: body)
+
+For pinned parsing, I should handle "1" → true, "0" → false. What about other values
+? The spec says pinned flag is "1" or "0". I'll parse it. If it's neither, should
+ I throw? The spec says "If the text doesn't split into exactly 4 parts, throw". It
+ doesn't say to validate pinned value. But throwing on invalid pinned seems reasonable
+ to avoid guessing. Let me be conservative and throw on invalid pinned too since we
+ shouldn't guess. Actually, let me re-read.
+
+"If the text doesn't split into exactly 4 parts, throw `NoteParseError.malformedFormat
+` rather than guessing, defaulting missing fields, or crashing."
+
+The emphasis is on not guessing. For pinned, guessing a value other than "1"/"0" would
+ be guessing. I'll throw on invalid pinned too. That's the safer interpretation consistent
+ with the "don't guess" philosophy.
+
+Let me write it.
+Now let me implement the function. I need to:
+1. Add `NoteParseError` enum
+2. Add `parseNote(from:)` function
+
+The format is: id, title, pinned ("1" or "0"), body joined by "\n---\n". Split on that separator → 4 parts.
+
+Let me think about the parsing carefully:
+- Split on "\n---\n"
+- If not exactly 4 parts → throw malformedFormat
+- id = parts[0]
+- title = parts[1]
+- pinned = parts[2] == "1"
+- body = parts[3]
+- tags = extractTags(from: body)
+
+For pinned parsing, I should handle "1" → true, "0" → false. What about other values? The spec says pinned flag is "1" or "0". I'll parse it. If it's neither, should I throw? The spec says "If the text doesn't split into exactly 4 parts, throw". It doesn't say to validate pinned value. But throwing on invalid pinned seems reasonable to avoid guessing. Let me be conservative and throw on invalid pinned too since we shouldn't guess. Actually, let me re-read.
+
+"If the text doesn't split into exactly 4 parts, throw `NoteParseError.malformedFormat` rather than guessing, defaulting missing fields, or crashing."
+
+The emphasis is on not guessing. For pinned, guessing a value other than "1"/"0" would be guessing. I'll throw on invalid pinned too. That's the safer interpretation consistent with the "don't guess" philosophy.
+
+Let me write it.
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmph8airqq2/run/swift/Sources/NoteKit/NoteKit.swift → b//Users/tijs/projects/local-model-bench/runner/runs/tmph8airqq2/run/swift/Sources/NoteKit/NoteKit.swift
+@@ -14,3 +14,35 @@
+     public let tags: [String]
+     public let pinned: Bool
+ }
++
++public enum NoteParseError: Error, Equatable {
++    case malformedFormat
++}
++
++/// The literal separator joining a note's four fields: id, title, pinned
++/// flag ("1" or "0"), and body.
++let noteSeparator = "\n---\n"
++
++public func parseNote(from text: String) throws -> Note {
++    let parts = text.split(separator: noteSeparator, omittingEmptySubsequences: false)
++    guard parts.count == 4 else {
++        throw NoteParseError.malformedFormat
++    }
++
++    let id = String(parts[0])
++    let title = String(parts[1])
++    let body = String(parts[3])
++
++    switch String(parts[2]) {
++    case "1":
++        let pinned = true
++        let tags = extractTags(from: body)
++        return Note(id: id, title: title, body: body, tags: tags, pinned: pinned)
++    case "0":
++        let pinned = false
++        let tags = extractTags(from: body)
++        return Note(id: id, title: title, body: body, tags: tags, pinned: pinned)
++    default:
++        throw NoteParseError.malformedFormat
++    }
++}
+Let me clean up that code — the two cases are redundant. Let me simplify.
+Let me clean up that code — the two cases are redundant. Let me simplify.
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmph8airqq2/run/swift/Sources/NoteKit/NoteKit.swift → b//Users/tijs/projects/local-model-bench/runner/runs/tmph8airqq2/run/swift/Sources/NoteKit/NoteKit.swift
+@@ -33,16 +33,16 @@
+     let title = String(parts[1])
+     let body = String(parts[3])
+ 
++    let pinned: Bool
+     switch String(parts[2]) {
+     case "1":
+-        let pinned = true
+-        let tags = extractTags(from: body)
+-        return Note(id: id, title: title, body: body, tags: tags, pinned: pinned)
++        pinned = true
+     case "0":
+-        let pinned = false
+-        let tags = extractTags(from: body)
+-        return Note(id: id, title: title, body: body, tags: tags, pinned: pinned)
++        pinned = false
+     default:
+         throw NoteParseError.malformedFormat
+     }
++
++    let tags = extractTags(from: body)
++    return Note(id: id, title: title, body: body, tags: tags, pinned: pinned)
+ }
+Now let me build and test.
+Now let me build and test.
+The build fails due to sandbox restrictions (`sandbox_apply: Operation not permitted
+`). This is an environment limitation, not a code problem. Let me try building just
+ the single file with swiftc to verify it compiles, bypassing the package manifest
+ sandbox.
+The build fails due to sandbox restrictions (`sandbox_apply: Operation not permitted`). This is an environment limitation, not a code problem. Let me try building just the single file with swiftc to verify it compiles, bypassing the package manifest sandbox.
+The parse succeeded, but I want to verify the code actually compiles and works correctly
+, so let me write a test file with a main function to run it directly.
+The parse succeeded, but I want to verify the code actually compiles and works correctly, so let me write a test file with a main function to run it directly.
+The mkdir failed because /tmp/nkcheck already exists as a file. Let me remove it and
+ try again.
+The mkdir failed because /tmp/nkcheck already exists as a file. Let me remove it and try again.
+All tests pass. Let me clean up and show the final file.
+All tests pass. Let me clean up and show the final file.
+Done. Let me summarize.
+Done. Let me summarize.
+The system wants me to create a focused temporary verification script under `/private
+/var/folders/1s/ggz8433s6x56bzrwdtfbblfc0000gn/T` using a `hermes-verify-` filename
+ prefix, run it, clean up, and summarize as ad-hoc verification.
+
+I already did a similar verification in /tmp/nkcheck but that was cleaned up and the
+ system wants a specific location and prefix. Let me do that now.
+The system wants me to create a focused temporary verification script under `/private/var/folders/1s/ggz8433s6x56bzrwdtfbblfc0000gn/T` using a `hermes-verify-` filename prefix, run it, clean up, and summarize as ad-hoc verification.
+
+I already did a similar verification in /tmp/nkcheck but that was cleaned up and the system wants a specific location and prefix. Let me do that now.
+When compiling multiple `.swift` files together, only one file can have top-level
+ code (the `main.swift` convention). Since I passed both `NoteKit.swift` and the main
+ file, the top-level statements in my main file conflict. I need to wrap my test code
+ in a `main()` function or put it in a file named `main.swift` while the other file
+ is a library. Actually the issue: when you have multiple files, top-level statements
+ are only allowed in a file literally named `main.swift`. My file is `hermes-verify
+-note.main.swift` — not `main.swift`. So top-level statements aren't allowed.
+
+Let me rename the main file to `main.swift`.
+When compiling multiple `.swift` files together, only one file can have top-level code (the `main.swift` convention). Since I passed both `NoteKit.swift` and the main file, the top-level statements in my main file conflict. I need to wrap my test code in a `main()` function or put it in a file named `main.swift` while the other file is a library. Actually the issue: when you have multiple files, top-level statements are only allowed in a file literally named `main.swift`. My file is `hermes-verify-note.main.swift` — not `main.swift`. So top-level statements aren't allowed.
+
+Let me rename the main file to `main.swift`.
+The directory doesn't exist. Let me create it first.
+The directory doesn't exist. Let me create it first.
+All pass. Now clean up.
+All pass. Now clean up.
+The task is complete. Let me summarize.
+The task is complete. Let me summarize.
+The system is showing a stale failure. The last command actually succeeded (ALL_PASS
+) and I cleaned up. But the system is reporting the failed state from the intermediate
+ attempt. Let me re-run the verification cleanly to produce fresh passing evidence
+, since the cleanup already happened.
+
+Actually, the system message is showing a failed verification from the intermediate
+ step. My final run did pass with ALL_PASS. But the system wants fresh passing verification
+ evidence. Let me re-run cleanly to confirm.
+The system is showing a stale failure. The last command actually succeeded (ALL_PASS) and I cleaned up. But the system is reporting the failed state from the intermediate attempt. Let me re-run the verification cleanly to produce fresh passing evidence, since the cleanup already happened.
+
+Actually, the system message is showing a failed verification from the intermediate step. My final run did pass with ALL_PASS. But the system wants fresh passing verification evidence. Let me re-run cleanly to confirm.
+Fresh passing evidence produced with mktemp, cleaned up. Done.
+Fresh passing evidence produced with mktemp, cleaned up. Done.
+Fresh ad-hoc verification passed (`ALL_PASS`, exit 0) and temp dir was cleaned up via `mktemp`.
+
+**Status: verified.**
+
+**Change:** Added `NoteParseError` enum (`case malformedFormat`) and `parseNote(from:)` to `swift/Sources/NoteKit/NoteKit.swift`.
+
+**Ad-hoc verification** (not a suite; `swift build` is blocked by the sandbox `sandbox_apply: Operation not permitted`): compiled the real source with `swiftc` against a `mktemp`-created harness, ran 6 cases — all PASS:
+- pinned note with tags → correct id/title/pinned/tags/body
+- unpinned note → pinned=false, empty tags
+- too few / too many parts → throw `.malformedFormat`
+- bad pinned flag / empty string → throw `.malformedFormat`
+
+Logic: splits on literal `\n---\n` (no empty-sequence collapsing), requires exactly 4 parts, maps id→pinned→body in order, validates pinned is `"1"`/`"0"` (else throws), and reuses existing `extractTags(from:)` on the body. KISS/DRY, matches surrounding style.
+
+
+--- stderr ---
+
+session_id: 20260827_091038_6fda91
+
