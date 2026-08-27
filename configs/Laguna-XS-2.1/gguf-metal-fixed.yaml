@@ -1,0 +1,108 @@
+model: poolside/Laguna-XS-2.1-GGUF:Q4_K_M
+# Added 2026-08-27 (user-directed follow-up): identical model/quant/
+# sampler/context to gguf.yaml, but launched with a CUSTOM-BUILT
+# llama-server binary instead of the system Homebrew one, to test whether
+# the root-caused Metal f16-overflow bug (see gguf.yaml's known_gaps —
+# "MAJOR RELIABILITY CONCERN... empty content at temp=0... hallucinated
+# unrelated response at temp=1.0") is actually fixed once the upstream
+# Metal patch is applied.
+#
+# Root cause (confirmed 2026-08-27, see results/SUMMARY.md's "Unresolved:
+# Laguna-XS-2.1" section and Kiem plan note f1a3b5de-917c-4716-babb-
+# 7c8dd388e050's Phase E): Laguna XS 2.1 produces unusually large MoE
+# down-projection activations; on Metal, llama-graph's mul_mm_id narrows
+# operands to f16 (saturates at 65504), so these activations overflow to
+# NaN -> empty/garbage output. Fix: llama.cpp PR #26223 ("metal: fix NaN
+# in mul_mm_id when activations exceed f16 range"), STILL UNMERGED
+# upstream as of 2026-08-27. Built from that PR's branch
+# (mdegans:fix/metal-mul-mm-id-f16-overflow, commit e6a3398, confirmed to
+# include the actual fix commit 94fa2fc) via a standard
+# `cmake -B build -DCMAKE_BUILD_TYPE=Release` (Metal auto-detected) +
+# `cmake --build build --config Release`. Binary lives at
+# ~/.local/share/local-model-bench/llama-cpp-laguna-fix/build/bin/
+# llama-server (NOT on PATH, NOT installed over the Homebrew binary every
+# other config uses — deliberately kept separate so this experiment can
+# never affect any other config's results).
+#
+# RESULT: confirmed fixed at full GPU (Metal) speed. Diagnostic retest
+# (not a formal benchmark run, results/log.jsonl rows reverted after
+# inspection): sanity-tool 5/5 at temp=0 (previously empty content), a
+# repeated tool-call prompt 4/4 at temp=1.0 (previously hallucinated an
+# unrelated response) -- 9/9 clean, with decode speed ~65 tok/s (vs
+# ~30-45 tok/s on the earlier CPU-only -ngl 0 diagnostic that first
+# confirmed the Metal-specific root cause). This config exists to run the
+# FULL sanity+hermes_ops+coding suite as a genuine benchmark entry now
+# that the blocking bug is understood and fixed locally.
+temperature: 1.0
+reasoning_mode: thinking
+inference_engine: llama.cpp
+
+benchmark_launch_command: |
+  HF_TOKEN=$(cat ~/.cache/huggingface/token) ~/.local/share/local-model-bench/llama-cpp-laguna-fix/build/bin/llama-server \
+    --hf-repo poolside/Laguna-XS-2.1-GGUF:Q4_K_M \
+    --host 127.0.0.1 --port 8017 \
+    --temp 1.0 --top-p 1.0 --top-k 20 \
+    --ctx-size 65536 --timeout 1800 \
+    --chat-template-kwargs '{"enable_thinking": true}'
+
+benchmark_endpoint: http://127.0.0.1:8015/v1
+  # PROXY STILL REQUIRED -- this is a SEPARATE, unrelated quirk from the
+  # Metal NaN bug (see gguf.yaml's own known_gaps: llama-server's native
+  # chat-template tool-call handling for this model's raw
+  # <tool_call>...</tool_call> format is unreliable regardless of Metal/
+  # CPU backend). The custom build did not change this. Launch the proxy
+  # after the raw server, same as gguf.yaml:
+  #   BENCH_TOOL_PARSER=poolside_v1 BENCH_PROXY_UPSTREAM=http://127.0.0.1:8017 \
+  #     BENCH_PROXY_PORT=8015 uv run --locked python runner/bench_local_proxy.py
+
+orchestration:
+  raw_port: 8017
+  needs_proxy: true
+  proxy_parser: poolside_v1
+  proxy_port: 8015
+  hermes_provider: laguna-metal-fixed   # registered in
+    # ~/.hermes/profiles/bench/config.yaml, api pointing at the PROXY port
+    # 8015 (not the raw 8017), context_length: 65536 matching --ctx-size.
+  viable: full   # UNBLOCKED 2026-08-27 -- see the root-cause note above.
+    # The original gguf.yaml's sanity-tool failure was NOT a base-model
+    # reliability issue (hypothesis (c) in that file's known_gaps); it was
+    # entirely explained by hypothesis-adjacent (a)/(b) territory: a
+    # backend/quantization-adjacent numerical bug specific to this Mac's
+    # Metal path, now fixed in this custom build.
+
+settings:
+  - name: quant / context_length / temperature / top_p / top_k
+    value: "identical to gguf.yaml -- Q4_K_M, 65536, 1.0/1.0/20. See that
+      file for full citations. Only the llama-server BINARY differs."
+    source: "configs/Laguna-XS-2.1/gguf.yaml"
+  - name: llama.cpp build
+    value: "Custom build from ggml-org/llama.cpp PR #26223's branch
+      (mdegans:fix/metal-mul-mm-id-f16-overflow), commit e6a3398, built
+      2026-08-27 via plain `cmake -B build -DCMAKE_BUILD_TYPE=Release` +
+      `cmake --build build --config Release -j 10` (Metal framework
+      auto-detected, no special flags needed). `--version` reports
+      '0.1.2-dev (build 99, commit e6a3398)', distinct from the Homebrew
+      system binary's '0.1.1-dev (build 10470, commit 34af94cd9)' used by
+      every other config in this repo."
+    source: "https://github.com/ggml-org/llama.cpp/pull/26223 (unmerged
+      as of 2026-08-27)"
+
+known_gaps:
+  - "The proxy-required tool-call-parsing quirk (poolside_v1 parser,
+    llama-server sometimes puts the raw <tool_call> block in
+    reasoning_content instead of content) is UNCHANGED by this custom
+    build -- it's an unrelated bug from the Metal NaN issue this config
+    exists to fix. Still needs the proxy, same as gguf.yaml."
+  - "Full sanity+hermes_ops+coding suite not yet run as of authoring --
+    only a 9-trial diagnostic (sanity-tool x5, raw tool-call x4) was done
+    to confirm the fix before committing to a full run. Queued as config
+    12 in the Phase D rerun list (Kiem note f1a3b5de-917c-4716-babb-
+    7c8dd388e050), to run after the current 11-config queue completes."
+  - "The custom binary lives outside this repo and outside Homebrew's
+    management (~/.local/share/local-model-bench/llama-cpp-laguna-fix/) --
+    if PR #26223 merges upstream and Homebrew picks it up in a future
+    release, this config could be retired in favor of just using the
+    system llama-server again, matching every other config's pattern."
+
+last_updated: 2026-08-27
+last_verified_against_docs: 2026-08-27
