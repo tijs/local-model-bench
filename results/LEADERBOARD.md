@@ -261,8 +261,8 @@ have. **Usefulness gate** (pass/fail tier, not a weighted input) — hermes_ops
 pass rate must be ≥50% (majority-pass, same concept as run_bench.py's sanity
 fail-fast gate); every gate-passing group ranks above every gate-failing one
 regardless of the score below. **Score** among gate-passers is a weighted
-composite over four coding-suite axes — pass rate (35%),
-speed (35%), time taken (20%),
+composite over four coding-suite axes — pass rate (45%),
+speed (25%), time taken (20%),
 and turns used (10%) — each normalized 0.0-1.0 against
 the best value seen among this run's gate-passing groups (see
 `build_leaderboard.py`'s own comment for the exact formula and why). A slow
@@ -275,33 +275,33 @@ total coding+hermes_ops evidence.
 
 | rank | model | engine | quant | config | usefulness gate | score | coding | speed | avg time (s) | avg turns |
 |---|---|---|---|---|---|---|---|---|---|---|
-| 1 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | gguf | — | 3047922de5b7 | PASS (100%, 3) | 0.543 | 100% (1) | 34.7 tok/s | 573 | 40.0 |
-| 2 | anthropic/claude-haiku-4.5 | openrouter | — | 6cc890a25129 | PASS (100%, 8) | 0.508 | 82% (11) | 36.3 tok/s | 67 | 16.6 |
-| 3 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 6fa6f52fdc56 | PASS (75%, 8) | 0.508 | 91% (11) | 30.2 tok/s | 173 | 15.8 |
-| 4 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | 48d75180adbc | PASS (100%, 8) | 0.508 | 91% (11) | 30.9 tok/s | 226 | 17.7 |
-| 5 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | llama.cpp | — | 0840d8e3ee87 | PASS (88%, 8) | 0.474 | 36% (11) | 62.6 tok/s | 263 | 23.8 |
-| 6 | unsloth/Qwen3.6-35B-A3B-GGUF:UD-Q4_K_XL | llama.cpp | — | 436d6d25d30c | PASS (75%, 8) | 0.473 | 91% (11) | 27.1 tok/s | 202 | 40.0 |
-| 7 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | gguf | — | 1fea08092fdc | PASS (62%, 8) | 0.471 | 100% (1) | 20.8 tok/s | 285 | 40.0 |
-| 8 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | llama.cpp | — | 05a5098cf4c6 | PASS (75%, 8) | 0.456 | 0% (11) | 67.6 tok/s | 34 | 5.1 |
-| 9 | empero-ai/Qwen3.8-27B-Ridge-GGUF | llama.cpp | — | 7b1d82c8abab | PASS (62%, 8) | 0.392 | 100% (11) | 5.5 tok/s | 511 | 40.0 |
-| 10 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | gguf | — | 5f50ca6ebdf3 | PASS (62%, 8) | 0.384 | 0% (1) | 66.7 tok/s | 9 | 40.0 |
-| 11 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | — | 644415678c37 | PASS (75%, 8) | 0.380 | 73% (11) | 20.8 tok/s | 280 | 29.5 |
-| 12 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | — | 3a740261a79c | PASS (75%, 8) | 0.364 | 82% (11) | 8.1 tok/s | 685 | 14.5 |
-| 13 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | a2d241742068 | PASS (75%, 8) | 0.356 | 64% (11) | 20.9 tok/s | 416 | 20.9 |
-| 14 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q5_K_M | llama.cpp | — | 7103a8c7677c | PASS (62%, 8) | 0.352 | 82% (11) | 6.7 tok/s | 817 | 16.7 |
-| 15 | mlx-community/LFM2.5-8B-A1B-MLX-8bit | vllm-mlx | — | 00878f13621f | PASS (62%, 8) | 0.350 | 0% (1) | 26.4 tok/s | 1 | 40.0 |
-| 16 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | — | 38ccea45c281 | PASS (62%, 8) | 0.347 | 82% (11) | 8.5 tok/s | 956 | 30.3 |
-| 17 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | llama.cpp | — | c02615b57f21 | PASS (88%, 8) | 0.340 | 82% (11) | 7.9 tok/s | 811 | 40.0 |
-| 18 | LiquidAI/LFM2.5-8B-A1B-GGUF:BF16 | llama.cpp | — | a148c29637e6 | PASS (75%, 8) | 0.332 | 0% (11) | 55.3 tok/s | 60 | 12.1 |
-| 19 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | ffa862c18cff | PASS (75%, 8) | 0.316 | 73% (11) | 7.7 tok/s | 764 | 23.5 |
-| 20 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | — | 00fc47aef271 | PASS (67%, 6) | 0.232 | 0% (3) | 42.3 tok/s | 312 | 40.0 |
-| 21 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ DSpark F16 drafter) | gguf | — | 85636a621ce0 | PASS (100%, 3) | 0.178 | 0% (1) | 29.3 tok/s | 17 | 40.0 |
-| 22 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF:F16 drafter) | gguf | — | f6bb65acb160 | PASS (75%, 8) | 0.175 | 0% (1) | 27.0 tok/s | 10 | 40.0 |
-| 23 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF:F16 drafter) | llama.cpp-dspark | — | 4f8641aa7094 | PASS (75%, 8) | 0.174 | 0% (1) | 26.9 tok/s | 10 | 40.0 |
-| 24 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | mlx | — | da00492c3b46 | PASS (62%, 8) | 0.131 | 0% (1) | 21.4 tok/s | 31 | 40.0 |
-| 25 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | vllm-mlx | — | 9693319bc3a1 | PASS (75%, 8) | 0.127 | 0% (1) | 20.7 tok/s | 29 | 40.0 |
-| 26 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | vllm-mlx | — | c1a7fd5d3135 | PASS (88%, 8) | 0.114 | 0% (1) | 19.3 tok/s | 155 | 40.0 |
-| 27 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | mlx | — | 5e09e98f8c60 | PASS (75%, 8) | 0.082 | 0% (1) | 12.9 tok/s | 93 | 40.0 |
+| 1 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | gguf | — | 3047922de5b7 | PASS (100%, 3) | 0.591 | 100% (1) | 34.7 tok/s | 573 | 40.0 |
+| 2 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 6fa6f52fdc56 | PASS (75%, 8) | 0.554 | 91% (11) | 30.2 tok/s | 173 | 15.8 |
+| 3 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | 48d75180adbc | PASS (100%, 8) | 0.553 | 91% (11) | 30.9 tok/s | 226 | 17.7 |
+| 4 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | gguf | — | 1fea08092fdc | PASS (62%, 8) | 0.540 | 100% (1) | 20.8 tok/s | 285 | 40.0 |
+| 5 | anthropic/claude-haiku-4.5 | openrouter | — | 6cc890a25129 | PASS (100%, 8) | 0.536 | 82% (11) | 36.3 tok/s | 67 | 16.6 |
+| 6 | unsloth/Qwen3.6-35B-A3B-GGUF:UD-Q4_K_XL | llama.cpp | — | 436d6d25d30c | PASS (75%, 8) | 0.523 | 91% (11) | 27.1 tok/s | 202 | 40.0 |
+| 7 | empero-ai/Qwen3.8-27B-Ridge-GGUF | llama.cpp | — | 7b1d82c8abab | PASS (62%, 8) | 0.483 | 100% (11) | 5.5 tok/s | 511 | 40.0 |
+| 8 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | — | 3a740261a79c | PASS (75%, 8) | 0.434 | 82% (11) | 8.1 tok/s | 685 | 14.5 |
+| 9 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q5_K_M | llama.cpp | — | 7103a8c7677c | PASS (62%, 8) | 0.424 | 82% (11) | 6.7 tok/s | 817 | 16.7 |
+| 10 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | — | 644415678c37 | PASS (75%, 8) | 0.422 | 73% (11) | 20.8 tok/s | 280 | 29.5 |
+| 11 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | llama.cpp | — | 0840d8e3ee87 | PASS (88%, 8) | 0.417 | 36% (11) | 62.6 tok/s | 263 | 23.8 |
+| 12 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | — | 38ccea45c281 | PASS (62%, 8) | 0.417 | 82% (11) | 8.5 tok/s | 956 | 30.3 |
+| 13 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | llama.cpp | — | c02615b57f21 | PASS (88%, 8) | 0.410 | 82% (11) | 7.9 tok/s | 811 | 40.0 |
+| 14 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | a2d241742068 | PASS (75%, 8) | 0.389 | 64% (11) | 20.9 tok/s | 416 | 20.9 |
+| 15 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | ffa862c18cff | PASS (75%, 8) | 0.378 | 73% (11) | 7.7 tok/s | 764 | 23.5 |
+| 16 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | llama.cpp | — | 05a5098cf4c6 | PASS (75%, 8) | 0.356 | 0% (11) | 67.6 tok/s | 34 | 5.1 |
+| 17 | mlx-community/LFM2.5-8B-A1B-MLX-8bit | vllm-mlx | — | 00878f13621f | PASS (62%, 8) | 0.311 | 0% (1) | 26.4 tok/s | 1 | 40.0 |
+| 18 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | gguf | — | 5f50ca6ebdf3 | PASS (62%, 8) | 0.285 | 0% (1) | 66.7 tok/s | 9 | 40.0 |
+| 19 | LiquidAI/LFM2.5-8B-A1B-GGUF:BF16 | llama.cpp | — | a148c29637e6 | PASS (75%, 8) | 0.250 | 0% (11) | 55.3 tok/s | 60 | 12.1 |
+| 20 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | — | 00fc47aef271 | PASS (67%, 6) | 0.170 | 0% (3) | 42.3 tok/s | 312 | 40.0 |
+| 21 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF:F16 drafter) | gguf | — | f6bb65acb160 | PASS (75%, 8) | 0.135 | 0% (1) | 27.0 tok/s | 10 | 40.0 |
+| 22 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ DSpark F16 drafter) | gguf | — | 85636a621ce0 | PASS (100%, 3) | 0.134 | 0% (1) | 29.3 tok/s | 17 | 40.0 |
+| 23 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF:F16 drafter) | llama.cpp-dspark | — | 4f8641aa7094 | PASS (75%, 8) | 0.134 | 0% (1) | 26.9 tok/s | 10 | 40.0 |
+| 24 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | mlx | — | da00492c3b46 | PASS (62%, 8) | 0.099 | 0% (1) | 21.4 tok/s | 31 | 40.0 |
+| 25 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | vllm-mlx | — | 9693319bc3a1 | PASS (75%, 8) | 0.097 | 0% (1) | 20.7 tok/s | 29 | 40.0 |
+| 26 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | vllm-mlx | — | c1a7fd5d3135 | PASS (88%, 8) | 0.086 | 0% (1) | 19.3 tok/s | 155 | 40.0 |
+| 27 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | mlx | — | 5e09e98f8c60 | PASS (75%, 8) | 0.063 | 0% (1) | 12.9 tok/s | 93 | 40.0 |
 | 28 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | gguf | — | 1d65d14c63a8 | FAIL (12%, 8) | — | 0% (1) | 32.8 tok/s | 10 | 40.0 |
 
 ## Flaky tasks (mixed pass/fail under identical conditions)

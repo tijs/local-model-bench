@@ -39,7 +39,19 @@ CODING_TURNS_CEILING_FOR_TIMEOUT = 40
 # below) -- a starting point per this repo's own precedent ("the exact
 # weights matter far less than writing SOME weighting down and sorting by
 # it"), not a tuned optimum. Adjustable later.
-CODING_SCORE_WEIGHTS = {"pass": 0.35, "speed": 0.35, "time": 0.20, "turns": 0.10}
+#
+# First tried at pass=0.35/speed=0.35 (equal top weight, per the initial
+# "pass + speed should get most weight" framing) -- spot-checking the real
+# regenerated leaderboard surfaced a genuine problem: a 0%-coding-pass-rate
+# model (fast) outranked an 82%-coding-pass-rate model (slower), since a
+# 0% pass rate doesn't zero out the composite when speed alone can still
+# contribute up to its full 0.35 share -- reintroducing, at smaller scale,
+# exactly the "fast-but-non-functional beats slow-but-competent" problem
+# round 2's gate-then-rank design existed to fix. User's explicit call
+# (2026-08-27) after seeing this: give pass MORE weight than speed, not
+# equal -- pass still "gets a lot of weight," but can no longer be fully
+# cancelled out by raw speed alone.
+CODING_SCORE_WEIGHTS = {"pass": 0.45, "speed": 0.25, "time": 0.20, "turns": 0.10}
 
 
 def _fairness_fields(config_hash, config_path):

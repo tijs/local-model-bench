@@ -257,15 +257,19 @@ class CompositeRankingTests(unittest.TestCase):
     3. Dedup to the most-evidenced fragment per (model, engine, quant).
 
     New in round 3 — among gate-passers, ranked by CODING_SCORE_WEIGHTS-
-    weighted composite of: coding_pass_rate (0.35), speed normalized
-    against the fastest gate-passer (0.35), avg wall_seconds per coding
+    weighted composite of: coding_pass_rate (0.45), speed normalized
+    against the fastest gate-passer (0.25), avg wall_seconds per coding
     task inverse-normalized against the fastest-completing gate-passer
     (0.20), and avg turns per coding task inverse-normalized against the
-    fewest-turns gate-passer (0.10). Because pass and speed carry EQUAL
-    top weight, a big enough speed advantage can now outrank a modest
-    pass-rate advantage — a deliberate consequence of "pass + speed get
-    most weight" (not a bug — see
-    test_large_speed_advantage_can_outrank_modest_pass_rate_advantage).
+    fewest-turns gate-passer (0.10). pass=0.35/speed=0.35 (equal) was
+    tried first, but a real regenerated-leaderboard check found a
+    0%-coding model outranking an 82%-coding model on speed alone at
+    those weights — user's call was to give pass MORE weight than speed
+    (0.45 vs 0.25) instead, so pass can no longer be fully cancelled out
+    by raw speed. A large enough speed gap can still flip a modest
+    pass-rate gap (not a bug — see
+    test_large_speed_advantage_can_outrank_modest_pass_rate_advantage),
+    just a bigger gap is needed than when the two were tied.
     """
 
     def setUp(self):
@@ -385,14 +389,18 @@ class CompositeRankingTests(unittest.TestCase):
         self.assertLess(correct_rank, wrong_rank, "with equal speed, the higher-coding-pass-rate model must rank first")
 
     def test_large_speed_advantage_can_outrank_modest_pass_rate_advantage(self):
-        # Deliberate, documented consequence of "pass + speed get most
-        # weight" (equal 0.35 each): a large enough speed gap CAN flip a
-        # modest pass-rate gap, unlike round 2 where coding_pass_rate was
-        # an unconditional primary sort. 10x speed gap vs a 2/2-vs-1/2
-        # pass-rate gap is enough to flip under the default weights.
+        # Deliberate, documented consequence of pass+speed both carrying
+        # real weight: a LARGE ENOUGH speed gap can still flip a modest
+        # pass-rate gap, unlike round 2 where coding_pass_rate was an
+        # unconditional primary sort — just a bigger gap is needed now
+        # that pass (0.45) outweighs speed (0.25) rather than tying it.
+        # 25x speed gap vs a 2/2-vs-1/2 pass-rate gap flips it under the
+        # current weights (a 10x gap, tried first, landed on an exact tie
+        # at these weights — 0.475 vs 0.475 — so this uses a clearly
+        # decisive gap instead of one that happens to cancel out).
         rows = (
             self._complete_rows("correct-but-slow", hermes_ops_passes=[True], coding_passes=[True, True],
-                                 tps=5.0, config_hash="h1")
+                                 tps=2.0, config_hash="h1")
             + self._complete_rows("fast-but-wrong", hermes_ops_passes=[True], coding_passes=[True, False],
                                    tps=50.0, config_hash="h2")
         )
