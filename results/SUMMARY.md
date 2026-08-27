@@ -3,7 +3,7 @@
 **Hand-curated, not auto-regenerated** — unlike `LEADERBOARD.md` (rebuilt
 from `log.jsonl` after every run; never hand-edit it), this is a
 point-in-time reading of that data. Re-check against `LEADERBOARD.md` if
-it's been a while — last updated **2026-08-26**, 1221 log rows / 55
+it's been a while — last updated **2026-08-27**, 1242 log rows / 56
 configs.
 
 **The caveat that matters most**: grading was fixed on 2026-08-21 (several
@@ -60,10 +60,29 @@ the first load looks slow.
 |---|---|---|---|---|
 | Muse-Glimmer-30B (Q4_K_M) | llama.cpp | 62% (5/8) | 82% (9/11) | 8.5 |
 | Qwen3.8-27B-Uncensored (Q4_K_M) | llama.cpp | 75% (6/8) | 82% (9/11) | 8.1 |
+| Qwen3.8-27B-Uncensored (Q5_K_M) | llama.cpp | 62.5% (5/8) | 82% (9/11) | 6.7 |
 
-Both genuinely capable, both held back mostly by speed (~8 tok/s) rather
-than correctness — every fail on record for these two is a real, on-topic
-wrong answer or a genuine timeout, not a harness artifact.
+Both Q4_K_M entries genuinely capable, held back mostly by speed (~8 tok/s)
+rather than correctness — every fail on record for these two is a real,
+on-topic wrong answer or a genuine timeout, not a harness artifact.
+
+**The Q5_K_M row above is a deliberate negative-result test** (2026-08-27,
+user-approved follow-up to the Kiem "Qwen3.8 + llama.cpp speed and
+agentic-efficiency investigation" plan): the base Qwen3.8-27B jumped from
+73-82% coding at Q4_K_M to 91% at UD-Q5_K_M (see the three-way tie above),
+so this tested whether bumping the Uncensored fine-tune to its own
+Q5_K_M quant (available in the same HF repo, untested until now)
+reproduced that jump. **It didn't.** Coding pass rate is identical to the
+Q4_K_M version (82%, not improved), while hermes_ops reliability is
+notably worse (62.5% vs 75%) and speed is slower (6.7 vs 8.1 tok/s) — all
+from genuine task timeouts on a model that simply runs slower at Q5, not
+harness artifacts. **The lesson: "bump the quant for better quality" is
+checkpoint-specific, not a universal rule for this model family** — it
+worked for the base model, it did not meaningfully help this particular
+fine-tune. Neither the extra quality nor the extra memory cost is
+justified here; stick with the Q4_K_M Uncensored config or the base
+model's own Q5_K_M config, not this combination. Config:
+`configs/Qwen3.8-27B-Uncensored/gguf-q5.yaml`.
 
 ## Mid tier — 64-73% coding
 
