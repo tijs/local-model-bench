@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/1263 rows below predate 2026-08-21
+> **⚠ 138/1286 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -107,6 +107,8 @@ added explicitly to record that default rather than leave it invisible.
 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [6fa6f52fdc56](configs/6fa6f52fdc56.yaml) | 6bb085a043fe | 19 | 84% | 3 | 30.2 | 7.05 | 0 | 15.8 | 30 | 23.6 | — | — | — |
 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | — | [6fa6f52fdc56](configs/6fa6f52fdc56.yaml) | 8e7b1897f7e8+dirty | 11 | 91% | 1 | — | — | 0 | — | 0 | 23.8 | — | — | — |
 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | — | [6fa6f52fdc56](configs/6fa6f52fdc56.yaml) | d39c9c37bb8c+dirty | 0 | n/a (all harness errors) | 0 | — | — | 0 | — | 0 | — | — | — | — |
+| HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [6fa6f52fdc56](configs/6fa6f52fdc56.yaml) | d60debfa3654 | 1 | 100% | 0 | 29.0 | 17.32 | 0 | — | 0 | 21.6 | — | — | — |
+| HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | — | [6fa6f52fdc56](configs/6fa6f52fdc56.yaml) | d60debfa3654+dirty | 18 | 89% | 1 | 30.6 | 2.66 | 0 | 14.6 | 18 | 23.1 | — | — | — |
 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | n/a | 2/2 | [3a740261a79c](configs/3a740261a79c.yaml) — *config since changed* | 2477ca2ba371 | 19 | 79% | 11 | 8.1 | 44.53 | 0 | 11.9 | 14 | 22.6 | — | — | — |
 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | n/a | 2/2 | [3a740261a79c](configs/3a740261a79c.yaml) — *config since changed* | a04f5cd07f20 | 19 | 84% | 13 | 8.0 | 44.53 | 0 | — | 0 | 22.6 | — | — | — |
 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q5_K_M | llama.cpp | — | 1.0 | thinking | n/a | 2/2 | [7103a8c7677c](configs/7103a8c7677c.yaml) — *config since changed* | ba9bffb50e12+dirty | 19 | 74% | 10 | 6.7 | 46.45 | 0 | 11.6 | 9 | 23.9 | — | — | — |
@@ -187,6 +189,7 @@ added explicitly to record that default rather than leave it invisible.
 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | — | ? | ? | ? | 2/2 | [e6a0628476cc](configs/Qwen3.8-27B/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 100% | 0 | 7.8 | 8.98 | 0 | — | 0 | — | ? | ? | ? |
 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | — | ? | ? | ? | 4/4 | [f6397d624011](configs/Qwen3.8-27B/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 4 | 100% | 0 | 6.2 | 52.74 | 0 | — | 0 | — | ? | ? | ? |
 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | Q4_K_M+DFlash2 | ? | ? | ? | 2/2 | [0686abeab746](configs/Qwen3.8-27B/gguf-dflash2.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 100% | 0 | 5.8 | 55.96 | 0 | — | 0 | — | ? | ? | ? |
+| bartowski/Qwen3.8-27B-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | medium | 2/2 | [5149cbc5a1b1](configs/5149cbc5a1b1.yaml) | 307dc5a146b4+dirty | 0 | n/a (all harness errors) | 0 | 8.0 | 5.83 | 0 | — | 0 | 22.8 | — | — | — |
 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | n/a | 2/2 | [c02615b57f21](configs/c02615b57f21.yaml) — *config since changed* | 9756e52a1739 | 19 | 84% | 11 | 7.9 | 38.00 | 0 | — | 0 | 23.7 | — | — | — |
 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | n/a | 2/2 | [c7eb832ac1e8](configs/c7eb832ac1e8.yaml) — *config since changed* | 8bf29fca2f15 | 19 | 79% | 12 | 5.2 | 63.62 | 0 | — | 0 | 23.6 | — | — | — |
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | gguf | — | ? | ? | ? | 2/2 | [163fa63ffb83](configs/Qwen3.5-9B/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 67% | 0 | 20.2 | 15.45 | 0 | — | 0 | — | ? | ? | ? |
@@ -319,6 +322,8 @@ total coding+hermes_ops evidence.
 | 27 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | mlx | — | instruct | 5e09e98f8c60 | PASS (75%, 8) | 0.063 | 0% (1) | 12.9 tok/s | 93 | 40.0 |
 | 28 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | gguf | — | n/a | 1d65d14c63a8 | FAIL (12%, 8) | — | 0% (1) | 32.8 tok/s | 10 | 40.0 |
 
+![Best overall composite score by model](score_chart.png)
+
 ## Flaky tasks (mixed pass/fail under identical conditions)
 
 Any task with the SAME (model, inference_engine, quant, config_hash,
@@ -351,6 +356,12 @@ confirmed-stable, just untested for flakiness.
 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | 6fa6f52fdc56 | 8e7b1897f7e8+dirty | hearth_mini | 3/3 |
 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | 6fa6f52fdc56 | 8e7b1897f7e8+dirty | kiem_mini | 5/5 |
 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | 6fa6f52fdc56 | 8e7b1897f7e8+dirty | kipclip_mini | 2/3 |
+| HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | 6fa6f52fdc56 | d60debfa3654 | hermes_ops | 1/1 |
+| HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | 6fa6f52fdc56 | d60debfa3654 | sanity | 2/2 |
+| HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | 6fa6f52fdc56 | d60debfa3654+dirty | hearth_mini | 3/3 |
+| HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | 6fa6f52fdc56 | d60debfa3654+dirty | hermes_ops | 5/7 |
+| HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | 6fa6f52fdc56 | d60debfa3654+dirty | kiem_mini | 5/5 |
+| HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | 6fa6f52fdc56 | d60debfa3654+dirty | kipclip_mini | 3/3 |
 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | 3a740261a79c | 2477ca2ba371 | hearth_mini | 3/3 |
 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | 3a740261a79c | 2477ca2ba371 | hermes_ops | 6/8 |
 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | 3a740261a79c | 2477ca2ba371 | kiem_mini | 4/5 |
@@ -535,6 +546,7 @@ confirmed-stable, just untested for flakiness.
 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | e6a0628476cc | *(predates tracking)* | sanity | 2/2 |
 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | f6397d624011 | *(predates tracking)* | hermes_ops | 4/4 |
 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | f6397d624011 | *(predates tracking)* | sanity | 4/4 |
+| bartowski/Qwen3.8-27B-GGUF:Q4_K_M | llama.cpp | 5149cbc5a1b1 | 307dc5a146b4+dirty | sanity | 2/2 |
 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | llama.cpp | c02615b57f21 | 9756e52a1739 | hearth_mini | 3/3 |
 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | llama.cpp | c02615b57f21 | 9756e52a1739 | hermes_ops | 7/8 |
 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | llama.cpp | c02615b57f21 | 9756e52a1739 | kiem_mini | 4/5 |
