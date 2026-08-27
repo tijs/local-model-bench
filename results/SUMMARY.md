@@ -120,9 +120,9 @@ better (36%, 4/11) at a still-fast 62.6 tok/s, but nowhere near the coding
 capability of the models above. **Speed alone doesn't make a model a
 viable Hermes backend on this benchmark.**
 
-## Unresolved: Laguna-XS-2.1
+## Resolved (pending full benchmark run): Laguna-XS-2.1
 
-Root cause found 2026-08-27, not yet fixed. The original finding
+Root cause found and fixed 2026-08-27. The original finding
 (sanity-tool failing at Q4_K_M — empty content at temp=0, a hallucinated
 unrelated response instead of a tool call at temp=1.0) is **not** a
 reasoning-mode or harness-probe issue. Reading the upstream llama.cpp PR
@@ -146,6 +146,20 @@ this was a diagnostic test, not a benchmark result. A proper GPU-speed
 retest would require building llama.cpp from PR #26223's branch
 (`mdegans:fix/metal-mul-mm-id-f16-overflow`) rather than waiting for
 Homebrew's release to pick it up.
+
+**Update, same day:** built llama.cpp from that exact PR branch (commit
+`e6a3398`, confirmed to include the fix commit `94fa2fc`) and retested
+with full GPU/Metal offload restored. **Both failure modes are gone at
+full speed** — 9/9 clean (sanity-tool 5/5 at temp=0, tool-call prompt 4/4
+at temp=1.0), decode throughput ~65 tok/s, roughly double the earlier
+CPU-only diagnostic's ~30-45 tok/s and competitive with this benchmark's
+faster GGUF legs despite Laguna's 33B total parameter count (3B active
+per token). The custom binary is kept separate from the Homebrew build
+every other config uses (`~/.local/share/local-model-bench/llama-cpp-
+laguna-fix/`), wired in as `configs/Laguna-XS-2.1/gguf-metal-fixed.yaml`.
+The full sanity+hermes_ops+coding suite hasn't run yet — only this
+9-trial diagnostic — queued to run as an additional config after the
+current Phase D rerun batch completes.
 
 ## Hosted-model reference set (2026-08-26)
 
