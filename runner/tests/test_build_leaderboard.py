@@ -236,27 +236,36 @@ class SlowPassColumnTests(unittest.TestCase):
 
 
 class CompositeRankingTests(unittest.TestCase):
-    """Round 2 (2026-08-26) of the "Best overall" ranking, replacing the
-    weighted-blend design from round 1 (fa0046f / methodology review F3).
-    User feedback made the philosophy explicit: this benchmark isn't
-    measuring "coding ability" as one input among peers — it measures
-    USEFULNESS AS AN AGENT, and only then coding ability. "If the sanity
-    check or full Hermes pass does not complete it fails the basic
-    usefulness check. Then coding ability is the discerning next factor +
-    speed which improves usability." That's a staged gate-then-rank, not a
-    blend:
+    """Round 3 (2026-08-27, benchmark v2) of the "Best overall" ranking,
+    replacing round 2's plain "primary sort: coding_pass_rate, tie-break:
+    speed" (gate-then-rank, 2026-08-26) with a weighted composite score.
+    User request: the score should reflect not just pass/fail but speed,
+    time taken, and turns used per task — "Pass + speed should get most
+    weight, then time, then turns." This coincided with bumping the
+    coding-suite timeouts (tasks/kiem_mini.yaml etc., 1500s -> 3000s) so a
+    slow-but-eventually-correct model can finish instead of being hard-
+    killed — the composite score is what lets that model still compete
+    (scoring lower on speed/time) instead of needing an outright
+    disqualification to keep the leaderboard meaningful.
 
+    Unchanged from round 2:
     1. ELIGIBILITY — a group needs at least one row on ALL THREE axes
-       (sanity, hermes_ops, coding) to represent a genuinely completed
-       run; a partial run (missing an entire axis) is excluded outright,
-       not scored on whatever subset it happens to have.
+       (sanity, hermes_ops, coding) to represent a genuinely completed run.
     2. USEFULNESS GATE (hard pass/fail tier, not a weighted input):
-       hermes_ops_pass_rate >= 0.5 (majority-pass, same threshold concept
-       as run_bench.py's own `_majority_pass()`). Every gate-passing group
-       ranks above every gate-failing group, regardless of coding or speed.
-    3. PRIMARY SORT among gate-passers: coding_pass_rate, descending.
-    4. TIE-BREAK: avg tok/s, descending — speed only decides between
-       comparably-correct models, never outranks better coding ability.
+       hermes_ops_pass_rate >= 0.5. Every gate-passing group ranks above
+       every gate-failing group, regardless of the score below.
+    3. Dedup to the most-evidenced fragment per (model, engine, quant).
+
+    New in round 3 — among gate-passers, ranked by CODING_SCORE_WEIGHTS-
+    weighted composite of: coding_pass_rate (0.35), speed normalized
+    against the fastest gate-passer (0.35), avg wall_seconds per coding
+    task inverse-normalized against the fastest-completing gate-passer
+    (0.20), and avg turns per coding task inverse-normalized against the
+    fewest-turns gate-passer (0.10). Because pass and speed carry EQUAL
+    top weight, a big enough speed advantage can now outrank a modest
+    pass-rate advantage — a deliberate consequence of "pass + speed get
+    most weight" (not a bug — see
+    test_large_speed_advantage_can_outrank_modest_pass_rate_advantage).
     """
 
     def setUp(self):
@@ -280,11 +289,16 @@ class CompositeRankingTests(unittest.TestCase):
 
     def _complete_rows(self, model, hermes_ops_passes, coding_passes, tps,
                         config_hash="h", runner_sha="abc", quant=None,
-                        inference_engine="vllm-mlx"):
+                        inference_engine="vllm-mlx", wall_seconds=None, turns=None):
         """Builds a full (sanity + hermes_ops + coding) row set for one
         group — one sanity-basic PASS, one hermes_ops row per bool in
         `hermes_ops_passes`, one kiem_mini row per bool in `coding_passes`,
-        all carrying the same tokens_per_second so avg tok/s == tps."""
+        all carrying the same tokens_per_second so avg tok/s == tps.
+        wall_seconds/turns, when given, are applied uniformly to every
+        coding row (sufficient for these tests, which only need group-
+        level averages to differ, not per-task variation) — omitted
+        entirely (not just None) when not given, matching how a real log
+        row without hermes_turns/wall_seconds actually looks."""
         rows = [{
             "suite": "sanity", "task_id": "sanity-basic", "task_type": "sanity",
             "model": model, "inference_engine": inference_engine, "quant": quant,
@@ -300,13 +314,18 @@ class CompositeRankingTests(unittest.TestCase):
                 "tokens_per_second": tps,
             })
         for i, ok in enumerate(coding_passes):
-            rows.append({
+            row = {
                 "suite": "kiem_mini", "task_id": f"kiem_mini-task{i}", "task_type": "feature",
                 "model": model, "inference_engine": inference_engine, "quant": quant,
                 "config_path": None, "config_hash": config_hash, "runner_git_sha": runner_sha,
                 "trial": 1, "pass": ok, "grade_output": "PASS" if ok else "FAIL",
                 "tokens_per_second": tps,
-            })
+            }
+            if wall_seconds is not None:
+                row["wall_seconds"] = wall_seconds
+            if turns is not None:
+                row["hermes_turns"] = turns
+            rows.append(row)
         return rows
 
     def test_group_missing_any_axis_is_excluded_entirely(self):
@@ -329,7 +348,7 @@ class CompositeRankingTests(unittest.TestCase):
         # A model that fails the usefulness gate (hermes_ops < 50%) must
         # rank below EVERY gate-passing group, even one with weaker coding
         # and slower speed — the gate is a hard tier boundary, not a
-        # weighted input that a great coding score could outweigh.
+        # weighted input that a great composite score could outweigh.
         rows = (
             self._complete_rows("gate-fails", hermes_ops_passes=[False, False, True],
                                  coding_passes=[True, True], tps=100.0, config_hash="h1")
@@ -346,7 +365,31 @@ class CompositeRankingTests(unittest.TestCase):
         row_line = next(l for l in section.splitlines() if "gate-fails" in l)
         self.assertIn("FAIL", row_line)
 
-    def test_higher_coding_pass_rate_ranks_first_among_gate_passers(self):
+    def test_higher_coding_pass_rate_wins_when_speed_is_comparable(self):
+        # With speed (and time/turns) held equal, pass rate alone must
+        # still decide the ranking — the composite score doesn't discard
+        # pass rate, it just no longer gives it UNCONDITIONAL priority
+        # over speed the way round 2's plain sort did.
+        rows = (
+            self._complete_rows("correct", hermes_ops_passes=[True], coding_passes=[True, True],
+                                 tps=20.0, config_hash="h1")
+            + self._complete_rows("wrong", hermes_ops_passes=[True], coding_passes=[True, False],
+                                   tps=20.0, config_hash="h2")
+        )
+        self._write_log(rows)
+        bl.main()
+        text = (self.repo / "results" / "LEADERBOARD.md").read_text()
+        section = self._best_overall_section(text)
+        correct_rank = next(i for i, l in enumerate(section.splitlines()) if "| correct " in l)
+        wrong_rank = next(i for i, l in enumerate(section.splitlines()) if "| wrong " in l)
+        self.assertLess(correct_rank, wrong_rank, "with equal speed, the higher-coding-pass-rate model must rank first")
+
+    def test_large_speed_advantage_can_outrank_modest_pass_rate_advantage(self):
+        # Deliberate, documented consequence of "pass + speed get most
+        # weight" (equal 0.35 each): a large enough speed gap CAN flip a
+        # modest pass-rate gap, unlike round 2 where coding_pass_rate was
+        # an unconditional primary sort. 10x speed gap vs a 2/2-vs-1/2
+        # pass-rate gap is enough to flip under the default weights.
         rows = (
             self._complete_rows("correct-but-slow", hermes_ops_passes=[True], coding_passes=[True, True],
                                  tps=5.0, config_hash="h1")
@@ -359,7 +402,7 @@ class CompositeRankingTests(unittest.TestCase):
         section = self._best_overall_section(text)
         correct_rank = next(i for i, l in enumerate(section.splitlines()) if "correct-but-slow" in l)
         wrong_rank = next(i for i, l in enumerate(section.splitlines()) if "fast-but-wrong" in l)
-        self.assertLess(correct_rank, wrong_rank, "the higher-coding-pass-rate model must rank first")
+        self.assertLess(wrong_rank, correct_rank, "a large enough speed advantage should outrank a modest pass-rate edge")
 
     def test_equal_coding_pass_rate_broken_by_higher_speed(self):
         rows = (
@@ -375,6 +418,72 @@ class CompositeRankingTests(unittest.TestCase):
         fast_rank = next(i for i, l in enumerate(section.splitlines()) if "equal-coding-fast" in l)
         slow_rank = next(i for i, l in enumerate(section.splitlines()) if "equal-coding-slow" in l)
         self.assertLess(fast_rank, slow_rank, "with tied coding pass rate, the faster model must rank first")
+
+    def test_shorter_time_taken_scores_higher_all_else_equal(self):
+        # Same pass rate and speed, only avg wall_seconds per coding task
+        # differs — the faster-to-finish group must score higher via the
+        # time axis (weight 0.20).
+        rows = (
+            self._complete_rows("quick-finisher", hermes_ops_passes=[True], coding_passes=[True, True],
+                                 tps=20.0, config_hash="h1", wall_seconds=100.0)
+            + self._complete_rows("slow-finisher", hermes_ops_passes=[True], coding_passes=[True, True],
+                                   tps=20.0, config_hash="h2", wall_seconds=2000.0)
+        )
+        self._write_log(rows)
+        bl.main()
+        text = (self.repo / "results" / "LEADERBOARD.md").read_text()
+        section = self._best_overall_section(text)
+        quick_rank = next(i for i, l in enumerate(section.splitlines()) if "quick-finisher" in l)
+        slow_rank = next(i for i, l in enumerate(section.splitlines()) if "slow-finisher" in l)
+        self.assertLess(quick_rank, slow_rank, "less time taken per task must score higher, all else equal")
+
+    def test_fewer_turns_scores_higher_all_else_equal(self):
+        # Same pass rate, speed, and time — only avg turns per coding task
+        # differs — the fewer-turns group must score higher via the turns
+        # axis (weight 0.10). A genuinely smart model solving a task in
+        # fewer turns is exactly what this axis is meant to reward.
+        rows = (
+            self._complete_rows("few-turns", hermes_ops_passes=[True], coding_passes=[True, True],
+                                 tps=20.0, config_hash="h1", wall_seconds=500.0, turns=5)
+            + self._complete_rows("many-turns", hermes_ops_passes=[True], coding_passes=[True, True],
+                                   tps=20.0, config_hash="h2", wall_seconds=500.0, turns=35)
+        )
+        self._write_log(rows)
+        bl.main()
+        text = (self.repo / "results" / "LEADERBOARD.md").read_text()
+        section = self._best_overall_section(text)
+        few_rank = next(i for i, l in enumerate(section.splitlines()) if "few-turns" in l)
+        many_rank = next(i for i, l in enumerate(section.splitlines()) if "many-turns" in l)
+        self.assertLess(few_rank, many_rank, "fewer turns per task must score higher, all else equal")
+
+    def test_timed_out_row_with_no_turns_recorded_is_not_rewarded_for_it(self):
+        # A coding row killed by the wall-clock timeout has hermes_turns =
+        # None (hermes never got to export session stats) -- this must NOT
+        # read as "0 turns" (which would perversely score BETTER than a
+        # model that actually completed and got a real, higher turn
+        # count). It should be substituted with
+        # CODING_TURNS_CEILING_FOR_TIMEOUT (an assumed worst case), so a
+        # timed-out row never wins the turns axis over a real completion.
+        rows = (
+            self._complete_rows("timed-out", hermes_ops_passes=[True], coding_passes=[False],
+                                 tps=20.0, config_hash="h1", wall_seconds=3000.0)  # no turns= given -> None in the row
+            + self._complete_rows("finished-many-turns", hermes_ops_passes=[True], coding_passes=[True],
+                                   tps=20.0, config_hash="h2", wall_seconds=500.0, turns=30)
+        )
+        self._write_log(rows)
+        bl.main()
+        text = (self.repo / "results" / "LEADERBOARD.md").read_text()
+        section = self._best_overall_section(text)
+        # The timed-out group's displayed avg turns must reflect the
+        # ceiling substitution (40.0), not blank/0.
+        timed_out_line = next(l for l in section.splitlines() if "timed-out" in l)
+        self.assertIn(f"{bl.CODING_TURNS_CEILING_FOR_TIMEOUT:.1f}", timed_out_line)
+        # And it must still lose overall (it also failed the coding task
+        # and took much longer) -- the point is the turns axis specifically
+        # doesn't give it an undeserved boost.
+        timed_out_rank = next(i for i, l in enumerate(section.splitlines()) if "timed-out" in l)
+        finished_rank = next(i for i, l in enumerate(section.splitlines()) if "finished-many-turns" in l)
+        self.assertLess(finished_rank, timed_out_rank)
 
     def test_dedups_to_the_most_evidenced_fragment_per_model_engine_quant(self):
         # A model tested twice under different config_hash/runner_sha (a

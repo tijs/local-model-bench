@@ -23,6 +23,24 @@ REPO = Path(__file__).resolve().parent.parent
 # silently miscounted as coding.
 CODING_SUITES = {"kiem_mini", "hearth_mini", "kipclip_mini"}
 
+# Benchmark v2 (2026-08-27, user request): a coding-suite row missing
+# hermes_turns (the count pulled from hermes's own SQLite session store)
+# means the process was killed by the wall-clock timeout before hermes
+# ever got to export session stats -- NOT that it took few turns. Scoring
+# that as "0 turns" (or excluding it) would perversely REWARD a hard
+# wall-clock kill with a better turns score than a model that ran the
+# full, real, high-turn-count session and got graded normally. Substitute
+# hermes's own agent.max_turns (~/.hermes/profiles/bench/config.yaml) as
+# the assumed-worst-case value instead -- the model was still going when
+# killed, so "at least this many turns" is the fair, conservative read.
+CODING_TURNS_CEILING_FOR_TIMEOUT = 40
+
+# Weights for the composite coding score (see _composite_coding_score()
+# below) -- a starting point per this repo's own precedent ("the exact
+# weights matter far less than writing SOME weighting down and sorting by
+# it"), not a tuned optimum. Adjustable later.
+CODING_SCORE_WEIGHTS = {"pass": 0.35, "speed": 0.35, "time": 0.20, "turns": 0.10}
+
 
 def _fairness_fields(config_hash, config_path):
     """temperature/reasoning_mode as declared in the config that produced
@@ -414,6 +432,20 @@ def main():
             if hermes_ops_scored else None
         )
 
+        # Benchmark v2 composite-score inputs (coding axis only -- see
+        # CODING_SCORE_WEIGHTS's own comment for why hermes_ops stays a
+        # pure gate rather than folding into this same weighted score).
+        # wall_seconds is populated even for a genuine wall-clock TIMEOUT
+        # row (it equals the timeout ceiling) -- no substitution needed,
+        # unlike hermes_turns below.
+        coding_wall_values = [r["wall_seconds"] for r in coding_scored if r.get("wall_seconds") is not None]
+        avg_coding_wall = mean(coding_wall_values) if coding_wall_values else None
+        coding_turns_values = [
+            r["hermes_turns"] if r.get("hermes_turns") is not None else CODING_TURNS_CEILING_FOR_TIMEOUT
+            for r in coding_scored
+        ]
+        avg_coding_turns = mean(coding_turns_values) if coding_turns_values else None
+
         group_stats.append({
             "key": (model, inference_engine, quant, config_hash, runner_sha),
             "line": (
@@ -425,6 +457,8 @@ def main():
             "avg_tps_val": avg_tps_val,
             "coding_pass_rate": coding_pass_rate,
             "hermes_ops_pass_rate": hermes_ops_pass_rate,
+            "avg_coding_wall": avg_coding_wall,
+            "avg_coding_turns": avg_coding_turns,
             "n_sanity": len(sanity_scored),
             "n_coding": len(coding_scored),
             "n_hermes_ops": len(hermes_ops_scored),
@@ -494,53 +528,136 @@ def main():
 
     GATE_HERMES_OPS_THRESHOLD = 0.5  # majority-pass — same concept as run_bench.py's _majority_pass()
 
+    # Round 3 (2026-08-27, benchmark v2, user request): round 2's primary
+    # sort was plain coding_pass_rate, tie-broken by speed — clean, but it
+    # couldn't distinguish "genuinely better at coding" from "took forever
+    # and used every one of its turns to barely scrape a pass," and gave
+    # slow-but-correct models no credit at all for eventually finishing
+    # once the coding-suite timeouts were bumped (see tasks/kiem_mini.yaml
+    # etc.) to let them run to completion instead of being hard-killed.
+    # This replaces that primary sort with a weighted composite over four
+    # axes the user specifically asked to be tracked together: pass rate
+    # and speed matter most (equal top weight), then time taken, then
+    # turns used — see CODING_SCORE_WEIGHTS's own comment for the exact
+    # numbers and where they come from.
+    #
+    # Each axis is normalized 0.0-1.0 against the best value seen among
+    # this run's ELIGIBLE (fully-completed, gate-passing candidates for
+    # normalization purposes — see eligible_for_norm below) groups, not
+    # against an absolute target, since "fast" and "few turns" are only
+    # meaningful relative to what this hardware/task-set actually
+    # produces:
+    #   pass  = coding_pass_rate directly (already 0.0-1.0)
+    #   speed = avg_tps / fastest group's avg_tps
+    #   time  = fastest (lowest) group's avg_coding_wall / this group's
+    #           avg_coding_wall (shorter is better, so INVERTED)
+    #   turns = fewest-turns group's avg_coding_turns / this group's
+    #           avg_coding_turns (fewer is better, so INVERTED)
+    # A group missing a denominator input (e.g. every coding row somehow
+    # lacked wall_seconds) scores 0.0 on that one axis rather than being
+    # excluded outright — conservative, not a crash.
+    #
+    # The usefulness GATE (hermes_ops >= 50%, hard tier boundary) and the
+    # eligibility rule (all three axes present) from round 2 are BOTH
+    # unchanged — this round only changes how gate-passers are ordered
+    # relative to each other, not who's allowed to compete at all.
+    eligible_for_norm = [
+        gs for gs in best_fragment.values()
+        if gs["n_sanity"] and gs["n_hermes_ops"] and gs["n_coding"]
+        and gs["hermes_ops_pass_rate"] >= GATE_HERMES_OPS_THRESHOLD
+    ]
+    max_tps_for_score = max(
+        (gs["avg_tps_val"] for gs in eligible_for_norm if gs["avg_tps_val"]), default=None,
+    )
+    min_wall_for_score = min(
+        (gs["avg_coding_wall"] for gs in eligible_for_norm if gs["avg_coding_wall"]), default=None,
+    )
+    min_turns_for_score = min(
+        (gs["avg_coding_turns"] for gs in eligible_for_norm if gs["avg_coding_turns"]), default=None,
+    )
+
+    def _composite_coding_score(gs):
+        pass_component = gs["coding_pass_rate"] or 0.0
+        speed_component = (
+            gs["avg_tps_val"] / max_tps_for_score
+            if gs["avg_tps_val"] and max_tps_for_score else 0.0
+        )
+        time_component = (
+            min_wall_for_score / gs["avg_coding_wall"]
+            if gs["avg_coding_wall"] and min_wall_for_score else 0.0
+        )
+        turns_component = (
+            min_turns_for_score / gs["avg_coding_turns"]
+            if gs["avg_coding_turns"] and min_turns_for_score else 0.0
+        )
+        return (
+            CODING_SCORE_WEIGHTS["pass"] * pass_component
+            + CODING_SCORE_WEIGHTS["speed"] * speed_component
+            + CODING_SCORE_WEIGHTS["time"] * time_component
+            + CODING_SCORE_WEIGHTS["turns"] * turns_component
+        )
+
     ranked = []
     for gs in best_fragment.values():
         if not (gs["n_sanity"] and gs["n_hermes_ops"] and gs["n_coding"]):
             continue  # not a completed run — missing an entire axis
         gate_pass = gs["hermes_ops_pass_rate"] >= GATE_HERMES_OPS_THRESHOLD
+        score = _composite_coding_score(gs) if gate_pass else 0.0
         # Sort key is lexicographic, most-significant field first: gate
-        # status beats coding rate beats speed, always — never traded off
-        # against each other the way a blended score would.
-        ranked.append((gate_pass, gs["coding_pass_rate"], gs["avg_tps_val"] or 0.0, gs))
+        # status beats the composite score, always — never traded off
+        # against each other the way folding hermes_ops into the same
+        # blend would allow.
+        ranked.append((gate_pass, score, gs))
 
     lines.append("")
-    lines.append("## Best overall (gate-then-rank)")
+    lines.append("## Best overall (gate, then weighted composite score)")
     lines.append("")
-    lines.append("Not a blended score: a staged gate, then a lexicographic sort. **Eligibility**")
-    lines.append("— a group must have completed all three stages (sanity + hermes_ops +")
-    lines.append("coding, at least one row each) to appear here at all; a partial run is")
-    lines.append("excluded outright rather than scored on whichever axes it happens to have.")
-    lines.append("**Usefulness gate** (pass/fail tier, not a weighted input) — hermes_ops pass")
-    lines.append("rate must be ≥50% (majority-pass, same concept as run_bench.py's sanity")
+    lines.append("**Eligibility** — a group must have completed all three stages (sanity +")
+    lines.append("hermes_ops + coding, at least one row each) to appear here at all; a partial")
+    lines.append("run is excluded outright rather than scored on whichever axes it happens to")
+    lines.append("have. **Usefulness gate** (pass/fail tier, not a weighted input) — hermes_ops")
+    lines.append("pass rate must be ≥50% (majority-pass, same concept as run_bench.py's sanity")
     lines.append("fail-fast gate); every gate-passing group ranks above every gate-failing one")
-    lines.append("regardless of coding or speed. **Primary sort** among gate-passers is")
-    lines.append("coding pass rate, descending — the actual discerning factor once basic")
-    lines.append("agent usefulness is established. **Tie-break** is avg tok/s, descending —")
-    lines.append("speed only decides between comparably-correct models, and can never outrank")
-    lines.append("better coding ability. Dedup rule unchanged from the prior ranking design:")
-    lines.append("each model+engine+quant appears at most once, using whichever of its own")
-    lines.append("config_hash/runner_sha fragments has the most total coding+hermes_ops")
-    lines.append("evidence.")
+    lines.append("regardless of the score below. **Score** among gate-passers is a weighted")
+    lines.append(
+        f"composite over four coding-suite axes — pass rate ({CODING_SCORE_WEIGHTS['pass']:.0%}),"
+    )
+    lines.append(
+        f"speed ({CODING_SCORE_WEIGHTS['speed']:.0%}), time taken ({CODING_SCORE_WEIGHTS['time']:.0%}),"
+    )
+    lines.append(
+        f"and turns used ({CODING_SCORE_WEIGHTS['turns']:.0%}) — each normalized 0.0-1.0 against"
+    )
+    lines.append("the best value seen among this run's gate-passing groups (see")
+    lines.append("`build_leaderboard.py`'s own comment for the exact formula and why). A slow")
+    lines.append("but eventually-correct model is no longer disqualified outright (coding-suite")
+    lines.append("timeouts were bumped alongside this change specifically so it can finish) —")
+    lines.append("it simply scores lower on speed/time than a faster model with the same pass")
+    lines.append("rate. Dedup rule unchanged: each model+engine+quant appears at most once,")
+    lines.append("using whichever of its own config_hash/runner_sha fragments has the most")
+    lines.append("total coding+hermes_ops evidence.")
     lines.append("")
     if not ranked:
         lines.append("No group has completed all three stages (sanity + hermes_ops + coding) yet.")
     else:
-        lines.append("| rank | model | engine | quant | config | usefulness gate | coding | speed |")
-        lines.append("|---|---|---|---|---|---|---|---|")
-        for i, (gate_pass, coding_rate, tps, gs) in enumerate(
-            sorted(ranked, key=lambda t: (t[0], t[1], t[2]), reverse=True), start=1
+        lines.append("| rank | model | engine | quant | config | usefulness gate | score | coding | speed | avg time (s) | avg turns |")
+        lines.append("|---|---|---|---|---|---|---|---|---|---|---|")
+        for i, (gate_pass, score, gs) in enumerate(
+            sorted(ranked, key=lambda t: (t[0], t[1]), reverse=True), start=1
         ):
             model, inference_engine, quant, config_hash, runner_sha = gs["key"]
             gate_disp = (
                 f"{'PASS' if gate_pass else 'FAIL'} "
                 f"({100 * gs['hermes_ops_pass_rate']:.0f}%, {gs['n_hermes_ops']})"
             )
-            coding_disp = f"{100 * coding_rate:.0f}% ({gs['n_coding']})"
+            score_disp = f"{score:.3f}" if gate_pass else "—"
+            coding_disp = f"{100 * gs['coding_pass_rate']:.0f}% ({gs['n_coding']})"
             speed_disp = f"{gs['avg_tps_val']:.1f} tok/s" if gs["avg_tps_val"] is not None else "—"
+            time_disp = f"{gs['avg_coding_wall']:.0f}" if gs["avg_coding_wall"] is not None else "—"
+            turns_disp = f"{gs['avg_coding_turns']:.1f}" if gs["avg_coding_turns"] is not None else "—"
             lines.append(
                 f"| {i} | {model} | {inference_engine} | {quant or '—'} | {config_hash or '—'} | "
-                f"{gate_disp} | {coding_disp} | {speed_disp} |"
+                f"{gate_disp} | {score_disp} | {coding_disp} | {speed_disp} | {time_disp} | {turns_disp} |"
             )
 
     lines.append("")
