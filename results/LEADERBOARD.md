@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/1431 rows below predate 2026-08-21
+> **⚠ 138/1452 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -201,6 +201,7 @@ added explicitly to record that default rather than leave it invisible.
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | gguf | — | ? | ? | ? | 2/2 | [163fa63ffb83](configs/Qwen3.5-9B/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 67% | 0 | 20.2 | 15.45 | 0 | — | 0 | — | ? | ? | ? |
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | gguf | — | ? | ? | ? | — | [29ed581f7054](configs/Qwen3.5-9B/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 1 | 100% | 0 | — | — | 0 | — | 0 | — | ? | ? | ? |
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [a2d241742068](configs/a2d241742068.yaml) | 2e56f8121142 | 9 | 67% | 0 | 21.0 | 9.34 | 0 | — | 0 | 13.7 | — | — | — |
+| bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [a2d241742068](configs/a2d241742068.yaml) | 38836484bab4 | 19 | 68% | 3 | 21.0 | 9.34 | 0 | 21.8 | 29 | 21.1 | — | — | — |
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [a2d241742068](configs/a2d241742068.yaml) | c8d9bde5c6d6 | 19 | 68% | 3 | 20.9 | 9.34 | 0 | 20.9 | 29 | 22.1 | — | — | — |
 | empero-ai/Qwen3.8-27B-Ridge-GGUF | gguf | — | ? | ? | ? | 2/2 | [6a3700901e2b](configs/Qwen3.8-27B-Ridge/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 4 | 50% | 0 | 4.6 | 52.03 | 0 | — | 0 | — | ? | ? | ? |
 | empero-ai/Qwen3.8-27B-Ridge-GGUF | gguf | — | 0.7 | instruct | n/a | 2/2 | [d135df9d860f](configs/d135df9d860f.yaml) — *config since changed* | e155170f4c1d | 8 | 62% | 0 | 5.5 | 30.15 | 0 | — | 0 | 18.9 | — | — | — |
@@ -316,7 +317,7 @@ total coding+hermes_ops evidence.
 | 12 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | llama.cpp | — | n/a | 0840d8e3ee87 | PASS (88%, 8) | 0.417 | 36% (11) | 62.6 tok/s | 263 | 23.8 |
 | 13 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | — | thinking | 38ccea45c281 | PASS (62%, 8) | 0.417 | 82% (11) | 8.5 tok/s | 956 | 30.3 |
 | 14 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | llama.cpp | — | thinking | c02615b57f21 | PASS (88%, 8) | 0.410 | 82% (11) | 7.9 tok/s | 811 | 40.0 |
-| 15 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | thinking | a2d241742068 | PASS (75%, 8) | 0.389 | 64% (11) | 20.9 tok/s | 416 | 20.9 |
+| 15 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | thinking | a2d241742068 | PASS (75%, 8) | 0.388 | 64% (11) | 21.0 tok/s | 353 | 21.8 |
 | 16 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | n/a | ffa862c18cff | PASS (75%, 8) | 0.378 | 73% (11) | 7.7 tok/s | 764 | 23.5 |
 | 17 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | llama.cpp | — | n/a | 05a5098cf4c6 | PASS (75%, 8) | 0.356 | 0% (11) | 67.6 tok/s | 34 | 5.1 |
 | 18 | mlx-community/LFM2.5-8B-A1B-MLX-8bit | vllm-mlx | — | n/a | 00878f13621f | PASS (62%, 8) | 0.311 | 0% (1) | 26.4 tok/s | 1 | 40.0 |
@@ -594,6 +595,11 @@ confirmed-stable, just untested for flakiness.
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | a2d241742068 | 2e56f8121142 | hermes_ops | 6/8 |
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | a2d241742068 | 2e56f8121142 | kiem_mini | 0/1 |
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | a2d241742068 | 2e56f8121142 | sanity | 2/2 |
+| bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | a2d241742068 | 38836484bab4 | hearth_mini | 2/3 |
+| bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | a2d241742068 | 38836484bab4 | hermes_ops | 6/8 |
+| bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | a2d241742068 | 38836484bab4 | kiem_mini | 2/5 |
+| bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | a2d241742068 | 38836484bab4 | kipclip_mini | 3/3 |
+| bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | a2d241742068 | 38836484bab4 | sanity | 2/2 |
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | a2d241742068 | c8d9bde5c6d6 | hearth_mini | 3/3 |
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | a2d241742068 | c8d9bde5c6d6 | hermes_ops | 6/8 |
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | a2d241742068 | c8d9bde5c6d6 | kiem_mini | 2/5 |
