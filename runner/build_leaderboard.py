@@ -311,6 +311,7 @@ def compute_group_stats(groups):
             "n_sanity": len(sanity_scored),
             "n_coding": len(coding_scored),
             "n_hermes_ops": len(hermes_ops_scored),
+            "latest_timestamp": max((r.get("timestamp") or "" for r in group), default=""),
         })
     return group_stats
 
@@ -358,7 +359,19 @@ def rank_groups(group_stats):
     4. Dedup-to-most-evidenced-fragment-per-(model, inference_engine,
        quant) from round 1 is unchanged — still needed so an early
        1-task fragment from before a model was fully tested can't outrank
-       that same model's own later, complete sweep.
+       that same model's own later, complete sweep. FIXED 2026-08-28
+       (benchmark v2 Phase D wrap-up): on an EXACT evidence tie between
+       two fragments of the same config (e.g. two separate full 19-task
+       runs of the same config on different days — a re-run superseding
+       an earlier one, not a partial), the old `evidence > current`
+       comparison silently kept whichever fragment iteration happened to
+       reach first (dict insertion order), which is arbitrary and
+       genuinely picked a STALE result once during this session's own
+       Phase D (Qwen3-Coder-30B-A3B's real 89%-pass/11-11-coding rerun
+       lost a tie to an older 74%-pass partial under the same config
+       hash). Now breaks ties by `latest_timestamp` — the more recent
+       run wins, since a same-config re-run is meant to supersede, not
+       compete evenly with, an earlier one.
 
     Round 3 (2026-08-27, benchmark v2, user request): round 2's primary
     sort was plain coding_pass_rate, tie-broken by speed — clean, but it
@@ -405,7 +418,14 @@ def rank_groups(group_stats):
         dedup_key = (model, inference_engine, quant)
         evidence = gs["n_coding"] + gs["n_hermes_ops"]
         current = best_fragment.get(dedup_key)
-        if current is None or evidence > current["n_coding"] + current["n_hermes_ops"]:
+        if current is None:
+            best_fragment[dedup_key] = gs
+            continue
+        current_evidence = current["n_coding"] + current["n_hermes_ops"]
+        if evidence > current_evidence or (
+            evidence == current_evidence
+            and gs["latest_timestamp"] > current["latest_timestamp"]
+        ):
             best_fragment[dedup_key] = gs
 
     eligible_for_norm = [

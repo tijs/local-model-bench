@@ -293,7 +293,8 @@ class CompositeRankingTests(unittest.TestCase):
 
     def _complete_rows(self, model, hermes_ops_passes, coding_passes, tps,
                         config_hash="h", runner_sha="abc", quant=None,
-                        inference_engine="vllm-mlx", wall_seconds=None, turns=None):
+                        inference_engine="vllm-mlx", wall_seconds=None, turns=None,
+                        timestamp=None):
         """Builds a full (sanity + hermes_ops + coding) row set for one
         group — one sanity-basic PASS, one hermes_ops row per bool in
         `hermes_ops_passes`, one kiem_mini row per bool in `coding_passes`,
@@ -302,7 +303,9 @@ class CompositeRankingTests(unittest.TestCase):
         coding row (sufficient for these tests, which only need group-
         level averages to differ, not per-task variation) — omitted
         entirely (not just None) when not given, matching how a real log
-        row without hermes_turns/wall_seconds actually looks."""
+        row without hermes_turns/wall_seconds actually looks. `timestamp`,
+        when given, is stamped on every row (default omitted, like a real
+        row always has a timestamp but most dedup tests don't care which)."""
         rows = [{
             "suite": "sanity", "task_id": "sanity-basic", "task_type": "sanity",
             "model": model, "inference_engine": inference_engine, "quant": quant,
@@ -330,6 +333,9 @@ class CompositeRankingTests(unittest.TestCase):
             if turns is not None:
                 row["hermes_turns"] = turns
             rows.append(row)
+        if timestamp is not None:
+            for row in rows:
+                row["timestamp"] = timestamp
         return rows
 
     def test_group_missing_any_axis_is_excluded_entirely(self):
@@ -513,6 +519,34 @@ class CompositeRankingTests(unittest.TestCase):
         matches = [l for l in section.splitlines() if l.startswith("| ") and " m " in l]
         self.assertEqual(len(matches), 1, f"expected exactly one row for 'm', got: {matches}")
         self.assertIn("later", matches[0])  # the more-evidenced fragment, not the 1-task one
+
+    def test_evidence_tie_is_broken_by_recency_not_iteration_order(self):
+        # Real incident, 2026-08-28 (benchmark v2 Phase D wrap-up):
+        # Qwen3-Coder-30B-A3B's genuine full rerun (19 tasks, 89% pass)
+        # lost a tie to an OLDER partial run under the same config_hash
+        # that happened to also have exactly 19 tasks (74% pass) but was
+        # logged earlier — the old `evidence > current` comparison never
+        # replaces on an exact tie, so whichever fragment the dict
+        # iteration reached first won, regardless of which one was the
+        # real, current result. Deliberately construct an exact evidence
+        # tie (2 hermes_ops + 3 coding = 5 both sides) where the OLDER
+        # fragment is iterated first (earlier config_hash/runner_sha
+        # alphabetically, so dict insertion order would favor it) to
+        # prove recency — not insertion order — now wins.
+        rows = self._complete_rows(
+            "m", hermes_ops_passes=[True, True], coding_passes=[True, True, False], tps=20.0,
+            config_hash="h", runner_sha="a-older", timestamp="2026-08-25T00:00:00Z",
+        ) + self._complete_rows(
+            "m", hermes_ops_passes=[True, True], coding_passes=[True, True, True], tps=20.0,
+            config_hash="h", runner_sha="z-newer", timestamp="2026-08-28T00:00:00Z",
+        )
+        self._write_log(rows)
+        bl.main()
+        text = (self.repo / "results" / "LEADERBOARD.md").read_text()
+        section = self._best_overall_section(text)
+        matches = [l for l in section.splitlines() if l.startswith("| ") and " m " in l]
+        self.assertEqual(len(matches), 1, f"expected exactly one row for 'm', got: {matches}")
+        self.assertIn("100% (3)", matches[0])  # the newer, fully-passing fragment
 
 
 class BlockedConfigsSectionTests(unittest.TestCase):
