@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/1452 rows below predate 2026-08-21
+> **⚠ 138/1473 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -276,6 +276,8 @@ added explicitly to record that default rather than leave it invisible.
 | unsloth/Qwen3.8-27B-GGUF:UD-Q2_K_XL | gguf | UD-Q2_K_XL | ? | ? | ? | 2/2 | [2233edb1c4f2](configs/Qwen3.8-27B/gguf-unsloth-ud-q2.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 100% | 0 | 6.3 | 55.08 | 0 | — | 0 | — | ? | ? | ? |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q4_K_M | gguf | — | ? | ? | ? | 2/2 | [89f4d8d04793](configs/Qwen3.8-27B/gguf-unsloth-ud-q4.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 100% | 0 | 6.4 | 55.57 | 0 | — | 0 | — | ? | ? | ? |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | 1.0 | thinking | medium | 2/2 | [340ca3032e6c](configs/340ca3032e6c.yaml) | bfdc95c44bcb | 19 | 89% | 11 | 6.8 | 46.37 | 0 | 14.5 | 15 | 24.4 | — | — | — |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | 1.0 | thinking | xhigh | 2/2 | [41ee296edff9](configs/41ee296edff9.yaml) | 3f91f24193ba | 11 | 100% | 6 | 6.5 | 39.94 | 0 | 18.3 | 10 | 24.6 | — | — | — |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | 1.0 | thinking | xhigh | — | [41ee296edff9](configs/41ee296edff9.yaml) | f1ff19ce062d+dirty | 7 | 86% | 5 | — | — | 0 | 11.1 | 4 | 24.8 | — | — | — |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | 1.0 | thinking | n/a | 2/2 | [6d148ccbfd2e](configs/6d148ccbfd2e.yaml) — *config since changed* | 1166272411af | 9 | 67% | 2 | 6.7 | 46.41 | 0 | — | 0 | 24.5 | — | — | — |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | 1.0 | thinking | n/a | 2/2 | [6d148ccbfd2e](configs/6d148ccbfd2e.yaml) — *config since changed* | 1b3350819dae | 5 | 80% | 1 | 6.4 | 45.73 | 0 | — | 0 | 24.6 | — | — | — |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | 1.0 | thinking | n/a | — | [6d148ccbfd2e](configs/6d148ccbfd2e.yaml) — *config since changed* | 53a9cfb2edfe | 14 | 93% | 10 | 7.6 | 47.78 | 0 | 10.9 | 9 | 24.1 | — | — | — |
@@ -764,6 +766,12 @@ confirmed-stable, just untested for flakiness.
 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 340ca3032e6c | bfdc95c44bcb | kiem_mini | 5/5 |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 340ca3032e6c | bfdc95c44bcb | kipclip_mini | 2/3 |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 340ca3032e6c | bfdc95c44bcb | sanity | 2/2 |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 41ee296edff9 | 3f91f24193ba | hermes_ops | 8/8 |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 41ee296edff9 | 3f91f24193ba | kiem_mini | 3/3 |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 41ee296edff9 | 3f91f24193ba | sanity | 2/2 |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 41ee296edff9 | f1ff19ce062d+dirty | hearth_mini | 3/3 |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 41ee296edff9 | f1ff19ce062d+dirty | kiem_mini | 1/1 |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 41ee296edff9 | f1ff19ce062d+dirty | kipclip_mini | 2/3 |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 6d148ccbfd2e | 1166272411af | hermes_ops | 6/8 |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 6d148ccbfd2e | 1166272411af | kiem_mini | 0/1 |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 6d148ccbfd2e | 1166272411af | sanity | 2/2 |
@@ -776,7 +784,7 @@ confirmed-stable, just untested for flakiness.
 
 ## Harness errors (excluded from every table above)
 
-14 row(s) where the harness itself crashed (e.g. a network blip during `npm ci`, a malformed task spec) rather than the model producing a graded result — shown separately so they don't deflate pass rates or masquerade as model flakiness.
+15 row(s) where the harness itself crashed (e.g. a network blip during `npm ci`, a malformed task spec) rather than the model producing a graded result — shown separately so they don't deflate pass rates or masquerade as model flakiness.
 
 | model | engine | suite | task | grade_output (truncated) |
 |---|---|---|---|---|
@@ -794,6 +802,7 @@ confirmed-stable, just untested for flakiness.
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | kiem_mini | kiem_mini-feature | [...truncated...]      Running unittests src/lib.rs (target/debug/deps/notekeep-49d36e61ba6dd38e)      Running unittests |
 | scottlowry/Ornith-1.5-9B-oQ4e-fp16 | omlx | kiem_mini | kiem_mini-feature | HARNESS ERROR: child agent escaped the disposable workspace and modified the source fixture; result invalidated and sour |
 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | kiem_mini | kiem_mini-feature | HARNESS ERROR: PermissionError: [Errno 13] Permission denied: '/Users/tijs/projects/local-model-bench/runner/.dspark-hea |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | kiem_mini | kiem_mini-parse-note | [...truncated...] ✘ Test run with 5 tests in 0 suites failed after 0.001 seconds with 1 issue. [0/1] Planning build Buil |
 
 ## Blocked configs (marked non-viable, excluded from every table above)
 
