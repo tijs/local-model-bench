@@ -1,0 +1,92 @@
+model: mudler/Ornith-1.5-35B-A3B-APEX-MTP-GGUF:APEX-MTP-Compact
+# Added 2026-08-28 (user request): a third-party quant of the same base
+# model as gguf.yaml (which already has a strong baseline: 100% hermes_ops,
+# 91% coding), using two techniques not yet tested on this exact model:
+#
+# 1. APEX quantization -- NOT the same thing as MTP speculative decoding,
+#    despite both being in this GGUF's name. Per the model card: APEX
+#    "classifies each tensor by role and applies a layer-wise precision
+#    gradient" -- routed experts (89.6% of weights, only 8 of 256 fire per
+#    token) get lower precision, always-active components (attention,
+#    shared expert, embeddings) stay higher precision. This is a
+#    mixed-precision quantization STRATEGY, testable independently of
+#    whether MTP speculative decoding itself helps.
+#
+# 2. MTP (multi-token prediction) speculative decoding, via the bundled
+#    draft head + --spec-type draft-mtp. IMPORTANT PRIOR CONTEXT: this
+#    repo already has a real NEGATIVE result for --spec-type draft-mtp on
+#    a different model (Qwen3.8-27B, see configs/Qwen3.8-27B/
+#    gguf-mtp-speed.yaml's retirement note: 8/11 coding vs 9/11 baseline,
+#    5.2 vs 7.9 tok/s -- slower, not faster, on this exact Mac). That
+#    result doesn't necessarily transfer to Ornith's architecture --
+#    worth a real Mac data point here too, not assumed either way. The
+#    model card itself states "No throughput benchmarks were run on these
+#    files" and no Apple Silicon/Metal data exists anywhere for this
+#    specific GGUF -- this config is genuinely new information, not
+#    confirming a known result.
+#
+# Quant: APEX-MTP-Compact (17.44GB) -- one of four APEX variants
+# (I-Mini 14.37GB, Compact 17.44GB, Balanced 26.17GB, Quality 23.72GB).
+# Compact chosen per user's own suggested command (`--include "*Compact*"`)
+# -- a reasonable middle ground given the base Q4_K_M leg is already
+# confirmed viable at a comparable size class.
+#
+# Context: kept at 65536 (this benchmark's standard, matching gguf.yaml)
+# rather than the user's example command's -c 131072, for direct
+# apples-to-apples comparability against the existing Ornith baseline --
+# not because 131072 wouldn't work (Ornith's hybrid architecture keeps KV
+# cache cheap at long context, same reasoning as Qwen3.8-27B's math), just
+# to isolate quant+MTP as the only variables changed from gguf.yaml.
+temperature: 0.6
+reasoning_mode: unspecified
+inference_engine: llama.cpp
+
+benchmark_launch_command: |
+  HF_TOKEN=$(cat ~/.cache/huggingface/token) llama-server \
+    --hf-repo mudler/Ornith-1.5-35B-A3B-APEX-MTP-GGUF:APEX-MTP-Compact \
+    --host 127.0.0.1 --port 8017 \
+    --temp 0.6 --top-p 0.95 --top-k 20 --ctx-size 65536 \
+    --spec-type draft-mtp -ngl 99
+
+benchmark_endpoint: http://127.0.0.1:8017/v1
+  # same as gguf.yaml -- native tool_calls, no proxy needed (same base
+  # model/tool-call format, only quant+MTP differ).
+
+orchestration:
+  raw_port: 8017
+  needs_proxy: false
+  hermes_provider: ornith-apex-mtp-gguf   # registered in
+    # ~/.hermes/profiles/bench/config.yaml, context_length: 65536 matching
+    # this config's --ctx-size.
+  viable: full   # same viability basis as gguf.yaml (same base model,
+    # same context length) -- no reason to expect a different memory
+    # profile at a SMALLER quant size (17.44GB vs Q4_K_M's larger size).
+
+settings:
+  - name: architecture
+    value: "same as gguf.yaml -- MoE, ~3B active params/token out of 35B
+      total (A3B). See that file for full citation."
+  - name: quant
+    value: "APEX-MTP-Compact (17.44GB), mudler/Ornith-1.5-35B-A3B-APEX-MTP-GGUF
+      -- mixed-precision quant (routed experts lower precision, always-active
+      components higher) plus a bundled MTP draft head for speculative
+      decoding."
+    source: "https://huggingface.co/mudler/Ornith-1.5-35B-A3B-APEX-MTP-GGUF"
+  - name: temperature / top_p / top_k / context_length
+    value: "identical to gguf.yaml -- 0.6 / 0.95 / 20 / 65536, see that
+      file for full citations. Only quant and --spec-type draft-mtp differ."
+
+known_gaps:
+  - "Never run live as of authoring. No throughput/Apple Silicon data
+    exists anywhere for this specific GGUF (confirmed via the model card
+    itself) -- unlike the Qwen3.8-27B MTP retest, this is genuinely new
+    information rather than confirming a known result. Watch tok/s
+    against gguf.yaml's baseline (29.5 tok/s at Q4_K_M) to see whether
+    MTP speculative decoding helps THIS model's architecture, even though
+    it didn't help Qwen3.8-27B."
+  - "mmproj.gguf (vision projector, 0.90GB) exists for this model family
+    but is NOT downloaded/used here -- this benchmark only exercises
+    text/tool-calling capability, no vision tasks in the coding suites."
+
+last_updated: 2026-08-28
+last_verified_against_docs: 2026-08-28
