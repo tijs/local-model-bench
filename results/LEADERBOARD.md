@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/1410 rows below predate 2026-08-21
+> **⚠ 138/1431 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -264,6 +264,7 @@ added explicitly to record that default rather than leave it invisible.
 | scottlowry/Ornith-1.5-9B-oQ4e-fp16 | omlx | — | 0.7 | instruct | n/a | 2/2 | [afecbd0a9f5f](configs/afecbd0a9f5f.yaml) — *config since changed* | e155170f4c1d | 8 | 62% | 3 | 9.4 | 46.77 | 2 | — | 0 | 7.2 | oQ4e-fp16 mixed precision | cold | off |
 | scottlowry/Ornith-1.5-9B-oQ4e-fp16 | omlx | — | 0.7 | instruct | n/a | 2/2 | [afecbd0a9f5f](configs/afecbd0a9f5f.yaml) — *config since changed* | fc71ba2c66f8+dirty | 4 | 75% | 0 | 13.9 | 35.28 | 0 | — | 0 | — | oQ4e-fp16 mixed precision | cold | off |
 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | 0.15 | n/a | n/a | 2/2 | [ffa862c18cff](configs/ffa862c18cff.yaml) | 63c1cbdae938 | 19 | 74% | 6 | 7.7 | 28.07 | 0 | 19.8 | 27 | 27.0 | — | — | — |
+| unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | 0.15 | n/a | n/a | 2/2 | [ffa862c18cff](configs/ffa862c18cff.yaml) | 711cf4da25b3 | 19 | 74% | 6 | 7.7 | 28.06 | 0 | 29.4 | 43 | 26.5 | — | — | — |
 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | gguf | — | 0.7 | instruct | n/a | 2/2 | [1fea08092fdc](configs/1fea08092fdc.yaml) — *config since changed* | e155170f4c1d | 9 | 67% | 0 | 20.8 | 9.51 | 1 | — | 0 | 23.9 | — | — | — |
 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | gguf | — | ? | ? | ? | — | [840ac866adff](configs/Qwen3-Coder-30B-A3B/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 1 | 100% | 0 | — | — | 0 | — | 0 | — | ? | ? | ? |
 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | gguf | — | ? | ? | ? | 2/2 | [fe085c7fef30](configs/Qwen3-Coder-30B-A3B/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 100% | 0 | 18.0 | 18.49 | 0 | — | 0 | — | ? | ? | ? |
@@ -719,6 +720,11 @@ confirmed-stable, just untested for flakiness.
 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | ffa862c18cff | 63c1cbdae938 | kiem_mini | 3/5 |
 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | ffa862c18cff | 63c1cbdae938 | kipclip_mini | 2/3 |
 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | ffa862c18cff | 63c1cbdae938 | sanity | 2/2 |
+| unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | ffa862c18cff | 711cf4da25b3 | hearth_mini | 3/3 |
+| unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | ffa862c18cff | 711cf4da25b3 | hermes_ops | 6/8 |
+| unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | ffa862c18cff | 711cf4da25b3 | kiem_mini | 4/5 |
+| unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | ffa862c18cff | 711cf4da25b3 | kipclip_mini | 1/3 |
+| unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | ffa862c18cff | 711cf4da25b3 | sanity | 2/2 |
 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | gguf | 1fea08092fdc | e155170f4c1d | hermes_ops | 5/8 |
 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | gguf | 1fea08092fdc | e155170f4c1d | kiem_mini | 1/1 |
 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | gguf | 1fea08092fdc | e155170f4c1d | sanity | 2/2 |
