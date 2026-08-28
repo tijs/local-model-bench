@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/1368 rows below predate 2026-08-21
+> **⚠ 138/1389 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -180,6 +180,7 @@ added explicitly to record that default rather than leave it invisible.
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | gguf | — | 1.0 | thinking | n/a | 2/2 | [413f324b943c](configs/413f324b943c.yaml) — *config since changed* | 3182238013a3 | 8 | 50% | 1 | 8.5 | 35.49 | 0 | — | 0 | 21.2 | — | — | — |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | gguf | — | ? | ? | ? | 2/2 | [b0b30ac444da](configs/Muse-Glimmer-30B/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 4 | 50% | 0 | 8.0 | 57.94 | 0 | — | 0 | — | ? | ? | ? |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | n/a | 2/2 | [38ccea45c281](configs/38ccea45c281.yaml) | 141399e74bd0 | 19 | 74% | 10 | 8.5 | 35.50 | 0 | 28.1 | 23 | 22.2 | — | — | — |
+| bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | n/a | 2/2 | [38ccea45c281](configs/38ccea45c281.yaml) | 75f452b3bab1 | 19 | 74% | 10 | 8.5 | 35.47 | 0 | 32.4 | 28 | 22.2 | — | — | — |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | n/a | 2/2 | [38ccea45c281](configs/38ccea45c281.yaml) | cf45f7655a7c | 19 | 63% | 9 | 8.5 | 35.47 | 0 | — | 0 | 21.8 | — | — | — |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M (+ incoai/Muse-Glimmer-30B-DFlash2-GGUF:Q4_K_M drafter) | gguf | — | 1.0 | thinking | n/a | 2/2 | [5e61e8c02089](configs/5e61e8c02089.yaml) — *config since changed* | 3182238013a3 | 1 | 100% | 0 | 7.2 | 89.00 | 0 | — | 0 | 23.4 | — | — | — |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M (+ incoai/Muse-Glimmer-30B-DFlash2-GGUF:Q4_K_M drafter) | gguf | — | 1.0 | thinking | n/a | — | [5e61e8c02089](configs/5e61e8c02089.yaml) — *config since changed* | 3182238013a3+dirty | 7 | 0% | 0 | 3.0 | 27.90 | 0 | — | 0 | 23.2 | — | — | — |
@@ -543,6 +544,11 @@ confirmed-stable, just untested for flakiness.
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | 38ccea45c281 | 141399e74bd0 | kiem_mini | 3/5 |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | 38ccea45c281 | 141399e74bd0 | kipclip_mini | 3/3 |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | 38ccea45c281 | 141399e74bd0 | sanity | 2/2 |
+| bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | 38ccea45c281 | 75f452b3bab1 | hearth_mini | 3/3 |
+| bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | 38ccea45c281 | 75f452b3bab1 | hermes_ops | 5/8 |
+| bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | 38ccea45c281 | 75f452b3bab1 | kiem_mini | 3/5 |
+| bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | 38ccea45c281 | 75f452b3bab1 | kipclip_mini | 3/3 |
+| bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | 38ccea45c281 | 75f452b3bab1 | sanity | 2/2 |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | 38ccea45c281 | cf45f7655a7c | hearth_mini | 3/3 |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | 38ccea45c281 | cf45f7655a7c | hermes_ops | 4/8 |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | 38ccea45c281 | cf45f7655a7c | kiem_mini | 2/5 |
