@@ -1,0 +1,232 @@
+$ hermes chat --profile bench --provider laguna-metal-fixed -m poolside/Laguna-XS-2.1-GGUF:Q4_K_M --max-turns 40
+
+--- stdout ---
+  ┊ review diff
+a/rust/src/store.rs → b/rust/src/store.rs
+@@ -36,3 +36,24 @@
+     }
+     Ok(notes)
+ }
++
++pub fn rename(dir: &Path, old_id: &str, new_id: &str, new_title: &str) -> std::io::Result<()> {
++    let old_path = dir.join(format!("{}.note", old_id));
++    let new_path = dir.join(format!("{}.note", new_id));
++    
++    fs::rename(&old_path, &new_path)?;
++    
++    let content = fs::read_to_string(&new_path)?;
++    let parts: Vec<&str> = content.splitn(4, SEP).collect();
++    
++    if parts.len() == 4 {
++        let pinned_flag = if parts[2] == "1" { "1" } else { "0" };
++        let new_content = format!(
++            "{}{}{}{}{}{}{}",
++            new_id, SEP, new_title, SEP, pinned_flag, SEP, parts[3]
++        );
++        fs::write(&new_path, new_content)?;
++    }
++    
++    Ok(())
++}
+  ┊ review diff
+a/rust/src/store.rs → b/rust/src/store.rs
+@@ -40,12 +40,12 @@
+ pub fn rename(dir: &Path, old_id: &str, new_id: &str, new_title: &str) -> std::io::Result<()> {
+     let old_path = dir.join(format!("{}.note", old_id));
+     let new_path = dir.join(format!("{}.note", new_id));
+-    
++
+     fs::rename(&old_path, &new_path)?;
+-    
++
+     let content = fs::read_to_string(&new_path)?;
+     let parts: Vec<&str> = content.splitn(4, SEP).collect();
+-    
++
+     if parts.len() == 4 {
+         let pinned_flag = if parts[2] == "1" { "1" } else { "0" };
+         let new_content = format!(
+@@ -54,6 +54,6 @@
+         );
+         fs::write(&new_path, new_content)?;
+     }
+-    
++
+     Ok(())
+ }
+  ┊ review diff
+a/rust/tests/store_test.rs → b/rust/tests/store_test.rs
+@@ -0,0 +1,84 @@
++use notekeep::{new_note, store};
++use std::fs;
++
++#[test]
++fn rename_note_changes_id_and_title() {
++    let dir = std::env::temp_dir().join("notekeep_rename_test");
++
++    // Clean up from any previous test run
++    let _ = fs::remove_dir_all(&dir);
++    fs::create_dir_all(&dir).unwrap();
++
++    // Create a note with old_id
++    let old_id = "12345";
++    let old_title = "Original Title";
++    let note = new_note(old_id, old_title, "Some body content\nwith #tags\n#test");
++
++    store::save(&dir, &note).unwrap();
++
++    // Verify the note was saved with the correct id in the file
++    let notes = store::load_all(&dir).unwrap();
++    assert_eq!(notes.len(), 1);
++    assert_eq!(notes[0].id, old_id);
++    assert_eq!(notes[0].title, old_title);
++
++    // Rename the note
++    let new_id = "67890";
++    let new_title = "New Title";
++    store::rename(&dir, old_id, new_id, new_title).unwrap();
++
++    // Verify load_all returns exactly one note with the new id and title
++    let notes_after = store::load_all(&dir).unwrap();
++    assert_eq!(notes_after.len(), 1);
++    assert_eq!(notes_after[0].id, new_id);
++    assert_eq!(notes_after[0].title, new_title);
++
++    // Verify body and tags are unchanged
++    assert_eq!(notes_after[0].body, "Some body content\nwith #tags\n#test");
++    assert_eq!(notes_after[0].tags, vec!["tags", "test"]);
++
++    // Verify there's no trace of the old file
++    let old_file = dir.join(format!("{}.note", old_id));
++    assert!(!old_file.exists(), "Old note file should not exist");
++
++    // Verify the new file exists
++    let new_file = dir.join(format!("{}.note", new_id));
++    assert!(new_file.exists(), "New note file should exist");
++
++    // Clean up
++    fs::remove_dir_all(&dir).unwrap();
++}
++
++#[test]
++fn rename_preserves_pinned_state() {
++    let dir = std::env::temp_dir().join("notekeep_rename_pinned_test");
++
++    // Clean up from any previous test run
++    let _ = fs::remove_dir_all(&dir);
++    fs::create_dir_all(&dir).unwrap();
++
++    // Create a pinned note
++    let note = notekeep::Note {
++        id: "pinned123".to_string(),
++        title: "Pinned Note".to_string(),
++        body: "Pinned body".to_string(),
++        tags: vec![],
++        pinned: true,
++    };
++    store::save(&dir, &note).unwrap();
++
++    // Verify it's pinned
++    let notes = store::load_all(&dir).unwrap();
++    assert!(notes[0].pinned);
++
++    // Rename it
++    store::rename(&dir, "pinned123", "newpinned", "Renamed Pinned").unwrap();
++
++    // Verify pinned state is preserved
++    let notes_after = store::load_all(&dir).unwrap();
+… omitted 6 diff line(s) across 1 additional file(s)/section(s)
+  ┊ review diff
+a/rust/tests/store_test.rs → b/rust/tests/store_test.rs
+@@ -81,4 +81,19 @@
+ 
+     // Clean up
+     fs::remove_dir_all(&dir).unwrap();
++}
++
++#[test]
++fn rename_nonexistent_note_returns_error() {
++    let dir = std::env::temp_dir().join("notekeep_rename_nonexistent_test");
++
++    let _ = fs::remove_dir_all(&dir);
++    fs::create_dir_all(&dir).unwrap();
++
++    // Try to rename a note that doesn't exist
++    let result = store::rename(&dir, "nonexistent", "newid", "New Title");
++    assert!(result.is_err(), "Renaming nonexistent note should return an error");
++
++    // Clean up
++    fs::remove_dir_all(&dir).unwrap();
+ }
+  ┊ review diff
+a/rust/tests/store_test.rs → b/rust/tests/store_test.rs
+@@ -77,7 +77,10 @@
+     // Verify pinned state is preserved
+     let notes_after = store::load_all(&dir).unwrap();
+     assert_eq!(notes_after.len(), 1);
+-    assert!(notes_after[0].pinned, "Pinned state should be preserved");
++    assert!(
++        notes_after[0].pinned,
++        "Pinned state should be preserved"
++    );
+ 
+     // Clean up
+     fs::remove_dir_all(&dir).unwrap();
+@@ -92,7 +95,10 @@
+ 
+     // Try to rename a note that doesn't exist
+     let result = store::rename(&dir, "nonexistent", "newid", "New Title");
+-    assert!(result.is_err(), "Renaming nonexistent note should return an error");
++    assert!(
++        result.is_err(),
++        "Renaming nonexistent note should return an error"
++    );
+ 
+     // Clean up
+     fs::remove_dir_all(&dir).unwrap();
+The implementation is complete. Here's a summary:
+
+**Implementation of `rename` function in `/Users/tijs/projects/local-model-bench/runner/runs/tmpwk8wvq52/run/rust/src/store.rs`:**
+
+```rust
+pub fn rename(dir: &Path, old_id: &str, new_id: &str, new_title: &str) -> std::io::Result<()> {
+    let old_path = dir.join(format!("{}.note", old_id));
+    let new_path = dir.join(format!("{}.note", new_id));
+
+    fs::rename(&old_path, &new_path)?;
+
+    let content = fs::read_to_string(&new_path)?;
+    let parts: Vec<&str> = content.splitn(4, SEP).collect();
+
+    if parts.len() == 4 {
+        let pinned_flag = if parts[2] == "1" { "1" } else { "0" };
+        let new_content = format!(
+            "{}{}{}{}{}{}{}",
+            new_id, SEP, new_title, SEP, pinned_flag, SEP, parts[3]
+        );
+        fs::write(&new_path, new_content)?;
+    }
+
+    Ok(())
+}
+```
+
+The function:
+1. Constructs the old and new file paths (based on the note filename convention `{id}.note`)
+2. Renames the file on disk using `fs::rename`
+3. Reads the file content and parses it using the same separator (`SEP = "\n---\n"`)
+4. Creates new content with the new_id and new_title, preserving body, tags, and pinned state
+5. Writes the updated content back to the file
+
+The tests verify:
+- The note is correctly renamed with the new id and title
+- Body, tags, and pinned state are preserved
+- The old file no longer exists on disk
+- The new file exists with correct content
+- Error handling for non-existent notes
+
+
+--- stderr ---
+
+session_id: 20260828_172449_3456f6
+
