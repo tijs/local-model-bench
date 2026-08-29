@@ -548,6 +548,50 @@ class CompositeRankingTests(unittest.TestCase):
         self.assertEqual(len(matches), 1, f"expected exactly one row for 'm', got: {matches}")
         self.assertIn("100% (3)", matches[0])  # the newer, fully-passing fragment
 
+    def test_complete_but_thin_fragment_not_shadowed_by_incomplete_rich_one(self):
+        # Real incident (openai/gpt-5.6-luna via OpenRouter, found
+        # 2026-08-29): dedup-to-most-evidenced-fragment ran BEFORE the
+        # eligibility check, using an evidence metric (n_coding +
+        # n_hermes_ops) that ignores n_sanity entirely. A harness-code
+        # commit landed between when this model's sanity check ran and
+        # when its full 11-task coding rerun happened, so the RICH
+        # fragment (11 coding + 6 hermes_ops, real data) has zero sanity
+        # rows under its own runner_git_sha, while a separate, THINNER
+        # fragment (1 coding + 8 hermes_ops) under a different
+        # runner_git_sha DOES have sanity and is genuinely complete on
+        # all three axes. The old code deduped to the richer fragment
+        # first (by evidence count alone), then eligibility-checked ONLY
+        # that winner, found it missing sanity, and discarded it --
+        # silently deleting the model from "Best overall" entirely even
+        # though a genuinely complete fragment existed. Eligibility must
+        # be checked BEFORE dedup, not after, so a complete-but-thin
+        # fragment isn't shadowed out of existence by an
+        # incomplete-but-rich one.
+        rows = (
+            self._complete_rows(
+                "m", hermes_ops_passes=[True] * 8, coding_passes=[True],
+                tps=35.0, config_hash="h", runner_sha="thin-but-complete",
+                timestamp="2026-08-24T21:51:47Z",
+            )
+            + [
+                r for r in self._complete_rows(
+                    "m", hermes_ops_passes=[True] * 6, coding_passes=[True] * 10 + [False],
+                    tps=25.0, config_hash="h", runner_sha="rich-but-incomplete",
+                    timestamp="2026-08-26T19:37:15Z",
+                )
+                if r["suite"] != "sanity"
+            ]
+        )
+        self._write_log(rows)
+        bl.main()
+        text = (self.repo / "results" / "LEADERBOARD.md").read_text()
+        section = self._best_overall_section(text)
+        matches = [l for l in section.splitlines() if l.startswith("| ") and " m " in l]
+        self.assertEqual(
+            len(matches), 1,
+            f"expected 'm' to still appear (a complete fragment exists), got: {matches}",
+        )
+
 
 class BlockedConfigsSectionTests(unittest.TestCase):
     """A config marked `orchestration.viable: blocked` (a model+inference-

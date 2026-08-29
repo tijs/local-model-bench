@@ -412,14 +412,38 @@ def rank_groups(group_stats):
     (e.g. the chart script) want the ranking without re-deriving the
     display formatting that lives alongside the sort in main().
     """
+    def _is_complete(gs):
+        return bool(gs["n_sanity"] and gs["n_hermes_ops"] and gs["n_coding"])
+
     best_fragment = {}
     for gs in group_stats:
         model, inference_engine, quant, _config_hash, _runner_sha = gs["key"]
         dedup_key = (model, inference_engine, quant)
+        complete = _is_complete(gs)
         evidence = gs["n_coding"] + gs["n_hermes_ops"]
         current = best_fragment.get(dedup_key)
         if current is None:
             best_fragment[dedup_key] = gs
+            continue
+        current_complete = _is_complete(current)
+        if complete != current_complete:
+            # A fragment complete on all three axes (sanity, hermes_ops,
+            # coding) always beats an incomplete one here, regardless of
+            # raw evidence count -- fixed 2026-08-29 after a real
+            # incident (openai/gpt-5.6-luna via OpenRouter): a harness-
+            # code commit landed between this model's sanity check and
+            # its later, richer coding rerun, splitting them into
+            # different runner_git_sha fragments. The fragment with the
+            # MOST coding+hermes_ops evidence had ZERO sanity rows, so it
+            # was never eligible -- but the old evidence-only comparison
+            # let it win this dedup step anyway, silently discarding a
+            # smaller, genuinely complete fragment and erasing the model
+            # from "Best overall" entirely even though eligible data
+            # existed. Eligibility now outranks evidence in this
+            # comparison; evidence (then recency) still breaks ties
+            # WITHIN the same completeness tier, unchanged from before.
+            if complete:
+                best_fragment[dedup_key] = gs
             continue
         current_evidence = current["n_coding"] + current["n_hermes_ops"]
         if evidence > current_evidence or (
