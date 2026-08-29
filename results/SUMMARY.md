@@ -332,10 +332,64 @@ and follow-up research, not yet acted on live:
   osaurus` with no new harness code, a genuine new candidate rather than
   just a diagnostic reference.
 
-None of this has been tested live yet — full plan and citations in the
-project's Kiem notes. If you're choosing a serving engine today, GGUF/
-llama.cpp is still the safe, proven choice; MLX is an open, promising
-question again, not a closed one.
+**Live diagnostics run 2026-08-28** (Qwen3.8-27B-4bit and
+Qwen3-Coder-30B-A3B-4bit, both against the previously-recorded
+catastrophic-collapse baselines in their own `mlx.yaml`/`omlx.yaml`
+`blocked_reason` fields):
+- **Continuous-batching hypothesis — refuted.** Removing
+  `--continuous-batching` from `vllm_mlx.server` (an opt-in,
+  off-by-default flag for concurrent users; this benchmark only ever
+  sends one request at a time) did not help: short-prompt speed actually
+  got slightly *worse* (7.32 vs 12.37 tok/s), and the large-prompt
+  collapse was unchanged (666.83s / 0.18 tok/s at ~43K tokens, versus the
+  original 668s/0.18 tok/s baseline).
+- **Prefill/decode split — the key reframe.** Calling `mlx_lm.generate`
+  directly, bypassing `vllm_mlx.server` entirely, on Qwen3.8-27B-4bit at
+  80,432 tokens of context gave a full, non-degenerate 20-token
+  completion at **10.75 tok/s decode** — nowhere near the 0.18 tok/s
+  collapse the *server* showed at half that context length (43K tokens).
+  This points at `vllm_mlx.server`'s own serving/scheduling layer as the
+  likely fault, not mlx-lm/mlx-core's generation loop or the SSM/DeltaNet
+  decode kernel as first theorized. (A same-prompt server-side
+  verification attempt was inconclusive — the model degenerated to a
+  3-token reply on the synthetic filler prompt — so treat this as a
+  strong working conclusion, not a fully closed case.)
+- **oMLX comparison (does the second wrapper show the same bug?).** Ran
+  the same direct-vs-server methodology on `Qwen3-Coder-30B-A3B-4bit`
+  (confirmed non-hybrid `qwen3_moe`, so this also bears on the
+  "hybrid-cache-bug can't be the whole story" open question above):
+  - Bare `mlx_lm.generate` at 80,430 tokens: 107.5 tok/s prefill, 15.7
+    tok/s decode (generation was only 3 tokens before EOS on the
+    synthetic filler prompt, so treat the decode number as indicative,
+    not precise) — again, fast, consistent with the direct-library
+    result for Qwen3.8-27B above.
+  - oMLX's own server (`omlx.yaml`'s `blocked_reason`) already recorded
+    hermes_ops averaging **0.75 tok/s across 8 real trials** — a
+    collapse of the same order of magnitude as vllm_mlx's, independently
+    observed on the harness's real coding-agent workload, not just a
+    synthetic long-prompt probe.
+  - Live retest hit a *different*, more immediate wall before speed was
+    even in question: oMLX's own preflight memory guard rejected prompts
+    above ~20-25K tokens on this 32GB M1 Max at both `safe` and
+    `aggressive` guard tiers ("predicted peak would require ~22-26GB but
+    the Metal wired-memory ceiling is ~24GB") — meaning oMLX can't even
+    *attempt* the 50-80K-token contexts that vllm_mlx and bare `mlx_lm`
+    ran without incident. Bare `mlx_lm.generate` used 25.72GB peak on the
+    identical 80K-token prompt with no guard and no crash, so this
+    ceiling is oMLX-specific caution, not a hard hardware limit. Raising
+    it further requires a system-wide `iogpu.wired_limit_mb` kernel
+    change, which wasn't made (out of scope for a per-process diagnostic).
+  - **Net read**: two independently-implemented MLX serving wrappers
+    (`vllm_mlx.server` and `oMLX`) both show severe decode-speed collapse
+    relative to bare `mlx_lm`, on two different models (one hybrid, one
+    not). That's consistent with a shared root cause in how both wrap
+    `mlx-lm` for serving, rather than two unrelated coincidental bugs —
+    but the exact shared mechanism is still unidentified.
+
+If you're choosing a serving engine today, GGUF/llama.cpp is still the
+safe, proven choice; MLX is an open, promising question again, not a
+closed one. Osaurus/vmlx-swift (a third, Swift-native MLX serving path
+with named fixes for some of the bugs above) remains untested live.
 
 ## Decision (2026-08-25): retired near-duplicate configs
 
