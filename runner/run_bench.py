@@ -393,9 +393,11 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
     served_model_id = orch.get("served_model_id")
     if cfg.get("inference_engine") == "omlx" and not served_model_id:
         sys.exit(f"{config_path} is inference_engine: omlx but has no orchestration.served_model_id")
-    # oMLX deliberately serves a stable local directory/alias ID while log
+    # oMLX/Mei deliberately serve a stable local directory/alias ID while log
     # rows retain the source artifact ID in `model`. Other frameworks request
     # the model ID directly as before.
+    if cfg.get("inference_engine") == "mei" and not served_model_id:
+        sys.exit(f"{config_path} is inference_engine: mei but has no orchestration.served_model_id")
     request_model = served_model_id or model
     config_hash = hashlib.sha256(config_path.read_bytes()).hexdigest()[:12]
     viable = orch.get("viable", "full")
@@ -423,6 +425,9 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
         if cfg.get("inference_engine") == "omlx":
             print("\n--- stop any prior isolated oMLX server ---")
             run(["bash", str(REPO / "runner" / "stop_omlx_server.sh")])
+        if cfg.get("inference_engine") == "mei":
+            print("\n--- stop any prior isolated Mei server ---")
+            run(["bash", str(REPO / "runner" / "stop_mei_server.sh")])
         print("\n--- unload any existing candidate backend ---")
         run(["bash", str(REPO / "runner" / "unload_all.sh")])
 
@@ -632,6 +637,8 @@ def run_one(config_path: Path, trials: int = 1, coding_suites=None, stage="all")
             cfg = {}
         if cfg.get("inference_engine") == "omlx":
             run(["bash", str(REPO / "runner" / "stop_omlx_server.sh")])
+        if cfg.get("inference_engine") == "mei":
+            run(["bash", str(REPO / "runner" / "stop_mei_server.sh")])
 
 
 def _leaderboard():

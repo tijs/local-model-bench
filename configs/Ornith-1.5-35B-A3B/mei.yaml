@@ -1,0 +1,61 @@
+model: ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit
+# Mei — the native Swift/MLX serving engine (see ~/projects/mei). This is the
+# SAME model artifact the repo's vllm-mlx leg (mlx.yaml) serves on port 8018,
+# served on Mei's dedicated port 8024 under the identical served ID so /v1/models
+# identity checks compare like-for-like across engines.
+temperature: 0.6
+reasoning_mode: unspecified
+inference_engine: mei
+mei_commit: aeb5e21c195d8519609488ef75a25ce7e48d8f88  # vmlx-swift pin (exact)
+source_revision: 19504d912fa8fc7622bf6b1de3db5d5d890b1f02
+model_bytes: 19508431001
+quant_family: MLX 4-bit (ornith-ai official)
+context_cap: 65536
+prefill_step_size: 512
+tool_call_path: native_mei_requires_live_probe
+
+benchmark_launch_command: |
+  bash runner/start_mei_server.sh --model-dir /Users/tijs/.local/share/local-model-bench/mei-models/Ornith-1.5-35B-A3B-MLX-4bit \
+    --served-model-id ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit --port 8024 --context-cap 65536 \
+    --prefill-step-size 512 --max-tokens 32768 \
+    --temperature 0.6 --top-p 0.95 --top-k 20 --emit-reasoning true --cache-reuse true
+benchmark_endpoint: http://127.0.0.1:8024/v1
+
+orchestration:
+  raw_port: 8024
+  needs_proxy: false   # native tool_calls required; probe_mei.py gates this.
+  hermes_provider: bench-mei   # custom_providers entry created during the run
+  served_model_id: ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit
+  viable: full
+
+settings:
+  - name: artifact_identity
+    value: "ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit@19504d912fa8fc7622bf6b1de3db5d5d890b1f02 (19508431001 bytes, 4 safetensors shards) staged at ~/.local/share/local-model-bench/mei-models/Ornith-1.5-35B-A3B-MLX-4bit"
+    source: "Hugging Face model_info + local shard sizes; exact revision pinned 2026-08-29."
+  - name: vmlx_swift_pin
+    value: "aeb5e21c195d8519609488ef75a25ce7e48d8f88 (the revision osaurus-ai/osaurus's own Package.resolved pins)"
+    source: "osaurus-ai/osaurus Packages/OsaurusCore/Package.resolved, checked 2026-08-29."
+  - name: quant_family
+    value: "MLX 4-bit affine, group 64, with 8-bit router gates (per config.json quantization_config)"
+    source: "Model config.json quantization_config, verified locally 2026-08-29."
+  - name: prefill_chunking
+    value: "GenerateParameters.prefillStepSize = 512 (chunked prefill always on; the long-context collapse safeguard for hybrid GatedDelta architectures)"
+    source: "Mei engine Engine.swift makeParameters; vmlx-swift BatchEngine/TokenIterator prefillStepSize."
+  - name: kv_cache
+    value: "fp16 KV; Qwen35 hybrid cache = RotatingKVCache(maxKVSize = context_cap + 4096, keep 4) on the 10 full-attention layers + MambaCache on the 30 GatedDelta layers (~20KB/token fp16)"
+    source: "vmlx-swift Qwen35.newCache(); measured config: 40 layers, full_attention_interval 4, kv_heads 2, head_dim 256."
+  - name: context_and_generation_caps
+    value: "65536 prompt tokens (exact-cap gate); up to 32768 generated tokens"
+    source: "Mei ServerConfig contextCap/maxTokensDefault; probe_mei.py exact-token gate."
+  - name: in_process_kv_reuse
+    value: "exact-extension token-prefix slot: identical prefix (system prompt + transcript) resumes from the live KV cache; usage.prompt_tokens_details.cached_tokens reports the reused prefix"
+    source: "Mei Engine SlotDecision (cache-reuse true); verified via probe cache_repeat probes."
+  - name: native_tool_call_parser
+    value: "must pass both non-streaming and streaming add_numbers schema probes; tool_choice forced selection relies on vmlx-swift's qwen-style <tool_call> JSON parser"
+    source: "runner/probe_mei.py; no benchmark proxy/parser shim allowed for these rows."
+
+known_gaps:
+  - "Live status and artifact paths are recorded in ~/.local/share/local-model-bench/results-mei/ after the acceptance gate; config existence alone is not proof of compatibility."
+  - "KV quantization (--kv-bits) is ignored by the Qwen35 hybrid cache topology (RotatingKVCache/MambaCache) — the engine honors it as a no-op for this architecture; fp16 KV fits 64K context on this 32GB machine."
+  - "Metal kernel library (mlx.metallib) is provisioned by scripts/prepare_metallib.sh: the local Xcode lacks the metallib archiver, so the adjacent-version Python mlx wheel metallib is used (vendored mlx v0.31.1-14 vs wheel 0.32.0)."
+last_updated: 2026-08-29
