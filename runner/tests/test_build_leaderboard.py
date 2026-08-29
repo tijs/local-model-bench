@@ -402,16 +402,14 @@ class CompositeRankingTests(unittest.TestCase):
     def test_full_suite_size_constants_are_the_real_suite_sizes(self):
         # A regression guard, not a leaderboard-behavior test: locks in
         # that production's actual thresholds are 8 (tasks/hermes_ops.yaml)
-        # and 11 (kiem_mini 5 + hearth_mini 3 + kipclip_mini 3 -- NOT the
-        # 12 tasks/kipclip_mini.yaml now defines after the 2026-08-29
-        # benchmark-hardening wiring added kipclip_mini-merge; bump this
-        # only once a real rerun produces 12-coding-task data, per
-        # explicit user decision -- see build_leaderboard.py's own
-        # comment on FULL_CODING_TASKS for the full story). Every other
-        # test in this file patches these down to 1 (see setUpModule) so
-        # this is the only place the real values are asserted at all.
+        # and 15 -- the benchmark-v3 suite (2026-08-29): kiem_mini 5 +
+        # hearth_mini 3 + kipclip_mini 4 (gained kipclip_mini-merge in the
+        # same day's hardening wiring) + hearth_full 3 (the new
+        # realistic-navigation-scale suite). Every other test in this file
+        # patches these down to 1 (see setUpModule) so this is the only
+        # place the real values are asserted at all.
         self.assertEqual(REAL_FULL_HERMES_OPS_TASKS, 8)
-        self.assertEqual(REAL_FULL_CODING_TASKS, 11)
+        self.assertEqual(REAL_FULL_CODING_TASKS, 15)
 
     def test_partial_coding_run_not_eligible_even_if_it_looks_complete(self):
         # Real incident (2026-08-29): a 1-coding-task partial rerun of

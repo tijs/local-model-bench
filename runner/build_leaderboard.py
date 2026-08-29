@@ -20,17 +20,23 @@ REPO = Path(__file__).resolve().parent.parent
 # 1500s coding timeout too tight for slow-but-correct models) from ranking
 # alongside current-methodology data as if the two were comparable.
 #
-# FULL_CODING_TASKS is deliberately still 11, matching the suite as tested
-# by every row currently in log.jsonl — NOT the 12 tasks tasks/kipclip_mini.yaml
-# now defines after the 2026-08-29 benchmark-hardening wiring (commit
-# a83c43d added kipclip_mini-merge). Per explicit user decision: bumping
-# this to 12 before any model has actually been rerun against the hardened
-# suite would empty "Best overall" entirely, which is worse than being
-# briefly one task behind current tasks/*.yaml. Bump this to 12 once the
-# hardened-suite rerun (already planned, see the project's Kiem notes)
-# actually happens — until then it intentionally lags tasks/kipclip_mini.yaml.
+# FULL_CODING_TASKS = 15, the benchmark-v3 suite (2026-08-29): kiem_mini
+# (5) + hearth_mini (3) + kipclip_mini (4, gained kipclip_mini-merge in
+# the 2026-08-29 hardening wiring, commit a83c43d) + hearth_full (3, the
+# new realistic-navigation-scale suite, commit 7bcf888/2c42c8c). Bumped
+# from 11 to 15 as part of releasing benchmark-v3 (see BENCHMARK_V2_SHA
+# below and the `benchmark-v3` git tag) — every row currently in
+# log.jsonl was tested against the OLD 11-task suite and will correctly
+# stop being eligible for "Best overall" until each model is actually
+# rerun against the 15-task suite. That's intentional, not a bug: this
+# project's own standing policy (explicit user decision, reaffirmed
+# 2026-08-29) is that a benchmark-version bump doesn't retroactively
+# validate old data against a suite it was never run against — "Best
+# overall" should show real results for the CURRENT version or nothing,
+# not a stale mix. Rerun the model lineup against benchmark-v3 to
+# repopulate this table.
 FULL_HERMES_OPS_TASKS = 8
-FULL_CODING_TASKS = 11
+FULL_CODING_TASKS = 15
 
 # The git commit where benchmark v2's methodology-defining fixes landed
 # (Swift fixture platforms fix + coding-suite timeout 1500s->3000s) —
@@ -82,7 +88,7 @@ def _is_v2_or_later(runner_git_sha):
 # inferring "not sanity, not hermes_ops" — a future prompt-runner suite
 # added alongside hermes_ops should default to being treated like it, not
 # silently miscounted as coding.
-CODING_SUITES = {"kiem_mini", "hearth_mini", "kipclip_mini"}
+CODING_SUITES = {"kiem_mini", "hearth_mini", "kipclip_mini", "hearth_full"}
 
 # Benchmark v2 (2026-08-27, user request): a coding-suite row missing
 # hermes_turns (the count pulled from hermes's own SQLite session store)

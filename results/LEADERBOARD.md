@@ -287,7 +287,7 @@ added explicitly to record that default rather than leave it invisible.
 ## Best overall (gate, then weighted composite score)
 
 **Eligibility** — a group must have run sanity plus the FULL suite on both
-hermes_ops (8 tasks) and coding (11 tasks)
+hermes_ops (8 tasks) and coding (15 tasks)
 to appear here at all — a partial run (even a lucky 1-task 100%) is excluded
 outright, not scored on whichever axes it happens to have. A group's own
 `runner_git_sha` must also be `benchmark-v2` or a later commit — data graded
@@ -312,18 +312,7 @@ whichever of its own config_hash/runner_sha fragments is full-suite-complete
 (over one that merely has more raw evidence but is missing an axis), then the
 most total coding+hermes_ops evidence, then recency.
 
-| rank | model | engine | quant | reasoning⁶ | config | usefulness gate | score | coding | speed | avg time (s) | avg turns |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-| 1 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | — | unspecified | 7b0652d1fb9e | PASS (100%, 8) | 0.901 | 100% (11) | 28.6 tok/s | 215 | 17.5 |
-| 2 | poolside/Laguna-XS-2.1-GGUF:Q4_K_M | llama.cpp | — | thinking | 644ba3997136 | PASS (50%, 8) | 0.837 | 91% (11) | 34.8 tok/s | 181 | 24.5 |
-| 3 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | — | instruct | 644415678c37 | PASS (75%, 8) | 0.699 | 100% (11) | 20.9 tok/s | 343 | 32.9 |
-| 4 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | thinking | a2d241742068 | PASS (75%, 8) | 0.623 | 64% (11) | 21.0 tok/s | 353 | 21.8 |
-| 5 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | thinking (medium) | 340ca3032e6c | PASS (88%, 8) | 0.583 | 91% (11) | 6.8 tok/s | 935 | 14.5 |
-| 6 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q5_K_M | llama.cpp | — | thinking (medium) | b03fc3f2b8f8 | PASS (62%, 8) | 0.540 | 91% (11) | 6.7 tok/s | 980 | 13.5 |
-| 7 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | n/a | ffa862c18cff | PASS (75%, 8) | 0.473 | 73% (11) | 7.7 tok/s | 902 | 29.4 |
-| 8 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | — | thinking | 38ccea45c281 | PASS (62%, 8) | 0.471 | 82% (11) | 8.5 tok/s | 973 | 32.4 |
-
-![Best overall composite score by model](score_chart.png)
+No group has a full-suite, benchmark-v2-or-later run (sanity + 8/8 hermes_ops + 15/15 coding) yet.
 
 ## Flaky tasks (mixed pass/fail under identical conditions)
 

@@ -37,8 +37,8 @@ What it does per config, in order:
      number (improvement plan, M5: it said "10" long after the active
      value became 4.0, so a reader taking this file at its word got the
      gate's behavior wrong)
-  7. every task in every coding suite (kiem_mini, hearth_mini, kipclip_mini
-     — see tasks/*.yaml), unless orchestration.viable says to skip it,
+  7. every task in every coding suite (kiem_mini, hearth_mini, kipclip_mini,
+     hearth_full — see tasks/*.yaml), unless orchestration.viable says to skip it,
      hermes_provider is unset, or the speed gate above tripped. This was
      the single kiem_mini-feature spot-check by default until 2026-08-25:
      "run all tests"/"full benchmark" kept getting asked for and getting
@@ -676,9 +676,10 @@ def build_arg_parser():
                           "run_fixture_suite.py's --trials help (adversarial review "
                           "finding C5: single-trial temperature=0 results aren't reliably "
                           "reproducible on MLX/Metal)")
-    ap.add_argument("--coding-suites", default="kiem_mini,hearth_mini,kipclip_mini",
+    ap.add_argument("--coding-suites", default="kiem_mini,hearth_mini,kipclip_mini,hearth_full",
                      help="comma-separated tasks/<suite>.yaml names to run EVERY task from "
-                          "(default: all three — kiem_mini,hearth_mini,kipclip_mini). Pass "
+                          "(default: all four, benchmark-v3 — kiem_mini,hearth_mini,kipclip_mini,"
+                          "hearth_full). Pass "
                           "'none' for the old quick single-task kiem_mini-feature spot-check "
                           "instead — much cheaper, useful for a fast sanity pass on a big/"
                           "slow model. Full-battery was opt-in until 2026-08-25 (adversarial "

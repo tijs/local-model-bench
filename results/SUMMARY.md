@@ -58,7 +58,16 @@ without needing a hand-curated caveat about the chart's top row. The
 ≥50% hermes_ops gate itself is unchanged; this only changed what happens
 to score *above* it.
 
-![Best overall composite score by model](score_chart.png)
+**Chart below is stale as of benchmark-v3 (2026-08-29)**: `hearth_full`
+(a new 4th coding suite, realistic-navigation-scale) was just released,
+bumping `FULL_CODING_TASKS` 11→15. No model has been rerun against the
+new 15-task suite yet, so `LEADERBOARD.md`'s "Best overall" table is
+correctly empty right now — but `plot_leaderboard.py` leaves the last
+chart image in place rather than writing a blank one when there's
+nothing eligible to plot, so the image below still shows the pre-v3
+8-model ranking. Treat it as historical until the rerun happens.
+
+![Best overall composite score by model — pre-benchmark-v3, stale](score_chart.png)
 
 *Composite score = combined hermes_ops+coding pass rate 45% + speed 25% +*
 *time taken 20% + turns used 10%, gate-passers only (hermes_ops ≥ 50%) —*

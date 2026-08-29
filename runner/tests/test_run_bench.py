@@ -138,10 +138,10 @@ class CodingSuitesDefaultTests(unittest.TestCase):
     def test_cli_default_is_the_full_battery_not_none(self):
         ap = rb.build_arg_parser()
         args = ap.parse_args(["--config", "configs/whatever/gguf.yaml"])
-        self.assertEqual(args.coding_suites, "kiem_mini,hearth_mini,kipclip_mini")
+        self.assertEqual(args.coding_suites, "kiem_mini,hearth_mini,kipclip_mini,hearth_full")
         self.assertEqual(
             rb.parse_coding_suites(args.coding_suites),
-            ["kiem_mini", "hearth_mini", "kipclip_mini"],
+            ["kiem_mini", "hearth_mini", "kipclip_mini", "hearth_full"],
         )
 
     def test_none_string_opts_out_to_the_quick_spot_check(self):

@@ -128,8 +128,8 @@ uv run --locked python runner/run_bench.py --all --inference-engine omlx
   temperature=0 — MLX/Metal generation isn't bit-deterministic run to run).
   `build_leaderboard.py` surfaces any task with a mixed pass/fail across
   its rows in a dedicated "Flaky tasks" section.
-- `--coding-suites kiem_mini,hearth_mini,kipclip_mini` — run EVERY task
-  (feature/debug/test-writing) in the named suites. This is now the
+- `--coding-suites kiem_mini,hearth_mini,kipclip_mini,hearth_full` — run
+  EVERY task (feature/debug/test-writing) in the named suites. This is now the
   **default** (as of 2026-08-25 — see AGENTS.md for why: "run all tests"/
   "full benchmark" kept getting asked for and getting the old quick
   single-task spot-check instead, a recurring miscommunication). Pass
