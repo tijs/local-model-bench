@@ -386,6 +386,23 @@ catastrophic-collapse baselines in their own `mlx.yaml`/`omlx.yaml`
     `mlx-lm` for serving, rather than two unrelated coincidental bugs —
     but the exact shared mechanism is still unidentified.
 
+**Phase F step 3 (Osaurus) — blocked on this hardware, 2026-08-29.**
+Installed `osaurus` (0.24.1) via `brew install --cask osaurus`; it passes
+Gatekeeper cleanly (notarized, valid signature). But the project has
+grown substantially since the research above: it's now a full "AI agent
+harness" (cryptographic identity, sandboxed VM/Seatbelt execution, MCP
+server, plugin system), not the lightweight MLX inference server
+originally scoped. More concretely, both `osaurus serve --port 1337` and
+`osaurus --help` hang indefinitely on first run — zero CPU, zero output,
+consistent with a blocked macOS permission dialog (Keychain/local-network/
+notifications) that needs a GUI click. This Mac runs headless: there's an
+active login session (`who`/`launchctl` confirm it), but no physical or
+remote-desktop access to click through a dialog, and `osascript`/System
+Events itself timed out ("AppleEvent time-out") rather than giving a
+permission error, so scripted UI automation isn't a path around it
+either. Left installed for a future retest if/when remote-desktop access
+to this Mac is available; not pursued further for now.
+
 If you're choosing a serving engine today, GGUF/llama.cpp is still the
 safe, proven choice; MLX is an open, promising question again, not a
 closed one. Osaurus/vmlx-swift (a third, Swift-native MLX serving path
