@@ -1,2 +1,5 @@
-export { simulate } from "./run";
-export { formatSettlement, formatHistory } from "./format";
+export { simulate, simulateUntil } from "./run";
+export {
+  formatSettlement, formatHistory, formatBuildings,
+  formatStorageUtilization, formatStatusBlock, formatUnbuiltKinds,
+} from "./format";

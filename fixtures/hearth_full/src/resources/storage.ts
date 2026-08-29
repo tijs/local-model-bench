@@ -1,4 +1,4 @@
-import type { BuildingKind, Resources } from "../types";
+import type { BuildingKind, Resources, ResourceKind } from "../types";
 import { BASE_STORAGE_CAP, STOREHOUSE_CAP_BONUS } from "../types";
 
 /**
@@ -24,5 +24,33 @@ export function clampToStorageCap(resources: Resources, cap: number): Resources 
     wood: Math.min(resources.wood, cap),
     food: resources.food,
     stone: Math.min(resources.stone, cap),
+  };
+}
+
+/** How much headroom is left before `kind` hits the given cap — 0 if
+ * already at or over cap, never negative. */
+export function remainingCapacity(resources: Resources, kind: ResourceKind, cap: number): number {
+  return Math.max(0, cap - resources[kind]);
+}
+
+/** Fraction (0-1) of the cap currently filled for `kind` — used by the
+ * CLI to render a "storage nearly full" style warning. A resource that
+ * has climbed past the cap (only possible for the still-buggy food case
+ * — see clampToStorageCap above) reports 1, not a value above 1, since a
+ * warning about being "over 100% full" would be confusing to show. */
+export function utilizationOf(resources: Resources, kind: ResourceKind, cap: number): number {
+  if (cap <= 0) {
+    return resources[kind] > 0 ? 1 : 0;
+  }
+  return Math.min(1, resources[kind] / cap);
+}
+
+/** utilizationOf for every resource kind at once, keyed the same way
+ * Resources itself is. */
+export function storageUtilization(resources: Resources, cap: number): Record<ResourceKind, number> {
+  return {
+    wood: utilizationOf(resources, "wood", cap),
+    food: utilizationOf(resources, "food", cap),
+    stone: utilizationOf(resources, "stone", cap),
   };
 }

@@ -38,3 +38,33 @@ export function repairBuilding(settlement: Settlement, kind: BuildingKind): Sett
 export function affordsCostOnly(settlement: Settlement, kind: BuildingKind): boolean {
   return canAfford(settlement.resources, BUILDING_REGISTRY[kind].cost);
 }
+
+/**
+ * Removes the FIRST matching instance of `kind` from the settlement,
+ * with no resource refund and no effect on any other building of the
+ * same kind still standing. A no-op if the settlement doesn't have one.
+ * Any tier-2 upgrade recorded for `kind` is also cleared, since it makes
+ * no sense for an upgrade to survive its own building's demolition —
+ * unless another instance of the same kind is still standing, in which
+ * case the upgrade (which is tracked per-kind, not per-instance) stays.
+ */
+export function demolish(settlement: Settlement, kind: BuildingKind): Settlement {
+  const index = settlement.buildings.indexOf(kind);
+  if (index === -1) {
+    return settlement;
+  }
+  const buildings = [...settlement.buildings];
+  buildings.splice(index, 1);
+  const stillStanding = buildings.includes(kind);
+  const upgrades = stillStanding
+    ? settlement.upgrades
+    : settlement.upgrades?.filter((upgraded) => upgraded !== kind);
+  return { ...settlement, buildings, upgrades };
+}
+
+/** Total count of `kind` currently standing — buildings/registry.ts and
+ * resources/production.ts both need "how many of this kind" rather than
+ * just "is at least one built," so this is the shared way to ask. */
+export function countOf(settlement: Settlement, kind: BuildingKind): number {
+  return settlement.buildings.filter((b) => b === kind).length;
+}
