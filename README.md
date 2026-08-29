@@ -32,12 +32,15 @@ along the way.
 is a hand-curated, human-written snapshot of the top candidates and why —
 read this first if you just want an answer. [`results/LEADERBOARD.md`](results/LEADERBOARD.md)
 is the full, auto-regenerated detail behind it (every config's numbers,
-a "Best overall" gate-then-rank table, a "Blocked configs" section for
-models ruled out outright, and a "Speed-gated configs" section for models
-that didn't clear the minimum tokens/sec floor) — never hand-edit that
-file, it's rebuilt from [`results/log.jsonl`](results/log.jsonl) (append-only
-raw record, one row per task attempt) after every run. Methodology and
-every non-obvious harness gotcha are in [`AGENTS.md`](AGENTS.md) — read
+a "Best overall" gate-then-weighted-composite table, a "Blocked configs"
+section for models ruled out outright, and a "Speed-gated configs" section
+for models that didn't clear the minimum tokens/sec floor) — never
+hand-edit that file, it's rebuilt from [`results/log.jsonl`](results/log.jsonl)
+(append-only raw record, one row per task attempt) after every run.
+Methodology-version boundaries are marked with annotated git tags
+(`git tag -l -n1`) — see AGENTS.md's "Best overall" leaderboard section
+for what each tag family means. Methodology and every non-obvious harness
+gotcha are in [`AGENTS.md`](AGENTS.md) — read
 that before touching the runner code. For research on the inference
 engines themselves (bugs, version quirks, the MLX-vs-GGUF speed
 investigation), see [`docs/INFERENCE_ENGINES.md`](docs/INFERENCE_ENGINES.md);

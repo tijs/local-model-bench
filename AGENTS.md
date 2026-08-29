@@ -413,45 +413,83 @@ cancel an in-flight request) is unfixable short of a different HTTP client,
 so the hazard itself still exists; this just stops it from silently
 producing a bad result.
 
-## "Best overall" leaderboard ranking (redesigned 2026-08-26)
+## "Best overall" leaderboard ranking (four rounds of redesign, 2026-08-25 — 2026-08-29)
 
-`runner/build_leaderboard.py`'s composite ranking has gone through two
-designs. **Round 1** (2026-08-25, commit `fa0046f`, methodology review
-finding F3): a weighted blend, `score = 0.5*coding_pass_rate +
-0.3*hermes_ops_pass_rate + 0.2*speed_score`, gated so a group needed at
-least one coding-suite row, deduped to the most-evidenced fragment per
-`(model, inference_engine, quant)`, with mild small-sample shrinkage on
-the coding rate so a lucky 1/1 didn't tie a properly-tested 11/11.
+`runner/build_leaderboard.py`'s composite ranking has gone through four
+designs, each triggered by a real bad ranking found on live data — the
+full round-by-round formula history lives in the code's own docstrings
+(`rank_groups()` and `_composite_coding_score()`), not duplicated here.
+Summary, oldest to newest:
 
-**Round 2** (2026-08-26, user feedback): the blend still let speed and
-hermes_ops act as *peers* of coding instead of subordinate to it — a fast,
-hermes_ops-competent model with weak coding evidence could outscore a
-slower model that actually demonstrated real coding ability. Replaced with
-a staged gate-then-rank: (1) eligibility now requires sanity **and**
-hermes_ops **and** coding all present (a genuinely completed run, not just
-one coding row); (2) hermes_ops pass rate ≥50% is a hard pass/fail
-usefulness gate, not a weighted input — every gate-passing group ranks
-above every gate-failing one regardless of coding or speed; (3) coding
-pass rate, raw (no shrinkage — the blend's failure mode doesn't apply to a
-plain sort), is the primary sort among gate-passers; (4) avg tok/s is only
-a tie-break. The dedup-to-most-evidenced-fragment rule is unchanged from
-round 1.
+- **Round 1** (2026-08-25, commit `fa0046f`, methodology review finding
+  F3): a weighted blend, `score = 0.5*coding_pass_rate +
+  0.3*hermes_ops_pass_rate + 0.2*speed_score`, gated so a group needed at
+  least one coding-suite row, deduped to the most-evidenced fragment per
+  `(model, inference_engine, quant)`, with mild small-sample shrinkage on
+  the coding rate so a lucky 1/1 didn't tie a properly-tested 11/11.
+- **Round 2** (2026-08-26, commit `5203553`, user feedback): the blend
+  still let speed and hermes_ops act as *peers* of coding instead of
+  subordinate to it. Replaced with gate-then-rank: hermes_ops ≥50%
+  became a hard pass/fail usefulness gate (not a weighted input), plain
+  `coding_pass_rate` (no shrinkage) became the primary sort among
+  gate-passers, avg tok/s only a tie-break.
+- **Round 3** (2026-08-27, commits `a752772`/`319b144`, benchmark v2):
+  gate-then-rank couldn't distinguish "genuinely better at coding" from
+  "barely scraped a pass after using every turn," and gave a
+  slow-but-eventually-correct model no credit for finishing once the
+  coding-suite timeouts were bumped. Replaced the primary sort with a
+  weighted composite (pass 45%, speed 25%, time 20%, turns 10%) among
+  gate-passers; the hermes_ops gate itself was unchanged, and hermes_ops
+  still wasn't part of the score.
+- **Round 4** (2026-08-29, commit `d327fdf`, user feedback): a
+  bare-50%-hermes_ops model was scoring identically to a 100%-hermes_ops
+  one once both cleared the gate — hermes_ops quality above the gate was
+  invisible to score. "pass" is now the COMBINED hermes_ops+coding pass
+  rate (every task, either suite, counts as one equal unit), not coding
+  alone. The gate itself is still unchanged.
 
-**Known side-effect, not yet fixed**: the strict "all three axes in one
-`(config_hash, runner_git_sha)` fragment" eligibility check is sensitive
-to `runner_git_sha` changing mid-run. If a harness-code commit lands while
-a background benchmark process is still executing (this happened during
-the 2026-08-26 trimmed-list rerun — see below), that config's rows split
-across two or three `runner_git_sha` values purely because git HEAD moved,
-not because anything about the run itself was incomplete — and the split
-fragments then each fail the eligibility check individually even though
-the full run really did complete. Confirmed affecting at least three
-configs (Ornith-1.5-35B-A3B, Qwen3.8-27B UD-Q5_K_M, Qwen3.6-35B-A3B-
-Uncensored) in `results/LEADERBOARD.md`'s auto-generated "Best overall"
-table as of 2026-08-26 — `results/SUMMARY.md` reconciles the real numbers
-by hand from `log.jsonl` directly for these. Worth avoiding (don't commit
-harness code while a benchmark process is mid-run) rather than fixing in
-the grouping logic, unless it keeps recurring.
+Two more fixes landed the same day as round 4, at the eligibility/dedup
+layer rather than the score formula: dedup now prefers a fragment that's
+complete on all three axes over one that merely has more raw evidence
+but is missing an axis (commit `778c513` — see "known side-effect" below,
+now partially fixed); and eligibility requires the FULL suite on both
+hermes_ops and coding (`FULL_HERMES_OPS_TASKS`/`FULL_CODING_TASKS` in
+`build_leaderboard.py`, not just "at least one row") plus a
+`runner_git_sha` at or after the `benchmark-v2` git tag, not pre-v2
+methodology (commit `e86cf80`).
+
+**Versioning via git tags**: this repo marks methodology-version
+boundaries with annotated git tags rather than only prose — `git tag -l
+-n1` is the live source of truth, don't duplicate exact tag wording into
+markdown (it will drift). Two tag families exist: `benchmark-v*` marks
+GRADING/execution methodology boundaries (e.g. `benchmark-v2` is the
+Swift-fixture-fix + timeout-bump commit that `runner/build_leaderboard.py`'s
+`_is_v2_or_later()` actually checks rows against — data before it isn't
+comparable to current data regardless of suite coverage); `leaderboard-
+ranking-v*` marks SCORING-formula boundaries (the four rounds above, v1
+through v4) — these don't affect whether a model's raw results are
+valid, only how already-recorded results get ranked/displayed. Bumping
+`FULL_CODING_TASKS` past 11 (e.g. once the 2026-08-29 benchmark-hardening
+wiring's 12-task `kipclip_mini` suite has real rerun data behind it) is
+exactly the kind of change that should get a new `benchmark-v*` tag.
+
+**Known side-effect, partially fixed 2026-08-29**: the strict "all three
+axes in one `(config_hash, runner_git_sha)` fragment" eligibility check
+is sensitive to `runner_git_sha` changing mid-run. If a harness-code
+commit lands while a background benchmark process is still executing,
+that config's rows can split across two or three `runner_git_sha`
+values purely because git HEAD moved, not because the run itself was
+incomplete. Commit `778c513` fixed the case where a genuinely complete
+fragment exists somewhere among the split (dedup now prefers it over an
+incomplete-but-richer one — this was silently erasing Luna/OpenRouter
+from "Best overall" entirely before the fix). Still open: a model with
+NO single fragment that's complete on its own, only complementary
+partial ones — merging evidence across fragments graded by different
+harness code risks blending incompatible grading semantics, so this
+case still doesn't appear (the Qwen3.8-27B xhigh-effort row is a live
+example — `results/SUMMARY.md` reconciles it by hand). Worth avoiding
+(don't commit harness code while a benchmark process is mid-run) rather
+than fully solving in the grouping logic, unless it keeps recurring.
 
 ## Backend health-check timeout raised 600s -> 1800s (2026-08-26)
 
