@@ -148,12 +148,13 @@ hermes_ops improvement at a steep time cost — not a straightforward
 for this benchmark's task mix.
 
 Also discovered (and fixed, not just measured) during this investigation:
-`--min-p` silently defaults to `0.05` in llama.cpp (not `0.0`/disabled as
-Qwen's own official thinking-mode sampler recipe specifies) — every prior
-Qwen3.8-27B result on record ran with this filter active without anyone
-having set it explicitly. The xhigh config fixes this too, so its
-coding/hermes_ops numbers reflect BOTH changes together, not reasoning
-effort in isolation.
+`--min-p` silently defaults to `0.05` in llama.cpp, not `0.0`/disabled as
+Qwen's own sampler recipe specifies — see
+[`docs/INFERENCE_ENGINES.md`](../docs/INFERENCE_ENGINES.md) for the full
+gotcha. Every prior Qwen3.8-27B result on record ran with this filter
+active without anyone having set it explicitly. The xhigh config fixes
+this too, so its coding/hermes_ops numbers reflect BOTH changes
+together, not reasoning effort in isolation.
 
 Configs: `configs/Qwen3.8-27B/gguf.yaml`, `gguf-unsloth-ud-q5-64k.yaml`,
 `gguf-unsloth-ud-q5-64k-xhigh.yaml`, `configs/Qwen3.8-27B-Uncensored/
@@ -190,41 +191,14 @@ viable Hermes backend on this benchmark.**
 
 ## Resolved: Laguna-XS-2.1 — root-caused, fixed, and now has real results
 
-Root cause found and fixed 2026-08-27. The original finding
-(sanity-tool failing at Q4_K_M — empty content at temp=0, a hallucinated
-unrelated response instead of a tool call at temp=1.0) is **not** a
-reasoning-mode or harness-probe issue. Reading the upstream llama.cpp PR
-discussion (ggml-org/llama.cpp#25165, the model's own support PR) found
-that Laguna XS 2.1 produces unusually large activations in its later MoE
-layers, and on **Metal** (Apple Silicon — this benchmark's exact
-hardware), `mul_mm_id`'s f16 operand narrowing overflows above 65504 into
-NaN, surfacing as empty or incoherent output. A first attempted fix
-(PR #25442) was closed as "not the right fix"; the real fix, PR #26223
-("metal: fix NaN in mul_mm_id when activations exceed f16 range"), is
-**still open/unmerged** as of this writing.
-
-Confirmed via a CPU-only diagnostic (`-ngl 0`, disabling the Metal path
-entirely, same temp/settings as the original config otherwise unchanged):
-**9/9 clean results** — sanity-tool 5/5 at temp=0 (previously failed with
-empty content), and a repeated tool-call prompt 4/4 at temp=1.0
-(previously hallucinated an unrelated response). This strongly confirms
-the Metal NaN diagnosis. CPU-only is not a viable benchmark config on its
-own (far too slow for a 33B MoE to be a real Hermes backend candidate) —
-this was a diagnostic test, not a benchmark result. A proper GPU-speed
-retest would require building llama.cpp from PR #26223's branch
-(`mdegans:fix/metal-mul-mm-id-f16-overflow`) rather than waiting for
-Homebrew's release to pick it up.
-
-**Update, same day:** built llama.cpp from that exact PR branch (commit
-`e6a3398`, confirmed to include the fix commit `94fa2fc`) and retested
-with full GPU/Metal offload restored. **Both failure modes are gone at
-full speed** — 9/9 clean (sanity-tool 5/5 at temp=0, tool-call prompt 4/4
-at temp=1.0), decode throughput ~65 tok/s, roughly double the earlier
-CPU-only diagnostic's ~30-45 tok/s and competitive with this benchmark's
-faster GGUF legs despite Laguna's 33B total parameter count (3B active
-per token). The custom binary is kept separate from the Homebrew build
-every other config uses (`~/.local/share/local-model-bench/llama-cpp-
-laguna-fix/`), wired in as `configs/Laguna-XS-2.1/gguf-metal-fixed.yaml`.
+Root cause found and fixed 2026-08-27: a Metal-specific `mul_mm_id` f16
+overflow bug in llama.cpp, triggered by this model's unusually large MoE
+layer activations. Full root-cause narrative (upstream PR discussion,
+the CPU-only diagnostic that confirmed it, the custom-build fix and its
+before/after numbers) now lives in
+[`docs/INFERENCE_ENGINES.md`](../docs/INFERENCE_ENGINES.md) — this
+section keeps just the benchmark results the fix unblocked. Wired in as
+`configs/Laguna-XS-2.1/gguf-metal-fixed.yaml`.
 
 **Full benchmark run, 2026-08-28 — first real results this model has ever
 produced.** hermes_ops **4/8**, coding **10/11** (only `kiem_mini-parse-
@@ -294,119 +268,30 @@ Configs: `configs/Luna/openrouter.yaml`, `configs/Haiku/openrouter.yaml`.
 Both need `OPENROUTER_API_KEY` set as an environment variable — never
 committed to this repo.
 
-## MLX-backend investigation: closed 2026-08-25, reopened with a specific lead 2026-08-28
+## MLX-backend investigation: closed 2026-08-25, reopened 2026-08-28, ongoing
 
-**Original decision (2026-08-25)**: plain llama.cpp/GGUF won essentially
-every real speed comparison run to that point — often several times
-faster than the same model on vllm-mlx or oMLX, including at matched
-quantization (ruling out "it's just a lower-precision quant" as the
-explanation). The isolated oMLX backend additionally hung repeatedly (2+
-hours, once 11+) in a non-convergent tool-calling loop across multiple
-models. The gap was judged too large and too consistent to close with
-config tuning, so further MLX investigation was closed.
+Plain llama.cpp/GGUF won essentially every direct speed comparison
+against vllm-mlx and oMLX (often several times faster at matched
+quantization), and MLX investigation was closed 2026-08-25. Reopened
+2026-08-28 following a public discussion (Sandeep Das, sdas86.bsky.social)
+that led to real findings: two upstream `mlx-lm` bugs partially explain
+hybrid-architecture models' slowdown (mlx-lm#1162, #1152), but a
+confirmed *non*-hybrid model (`Qwen3-Coder-30B-A3B`) shows the same
+collapse, so that's not the whole story. Live diagnostics since then
+refuted the continuous-batching hypothesis and pointed the likely fault
+at `vllm_mlx.server`'s own serving layer rather than `mlx-lm`/`mlx-core`
+itself — a second independent wrapper, oMLX, shows the same
+order-of-magnitude collapse, and a third-party Swift-native alternative
+(Osaurus/vmlx-swift) is a promising but so-far-untested candidate,
+currently blocked by a headless-Mac install issue.
 
-**Reopened 2026-08-28** with a public discussion (Sandeep Das,
-sdas86.bsky.social, replying to a post about this benchmark's findings)
-and follow-up research, not yet acted on live:
-- Confirmed both `oMLX` and `vllm-mlx` in this repo pin the *identical*
-  `mlx-lm==0.31.3` / `mlx==0.32.0` — the slowdown sits in the shared
-  library both wrap, not either wrapper's own config.
-- Two real upstream `mlx-lm` bugs found that plausibly explain part of
-  the gap for hybrid-architecture models (Qwen3.8-27B/Qwen3.6/Ornith/
-  Laguna's Gated-DeltaNet + attention mix): a prompt-cache bug that
-  silently reprocesses the full prompt every turn instead of reusing
-  cache (mlx-lm#1162), and SSM/DeltaNet decode speed that isn't
-  context-length-constant as the architecture should allow (mlx-lm#1152).
-- **But this isn't the whole story**: `Qwen3-Coder-30B-A3B` — a
-  confirmed *non*-hybrid, standard dense-attention model — also showed
-  the same slowdown, so there's at least one more general cause beyond
-  the hybrid-specific bugs, likely something in batch size or backend
-  defaults per Sandeep's own follow-up hypothesis.
-- Found that `osaurus-ai/osaurus` (a macOS MLX inference app) doesn't
-  use the Python `mlx-lm` package at all — it maintains its own
-  Swift-native fork (`osaurus-ai/vmlx-swift`) with specific, named fixes
-  for exactly the hybrid-architecture cache bugs found above (including
-  a dedicated "Laguna S 2.1 revision"), and exposes a drop-in
-  OpenAI-compatible `/v1/chat/completions` API with full tool calling —
-  meaning it could be added to this benchmark as `inference_engine:
-  osaurus` with no new harness code, a genuine new candidate rather than
-  just a diagnostic reference.
-
-**Live diagnostics run 2026-08-28** (Qwen3.8-27B-4bit and
-Qwen3-Coder-30B-A3B-4bit, both against the previously-recorded
-catastrophic-collapse baselines in their own `mlx.yaml`/`omlx.yaml`
-`blocked_reason` fields):
-- **Continuous-batching hypothesis — refuted.** Removing
-  `--continuous-batching` from `vllm_mlx.server` (an opt-in,
-  off-by-default flag for concurrent users; this benchmark only ever
-  sends one request at a time) did not help: short-prompt speed actually
-  got slightly *worse* (7.32 vs 12.37 tok/s), and the large-prompt
-  collapse was unchanged (666.83s / 0.18 tok/s at ~43K tokens, versus the
-  original 668s/0.18 tok/s baseline).
-- **Prefill/decode split — the key reframe.** Calling `mlx_lm.generate`
-  directly, bypassing `vllm_mlx.server` entirely, on Qwen3.8-27B-4bit at
-  80,432 tokens of context gave a full, non-degenerate 20-token
-  completion at **10.75 tok/s decode** — nowhere near the 0.18 tok/s
-  collapse the *server* showed at half that context length (43K tokens).
-  This points at `vllm_mlx.server`'s own serving/scheduling layer as the
-  likely fault, not mlx-lm/mlx-core's generation loop or the SSM/DeltaNet
-  decode kernel as first theorized. (A same-prompt server-side
-  verification attempt was inconclusive — the model degenerated to a
-  3-token reply on the synthetic filler prompt — so treat this as a
-  strong working conclusion, not a fully closed case.)
-- **oMLX comparison (does the second wrapper show the same bug?).** Ran
-  the same direct-vs-server methodology on `Qwen3-Coder-30B-A3B-4bit`
-  (confirmed non-hybrid `qwen3_moe`, so this also bears on the
-  "hybrid-cache-bug can't be the whole story" open question above):
-  - Bare `mlx_lm.generate` at 80,430 tokens: 107.5 tok/s prefill, 15.7
-    tok/s decode (generation was only 3 tokens before EOS on the
-    synthetic filler prompt, so treat the decode number as indicative,
-    not precise) — again, fast, consistent with the direct-library
-    result for Qwen3.8-27B above.
-  - oMLX's own server (`omlx.yaml`'s `blocked_reason`) already recorded
-    hermes_ops averaging **0.75 tok/s across 8 real trials** — a
-    collapse of the same order of magnitude as vllm_mlx's, independently
-    observed on the harness's real coding-agent workload, not just a
-    synthetic long-prompt probe.
-  - Live retest hit a *different*, more immediate wall before speed was
-    even in question: oMLX's own preflight memory guard rejected prompts
-    above ~20-25K tokens on this 32GB M1 Max at both `safe` and
-    `aggressive` guard tiers ("predicted peak would require ~22-26GB but
-    the Metal wired-memory ceiling is ~24GB") — meaning oMLX can't even
-    *attempt* the 50-80K-token contexts that vllm_mlx and bare `mlx_lm`
-    ran without incident. Bare `mlx_lm.generate` used 25.72GB peak on the
-    identical 80K-token prompt with no guard and no crash, so this
-    ceiling is oMLX-specific caution, not a hard hardware limit. Raising
-    it further requires a system-wide `iogpu.wired_limit_mb` kernel
-    change, which wasn't made (out of scope for a per-process diagnostic).
-  - **Net read**: two independently-implemented MLX serving wrappers
-    (`vllm_mlx.server` and `oMLX`) both show severe decode-speed collapse
-    relative to bare `mlx_lm`, on two different models (one hybrid, one
-    not). That's consistent with a shared root cause in how both wrap
-    `mlx-lm` for serving, rather than two unrelated coincidental bugs —
-    but the exact shared mechanism is still unidentified.
-
-**Phase F step 3 (Osaurus) — blocked on this hardware, 2026-08-29.**
-Installed `osaurus` (0.24.1) via `brew install --cask osaurus`; it passes
-Gatekeeper cleanly (notarized, valid signature). But the project has
-grown substantially since the research above: it's now a full "AI agent
-harness" (cryptographic identity, sandboxed VM/Seatbelt execution, MCP
-server, plugin system), not the lightweight MLX inference server
-originally scoped. More concretely, both `osaurus serve --port 1337` and
-`osaurus --help` hang indefinitely on first run — zero CPU, zero output,
-consistent with a blocked macOS permission dialog (Keychain/local-network/
-notifications) that needs a GUI click. This Mac runs headless: there's an
-active login session (`who`/`launchctl` confirm it), but no physical or
-remote-desktop access to click through a dialog, and `osascript`/System
-Events itself timed out ("AppleEvent time-out") rather than giving a
-permission error, so scripted UI automation isn't a path around it
-either. Left installed for a future retest if/when remote-desktop access
-to this Mac is available; not pursued further for now.
+**Full investigation, all findings, and current status**: see
+[`docs/INFERENCE_ENGINES.md`](../docs/INFERENCE_ENGINES.md)'s "The MLX
+slowdown investigation" section.
 
 If you're choosing a serving engine today, GGUF/llama.cpp is still the
 safe, proven choice; MLX is an open, promising question again, not a
-closed one. Osaurus/vmlx-swift (a third, Swift-native MLX serving path
-with named fixes for some of the bugs above) remains untested live.
+closed one.
 
 ## Decision (2026-08-25): retired near-duplicate configs
 

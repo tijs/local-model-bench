@@ -8,6 +8,8 @@ Pinned runtime: oMLX 0.6.2 (`f2d36f3d25a7e7a2401a92eecafc28b8f8968ec7`), MLX 0.3
 
 This file is the source-of-truth handoff for model selection, quant provenance, settings, and reruns. It records research findings; live load and benchmark results must be added only from actual runner artifacts.
 
+For oMLX's engine-level bugs, the broader MLX-vs-GGUF speed investigation, and how oMLX compares to vllm-mlx and other MLX serving engines, see [`INFERENCE_ENGINES.md`](INFERENCE_ENGINES.md) — this file stays scoped to per-model settings and provenance.
+
 ## Live verification summary (2026-08-21)
 
 - `results/omlx/staging-manifest.json` records nine staged immutable snapshots:

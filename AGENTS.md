@@ -241,52 +241,19 @@ a few-minutes-per-config sweep into hours.
   and set `tool_call_parser:` accordingly — getting this wrong doesn't
   error, it silently produces zero or hallucinated tool calls.
 
-  **vllm-mlx version note, discovered live 2026-08-20**: the "no
-  --tool-call-parser flag exists" statement above was true for the
-  installed **0.4.0**, but is NOT a fundamental vllm-mlx limitation — it's
-  a stale-dependency artifact. **0.4.1** (one patch version up, now
-  installed in `~/.cocore/python` — upgraded live with Tijs's explicit
-  go-ahead, since that's also his real daily-driver Python env, not a
-  benchmark-isolated one) ships a real `vllm-mlx` CLI (`vllm-mlx serve
+  **vllm-mlx 0.4.1+ ships native tool-call parsers** (`vllm-mlx serve
   <model> --enable-auto-tool-choice --tool-call-parser <name>`, a
   different, richer entry point than the bare `python -m vllm_mlx.server`
-  module invocation used all session) with native parsers for `qwen`,
-  `qwen3_coder` (exact match for the custom parser hand-written for
-  Qwen3-Coder-30B this session), `mistral`, `llama`, `hermes`, `deepseek`,
-  `harmony`/`gpt-oss`, `granite`, `nemotron`, `xlam`, `functionary`,
-  `gemma4`, `glm47`, `minimax`, plus `auto` (tries all). There's also a
-  `poolside_v1` parser registered internally (exact name match for
-  Laguna-XS-2.1's undocumented tool-call format) — but it's missing from
-  `vllm-mlx serve`'s hardcoded `--tool-call-parser` argparse `choices=`
-  list (confirmed: `--tool-call-parser poolside_v1` is hard-rejected even
-  though the parser class exists and IS in `--reasoning-parser`'s choices)
-  — use `--tool-call-parser auto` for Laguna, not a direct name, to reach
-  it without patching vendor code.
-
-  **CRITICAL CAVEAT, also discovered live 2026-08-20**: the native
-  `qwen3_coder` parser has a real bug specifically in **streaming** mode.
-  Confirmed via a controlled A/B test on Qwen3-Coder-30B-A3B MLX: the
-  exact same request (identical system/user prompt, `temperature=0`,
-  everything else equal) produces a clean, correct tool call every time
-  under `stream: false`, but produces malformed tool_calls with an EMPTY
-  function `name` and truncated/garbled `arguments` (e.g. `{"query": `
-  with no closing, or a stray literal `<tool_call>` token leaking into an
-  argument value) under `stream: true` — which `run_prompt.py` always
-  uses (deliberately, to measure real TTFT). This is why the qwen3_coder
-  MLX numbers in this leaderboard use **`bench_local_proxy.py`'s own
-  custom parser, not the new native one** — the proxy always parses the
-  complete non-streaming response before faking SSE back to the client,
-  so it structurally cannot hit this streaming-specific bug. **Lesson: for
-  any model where a native vllm-mlx parser exists, verify it against BOTH
-  a streaming and non-streaming request before trusting it for this
-  benchmark (which requires streaming) — do not assume "native support
-  exists" implies "native support works safely under streaming."** The
-  custom-proxy approach, while more manual, turned out to be the *safer*
-  default for models with complex multi-parameter tool-call formats (XML/
-  parameter-tag styles), not just a workaround for a missing feature.
-  Simpler single-JSON-blob formats (plain `qwen`, `hermes`/`nous`) were not
-  re-tested for this same bug and may or may not be affected — don't
-  assume either way without checking.
+  module invocation used elsewhere in this repo) — but two real bugs/gaps
+  were found in it (the `poolside_v1`/Laguna parser missing from the CLI's
+  `choices=` list — use `--tool-call-parser auto` as the workaround; and a
+  critical streaming-mode bug in the native `qwen3_coder` parser, which is
+  why this benchmark's qwen3_coder MLX numbers use `bench_local_proxy.py`'s
+  own parser instead of the native one). Full story, versions, and the
+  exact reproduction in
+  [`docs/INFERENCE_ENGINES.md`](docs/INFERENCE_ENGINES.md)'s vllm-mlx
+  section — read it before trusting any new native vllm-mlx parser for
+  this benchmark's streaming requests.
 - **GGUF**: llama.cpp's `llama-server` (installed via `brew install
   llama.cpp`, build 10470), OpenAI-compatible, port 8016 — **no proxy
   needed**, confirmed live: it returns proper `tool_calls` natively for LFM
@@ -297,58 +264,23 @@ a few-minutes-per-config sweep into hours.
   isn't a guarantee for every family, but no proxy work needed unless that
   check fails. Multiple quant levels are tested per candidate model (not
   just one), each as a separate log row.
-- **DFlash 2** (speculative decoding, Inco AI/z-lab): **WORKING, as of
-  2026-08-20 — reverses the earlier "abandoned" conclusion below.** The
-  Homebrew-installed llama.cpp (build 10470) has the `--spec-type
-  draft-dflash` CLI flag but NOT the actual DFlash2 tensor-loading logic —
-  that only exists in **PR #27342** (`ggml-org/llama.cpp#27342`, still open/
-  unmerged at time of writing), whose actual code lives in the author's own
-  fork: `z-lab/llama.cpp-fork`, branch `dflash2`. Confirmed via
-  https://inco.ai/blog/dflash2/, which explicitly says llama.cpp support
-  "requires building from PR #27342." Built it from source (cmake + Ninja +
-  Metal, ~2 min build) — kept entirely separate from
-  the Homebrew install so `brew`'s `llama-server` is untouched for every
-  other model in this benchmark. Two issues on the way to a working
-  request, both resolved:
-  1. The old "expected 81, got 58" tensor-count error is GONE with this
-     fork's binary — that was purely a Homebrew-build limitation (stub flag,
-     no loader), not a genuine upstream/checkpoint bug as the earlier
-     (wrong) conclusion below claimed.
-  2. First real request hit a Metal OOM (`kIOGPUCommandBufferCallbackErrorOutOfMemory`)
-     during the draft model's decode — caused by the server's default 4
-     parallel slots quadrupling KV-cache memory across BOTH the target and
-     draft models at once. Fixed with `--parallel 1`.
-  Confirmed live: `bartowski/Qwen3.8-27B-GGUF:Q4_K_M` +
-  `incoai/Qwen3.8-27B-DFlash2-GGUF` (Q4_K_M drafter), `--spec-draft-n-max 7`
-  per the PR's own benchmark command, `--parallel 1`, `--ctx-size 32768`.
-  Real completion: draft_n=791, draft_n_accepted=389 (~49% acceptance),
-  9.32 tok/s vs. this benchmark's own baseline non-spec Qwen3.8-27B GGUF
-  result (~6.5 tok/s) — a real ~1.4x speedup (less than the PR's cited
-  1.85x on a 64GB M5 Pro, plausibly due to this being a 32GB machine plus
-  `<think>` reasoning tokens counted in the total). **To reproduce**: run
-  `runner/setup_dflash2_fork.sh` (builds into `runner/.dflash2-fork/`,
-  gitignored — a durable, one-command setup, not scratchpad-only), then
-  launch `runner/.dflash2-fork/build/bin/llama-server` with `--spec-type
+- **DFlash 2** (speculative decoding, Inco AI/z-lab): **WORKING**, but
+  needs a from-source llama.cpp build — the Homebrew build has the CLI
+  flag (`--spec-type draft-dflash`) but not the real tensor-loading logic,
+  which only exists in `ggml-org/llama.cpp#27342` (still open/unmerged),
+  built from the author's fork `z-lab/llama.cpp-fork`, branch `dflash2`.
+  Full discovery story (including a misdiagnosis worth reading for the
+  general lesson) and confirmed real speedup numbers in
+  [`docs/INFERENCE_ENGINES.md`](docs/INFERENCE_ENGINES.md). **To
+  reproduce**: run `runner/setup_dflash2_fork.sh` (builds into
+  `runner/.dflash2-fork/`, gitignored), then launch
+  `runner/.dflash2-fork/build/bin/llama-server` with `--spec-type
   draft-dflash --spec-draft-hf <drafter-repo> --spec-draft-n-max 7
-  --parallel 1`. This fork binary is NOT installed system-wide like the
-  Homebrew build — every config using it must point at
-  `runner/.dflash2-fork/build/bin/llama-server` explicitly.
-  <!-- Earlier (2026-08-19/20), wrongly concluded abandoned: -->
-  <details><summary>superseded reasoning (kept for context, do not trust)</summary>
-  Originally concluded broken upstream after 3 Homebrew-build attempts on
-  Qwen3.8-27B and 1 on Muse-Glimmer-30B all hit the same tensor-count
-  error, reasoning that two unrelated checkpoints hitting an identical
-  error ruled out a per-checkpoint problem. That inference was correct
-  in isolation but incomplete — it didn't consider that the INSTALLED
-  BUILD itself (not the checkpoints) was the actual common cause, since
-  Homebrew's llama.cpp only merged the CLI flag, not PR #27342's loader
-  implementation. Lesson: a bug reproducing identically across multiple
-  models is strong evidence against a per-model cause, but does not by
-  itself rule out a shared-tooling cause — check the tool's own version/
-  build provenance against the feature's actual merge status before
-  concluding "upstream broken," especially for a flag that exists but a
-  PR implementing it is still open.
-  </details>
+  --parallel 1` (the `--parallel 1` is required — the server's default 4
+  parallel slots quadruples KV-cache memory across target+draft models
+  and OOMs on Metal otherwise). This fork binary is NOT installed
+  system-wide like the Homebrew build — every config using it must point
+  at `runner/.dflash2-fork/build/bin/llama-server` explicitly.
 
 ## Unloading local backends (validated live 2026-08-19)
 

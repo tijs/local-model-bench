@@ -8,18 +8,19 @@ three axes: tool-use reliability, speed, and coding capability under
 realistic agentic conditions, on a Mac Studio (M1 Max, 32GB unified
 memory).
 
-**MLX-backend investigation closed (2026-08-25): GGUF/llama.cpp is now the
-primary engine.** vllm-mlx and isolated oMLX were both compared against
-llama.cpp across many models and consistently lost by a wide, structural
-margin — often several times slower at matched quantization, and the
-isolated oMLX backend additionally hung repeatedly (2+ hours, sometimes
-11+) in a non-convergent tool-calling loop on several models. The gap was
-too large and too consistent to close with config tuning, so further MLX
-investigation is deprioritized; existing MLX results stay in
-`results/LEADERBOARD.md` as historical data, and the `mlx.yaml`/`omlx.yaml`
-configs and the harness support for both engines remain in the repo for
-reproducibility, but new model additions and speed/reliability work should
-target GGUF/llama.cpp first.
+**GGUF/llama.cpp is the primary, proven engine; MLX is an open question
+under active investigation, not a closed one.** vllm-mlx and isolated
+oMLX were both compared against llama.cpp across many models and
+consistently lost by a wide, structural margin. That finding was closed
+out 2026-08-25 — but reopened 2026-08-28 after a specific lead pointed at
+the MLX *serving layer* (not the underlying `mlx-lm` library) as the
+likely cause, which reframes why a third, differently-implemented MLX
+serving engine might behave very differently. See
+[`docs/INFERENCE_ENGINES.md`](docs/INFERENCE_ENGINES.md) for the full,
+current investigation. Until it resolves one way or the other,
+GGUF/llama.cpp remains the safe default for new model additions and
+speed/reliability work; the `mlx.yaml`/`omlx.yaml` configs and harness
+support for both engines stay in the repo either way.
 
 This harness (every runner script, config, task, and fix) was built and is
 run by Claude (Anthropic) working autonomously in the terminal, directed
@@ -35,10 +36,13 @@ a "Best overall" gate-then-rank table, a "Blocked configs" section for
 models ruled out outright, and a "Speed-gated configs" section for models
 that didn't clear the minimum tokens/sec floor) — never hand-edit that
 file, it's rebuilt from [`results/log.jsonl`](results/log.jsonl) (append-only
-raw record, one row per task attempt) after every run. Methodology,
-inference-engine architecture, and every non-obvious gotcha discovered
-while running this are in [`AGENTS.md`](AGENTS.md) — read that before
-touching the runner code.
+raw record, one row per task attempt) after every run. Methodology and
+every non-obvious harness gotcha are in [`AGENTS.md`](AGENTS.md) — read
+that before touching the runner code. For research on the inference
+engines themselves (bugs, version quirks, the MLX-vs-GGUF speed
+investigation), see [`docs/INFERENCE_ENGINES.md`](docs/INFERENCE_ENGINES.md);
+for oMLX's own per-model settings and provenance, see
+[`docs/OMLX_MODEL_MATRIX.md`](docs/OMLX_MODEL_MATRIX.md).
 
 **The speed gate**: a config whose `hermes_ops` run averages under
 `bench_common.MIN_HERMES_OPS_TOKENS_PER_SECOND` (currently 4 tok/s — see
@@ -60,16 +64,18 @@ outcome the speed data already answered.
 - **`llama.cpp`** (`brew install llama.cpp`) for the `llama.cpp` inference
   engine — the primary one; only prerequisite most people need.
 - **`vllm-mlx` 0.4.1 or newer** for the `vllm-mlx` inference engine, included
-  in the locked project environment. See AGENTS.md's "vllm-mlx version
-  note". Only needed to reproduce/extend the closed-out MLX comparison
-  (see the note at the top of this file) — not required for new work.
+  in the locked project environment. See
+  [`docs/INFERENCE_ENGINES.md`](docs/INFERENCE_ENGINES.md) for its
+  tool-call-parser version history and a real streaming-mode bug to know
+  about. Not required for GGUF-only work; relevant if you're extending the
+  ongoing MLX investigation (see the note at the top of this file).
 - **oMLX 0.6.2** for the isolated `omlx` inference engine. Bootstrap it with
   `runner/bootstrap_omlx.sh`; that script creates/manages the separate
   environment under `~/.local/share/local-model-bench/`, pins source commit
   `f2d36f3d25a7e7a2401a92eecafc28b8f8968ec7`, and never installs oMLX into
   the project `.venv`, `~/.omlx`, or the CoCore Python environment. See
-  `runner/start_omlx_server.sh`. Same status as vllm-mlx above — closed
-  out, not required for new work.
+  `runner/start_omlx_server.sh`. Same status as vllm-mlx above — not
+  required for GGUF-only work.
 - **[Hermes](https://hermes-agent.nousresearch.com/docs)** installed
   locally, with an isolated `bench` profile
   (`~/.hermes/profiles/bench/config.yaml`) — this is what the coding-suite
@@ -203,4 +209,8 @@ AGENTS.md for the full writeups.
   held-out grading tests.
 - `runner/` — every script; `run_bench.py` is the entry point, everything
   else is called by it (or directly, for debugging one suite at a time).
-- `results/log.jsonl` / `results/LEADERBOARD.md` — raw record / rollup.
+- `results/log.jsonl` / `results/LEADERBOARD.md` / `results/SUMMARY.md` —
+  raw record / auto rollup / hand-curated snapshot.
+- `docs/INFERENCE_ENGINES.md` — research on the inference engines
+  themselves (bugs, version quirks, the MLX-vs-GGUF investigation).
+  `docs/OMLX_MODEL_MATRIX.md` — oMLX's per-model settings and provenance.
