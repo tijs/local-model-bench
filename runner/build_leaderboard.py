@@ -337,13 +337,11 @@ def compute_group_stats(groups):
 
         coding_scored = [r for r in non_sanity_scored if r["suite"] in CODING_SUITES]
         hermes_ops_scored = [r for r in non_sanity_scored if r["suite"] not in CODING_SUITES]
-        coding_pass_rate = (
-            sum(1 for r in coding_scored if r.get("pass")) / len(coding_scored)
-            if coding_scored else None
-        )
+        n_coding_pass = sum(1 for r in coding_scored if r.get("pass"))
+        n_hermes_ops_pass = sum(1 for r in hermes_ops_scored if r.get("pass"))
+        coding_pass_rate = n_coding_pass / len(coding_scored) if coding_scored else None
         hermes_ops_pass_rate = (
-            sum(1 for r in hermes_ops_scored if r.get("pass")) / len(hermes_ops_scored)
-            if hermes_ops_scored else None
+            n_hermes_ops_pass / len(hermes_ops_scored) if hermes_ops_scored else None
         )
 
         coding_wall_values = [r["wall_seconds"] for r in coding_scored if r.get("wall_seconds") is not None]
@@ -367,6 +365,8 @@ def compute_group_stats(groups):
             "reasoning_effort": reasoning_effort,
             "coding_pass_rate": coding_pass_rate,
             "hermes_ops_pass_rate": hermes_ops_pass_rate,
+            "n_coding_pass": n_coding_pass,
+            "n_hermes_ops_pass": n_hermes_ops_pass,
             "avg_coding_wall": avg_coding_wall,
             "avg_coding_turns": avg_coding_turns,
             "n_sanity": len(sanity_scored),
@@ -453,7 +453,10 @@ def rank_groups(group_stats):
     against an absolute target, since "fast" and "few turns" are only
     meaningful relative to what this hardware/task-set actually
     produces:
-      pass  = coding_pass_rate directly (already 0.0-1.0)
+      pass  = (hermes_ops passes + coding passes) / (hermes_ops tasks +
+              coding tasks) -- combined across BOTH suites, not coding
+              alone (changed 2026-08-29, see _composite_coding_score's
+              own comment for why)
       speed = avg_tps / fastest group's avg_tps
       time  = fastest (lowest) group's avg_coding_wall / this group's
               avg_coding_wall (shorter is better, so INVERTED)
@@ -547,7 +550,24 @@ def rank_groups(group_stats):
     )
 
     def _composite_coding_score(gs):
-        pass_component = gs["coding_pass_rate"] or 0.0
+        # "pass" reflects EVERY real task attempted -- hermes_ops AND
+        # coding combined, not coding alone -- fixed 2026-08-29 (user
+        # request) after Laguna-XS-2.1 (91% coding, but a bare 50%
+        # hermes_ops pass) ranked #1 over APEX-Compact (100% on both)
+        # purely on speed/time, since hermes_ops previously only gated
+        # (pass/fail at 50%) and never affected the score once past that
+        # gate -- a 50% and a 100% hermes_ops record scored identically.
+        # Each task, hermes_ops or coding, now counts as one equal unit
+        # toward "pass" ("each test passed adds to the total," per the
+        # user's own framing) rather than treating hermes_ops-quality and
+        # coding-quality as separate axes with their own weights. The
+        # >=50% hermes_ops GATE is unchanged and still applies first --
+        # this only changes what happens to score AMONG gate-passers.
+        pass_component = (
+            (gs["n_hermes_ops_pass"] + gs["n_coding_pass"])
+            / (gs["n_hermes_ops"] + gs["n_coding"])
+            if (gs["n_hermes_ops"] + gs["n_coding"]) else 0.0
+        )
         speed_component = (
             gs["avg_tps_val"] / max_tps_for_score
             if gs["avg_tps_val"] and max_tps_for_score else 0.0
@@ -751,7 +771,13 @@ def main():
     lines.append("fail-fast gate); every gate-passing group ranks above every gate-failing one")
     lines.append("regardless of the score below. **Score** among gate-passers is a weighted")
     lines.append(
-        f"composite over four coding-suite axes — pass rate ({CODING_SCORE_WEIGHTS['pass']:.0%}),"
+        f"composite over four axes — combined pass rate ({CODING_SCORE_WEIGHTS['pass']:.0%},"
+    )
+    lines.append(
+        "hermes_ops + coding tasks together, not coding alone — a 50%-hermes_ops record"
+    )
+    lines.append(
+        "no longer scores identically to a 100% one once both clear the gate above),"
     )
     lines.append(
         f"speed ({CODING_SCORE_WEIGHTS['speed']:.0%}), time taken ({CODING_SCORE_WEIGHTS['time']:.0%}),"

@@ -297,7 +297,9 @@ suite coverage. **Usefulness gate** (pass/fail tier, not a weighted input) — h
 pass rate must be ≥50% (majority-pass, same concept as run_bench.py's sanity
 fail-fast gate); every gate-passing group ranks above every gate-failing one
 regardless of the score below. **Score** among gate-passers is a weighted
-composite over four coding-suite axes — pass rate (45%),
+composite over four axes — combined pass rate (45%,
+hermes_ops + coding tasks together, not coding alone — a 50%-hermes_ops record
+no longer scores identically to a 100% one once both clear the gate above),
 speed (25%), time taken (20%),
 and turns used (10%) — each normalized 0.0-1.0 against
 the best value seen among this run's gate-passing groups (see
@@ -312,14 +314,14 @@ most total coding+hermes_ops evidence, then recency.
 
 | rank | model | engine | quant | reasoning⁶ | config | usefulness gate | score | coding | speed | avg time (s) | avg turns |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| 1 | poolside/Laguna-XS-2.1-GGUF:Q4_K_M | llama.cpp | — | thinking | 644ba3997136 | PASS (50%, 8) | 0.914 | 91% (11) | 34.8 tok/s | 181 | 24.5 |
-| 2 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | — | unspecified | 7b0652d1fb9e | PASS (100%, 8) | 0.901 | 100% (11) | 28.6 tok/s | 215 | 17.5 |
-| 3 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | — | instruct | 644415678c37 | PASS (75%, 8) | 0.746 | 100% (11) | 20.9 tok/s | 343 | 32.9 |
-| 4 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | thinking | a2d241742068 | PASS (75%, 8) | 0.601 | 64% (11) | 21.0 tok/s | 353 | 21.8 |
-| 5 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q5_K_M | llama.cpp | — | thinking (medium) | b03fc3f2b8f8 | PASS (62%, 8) | 0.594 | 91% (11) | 6.7 tok/s | 980 | 13.5 |
-| 6 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | thinking (medium) | 340ca3032e6c | PASS (88%, 8) | 0.589 | 91% (11) | 6.8 tok/s | 935 | 14.5 |
-| 7 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | — | thinking | 38ccea45c281 | PASS (62%, 8) | 0.508 | 82% (11) | 8.5 tok/s | 973 | 32.4 |
-| 8 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | n/a | ffa862c18cff | PASS (75%, 8) | 0.468 | 73% (11) | 7.7 tok/s | 902 | 29.4 |
+| 1 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | — | unspecified | 7b0652d1fb9e | PASS (100%, 8) | 0.901 | 100% (11) | 28.6 tok/s | 215 | 17.5 |
+| 2 | poolside/Laguna-XS-2.1-GGUF:Q4_K_M | llama.cpp | — | thinking | 644ba3997136 | PASS (50%, 8) | 0.837 | 91% (11) | 34.8 tok/s | 181 | 24.5 |
+| 3 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | — | instruct | 644415678c37 | PASS (75%, 8) | 0.699 | 100% (11) | 20.9 tok/s | 343 | 32.9 |
+| 4 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | thinking | a2d241742068 | PASS (75%, 8) | 0.623 | 64% (11) | 21.0 tok/s | 353 | 21.8 |
+| 5 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | thinking (medium) | 340ca3032e6c | PASS (88%, 8) | 0.583 | 91% (11) | 6.8 tok/s | 935 | 14.5 |
+| 6 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q5_K_M | llama.cpp | — | thinking (medium) | b03fc3f2b8f8 | PASS (62%, 8) | 0.540 | 91% (11) | 6.7 tok/s | 980 | 13.5 |
+| 7 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | n/a | ffa862c18cff | PASS (75%, 8) | 0.473 | 73% (11) | 7.7 tok/s | 902 | 29.4 |
+| 8 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | — | thinking | 38ccea45c281 | PASS (62%, 8) | 0.471 | 82% (11) | 8.5 tok/s | 973 | 32.4 |
 
 ![Best overall composite score by model](score_chart.png)
 

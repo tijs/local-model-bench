@@ -501,6 +501,43 @@ class CompositeRankingTests(unittest.TestCase):
         wrong_rank = next(i for i, l in enumerate(section.splitlines()) if "| wrong " in l)
         self.assertLess(correct_rank, wrong_rank, "with equal speed, the higher-coding-pass-rate model must rank first")
 
+    def test_weak_hermes_ops_record_costs_score_even_above_the_gate(self):
+        # Real incident (2026-08-29): Laguna-XS-2.1 (91% coding, but a
+        # BARE 50% hermes_ops pass) ranked #1 over APEX-Compact (100% on
+        # both) purely on speed/time, because hermes_ops previously only
+        # gated (pass/fail at 50%) and never affected score once past
+        # that gate -- a 50% and a 100% hermes_ops record scored
+        # identically. "pass" now combines hermes_ops+coding into one
+        # rate, so a model that barely clears the gate scores lower than
+        # one with a clean sweep, even with a real speed/time edge.
+        rows = (
+            self._complete_rows(
+                "fast-but-unreliable", hermes_ops_passes=[True, True, False, False],
+                coding_passes=[True] * 10 + [False], tps=34.8, config_hash="h1",
+                wall_seconds=181, turns=24.5,
+            )
+            + self._complete_rows(
+                "slower-but-clean", hermes_ops_passes=[True] * 4,
+                coding_passes=[True] * 11, tps=28.6, config_hash="h2",
+                wall_seconds=215, turns=17.5,
+            )
+        )
+        self._write_log(rows)
+        bl.main()
+        text = (self.repo / "results" / "LEADERBOARD.md").read_text()
+        section = self._best_overall_section(text)
+        unreliable_rank = next(
+            i for i, l in enumerate(section.splitlines()) if "fast-but-unreliable" in l
+        )
+        clean_rank = next(
+            i for i, l in enumerate(section.splitlines()) if "slower-but-clean" in l
+        )
+        self.assertLess(
+            clean_rank, unreliable_rank,
+            "a clean hermes_ops sweep must outrank a bare-gate-pass record "
+            "with a speed/time edge, once hermes_ops quality is part of the score",
+        )
+
     def test_large_speed_advantage_can_outrank_modest_pass_rate_advantage(self):
         # Deliberate, documented consequence of pass+speed both carrying
         # real weight: a LARGE ENOUGH speed gap can still flip a modest
