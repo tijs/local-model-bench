@@ -280,10 +280,15 @@ confirmed *non*-hybrid model (`Qwen3-Coder-30B-A3B`) shows the same
 collapse, so that's not the whole story. Live diagnostics since then
 refuted the continuous-batching hypothesis and pointed the likely fault
 at `vllm_mlx.server`'s own serving layer rather than `mlx-lm`/`mlx-core`
-itself — a second independent wrapper, oMLX, shows the same
-order-of-magnitude collapse, and a third-party Swift-native alternative
-(Osaurus/vmlx-swift) is a promising but so-far-untested candidate,
-currently blocked by a headless-Mac install issue.
+itself. Two more independently-implemented Python MLX serving wrappers
+were tested and show the same order-of-magnitude collapse: oMLX
+(0.75 tok/s average on real hermes_ops trials) and `jjang-ai/vmlx`
+(0.2 tok/s at 30K tokens, a hard Metal OOM crash at 80K) — the latter
+sharpening the theory further, since its own code comments admit its
+long-context prefill for hybrid architectures is a known-incomplete
+one-shot (non-chunked) implementation. A third-party Swift-native
+alternative (Osaurus/vmlx-swift) is a promising but still-untested
+candidate, currently blocked by a headless-Mac install issue.
 
 **Full investigation, all findings, and current status**: see
 [`docs/INFERENCE_ENGINES.md`](../docs/INFERENCE_ENGINES.md)'s "The MLX

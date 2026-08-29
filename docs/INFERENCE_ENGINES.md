@@ -311,20 +311,75 @@ a third, independently-implemented serving layer on top of the same
 different server code, which cleanly separates "is it mlx-lm" from "is
 it how vllm-mlx/oMLX specifically wrap it."
 
-**`jjang-ai/vmlx`** (PyPI: `vmlx`) — **under active investigation as of
-2026-08-29**. A live diagnostic test is running as this document is
-being written; results are not yet in this file. Check this project's
-Kiem notes for the latest findings before treating this section as
-complete — the plan note's STATUS line names the current note IDs
-(`kiem show <plan-note-id>`).
-
-What's known so far: pure Python, pip/`uv tool install`-able (no GUI
-app, so it doesn't hit the headless-Mac blocker Osaurus did), OpenAI +
-Anthropic + Ollama-compatible HTTP API, actively maintained (833 stars,
-near-daily releases as of this writing), depends on the same
+**`jjang-ai/vmlx`** (PyPI: `vmlx`) — tested live 2026-08-29. Pure
+Python, `pip`/`uv tool install`-able (no GUI app, so it doesn't hit the
+headless-Mac blocker Osaurus did — the CLI responded instantly, unlike
+Osaurus's silent hang, confirming that diagnosis was specific to
+Osaurus's GUI app rather than this Mac being unable to run CLI MLX
+servers). OpenAI + Anthropic + Ollama-compatible HTTP API, actively
+maintained (833 stars, near-daily releases), depends on the same
 `mlx-lm>=0.31.3` as vllm-mlx and oMLX but implements its own serving
 layer with a "Hybrid SSM Scheduler," continuous batching, and paged KV
 cache. The author, `jjang-ai`, is also a credited contributor to
-`osaurus-ai/vmlx-swift` itself, so there's real cross-pollination
-between the Swift and Python sides of this ecosystem rather than a
-coincidental parallel project.
+`osaurus-ai/vmlx-swift` itself — real cross-pollination between the
+Swift and Python sides of this ecosystem, not a coincidental parallel
+project.
+
+*Methodology note*: unlike vllm-mlx/oMLX, vmlx doesn't cleanly reuse a
+plain HF-cache snapshot — it re-fetches through HF's newer Xet
+chunked-storage protocol even when the model is already cached locally
+(observed ~15 parallel connections, real multi-hundred-MB transfer,
+several minutes for a 16GB model). Not a bug, just a cache-format
+mismatch worth knowing before assuming "already downloaded" means "no
+wait."
+
+Short-prompt sanity (63 tokens): clean, correct, unremarkable.
+
+Long-prompt results, using the same synthetic-filler methodology as the
+vllm-mlx/oMLX tests above:
+- **80,430 tokens: hard crash.** A genuine Metal command-buffer OOM
+  (`kIOGPUCommandBufferCallbackErrorOutOfMemory`) after 38s — not a
+  graceful rejection like oMLX's preflight guard. The server log at the
+  crash: `"Hybrid prefill path=one-shot family=qwen3_5_text
+  seq_len=80474 cached=0 — hybrid default one-shot (replacement MLX
+  0.32.2 fused-D256 answer-byte gate pending — see the comment at this
+  decision)"` — vmlx's own code comments admit this one-shot
+  (non-chunked) prefill path for hybrid architectures is a known
+  interim limitation, not the intended final design. The server process
+  itself survived cleanly (caught the exception, returned HTTP 500,
+  kept serving afterward) — better crash hygiene than a hard process
+  death, but still a full request failure where bare `mlx_lm` and
+  vllm-mlx (barely) both produced output at this context length.
+- **30,070 tokens: completed, but catastrophically slow.** Correct
+  answer, `finish_reason=stop`, but **0.2 tok/s end-to-end** per vmlx's
+  own log: `"Chat completion: 69 tokens in 432.74s (0.2 tok/s
+  end-to-end incl. prefill)"`. That figure explicitly blends
+  prefill+decode by vmlx's own terminology — probably comparable in
+  kind to how the vllm-mlx (0.18 tok/s @ 43K) and oMLX (0.75 tok/s
+  average, real hermes_ops trials) numbers above were measured: real
+  end-to-end HTTP wall-clock, not isolated decode-only instrumentation.
+  A rough sanity check supports that reading — bare `mlx_lm`'s own
+  measured prefill rate (62-107 tok/s, from the prefill/decode-split
+  diagnostic above) would need roughly 280-485s just for prefill of
+  30,070 tokens, which brackets the observed 432.74s total. That points
+  at the one-shot prefill computation itself — not the SSM/hybrid-cache
+  management sitting around it — as the dominant cost here.
+
+**Net read, sharpening the working theory**: this is now a THIRD
+independently-implemented Python MLX serving wrapper showing severe
+collapse relative to bare `mlx_lm`, on models spanning both hybrid
+(Qwen3.8-27B) and non-hybrid (Qwen3-Coder-30B-A3B) architectures. vmlx
+is notable for having visibly substantial custom hybrid/SSM cache
+machinery (SSM companion cache, paged prefix cache, hybrid cache
+reconstruction — all logged in detail) — and it still collapses on a
+cold long prompt, because the bottleneck looks like it's specifically
+the one-shot (non-chunked) prefill computation for hybrid architectures,
+not the cache-reuse layer around it. That sharpens "the serving layer's
+scheduling is the problem" into something more specific: **long-context
+prefill for hybrid (SSM/DeltaNet-containing) architectures needs to be
+chunked/streamed rather than done in one Metal command buffer**, and
+none of the three Python serving wrappers tested here do that today
+(vmlx's own code comments confirm this is a known, pending fix). Bare
+`mlx_lm`'s generate loop apparently chunks prefill internally (or uses a
+smaller/safer default step size), which is likely why it doesn't hit
+this wall at the same context lengths.
