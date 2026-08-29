@@ -3,6 +3,7 @@
 the leaderboard — edit the log (or just append new runs) and regenerate."""
 import hashlib
 import json
+import subprocess
 from collections import defaultdict
 from pathlib import Path
 from statistics import mean
@@ -10,6 +11,66 @@ from statistics import mean
 import yaml
 
 REPO = Path(__file__).resolve().parent.parent
+
+# "Best overall" eligibility, tightened 2026-08-29 after two real incidents
+# on the same day: (1) a 1-coding-task partial run ranked #1 over
+# mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact's genuine, full-battery
+# 11/11 result, because raw coding_pass_rate has no sample-size floor; (2)
+# nothing stopped a pre-benchmark-v2 run (broken Swift-fixture toolchain,
+# 1500s coding timeout too tight for slow-but-correct models) from ranking
+# alongside current-methodology data as if the two were comparable.
+#
+# FULL_CODING_TASKS is deliberately still 11, matching the suite as tested
+# by every row currently in log.jsonl — NOT the 12 tasks tasks/kipclip_mini.yaml
+# now defines after the 2026-08-29 benchmark-hardening wiring (commit
+# a83c43d added kipclip_mini-merge). Per explicit user decision: bumping
+# this to 12 before any model has actually been rerun against the hardened
+# suite would empty "Best overall" entirely, which is worse than being
+# briefly one task behind current tasks/*.yaml. Bump this to 12 once the
+# hardened-suite rerun (already planned, see the project's Kiem notes)
+# actually happens — until then it intentionally lags tasks/kipclip_mini.yaml.
+FULL_HERMES_OPS_TASKS = 8
+FULL_CODING_TASKS = 11
+
+# The git commit where benchmark v2's methodology-defining fixes landed
+# (Swift fixture platforms fix + coding-suite timeout 1500s->3000s) —
+# tagged `benchmark-v2` for humans (`git tag -l -n5`); hardcoded here as a
+# sha so this check works even in a shallow clone that never fetched tags.
+# A row's runner_git_sha must be this commit or a descendant of it to be
+# eligible for "Best overall" — older rows were graded under known-buggy
+# methodology (see AGENTS.md/docs/INFERENCE_ENGINES.md) and are not
+# comparable to current data, complete suite coverage or not.
+BENCHMARK_V2_SHA = "51b12c7c11426bd117b27ffac261f2d8978d0b33"
+
+_ancestry_cache = {}
+
+
+def _is_v2_or_later(runner_git_sha):
+    """True if runner_git_sha is BENCHMARK_V2_SHA or a descendant of it.
+
+    Strips a trailing `+dirty` suffix (graded by uncommitted changes on
+    top of some base commit — treated as based on that commit for this
+    check, since the dirty diff was presumably close to it). Missing shas,
+    shas git doesn't recognize (e.g. from a history this checkout doesn't
+    have), and any git failure are conservatively treated as NOT eligible
+    — silently under-counting real data is safer here than silently
+    treating unverifiable methodology as current.
+    """
+    if not runner_git_sha:
+        return False
+    sha = runner_git_sha.split("+", 1)[0]
+    if sha in _ancestry_cache:
+        return _ancestry_cache[sha]
+    try:
+        result = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", BENCHMARK_V2_SHA, sha],
+            cwd=REPO, capture_output=True, timeout=5,
+        )
+        verdict = result.returncode == 0
+    except (subprocess.SubprocessError, OSError):
+        verdict = False
+    _ancestry_cache[sha] = verdict
+    return verdict
 
 # `sanity` is explicitly a fail-fast GATE (run_bench.py stops entirely if
 # sanity-basic fails), not a quality signal to average alongside real
@@ -402,10 +463,12 @@ def rank_groups(group_stats):
     lacked wall_seconds) scores 0.0 on that one axis rather than being
     excluded outright — conservative, not a crash.
 
-    The usefulness GATE (hermes_ops >= 50%, hard tier boundary) and the
-    eligibility rule (all three axes present) from round 2 are BOTH
-    unchanged — this round only changes how gate-passers are ordered
-    relative to each other, not who's allowed to compete at all.
+    The usefulness GATE (hermes_ops >= 50%, hard tier boundary) from round
+    2 is unchanged — this round only changes how gate-passers are ordered
+    relative to each other, not who's allowed to compete at all. The
+    eligibility rule (round 2: "all three axes present") was tightened
+    2026-08-29 to full-suite completion + benchmark-v2-or-later — see
+    `_is_complete()`/`_is_v2_or_later()` above.
 
     Returns a list of (gate_pass, score, gs) tuples, unsorted — callers
     sort by (gate_pass, score) descending themselves, since some callers
@@ -413,11 +476,27 @@ def rank_groups(group_stats):
     display formatting that lives alongside the sort in main().
     """
     def _is_complete(gs):
-        return bool(gs["n_sanity"] and gs["n_hermes_ops"] and gs["n_coding"])
+        # Full-suite completion, not just "at least one row per axis" --
+        # tightened 2026-08-29 after a 1-coding-task partial run ranked #1
+        # over a genuine 11/11 result purely on raw pass-rate + speed (see
+        # FULL_HERMES_OPS_TASKS/FULL_CODING_TASKS above for why these are
+        # 8/11, not derived from tasks/*.yaml directly).
+        return bool(
+            gs["n_sanity"]
+            and gs["n_hermes_ops"] >= FULL_HERMES_OPS_TASKS
+            and gs["n_coding"] >= FULL_CODING_TASKS
+        )
 
     best_fragment = {}
     for gs in group_stats:
-        model, inference_engine, quant, _config_hash, _runner_sha = gs["key"]
+        model, inference_engine, quant, _config_hash, runner_sha = gs["key"]
+        if not _is_v2_or_later(runner_sha):
+            # Pre-benchmark-v2 data is excluded from "Best overall"
+            # entirely, not merely treated as "incomplete" -- a model
+            # with ONLY pre-v2 fragments should behave exactly as if it
+            # had no data, not lose a completeness tie-break it was never
+            # eligible to enter. See BENCHMARK_V2_SHA above.
+            continue
         dedup_key = (model, inference_engine, quant)
         complete = _is_complete(gs)
         evidence = gs["n_coding"] + gs["n_hermes_ops"]
@@ -454,7 +533,7 @@ def rank_groups(group_stats):
 
     eligible_for_norm = [
         gs for gs in best_fragment.values()
-        if gs["n_sanity"] and gs["n_hermes_ops"] and gs["n_coding"]
+        if _is_complete(gs)
         and gs["hermes_ops_pass_rate"] >= GATE_HERMES_OPS_THRESHOLD
     ]
     max_tps_for_score = max(
@@ -490,8 +569,8 @@ def rank_groups(group_stats):
 
     ranked = []
     for gs in best_fragment.values():
-        if not (gs["n_sanity"] and gs["n_hermes_ops"] and gs["n_coding"]):
-            continue  # not a completed run — missing an entire axis
+        if not _is_complete(gs):
+            continue  # not a full-suite completed run under benchmark v2
         gate_pass = gs["hermes_ops_pass_rate"] >= GATE_HERMES_OPS_THRESHOLD
         score = _composite_coding_score(gs) if gate_pass else 0.0
         # Sort key is lexicographic, most-significant field first: gate
@@ -658,10 +737,16 @@ def main():
     lines.append("")
     lines.append("## Best overall (gate, then weighted composite score)")
     lines.append("")
-    lines.append("**Eligibility** — a group must have completed all three stages (sanity +")
-    lines.append("hermes_ops + coding, at least one row each) to appear here at all; a partial")
-    lines.append("run is excluded outright rather than scored on whichever axes it happens to")
-    lines.append("have. **Usefulness gate** (pass/fail tier, not a weighted input) — hermes_ops")
+    lines.append("**Eligibility** — a group must have run sanity plus the FULL suite on both")
+    lines.append(
+        f"hermes_ops ({FULL_HERMES_OPS_TASKS} tasks) and coding ({FULL_CODING_TASKS} tasks)"
+    )
+    lines.append("to appear here at all — a partial run (even a lucky 1-task 100%) is excluded")
+    lines.append("outright, not scored on whichever axes it happens to have. A group's own")
+    lines.append("`runner_git_sha` must also be `benchmark-v2` or a later commit — data graded")
+    lines.append("under pre-v2 methodology (the broken Swift-fixture toolchain, the too-tight")
+    lines.append("1500s coding timeout) doesn't compete against current data regardless of")
+    lines.append("suite coverage. **Usefulness gate** (pass/fail tier, not a weighted input) — hermes_ops")
     lines.append("pass rate must be ≥50% (majority-pass, same concept as run_bench.py's sanity")
     lines.append("fail-fast gate); every gate-passing group ranks above every gate-failing one")
     lines.append("regardless of the score below. **Score** among gate-passers is a weighted")
@@ -679,12 +764,17 @@ def main():
     lines.append("but eventually-correct model is no longer disqualified outright (coding-suite")
     lines.append("timeouts were bumped alongside this change specifically so it can finish) —")
     lines.append("it simply scores lower on speed/time than a faster model with the same pass")
-    lines.append("rate. Dedup rule unchanged: each model+engine+quant appears at most once,")
-    lines.append("using whichever of its own config_hash/runner_sha fragments has the most")
-    lines.append("total coding+hermes_ops evidence.")
+    lines.append("rate. Dedup rule: each model+engine+quant appears at most once, preferring")
+    lines.append("whichever of its own config_hash/runner_sha fragments is full-suite-complete")
+    lines.append("(over one that merely has more raw evidence but is missing an axis), then the")
+    lines.append("most total coding+hermes_ops evidence, then recency.")
     lines.append("")
     if not ranked:
-        lines.append("No group has completed all three stages (sanity + hermes_ops + coding) yet.")
+        lines.append(
+            "No group has a full-suite, benchmark-v2-or-later run "
+            f"(sanity + {FULL_HERMES_OPS_TASKS}/{FULL_HERMES_OPS_TASKS} hermes_ops + "
+            f"{FULL_CODING_TASKS}/{FULL_CODING_TASKS} coding) yet."
+        )
     else:
         lines.append("| rank | model | engine | quant | reasoning⁶ | config | usefulness gate | score | coding | speed | avg time (s) | avg turns |")
         lines.append("|---|---|---|---|---|---|---|---|---|---|---|---|")

@@ -286,10 +286,14 @@ added explicitly to record that default rather than leave it invisible.
 
 ## Best overall (gate, then weighted composite score)
 
-**Eligibility** — a group must have completed all three stages (sanity +
-hermes_ops + coding, at least one row each) to appear here at all; a partial
-run is excluded outright rather than scored on whichever axes it happens to
-have. **Usefulness gate** (pass/fail tier, not a weighted input) — hermes_ops
+**Eligibility** — a group must have run sanity plus the FULL suite on both
+hermes_ops (8 tasks) and coding (11 tasks)
+to appear here at all — a partial run (even a lucky 1-task 100%) is excluded
+outright, not scored on whichever axes it happens to have. A group's own
+`runner_git_sha` must also be `benchmark-v2` or a later commit — data graded
+under pre-v2 methodology (the broken Swift-fixture toolchain, the too-tight
+1500s coding timeout) doesn't compete against current data regardless of
+suite coverage. **Usefulness gate** (pass/fail tier, not a weighted input) — hermes_ops
 pass rate must be ≥50% (majority-pass, same concept as run_bench.py's sanity
 fail-fast gate); every gate-passing group ranks above every gate-failing one
 regardless of the score below. **Score** among gate-passers is a weighted
@@ -301,50 +305,21 @@ the best value seen among this run's gate-passing groups (see
 but eventually-correct model is no longer disqualified outright (coding-suite
 timeouts were bumped alongside this change specifically so it can finish) —
 it simply scores lower on speed/time than a faster model with the same pass
-rate. Dedup rule unchanged: each model+engine+quant appears at most once,
-using whichever of its own config_hash/runner_sha fragments has the most
-total coding+hermes_ops evidence.
+rate. Dedup rule: each model+engine+quant appears at most once, preferring
+whichever of its own config_hash/runner_sha fragments is full-suite-complete
+(over one that merely has more raw evidence but is missing an axis), then the
+most total coding+hermes_ops evidence, then recency.
 
 | rank | model | engine | quant | reasoning⁶ | config | usefulness gate | score | coding | speed | avg time (s) | avg turns |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| 1 | LiquidAI/LFM2.5-2.6B-GGUF:BF16 | llama.cpp | — | n/a | 26670d622de5 | PASS (88%, 8) | 0.628 | 100% (1) | 44.5 tok/s | 862 | 38.0 |
-| 2 | openai/gpt-5.6-luna | openrouter | — | unspecified | f1e3043189f3 | PASS (100%, 8) | 0.596 | 100% (1) | 35.5 tok/s | 140 | 40.0 |
-| 3 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | gguf | — | ? | 3047922de5b7 | PASS (100%, 3) | 0.591 | 100% (1) | 34.7 tok/s | 573 | 40.0 |
-| 4 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | — | unspecified | 7b0652d1fb9e | PASS (100%, 8) | 0.586 | 100% (11) | 28.6 tok/s | 215 | 17.5 |
-| 5 | poolside/Laguna-XS-2.1-GGUF:Q4_K_M | llama.cpp | — | thinking | 644ba3997136 | PASS (50%, 8) | 0.560 | 91% (11) | 34.8 tok/s | 181 | 24.5 |
-| 6 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | thinking | 6fa6f52fdc56 | PASS (75%, 8) | 0.554 | 91% (11) | 30.2 tok/s | 173 | 15.8 |
-| 7 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | unspecified | 48d75180adbc | PASS (100%, 8) | 0.553 | 91% (11) | 30.9 tok/s | 226 | 17.7 |
-| 8 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | — | instruct | 644415678c37 | PASS (75%, 8) | 0.543 | 100% (11) | 20.9 tok/s | 343 | 32.9 |
-| 9 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | gguf | — | instruct | 1fea08092fdc | PASS (62%, 8) | 0.540 | 100% (1) | 20.8 tok/s | 285 | 40.0 |
-| 10 | anthropic/claude-haiku-4.5 | openrouter | — | unspecified | 6cc890a25129 | PASS (100%, 8) | 0.536 | 82% (11) | 36.3 tok/s | 67 | 16.6 |
-| 11 | unsloth/Qwen3.6-35B-A3B-GGUF:UD-Q4_K_XL | llama.cpp | — | thinking | 436d6d25d30c | PASS (75%, 8) | 0.523 | 91% (11) | 27.1 tok/s | 202 | 40.0 |
-| 12 | empero-ai/Qwen3.8-27B-Ridge-GGUF | llama.cpp | — | instruct | 7b1d82c8abab | PASS (62%, 8) | 0.483 | 100% (11) | 5.5 tok/s | 511 | 40.0 |
-| 13 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q5_K_M | llama.cpp | — | thinking (medium) | b03fc3f2b8f8 | PASS (62%, 8) | 0.472 | 91% (11) | 6.7 tok/s | 980 | 13.5 |
-| 14 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | thinking (medium) | 340ca3032e6c | PASS (88%, 8) | 0.470 | 91% (11) | 6.8 tok/s | 935 | 14.5 |
-| 15 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | — | thinking | 3a740261a79c | PASS (75%, 8) | 0.434 | 82% (11) | 8.1 tok/s | 685 | 14.5 |
-| 16 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | llama.cpp | — | n/a | 0840d8e3ee87 | PASS (88%, 8) | 0.417 | 36% (11) | 62.6 tok/s | 263 | 23.8 |
-| 17 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | — | thinking | 38ccea45c281 | PASS (62%, 8) | 0.416 | 82% (11) | 8.5 tok/s | 973 | 32.4 |
-| 18 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | thinking | a2d241742068 | PASS (75%, 8) | 0.388 | 64% (11) | 21.0 tok/s | 353 | 21.8 |
-| 19 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | n/a | ffa862c18cff | PASS (75%, 8) | 0.373 | 73% (11) | 7.7 tok/s | 902 | 29.4 |
-| 20 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | llama.cpp | — | thinking | c7eb832ac1e8 | PASS (88%, 8) | 0.359 | 73% (11) | 5.2 tok/s | 916 | 40.0 |
-| 21 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | llama.cpp | — | n/a | 05a5098cf4c6 | PASS (75%, 8) | 0.356 | 0% (11) | 67.6 tok/s | 34 | 5.1 |
-| 22 | mlx-community/LFM2.5-8B-A1B-MLX-8bit | vllm-mlx | — | n/a | 00878f13621f | PASS (75%, 8) | 0.303 | 0% (1) | 24.5 tok/s | 1 | 40.0 |
-| 23 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 | gguf | — | n/a | 5f50ca6ebdf3 | PASS (62%, 8) | 0.285 | 0% (1) | 66.7 tok/s | 9 | 40.0 |
-| 24 | LiquidAI/LFM2.5-8B-A1B-GGUF:BF16 | llama.cpp | — | n/a | a148c29637e6 | PASS (75%, 8) | 0.250 | 0% (11) | 55.3 tok/s | 60 | 12.1 |
-| 25 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF:F16 drafter) | gguf | — | n/a | f6bb65acb160 | PASS (75%, 8) | 0.135 | 0% (1) | 27.0 tok/s | 10 | 40.0 |
-| 26 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ DSpark F16 drafter) | gguf | — | ? | 85636a621ce0 | PASS (100%, 3) | 0.134 | 0% (1) | 29.3 tok/s | 17 | 40.0 |
-| 27 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | — | n/a | b4a63fbb6a67 | PASS (75%, 8) | 0.134 | 0% (1) | 25.3 tok/s | 8 | 40.0 |
-| 28 | LiquidAI/LFM2.5-8B-A1B-GGUF:Q8_0 (+ LiquidAI/LFM2.5-8B-A1B-DSpark-GGUF:F16 drafter) | llama.cpp-dspark | — | n/a | 4f8641aa7094 | PASS (75%, 8) | 0.134 | 0% (1) | 26.9 tok/s | 10 | 40.0 |
-| 29 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | mlx | — | n/a | da00492c3b46 | PASS (62%, 8) | 0.099 | 0% (1) | 21.4 tok/s | 31 | 40.0 |
-| 30 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | vllm-mlx | — | n/a | 9693319bc3a1 | PASS (75%, 8) | 0.097 | 0% (1) | 20.7 tok/s | 29 | 40.0 |
-| 31 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | vllm-mlx | — | n/a | c1a7fd5d3135 | PASS (88%, 8) | 0.086 | 0% (1) | 19.3 tok/s | 155 | 40.0 |
-| 32 | mlx-community/Laguna-XS-2.1-4bit | omlx | — | unspecified | f1037eaa5995 | PASS (67%, 3) | 0.083 | 0% (2) | 18.8 tok/s | 1500 | 40.0 |
-| 33 | scottlowry/Ornith-1.5-9B-oQ4e-fp16 | omlx | — | instruct | afecbd0a9f5f | PASS (100%, 3) | 0.064 | 0% (1) | 13.9 tok/s | 1500 | 40.0 |
-| 34 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | mlx | — | instruct | 5e09e98f8c60 | PASS (75%, 8) | 0.063 | 0% (1) | 12.9 tok/s | 93 | 40.0 |
-| 35 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | medium | a7867bea182c | FAIL (0%, 3) | — | 0% (2) | 3.9 tok/s | 842 | 40.0 |
-| 36 | LiquidAI/LFM2.5-2.6B-GGUF:Q8_0 | gguf | — | n/a | 1d65d14c63a8 | FAIL (12%, 8) | — | 0% (1) | 32.8 tok/s | 10 | 40.0 |
-| 37 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | gguf | — | ? | b0b30ac444da | FAIL (33%, 3) | — | 100% (1) | 8.0 tok/s | 1132 | 40.0 |
-| 38 | empero-ai/Qwen3.8-27B-Ridge-GGUF | gguf | — | ? | 6a3700901e2b | FAIL (33%, 3) | — | 100% (1) | 4.6 tok/s | 1010 | 40.0 |
+| 1 | poolside/Laguna-XS-2.1-GGUF:Q4_K_M | llama.cpp | — | thinking | 644ba3997136 | PASS (50%, 8) | 0.914 | 91% (11) | 34.8 tok/s | 181 | 24.5 |
+| 2 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | — | unspecified | 7b0652d1fb9e | PASS (100%, 8) | 0.901 | 100% (11) | 28.6 tok/s | 215 | 17.5 |
+| 3 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | — | instruct | 644415678c37 | PASS (75%, 8) | 0.746 | 100% (11) | 20.9 tok/s | 343 | 32.9 |
+| 4 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | thinking | a2d241742068 | PASS (75%, 8) | 0.601 | 64% (11) | 21.0 tok/s | 353 | 21.8 |
+| 5 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q5_K_M | llama.cpp | — | thinking (medium) | b03fc3f2b8f8 | PASS (62%, 8) | 0.594 | 91% (11) | 6.7 tok/s | 980 | 13.5 |
+| 6 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | thinking (medium) | 340ca3032e6c | PASS (88%, 8) | 0.589 | 91% (11) | 6.8 tok/s | 935 | 14.5 |
+| 7 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | — | thinking | 38ccea45c281 | PASS (62%, 8) | 0.508 | 82% (11) | 8.5 tok/s | 973 | 32.4 |
+| 8 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | n/a | ffa862c18cff | PASS (75%, 8) | 0.468 | 73% (11) | 7.7 tok/s | 902 | 29.4 |
 
 ![Best overall composite score by model](score_chart.png)
 

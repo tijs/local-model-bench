@@ -8,10 +8,51 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import build_leaderboard as bl
+
+# _is_v2_or_later() shells out to real `git merge-base --is-ancestor`,
+# which can't resolve any of this suite's fabricated runner_git_sha
+# values (e.g. "abc", "h", "a-older") against real repo history, and
+# every test here monkeypatches bl.REPO to a throwaway non-git temp dir
+# anyway. Default it to True module-wide so all the existing dedup/
+# scoring tests (which don't care about version-gating) are unaffected;
+# tests that specifically exercise version-gating locally re-patch it
+# with controlled behavior (see
+# test_pre_v2_fragment_excluded_even_if_otherwise_complete).
+#
+# Similarly, FULL_HERMES_OPS_TASKS/FULL_CODING_TASKS are the REAL suite
+# sizes (8/11) in production, but nearly every existing test here builds
+# small (1-3 row) fixtures for speed/clarity under the OLD "at least one
+# row per axis" completeness rule. Patch them down to 1 module-wide to
+# preserve every existing test's original intent unchanged; the dedicated
+# tests for the full-suite-size requirement locally patch them back up to
+# small-but->1 values so the boundary can be exercised without needing
+# 8/11 real rows (see test_partial_coding_run_not_eligible_even_if_it_looks_complete).
+# Captured BEFORE patching so test_full_suite_size_constants_are_the_real_suite_sizes
+# can assert against the true production values even though bl.FULL_*_TASKS
+# stays patched down to 1 for the rest of this module's run.
+REAL_FULL_HERMES_OPS_TASKS = bl.FULL_HERMES_OPS_TASKS
+REAL_FULL_CODING_TASKS = bl.FULL_CODING_TASKS
+
+_v2_patch = mock.patch("build_leaderboard._is_v2_or_later", return_value=True)
+_hermes_ops_size_patch = mock.patch("build_leaderboard.FULL_HERMES_OPS_TASKS", 1)
+_coding_size_patch = mock.patch("build_leaderboard.FULL_CODING_TASKS", 1)
+
+
+def setUpModule():
+    _v2_patch.start()
+    _hermes_ops_size_patch.start()
+    _coding_size_patch.start()
+
+
+def tearDownModule():
+    _v2_patch.stop()
+    _hermes_ops_size_patch.stop()
+    _coding_size_patch.stop()
 
 
 class HarnessErrorExclusionTests(unittest.TestCase):
@@ -249,8 +290,12 @@ class CompositeRankingTests(unittest.TestCase):
     disqualification to keep the leaderboard meaningful.
 
     Unchanged from round 2:
-    1. ELIGIBILITY — a group needs at least one row on ALL THREE axes
-       (sanity, hermes_ops, coding) to represent a genuinely completed run.
+    1. ELIGIBILITY — a group needs sanity plus FULL-SUITE hermes_ops and
+       coding coverage (FULL_HERMES_OPS_TASKS/FULL_CODING_TASKS, not just
+       "at least one row of each" — tightened 2026-08-29, see
+       test_partial_coding_run_not_eligible_even_if_it_looks_complete)
+       AND a runner_git_sha at or after BENCHMARK_V2_SHA to represent a
+       genuinely completed, current-methodology run.
     2. USEFULNESS GATE (hard pass/fail tier, not a weighted input):
        hermes_ops_pass_rate >= 0.5. Every gate-passing group ranks above
        every gate-failing group, regardless of the score below.
@@ -353,6 +398,68 @@ class CompositeRankingTests(unittest.TestCase):
                 text = (self.repo / "results" / "LEADERBOARD.md").read_text()
                 section = self._best_overall_section(text)
                 self.assertNotIn(label, section)
+
+    def test_full_suite_size_constants_are_the_real_suite_sizes(self):
+        # A regression guard, not a leaderboard-behavior test: locks in
+        # that production's actual thresholds are 8 (tasks/hermes_ops.yaml)
+        # and 11 (kiem_mini 5 + hearth_mini 3 + kipclip_mini 3 -- NOT the
+        # 12 tasks/kipclip_mini.yaml now defines after the 2026-08-29
+        # benchmark-hardening wiring added kipclip_mini-merge; bump this
+        # only once a real rerun produces 12-coding-task data, per
+        # explicit user decision -- see build_leaderboard.py's own
+        # comment on FULL_CODING_TASKS for the full story). Every other
+        # test in this file patches these down to 1 (see setUpModule) so
+        # this is the only place the real values are asserted at all.
+        self.assertEqual(REAL_FULL_HERMES_OPS_TASKS, 8)
+        self.assertEqual(REAL_FULL_CODING_TASKS, 11)
+
+    def test_partial_coding_run_not_eligible_even_if_it_looks_complete(self):
+        # Real incident (2026-08-29): a 1-coding-task partial rerun of
+        # ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M ranked #1 in "Best
+        # overall" -- ABOVE mudler/...APEX-GGUF:APEX-Compact's genuine,
+        # full 11-task 100% result -- purely because raw coding_pass_rate
+        # has no sample-size floor and the 1-task run also happened to be
+        # slightly faster. A group must now hit the full coding-suite size
+        # to be eligible at all, not just "at least one coding row" (the
+        # old, exploitable definition of "complete").
+        with mock.patch("build_leaderboard.FULL_CODING_TASKS", 3):
+            rows = (
+                self._complete_rows("thin", hermes_ops_passes=[True], coding_passes=[True],
+                                     tps=100.0, config_hash="h1")
+                + self._complete_rows("thorough", hermes_ops_passes=[True],
+                                       coding_passes=[True, True, True], tps=10.0,
+                                       config_hash="h2")
+            )
+            self._write_log(rows)
+            bl.main()
+            text = (self.repo / "results" / "LEADERBOARD.md").read_text()
+            section = self._best_overall_section(text)
+            self.assertNotIn("thin", section)  # 1 of 3 required coding tasks -- excluded
+            self.assertIn("thorough", section)  # hit the full 3 -- eligible
+
+    def test_pre_v2_fragment_excluded_even_if_otherwise_complete(self):
+        # A run with real, full-suite-complete data but graded before
+        # benchmark v2's methodology fixes landed (broken Swift-fixture
+        # toolchain, too-tight coding timeout) must not compete in "Best
+        # overall" against current-methodology data -- full suite
+        # coverage doesn't make an old run comparable if the methodology
+        # itself was different.
+        with mock.patch(
+            "build_leaderboard._is_v2_or_later",
+            side_effect=lambda sha: sha == "post-v2-sha",
+        ):
+            rows = (
+                self._complete_rows("old-run", hermes_ops_passes=[True], coding_passes=[True],
+                                     tps=100.0, config_hash="h1", runner_sha="pre-v2-sha")
+                + self._complete_rows("new-run", hermes_ops_passes=[True], coding_passes=[True],
+                                       tps=1.0, config_hash="h2", runner_sha="post-v2-sha")
+            )
+            self._write_log(rows)
+            bl.main()
+            text = (self.repo / "results" / "LEADERBOARD.md").read_text()
+            section = self._best_overall_section(text)
+            self.assertNotIn("old-run", section)
+            self.assertIn("new-run", section)
 
     def test_gate_failing_group_ranks_below_all_gate_passing_groups(self):
         # A model that fails the usefulness gate (hermes_ops < 50%) must

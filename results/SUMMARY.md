@@ -3,8 +3,9 @@
 **Hand-curated, not auto-regenerated** — unlike `LEADERBOARD.md` (rebuilt
 from `log.jsonl` after every run; never hand-edit it), this is a
 point-in-time reading of that data. Re-check against `LEADERBOARD.md` if
-it's been a while — last updated **2026-08-28**, after benchmark v2's
-full 14-config rerun (Phase D) completed.
+it's been a while — last updated **2026-08-29**, after benchmark v2's
+full 14-config rerun (Phase D) completed and the "Best overall"
+eligibility tightening described below.
 
 **Benchmark v2, in one paragraph**: two real methodology bugs were found
 and fixed this round — a shared Swift fixture bug (`kiem_mini-parse-note`
@@ -20,24 +21,41 @@ end under the fixed methodology, plus 4 new candidates added mid-session
 Ornith requant variants) — 14 configs total (one, an MTP variant, was
 deliberately skipped — see below).
 
-**A known auto-table quirk, not a data problem**: `LEADERBOARD.md`'s "Best
-overall" table groups rows by `(config_hash, runner_git_sha)`, and a few
-harness-code commits landed *while* a background benchmark run was still
-executing (an artifact of this session's autonomous cadence — committing
-code fixes between phases of the same live run, including two brand-new
-config files added mid-run and once wiped by the repo-preservation guard
-before being restored). That splits some clean, complete runs into two or
-three `runner_git_sha` fragments, which then fail the table's own "must
-have sanity+hermes_ops+coding in one fragment" eligibility check — so a
-few of the models below (notably the Qwen3.8-27B xhigh-effort row) don't
-appear cleanly in that auto-table despite having real, complete data. One
-related bug — an exact-evidence-count tie between an old partial run and
-a fresh complete rerun of the same config picking the STALE one by
-accident of dict iteration order — was found and fixed this session (see
-`runner/build_leaderboard.py`'s dedup comment); the deeper "git-commit
-fragmentation splits eligibility" issue above is a separate, still-open
-gap. The numbers below are reconciled by hand directly from `log.jsonl`'s
-actual task rows, not from that table.
+**Auto-table eligibility, tightened 2026-08-29**: `LEADERBOARD.md`'s "Best
+overall" table now requires a group to have run the FULL suite on both
+hermes_ops (8 tasks) and coding (11 tasks) — not just "at least one row
+of each" — and to be graded under `benchmark-v2` or a later commit, not
+pre-v2 methodology. This closed two real gaps found the same day: a
+1-coding-task partial rerun had been ranking #1 over
+`APEX-Compact`'s genuine 11/11 result on raw pass-rate alone, and a
+dedup bug was silently erasing a model (Luna, via OpenRouter) from the
+table entirely because the evidence-richest fragment happened to be
+missing its sanity row — dedup now prefers a complete fragment over an
+incomplete-but-richer one, not just the most evidence. Regenerating with
+these fixes shrank the table from 31 rows to 8 and changed the top
+ranking materially (see below).
+
+**Still an open gap, not fixed by the above**: a model with NO single
+`runner_git_sha` fragment that's complete on its own — only several
+complementary partial ones (e.g. one fragment has full coding but no
+sanity row, another has sanity but only partial coding) — still won't
+appear, because merging evidence across fragments graded by different
+harness code risks blending incompatible grading semantics. The
+Qwen3.8-27B xhigh-effort row is exactly this case; its real data is
+reconciled by hand below since the auto-table can't safely show it.
+
+**Read the chart's #1 with its usefulness-gate number, not just the
+score**: `Laguna-XS-2.1` now ranks #1 in the auto-table (0.914) ahead of
+`APEX-Compact` (0.901) — but its usefulness gate is `PASS (50%, 8)`, a
+bare majority pass, not the clean sweep APEX-Compact has. The composite
+score weights pass rate/speed/time/turns among gate-passers; it does NOT
+reward a stronger-than-minimum hermes_ops record beyond clearing the
+50% bar, and doesn't know about Laguna's documented real reliability
+gaps (turn-budget exhaustion, a self-regression, fabricating data under
+pressure — see "Resolved: Laguna-XS-2.1" below). That's exactly why this
+section stays hand-curated rather than just deferring to the chart's top
+row. The numbers throughout this doc are reconciled by hand directly
+from `log.jsonl`'s actual task rows, not read off that table.
 
 ![Best overall composite score by model](score_chart.png)
 
