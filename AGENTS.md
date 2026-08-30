@@ -55,7 +55,14 @@ new session that opens this repo.
   the agent's tests must pass against the real implementation and fail
   against every pre-written buggy mutant swapped in one at a time
   (`runner/grade_mutation.sh`) — otherwise an empty test file would trivially
-  "pass."
+  "pass." **Authorship note**: every fixture, task prompt, held-out check,
+  and mutant in this benchmark — including the subtler mutants added in the
+  2026-08-29 hardening pass — was authored by Claude (Sonnet 5, directly or
+  via a `fork` subagent, which always runs on the same model), not a human
+  domain expert or one of the models being benchmarked. Worth knowing when
+  judging the grading oracle's own reliability: a benchmark candidate that
+  survives a mutant is being measured against a bug an LLM designed to be
+  subtle, not a ground-truth human-authored defect.
 - **Bounded per-task timeout** — a hung/looping model fails the task rather
   than stalling the run. For the prompt suites this is FOUR separate,
   explicitly-declared budgets (per-turn total, per-task total, first-progress,
