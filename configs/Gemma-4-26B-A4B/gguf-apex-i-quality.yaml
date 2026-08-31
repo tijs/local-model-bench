@@ -1,0 +1,90 @@
+model: mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Quality
+# Added 2026-08-31 (user request, follow-up to gguf-apex-i-compact.yaml):
+# the largest APEX variant available for this model, added after
+# checking the memory math holds real headroom on this 32GB machine.
+#
+# Gemma 4's hybrid attention (per google/gemma-4-26B-A4B-it's own
+# config.json) is 25 sliding-window layers (window=1024, KV cache does
+# NOT grow with context) + only 5 full/global layers (KV cache scales
+# with the full 65536-token context here). Computed from the model's
+# actual num_key_value_heads/head_dim/global_head_dim: ~200MB total for
+# the 25 sliding layers (capped at 1024 tokens each) + ~1.28GB for the 5
+# global layers at 65536 tokens = ~1.5GB total KV cache -- remarkably
+# small regardless of quant size, thanks to the hybrid design. Budget:
+# 19.16GB weights (20,576,637,248 bytes, confirmed via HF resolve HEAD
+# request 2026-08-31) + ~1.5GB KV cache + ~2GB runtime/OS overhead =
+# ~22.7GB, comfortably inside 32GB with ~9GB headroom -- a genuine step
+# up from I-Compact (13.8GB) with real memory margin left over, not a
+# risky config.
+#
+# I-Quality (not plain Quality) chosen for the same reason as
+# gguf-apex-i-compact.yaml: imatrix calibration on a dataset that
+# explicitly includes tool-calling/agentic traces, closer to this
+# benchmark's actual workload than the non-imatrix variant.
+#
+# This is an ADDITIONAL data point alongside gguf-apex-i-compact.yaml,
+# not a replacement -- same architecture/author/technique, different
+# quant size, to see whether the extra ~5.4GB buys a real quality
+# improvement on this benchmark's actual tasks.
+temperature: 1.0
+reasoning_mode: unspecified
+  # Same open question as gguf-apex-i-compact.yaml -- thinking mode
+  # requires injecting a `<|think|>` token into the system prompt, not
+  # wired up for this run either. See that config's own known_gaps.
+inference_engine: llama.cpp
+
+benchmark_launch_command: |
+  HF_TOKEN=$(cat ~/.cache/huggingface/token) llama-server \
+    --hf-repo mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Quality \
+    --host 127.0.0.1 --port 8017 \
+    --temp 1.0 --top-p 0.95 --top-k 64 --ctx-size 65536 \
+    --jinja
+
+benchmark_endpoint: http://127.0.0.1:8017/v1
+  # native tool_calls expected, same as gguf-apex-i-compact.yaml -- not
+  # independently re-verified for this specific quant file.
+
+orchestration:
+  raw_port: 8017
+  needs_proxy: false
+  hermes_provider: gemma4-26b-apex-i-quality-gguf   # registered in
+    # ~/.hermes/profiles/bench/config.yaml, context_length: 65536.
+  viable: full
+
+settings:
+  - name: architecture
+    value: "Same as gguf-apex-i-compact.yaml -- MoE, ~4B active
+      params/token out of 26B total (A4B), 128 routed experts (8
+      active), 30 layers (25 sliding-window attention window=1024, 5
+      full/global attention), hybrid design keeps KV cache small
+      regardless of context length. See that config's header comment
+      for the full KV-cache calculation."
+    source: "https://huggingface.co/google/gemma-4-26B-A4B-it"
+  - name: quant
+    value: "APEX-I-Quality (19.16GB, 20,576,637,248 bytes) -- the
+      largest APEX variant for this model, imatrix-calibrated (chat,
+      code, reasoning, tool-calling, agentic traces, Wikipedia). Same
+      quantization technique as gguf-apex-i-compact.yaml (routed
+      experts more aggressive, shared/attention components higher
+      precision), just a less aggressive overall compression target."
+    source: "https://huggingface.co/mudler/gemma-4-26B-A4B-it-APEX-GGUF"
+  - name: temperature / top_p / top_k
+    value: "1.0 / 0.95 / 64 -- same as gguf-apex-i-compact.yaml, the
+      base model's own card-recommended sampling settings."
+    source: "https://huggingface.co/google/gemma-4-26B-A4B-it"
+  - name: context_length
+    value: 65536
+    source: "hermes's hard >=64K minimum for the coding suite, same as
+      every other config in this repo."
+
+known_gaps:
+  - "Same as gguf-apex-i-compact.yaml: thinking mode not wired up,
+    native tool_calls format not independently verified live before
+    this run, mmproj-F16.gguf (vision) exists but unused."
+  - "First live test of this specific quant file -- no prior throughput
+    data exists for I-Quality specifically (I-Compact's own numbers
+    don't necessarily transfer, since decode speed can vary by quant
+    mix even at similar total size)."
+
+last_updated: 2026-08-31
+last_verified_against_docs: 2026-08-31
