@@ -1,0 +1,414 @@
+$ hermes chat --profile bench --provider qwen-gguf-q5-64k -m unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M --max-turns 40
+
+--- stdout ---
+
+┌─ Reasoning ──────────────────────────────────────────────────────────────────┐
+To understand the structure of the codebase, let's start by exploring the workspace
+.
+To understand the structure of the codebase, let's start by exploring the workspace.
+I'll try reading the main files: types.ts, buildings/registry.ts, availability.ts
+, actions.ts, sim/index.ts, and the tests.
+I'll try reading the main files: types.ts, buildings/registry.ts, availability.ts, actions.ts, sim/index.ts, and the tests.
+I need to check the behavior of resources/costs.ts (canAfford, payCost, etc.), buildings
+/actions.ts (build), and resources/storage.ts (storage cap — sellResource converts
+ to stone; should it respect the storage cap? The spec says to convert amount into
+ stone at 2:1 and not go below 0 — it doesn't mention the cap. Let me look at the
+ existing code to check the conventions).
+I need to check the behavior of resources/costs.ts (canAfford, payCost, etc.), buildings/actions.ts (build), and resources/storage.ts (storage cap — sellResource converts to stone; should it respect the storage cap? The spec says to convert amount into stone at 2:1 and not go below 0 — it doesn't mention the cap. Let me look at the existing code to check the conventions).
+Let me check other places where BuildingKind is used exhaustively — upgrades.ts, format
+.ts, report.ts, production.ts — to see if there's anything that needs to be updated
+ when adding a new kind (Record<BuildingKind, ...> will break type checking).
+Let me check other places where BuildingKind is used exhaustively — upgrades.ts, format.ts, report.ts, production.ts — to see if there's anything that needs to be updated when adding a new kind (Record<BuildingKind, ...> will break type checking).
+Let me check the other files: src/index.ts, buildings/index.ts, resources/index.ts
+, sim/turn.ts, and possibly cli/run.ts, to see if there are any places that exhaust
+ively switch on BuildingKind (a Record<BuildingKind, ...> would fail type checking
+ if a new kind is added without an entry). BUILDING_REGISTRY and BUILDING_CATEGORY
+ are Record<BuildingKind, ...>, so both need entries for market. Also, I'll check
+ whether there's anything in events.ts, history.ts, turn.ts, or cli that references
+ the building kinds. Let me quickly grep for "storehouse" or "watchtower" to find
+ all the exhaustive usages.
+Let me check the other files: src/index.ts, buildings/index.ts, resources/index.ts, sim/turn.ts, and possibly cli/run.ts, to see if there are any places that exhaustively switch on BuildingKind (a Record<BuildingKind, ...> would fail type checking if a new kind is added without an entry). BUILDING_REGISTRY and BUILDING_CATEGORY are Record<BuildingKind, ...>, so both need entries for market. Also, I'll check whether there's anything in events.ts, history.ts, turn.ts, or cli that references the building kinds. Let me quickly grep for "storehouse" or "watchtower" to find all the exhaustive usages.
+With this, I now have a full picture of where `BuildingKind` is used exhaustively
+:
+- src/types.ts: the `BuildingKind` union type
+- src/buildings/registry.ts: `BUILDING_REGISTRY` (Record<BuildingKind, ...>) and `
+BUILDING_CATEGORY` (Record<BuildingKind, ...>)
+- Other files reference `BuildingKind` as a type, but there are no exhaustive Records
+ other than the two above.
+
+Let me check sim/events.ts to confirm how watchtower is used (raid reduction) — market
+ is unrelated, but I'll check whether there's anything that would break with the new
+ kind. It uses `BuildingKind[]` and such. No problem.
+
+Plan:
+1. types.ts: add "market" to the `BuildingKind` union.
+2. registry.ts: add `market: { cost: { wood: 20, stone: 15 }, requires: "storehouse
+" }` to `BUILDING_REGISTRY`, and add `market: "economy"` to `BUILDING_CATEGORY`...
+ wait, `BuildingCategory` is `"shelter" | "production" | "storage" | "defense"`. Since
+ `BUILDING_CATEGORY` is `Record<BuildingKind, BuildingCategory>`, I have to assign
+ some category to market. Options: add a new category "trade" to the `BuildingCategory
+` union, or use "production". Market is a trade facility. Adding "trade" to `Building
+Category` is the cleanest. Since `BUILDING_CATEGORY` is a `Record<BuildingKind, Building
+Category>`, adding "trade" is safe.
+
+Actually, is there anywhere `BuildingCategory` is used exhaustively? cli/format.ts
+ imports `BUILDING_CATEGORY`? Let me check — format.ts doesn't import it (it imports
+ `ALL_BUILDING_KINDS`). `buildingsInCategory` is in the registry. The CLI might use
+ it. Adding a new category value is safe for consumers who use `buildingsInCategory
+` per category. Let me check the usage of `buildingsInCategory` and `BuildingCategory
+` in cli/run.ts.
+
+3. Create src/sim/trade.ts:
+
+```ts
+import type { ResourceKind, Settlement } from "../types";
+
+export const TRADE_STONE_PER_SOLD = 0.5; // hmm
+```
+
+Spec: convert `amount` of the specified resource into stone at a 2:1 ratio (truncated
+). In other words, for 2 units sold, 1 stone is gained → stone gained = floor(amount
+ / 2). The sold resource decreases by `amount`, but is clamped so it doesn't go below
+ 0. So actually sold = min(amount, resources[resource]). Should the stone conversion
+ be based on the actual number sold or the requested amount? "Convert `amount` of
+ the specified resource into stone at a 2:1 ratio (truncated), never bringing the
+ sold resource below 0." I think the stone conversion should be based on what was
+ actually sold. Hmm — it's ambiguous. The safest reading: sold = min(amount, have
+); stone gained = floor(sold / 2). If amount > have, we can't sell what we don't have
+, so the conversion is based on the actual sold amount. Let me go with that.
+
+If no market has been built, throw an exception. Use countOf from buildings/actions
+? `import { countOf } from "../buildings/actions"` — sim already imports buildings
+ (report.ts imports from buildings/upgrades, turn probably imports resources). Let
+ me check the imports in sim/turn.ts to follow the convention. I'll go ahead and read
+ turn.ts, events.ts, history.ts, the buildings/index.ts, resources/index.ts, and cli
+ files.
+
+4. Export `sellResource` from sim/index.ts.
+
+Also, the comment on the `credit` function in costs.ts says "used in resources/production
+.ts and sim/trade.ts (added by the market feature)" — interesting: the fixture anticip
+ates trade.ts using credit. Let me use credit to add stone.
+
+Let me read the remaining files.
+With this, I now have a full picture of where `BuildingKind` is used exhaustively:
+- src/types.ts: the `BuildingKind` union type
+- src/buildings/registry.ts: `BUILDING_REGISTRY` (Record<BuildingKind, ...>) and `BUILDING_CATEGORY` (Record<BuildingKind, ...>)
+- Other files reference `BuildingKind` as a type, but there are no exhaustive Records other than the two above.
+
+Let me check sim/events.ts to confirm how watchtower is used (raid reduction) — market is unrelated, but I'll check whether there's anything that would break with the new kind. It uses `BuildingKind[]` and such. No problem.
+
+Plan:
+1. types.ts: add "market" to the `BuildingKind` union.
+2. registry.ts: add `market: { cost: { wood: 20, stone: 15 }, requires: "storehouse" }` to `BUILDING_REGISTRY`, and add `market: "economy"` to `BUILDING_CATEGORY`... wait, `BuildingCategory` is `"shelter" | "production" | "storage" | "defense"`. Since `BUILDING_CATEGORY` is `Record<BuildingKind, BuildingCategory>`, I have to assign some category to market. Options: add a new category "trade" to the `BuildingCategory` union, or use "production". Market is a trade facility. Adding "trade" to `BuildingCategory` is the cleanest. Since `BUILDING_CATEGORY` is a `Record<BuildingKind, BuildingCategory>`, adding "trade" is safe.
+
+Actually, is there anywhere `BuildingCategory` is used exhaustively? cli/format.ts imports `BUILDING_CATEGORY`? Let me check — format.ts doesn't import it (it imports `ALL_BUILDING_KINDS`). `buildingsInCategory` is in the registry. The CLI might use it. Adding a new category value is safe for consumers who use `buildingsInCategory` per category. Let me check the usage of `buildingsInCategory` and `BuildingCategory` in cli/run.ts.
+
+3. Create src/sim/trade.ts:
+
+```ts
+import type { ResourceKind, Settlement } from "../types";
+
+export const TRADE_STONE_PER_SOLD = 0.5; // hmm
+```
+
+Spec: convert `amount` of the specified resource into stone at a 2:1 ratio (truncated). In other words, for 2 units sold, 1 stone is gained → stone gained = floor(amount / 2). The sold resource decreases by `amount`, but is clamped so it doesn't go below 0. So actually sold = min(amount, resources[resource]). Should the stone conversion be based on the actual number sold or the requested amount? "Convert `amount` of the specified resource into stone at a 2:1 ratio (truncated), never bringing the sold resource below 0." I think the stone conversion should be based on what was actually sold. Hmm — it's ambiguous. The safest reading: sold = min(amount, have); stone gained = floor(sold / 2). If amount > have, we can't sell what we don't have, so the conversion is based on the actual sold amount. Let me go with that.
+
+If no market has been built, throw an exception. Use countOf from buildings/actions? `import { countOf } from "../buildings/actions"` — sim already imports buildings (report.ts imports from buildings/upgrades, turn probably imports resources). Let me check the imports in sim/turn.ts to follow the convention. I'll go ahead and read turn.ts, events.ts, history.ts, the buildings/index.ts, resources/index.ts, and cli files.
+
+4. Export `sellResource` from sim/index.ts.
+
+Also, the comment on the `credit` function in costs.ts says "used in resources/production.ts and sim/trade.ts (added by the market feature)" — interesting: the fixture anticipates trade.ts using credit. Let me use credit to add stone.
+
+Let me read the remaining files.
+Now I've got a grasp of the overall picture. What needs to be done:
+
+1. Add "market" to the `BuildingKind` union in src/types.ts
+2. Add a market entry to BUILDING_REGISTRY: cost { wood: 20, stone: 15 }, requires
+: "storehouse"
+3. Add market to the BUILDING_CATEGORY map — what category? The options are "shelter
+" | "production" | "storage" | "defense". Market is for trade... none of them fit
+ perfectly. Hmm. Since I can't add a new category without changing the BuildingCategory
+ type... well, I could add a "trade" category. The task doesn't specify. Adding "
+trade" to the BuildingCategory union seems reasonable, since the map is a complete
+ Record. Let me add "trade" to the union and set market: "trade". Or "production"?
+ Market doesn't produce. Let's go with the new "trade" category — it's the minimal
+ and reasonable choice.
+4. Create sellResource in src/sim/trade.ts:
+   - Throws if there's no market in buildings
+   - sold = Math.min(amount, resources[resource]) — "never drop below 0 when selling
+"
+   - gained = Math.floor(sold / 2) (2:1 ratio, rounded down)
+   - returns a new settlement with resources[resource] -= sold, stone += gained
+
+   Use the credit helper? credit(resources, "stone", gained). For the deduction, I
+ can use deduct with { [resource]: sold }.
+
+5. Export sellResource from src/sim/index.ts.
+
+Should sellResource be clamped to the storage cap? The task doesn't say so. Keep it
+ simple — just conversion, no clamping.
+
+Edge cases: amount 0 → no-op but valid. Selling stone to stone? The spec says "convert
+ the specified resource into stone" — selling stone would be stone→stone at 2:1, weird
+ but not prohibited. The spec doesn't say to throw when selling stone. Keep it literal
+ to the spec: sell any ResourceKind. Hmm, but selling stone at 2:1 to gain stone is
+ a net loss... that's fine, follow the spec exactly.
+
+Also, the registry's doc comment mentions the prerequisite chain — I can update it
+ to include market: "hut -> storehouse -> watchtower / market". Let me update it:
+ "hut -> storehouse -> watchtower" and "storehouse -> market". A minor comment tweak
+ is reasonable.
+
+Now let me write the changes.
+Now I've got a grasp of the overall picture. What needs to be done:
+
+1. Add "market" to the `BuildingKind` union in src/types.ts
+2. Add a market entry to BUILDING_REGISTRY: cost { wood: 20, stone: 15 }, requires: "storehouse"
+3. Add market to the BUILDING_CATEGORY map — what category? The options are "shelter" | "production" | "storage" | "defense". Market is for trade... none of them fit perfectly. Hmm. Since I can't add a new category without changing the BuildingCategory type... well, I could add a "trade" category. The task doesn't specify. Adding "trade" to the BuildingCategory union seems reasonable, since the map is a complete Record. Let me add "trade" to the union and set market: "trade". Or "production"? Market doesn't produce. Let's go with the new "trade" category — it's the minimal and reasonable choice.
+4. Create sellResource in src/sim/trade.ts:
+   - Throws if there's no market in buildings
+   - sold = Math.min(amount, resources[resource]) — "never drop below 0 when selling"
+   - gained = Math.floor(sold / 2) (2:1 ratio, rounded down)
+   - returns a new settlement with resources[resource] -= sold, stone += gained
+
+   Use the credit helper? credit(resources, "stone", gained). For the deduction, I can use deduct with { [resource]: sold }.
+
+5. Export sellResource from src/sim/index.ts.
+
+Should sellResource be clamped to the storage cap? The task doesn't say so. Keep it simple — just conversion, no clamping.
+
+Edge cases: amount 0 → no-op but valid. Selling stone to stone? The spec says "convert the specified resource into stone" — selling stone would be stone→stone at 2:1, weird but not prohibited. The spec doesn't say to throw when selling stone. Keep it literal to the spec: sell any ResourceKind. Hmm, but selling stone at 2:1 to gain stone is a net loss... that's fine, follow the spec exactly.
+
+Also, the registry's doc comment mentions the prerequisite chain — I can update it to include market: "hut -> storehouse -> watchtower / market". Let me update it: "hut -> storehouse -> watchtower" and "storehouse -> market". A minor comment tweak is reasonable.
+
+Now let me write the changes.
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmpfv013w3a/run/src/types.ts → b//Users/tijs/projects/local-model-bench/runner/runs/tmpfv013w3a/run/src/types.ts
+@@ -1,7 +1,7 @@
+ export type ResourceKind = "wood" | "food" | "stone";
+ export type Resources = Record<ResourceKind, number>;
+ 
+-export type BuildingKind = "hut" | "farm" | "quarry" | "storehouse" | "watchtower" | "mine";
++export type BuildingKind = "hut" | "farm" | "quarry" | "storehouse" | "watchtower" | "mine" | "market";
+ 
+ export interface BuildingDef {
+   cost: Partial<Resources>;
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmpfv013w3a/run/src/buildings/registry.ts → b//Users/tijs/projects/local-model-bench/runner/runs/tmpfv013w3a/run/src/buildings/registry.ts
+@@ -18,6 +18,7 @@
+   storehouse: { cost: { wood: 25, stone: 10 }, requires: "hut" },
+   watchtower: { cost: { wood: 15, stone: 20 }, requires: "storehouse" },
+   mine: { cost: { wood: 30, stone: 10 }, requires: "quarry" },
++  market: { cost: { wood: 20, stone: 15 }, requires: "storehouse" },
+ };
+ 
+ /** Every building kind, in a stable declaration order — used by CLI
+The registry's comment states that the prerequisite chain is hut -> storehouse ->
+ watchtower. We should update the comment to mention market. Also, we need to add
+ market to BUILDING_CATEGORY. Market is a commercial/trading building — the closest
+ categories are "shelter" | "production" | "storage" | "defense". Market could arguably
+ be "production" (it produces stone from other resources). I'll go with "production
+".
+The registry's comment states that the prerequisite chain is hut -> storehouse -> watchtower. We should update the comment to mention market. Also, we need to add market to BUILDING_CATEGORY. Market is a commercial/trading building — the closest categories are "shelter" | "production" | "storage" | "defense". Market could arguably be "production" (it produces stone from other resources). I'll go with "production".
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmpfv013w3a/run/src/buildings/registry.ts → b//Users/tijs/projects/local-model-bench/runner/runs/tmpfv013w3a/run/src/buildings/registry.ts
+@@ -45,6 +45,7 @@
+   mine: "production",
+   storehouse: "storage",
+   watchtower: "defense",
++  market: "production",
+ };
+ 
+ /** Every built building kind matching `category`, in the settlement's own
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmpfv013w3a/run/src/buildings/registry.ts → b//Users/tijs/projects/local-model-bench/runner/runs/tmpfv013w3a/run/src/buildings/registry.ts
+@@ -7,9 +7,10 @@
+  * building kind here is enough to make it buildable (assuming the type
+  * union in types.ts also lists it).
+  *
+- * Prerequisite chain, for reference: hut -> storehouse -> watchtower.
+- * quarry -> mine is a separate branch (mine is a heavier stone producer
+- * that assumes a quarry's basic infrastructure already exists).
++ * Prerequisite chain, for reference: hut -> storehouse -> watchtower, and
++ * storehouse -> market. quarry -> mine is a separate branch (mine is a
++ * heavier stone producer that assumes a quarry's basic infrastructure
++ * already exists).
+  */
+ export const BUILDING_REGISTRY: Record<BuildingKind, BuildingDef> = {
+   hut: { cost: { wood: 10 }, requires: null },
+Next, I'll create src/sim/trade.ts and export it from src/sim/index.ts.
+
+Design: sellResource(settlement, resource, amount) → Settlement. It sells `amount
+` of resource (clamped to what's on hand, never going below 0), converts at a 2:1
+ ratio (rounded down): stone gained = floor(sold / 2). Throws if no market exists
+.
+
+Use the credit helper from resources/costs (its doc comment already mentions sim/tr
+ade.ts). Write the module in the same style with doc comments.
+
+Edge cases: selling stone itself is fine (stone → stone, no problem). Negative amount
+? Not in the spec. Keep it simple and align with the spec. sold = Math.min(amount
+, settlement.resources[resource]), gain = Math.floor(sold / 2).
+Next, I'll create src/sim/trade.ts and export it from src/sim/index.ts.
+
+Design: sellResource(settlement, resource, amount) → Settlement. It sells `amount` of resource (clamped to what's on hand, never going below 0), converts at a 2:1 ratio (rounded down): stone gained = floor(sold / 2). Throws if no market exists.
+
+Use the credit helper from resources/costs (its doc comment already mentions sim/trade.ts). Write the module in the same style with doc comments.
+
+Edge cases: selling stone itself is fine (stone → stone, no problem). Negative amount? Not in the spec. Keep it simple and align with the spec. sold = Math.min(amount, settlement.resources[resource]), gain = Math.floor(sold / 2).
+  ┊ review diff
+a/src/sim/trade.ts → b/src/sim/trade.ts
+@@ -0,0 +1,24 @@
++import type { ResourceKind, Settlement } from "../types";
++import { credit } from "../resources/costs";
++
++/**
++ * Sells `amount` of `resource` at a built market, converting it to stone at
++ * a 2:1 ratio (rounded down — selling an odd amount loses the remainder).
++ * Never takes the sold resource below 0: if the settlement has less than
++ * `amount` on hand, only what it has is sold. Throws if no market is built.
++ * Immutably returns the updated settlement.
++ */
++export function sellResource(settlement: Settlement, resource: ResourceKind, amount: number): Settlement {
++  if (!settlement.buildings.includes("market")) {
++    throw new Error("cannot sell resources: no market built");
++  }
++  const sold = Math.max(0, Math.min(amount, settlement.resources[resource]));
++  const stoneGain = Math.floor(sold / 2);
++  return {
++    ...settlement,
++    resources: credit({
++      ...settlement.resources,
++      [resource]: settlement.resources[resource] - sold,
++    }, "stone", stoneGain),
++  };
++}
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmpfv013w3a/run/src/sim/index.ts → b//Users/tijs/projects/local-model-bench/runner/runs/tmpfv013w3a/run/src/sim/index.ts
+@@ -9,3 +9,4 @@
+ } from "./history";
+ export { buildReport, summarizeHistory } from "./report";
+ export type { SettlementReport, HistorySummary } from "./report";
++export { sellResource } from "./trade";
+One edge case: selling stone itself — the spread `{...resources, [resource]: ...}`
+ and then the credit to stone. If resource === "stone", the spread sets stone to resources
+.stone - sold, and credit adds stoneGain. No problem.
+
+Also, the `credit` helper is documented as "used in resources/production.ts and sim
+/trade.ts (added for the market feature)", which matches nicely.
+
+Next, I'll add tests and run typecheck and tests. The task doesn't explicitly ask
+ for tests, but I'll verify with the existing test suite and typecheck. Should I add
+ a small test for trade? The existing test file covers other modules. Adding a test
+ would be a nice verification, but it also means touching the tests. I'll add a describe
+ block for sellResource — it's consistent with the repo's style, and it also verifies
+ the feature. Let's add it.
+One edge case: selling stone itself — the spread `{...resources, [resource]: ...}` and then the credit to stone. If resource === "stone", the spread sets stone to resources.stone - sold, and credit adds stoneGain. No problem.
+
+Also, the `credit` helper is documented as "used in resources/production.ts and sim/trade.ts (added for the market feature)", which matches nicely.
+
+Next, I'll add tests and run typecheck and tests. The task doesn't explicitly ask for tests, but I'll verify with the existing test suite and typecheck. Should I add a small test for trade? The existing test file covers other modules. Adding a test would be a nice verification, but it also means touching the tests. I'll add a describe block for sellResource — it's consistent with the repo's style, and it also verifies the feature. Let's add it.
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmpfv013w3a/run/tests/settlement.test.ts → b//Users/tijs/projects/local-model-bench/runner/runs/tmpfv013w3a/run/tests/settlement.test.ts
+@@ -4,6 +4,7 @@
+ import { availableBuildings, build } from "../src/buildings";
+ import { advanceTurn } from "../src/sim/turn";
+ import { applyRaidIfDue } from "../src/sim/events";
++import { sellResource } from "../src/sim";
+ import type { Settlement } from "../src/types";
+ 
+ function settlement(overrides: Partial<Settlement> = {}): Settlement {
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmpfv013w3a/run/tests/settlement.test.ts → b//Users/tijs/projects/local-model-bench/runner/runs/tmpfv013w3a/run/tests/settlement.test.ts
+@@ -94,6 +94,45 @@
+   });
+ });
+ 
++describe("market prerequisite", () => {
++  it("is not available before a storehouse is built", () => {
++    const s = settlement({ resources: { wood: 100, food: 10, stone: 100 }, buildings: ["hut"] });
++    expect(availableBuildings(s)).not.toContain("market");
++  });
++
++  it("is available once a storehouse is built and affordable", () => {
++    const s = settlement({ resources: { wood: 100, food: 10, stone: 100 }, buildings: ["hut", "storehouse"] });
++    expect(availableBuildings(s)).toContain("market");
++  });
++});
++
++describe("sellResource", () => {
++  it("converts a sold resource into stone at a 2:1 ratio", () => {
++    const s = settlement({ resources: { wood: 30, food: 10, stone: 10 }, buildings: ["market"] });
++    const next = sellResource(s, "wood", 10);
++    expect(next.resources.wood).toBe(20);
++    expect(next.resources.stone).toBe(15);
++  });
++
++  it("rounds down an odd amount", () => {
++    const s = settlement({ resources: { wood: 30, food: 10, stone: 10 }, buildings: ["market"] });
++    const next = sellResource(s, "wood", 7);
++    expect(next.resources.wood).toBe(23);
++    expect(next.resources.stone).toBe(13); // 7 / 2 -> 3
++  });
++
++  it("never takes the sold resource below 0", () => {
++    const s = settlement({ resources: { wood: 3, food: 10, stone: 10 }, buildings: ["market"] });
++    const next = sellResource(s, "wood", 50);
++    expect(next.resources.wood).toBe(0);
++    expect(next.resources.stone).toBe(11); // 3 / 2 -> 1
++  });
++
++  it("throws when no market is built", () => {
++    expect(() => sellResource(settlement(), "wood", 10)).toThrow();
++  });
++});
++
+ describe("applyRaidIfDue", () => {
+   it("does not raid a small settlement", () => {
+     const { raided } = applyRaidIfDue(settlement({ turn: 5, population: 3 }));
+Wait a moment — one subtle point: when selling stone itself at a market — stone gets
+ sold, and then stone gets added back at 2:1... For example, if you sell 10 stone
+ with stone:10, then it becomes 0 + 5 = 5. This is the correct behavior per the spec
+. My sellResource handles this, because it subtracts first and then credits. Good
+.
+
+Also a note: the settlement() in the test has buildings: [] — the "throws without
+ market" test is fine.
+
+Running the tests and type checking.
+Wait a moment — one subtle point: when selling stone itself at a market — stone gets sold, and then stone gets added back at 2:1... For example, if you sell 10 stone with stone:10, then it becomes 0 + 5 = 5. This is the correct behavior per the spec. My sellResource handles this, because it subtracts first and then credits. Good.
+
+Also a note: the settlement() in the test has buildings: [] — the "throws without market" test is fine.
+
+Running the tests and type checking.
+All done. Type checking passed, 21 tests passed (the original 15 + 6 new ones... wait
+, was the original 15? Let me count: costs 3, availableBuildings 2, build 2, storage
+Cap 2, advanceTurn 3, applyRaidIfDue 3 = 15. Adding market prerequisites 2 + sell
+Resource 4 = 21. Correct.)
+All done. Type checking passed, 21 tests passed (the original 15 + 6 new ones... wait, was the original 15? Let me count: costs 3, availableBuildings 2, build 2, storageCap 2, advanceTurn 3, applyRaidIfDue 3 = 15. Adding market prerequisites 2 + sellResource 4 = 21. Correct.)
+Done. Typecheck passes and all 21 tests pass (15 existing + 6 new).
+
+Changes (all under /Users/tijs/projects/local-model-bench/runner/runs/tmpfv013w3a/run):
+
+1. src/types.ts:4 — added "market" to the BuildingKind union.
+
+2. src/buildings/registry.ts — added `market: { cost: { wood: 20, stone: 15 }, requires: "storehouse" }` to BUILDING_REGISTRY (src/buildings/registry.ts:22) and `market: "production"` to BUILDING_CATEGORY. Prerequisite enforcement needed no other changes: availability.ts and actions.ts read the registry, so the storehouse requirement is enforced automatically. Also updated the prerequisite-chain doc comment.
+
+3. src/sim/trade.ts (new) — `sellResource(settlement, resource, amount)`:
+   - Throws if no "market" is in settlement.buildings.
+   - Sells min(amount, on-hand) so the sold resource never goes below 0.
+   - Credits stone = floor(sold / 2), using the existing credit() helper from resources/costs.ts.
+   - Returns a new Settlement, leaving the input untouched.
+
+4. src/sim/index.ts — re-exports `sellResource` alongside the module's other exports (which also makes it available from the top-level src/index.ts).
+
+5. tests/settlement.test.ts — 6 new tests: market locked without a storehouse / unlocked with one; 2:1 conversion; odd-amount rounding down; selling more than on-hand clamps to 0; throws with no market.
+
+One note: selling stone itself is allowed (resource: ResourceKind includes "stone") — it nets floor(sold/2) - sold stone, which is a loss, but the spec only constrained the ratio and the no-negative-floor, so I left it permitted.
+
+
+--- stderr ---
+
+session_id: 20260830_134843_9d5244
+

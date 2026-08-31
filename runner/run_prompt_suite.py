@@ -147,6 +147,7 @@ def main():
     api_key_env = None
     ttft_measurable = True
     raw_port = None
+    hermes_ops_max_tokens = None
     if args.config:
         config_hash, config_path = snapshot_config(args.config)
         config_yaml = yaml.safe_load(Path(args.config).read_text())
@@ -172,6 +173,13 @@ def main():
         # the subprocess below (would leak via `ps`), and is read directly
         # from this process's own environment by run_prompt.py itself.
         api_key_env = (config_yaml.get("orchestration") or {}).get("api_key_env")
+        # Per-model override for hermes_ops's one-shot run_prompt.py client,
+        # which (unlike the coding suites' real `hermes chat` agentic loop)
+        # has no finish_reason=length continuation/retry logic of its own.
+        # run_prompt.py's own --max-tokens default (4096) matches hermes's
+        # real fitness-profile default, so this is only set for thinking-mode
+        # models that need more budget to reason AND answer in one turn.
+        hermes_ops_max_tokens = config_yaml.get("hermes_ops_max_tokens")
 
     rows = []
     for task in task_spec["tasks"]:
@@ -212,6 +220,8 @@ def main():
                     ]
                     if api_key_env:
                         cmd += ["--api-key-env", api_key_env]
+                    if hermes_ops_max_tokens is not None:
+                        cmd += ["--max-tokens", str(hermes_ops_max_tokens)]
                     if connect_timeout is not None:
                         cmd += ["--connect-timeout", str(connect_timeout)]
                     if first_progress_timeout is not None:

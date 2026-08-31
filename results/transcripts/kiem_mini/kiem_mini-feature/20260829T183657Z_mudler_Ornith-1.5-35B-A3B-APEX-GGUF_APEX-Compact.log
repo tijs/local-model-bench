@@ -1,0 +1,460 @@
+$ hermes chat --profile bench --provider ornith-apex-gguf -m mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact --max-turns 40
+
+--- stdout ---
+
+┌─ Reasoning ──────────────────────────────────────────────────────────────────┐
+Let me start by understanding the codebase. I need to look at the structure first
+.
+Let me start by understanding the codebase. I need to look at the structure first.
+Let me read the relevant files: lib.rs, main.rs, store.rs, and Cargo.toml.
+Let me read the relevant files: lib.rs, main.rs, store.rs, and Cargo.toml.
+Now I understand the structure. Let me implement the `filter_by_tag` function in lib
+.rs and wire the `--tag` flag into the list command in main.rs.
+
+Let me add the function after `ordered_pinned_first` or near it. I'll add it after
+ line 33.
+Now I understand the structure. Let me implement the `filter_by_tag` function in lib.rs and wire the `--tag` flag into the list command in main.rs.
+
+Let me add the function after `ordered_pinned_first` or near it. I'll add it after line 33.
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmp0u63ke2y/run/rust/src/lib.rs → b//Users/tijs/projects/local-model-bench/runner/runs/tmp0u63ke2y/run/rust/src/lib.rs
+@@ -32,6 +32,12 @@
+     pinned
+ }
+ 
++/// Returns the notes whose `tags` contain exactly `tag` (exact match, not a
++/// substring), preserving their relative order.
++pub fn filter_by_tag<'a>(notes: &'a [Note], tag: &str) -> Vec<&'a Note> {
++    notes.iter().filter(|n| n.tags.iter().any(|t| t == tag)).copied().collect()
++}
++
+ /// Extracts #tags from a note's body text, in the order they appear.
+ pub fn extract_tags(text: &str) -> Vec<String> {
+     text.split_whitespace()
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmp0u63ke2y/run/rust/src/main.rs → b//Users/tijs/projects/local-model-bench/runner/runs/tmp0u63ke2y/run/rust/src/main.rs
+@@ -30,7 +30,28 @@
+         }
+         "list" => {
+             let notes = store::load_all(&data_dir()).expect("load failed");
+-            for n in notes {
++
++            // Parse an optional --tag <TAG> flag from the remaining arguments.
++            let mut tag_filter: Option<&str> = None;
++            let mut i = 2;
++            while i < args.len() {
++                match args[i].as_str() {
++                    "--tag" => {
++                        tag_filter = Some(args.get(i + 1).map(|s| s.as_str()).unwrap_or_default());
++                    }
++                    other => {
++                        eprintln!("unknown option for list: {other}");
++                        std::process::exit(1);
++                    }
++                }
++                i += 1;
++            }
++
++            let selected = match tag_filter {
++                Some(tag) => notekeep::filter_by_tag(&notes, tag),
++                None => notes.iter().collect(),
++            };
++            for n in selected {
+                 println!("{} {}", n.id, n.title);
+             }
+         }
+The lint error is just a formatting issue (rustfmt wants the line broken). Let me
+ fix that to match the project style. The `main.rs` lint is OK. Let me fix the lib
+.rs formatting to satisfy rustfmt.
+The lint error is just a formatting issue (rustfmt wants the line broken). Let me fix that to match the project style. The `main.rs` lint is OK. Let me fix the lib.rs formatting to satisfy rustfmt.
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmp0u63ke2y/run/rust/src/lib.rs → b//Users/tijs/projects/local-model-bench/runner/runs/tmp0u63ke2y/run/rust/src/lib.rs
+@@ -35,7 +35,11 @@
+ /// Returns the notes whose `tags` contain exactly `tag` (exact match, not a
+ /// substring), preserving their relative order.
+ pub fn filter_by_tag<'a>(notes: &'a [Note], tag: &str) -> Vec<&'a Note> {
+-    notes.iter().filter(|n| n.tags.iter().any(|t| t == tag)).copied().collect()
++    notes
++        .iter()
++        .filter(|n| n.tags.iter().any(|t| t == tag))
++        .copied()
++        .collect()
+ }
+ 
+ /// Extracts #tags from a note's body text, in the order they appear.
+Now let me build and verify it compiles. Let me check if cargo is available.
+Now let me build and verify it compiles. Let me check if cargo is available.
+The issue is `t == tag` where `t` is `&String` and `tag` is `&str`. The comparison
+ needs adjustment. Let me fix the closure to compare properly. Actually the error
+ is about `Copied` not being an Iterator — that's the trait bound issue. Wait, `Cop
+ied` should be an Iterator. Let me re-read.
+
+Actually the error says `Copied<...>: Iterator` not satisfied, which is required by
+ `&mut Copied<...>: Iterator`. This is a secondary error. The primary is E0277. Let
+ me see the full error.
+The issue is `t == tag` where `t` is `&String` and `tag` is `&str`. The comparison needs adjustment. Let me fix the closure to compare properly. Actually the error is about `Copied` not being an Iterator — that's the trait bound issue. Wait, `Copied` should be an Iterator. Let me re-read.
+
+Actually the error says `Copied<...>: Iterator` not satisfied, which is required by `&mut Copied<...>: Iterator`. This is a secondary error. The primary is E0277. Let me see the full error.
+`Note` isn't `Copy`, only `Clone`. Since I want to return `&'a Note` references, I
+ don't need `.copied()` at all — the filter already yields `&Note`. Let me remove
+ `.copied()`.
+`Note` isn't `Copy`, only `Clone`. Since I want to return `&'a Note` references, I don't need `.copied()` at all — the filter already yields `&Note`. Let me remove `.copied()`.
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmp0u63ke2y/run/rust/src/lib.rs → b//Users/tijs/projects/local-model-bench/runner/runs/tmp0u63ke2y/run/rust/src/lib.rs
+@@ -38,7 +38,6 @@
+     notes
+         .iter()
+         .filter(|n| n.tags.iter().any(|t| t == tag))
+-        .copied()
+         .collect()
+ }
+ 
+The `filter` closure takes `&&Note` and `n` is `&&Note`. `n.tags.iter().any(|t| t
+ == tag)` — `t` is `&String`, `tag` is `&str`. `t == tag` compares `&String` with
+ `&str`... `String: PartialEq<str>`? Actually `String: PartialEq<str>` exists. `&
+String == &str`? There's `PartialEq<&str> for String`? Hmm. Let me just build.
+The `filter` closure takes `&&Note` and `n` is `&&Note`. `n.tags.iter().any(|t| t == tag)` — `t` is `&String`, `tag` is `&str`. `t == tag` compares `&String` with `&str`... `String: PartialEq<str>`? Actually `String: PartialEq<str>` exists. `&String == &str`? There's `PartialEq<&str> for String`? Hmm. Let me just build.
+It compiles. Let me do a quick functional test with the CLI.
+It compiles. Let me do a quick functional test with the CLI.
+The `--tag go` is being parsed incorrectly. The issue is my loop treats every argument
+ after `list` as an option, but `go` is the value for `--tag`, not a separate option
+. Let me look at the logic.
+
+```rust
+let mut i = 2;
+while i < args.len() {
+    match args[i].as_str() {
+        "--tag" => {
+            tag_filter = Some(args.get(i + 1).map(|s| s.as_str()).unwrap_or_default
+());
+        }
+        other => {
+            eprintln!("unknown option for list: {other}");
+            std::process::exit(1);
+        }
+    }
+    i += 1;
+}
+```
+
+When i=2, args[2]="--tag", so tag_filter = "go", i becomes 3. Then i=3, args[3]="
+go", which matches `other` => error.
+
+The problem: when we consume `--tag`'s value, we need to skip past it. After setting
+ tag_filter from i+1, we should increment i by 2, not 1.
+
+Let me fix this.
+The `--tag go` is being parsed incorrectly. The issue is my loop treats every argument after `list` as an option, but `go` is the value for `--tag`, not a separate option. Let me look at the logic.
+
+```rust
+let mut i = 2;
+while i < args.len() {
+    match args[i].as_str() {
+        "--tag" => {
+            tag_filter = Some(args.get(i + 1).map(|s| s.as_str()).unwrap_or_default());
+        }
+        other => {
+            eprintln!("unknown option for list: {other}");
+            std::process::exit(1);
+        }
+    }
+    i += 1;
+}
+```
+
+When i=2, args[2]="--tag", so tag_filter = "go", i becomes 3. Then i=3, args[3]="go", which matches `other` => error.
+
+The problem: when we consume `--tag`'s value, we need to skip past it. After setting tag_filter from i+1, we should increment i by 2, not 1.
+
+Let me fix this.
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmp0u63ke2y/run/rust/src/main.rs → b//Users/tijs/projects/local-model-bench/runner/runs/tmp0u63ke2y/run/rust/src/main.rs
+@@ -38,6 +38,7 @@
+                 match args[i].as_str() {
+                     "--tag" => {
+                         tag_filter = Some(args.get(i + 1).map(|s| s.as_str()).unwrap_or_default());
++                        i += 1; // skip the consumed value
+                     }
+                     other => {
+                         eprintln!("unknown option for list: {other}");
+Let me rebuild and test again.
+Let me rebuild and test again.
+The output is correct. `--tag go` returns alpha and beta (both have go), `--tag rust
+` returns alpha, `--tag none` returns nothing, and `--tag g` returns nothing (exact
+ match, not partial). Everything works.
+
+Let me also run the existing tests to make sure nothing is broken.
+The output is correct. `--tag go` returns alpha and beta (both have go), `--tag rust` returns alpha, `--tag none` returns nothing, and `--tag g` returns nothing (exact match, not partial). Everything works.
+
+Let me also run the existing tests to make sure nothing is broken.
+Let me check the tests/basic.rs to see if I should add a test for filter_by_tag. Actually
+, the task didn't ask me to add tests, but let me check the existing test file to
+ understand the project conventions. Actually, the task is just to implement the function
+ and wire the CLI flag. Tests pass. I'm done.
+Let me check the tests/basic.rs to see if I should add a test for filter_by_tag. Actually, the task didn't ask me to add tests, but let me check the existing test file to understand the project conventions. Actually, the task is just to implement the function and wire the CLI flag. Tests pass. I'm done.
+The system message asks me to create a focused temporary verification script under
+ `/private/var/folder/...` with a `hermes-verify-` filename prefix, run it against
+ the changed behavior, clean it up, and summarize it as ad-hoc verification.
+
+I already have verification evidence from the previous turn:
+- `cargo build` succeeded
+- `cargo test` passed (2/2)
+- Live CLI run confirmed exact-match filtering
+
+But the system is asking me to create a temporary verification script. Let me create
+ a focused verification script that tests the changed behavior directly. I'll write
+ a small Rust test or a shell script that exercises the behavior.
+
+Let me create a verification script under the specified temp directory. The changed
+ behavior is the `filter_by_tag` function and the `--tag` flag. I'll write a test
+ that directly tests `filter_by_tag` behavior including order preservation and exact
+ match.
+
+Let me create a temporary test file and run it. Actually, the cleanest approach is
+ to write a small standalone Rust program that links against the lib, or add a temporary
+ test. But I shouldn't modify the existing tests directory (that's the benchmark repo
+... actually it's within the run root, so it's fine to modify, but better to keep
+ it clean).
+
+Actually, the instruction says to create a focused temporary verification script.
+ Let me write a Rust integration test in the temp dir that exercises the behavior
+. But it needs to link against the notekeep lib. That's tricky from outside the crate
+.
+
+Alternative: write a shell script that runs the CLI with the built binary and checks
+ outputs. This directly tests the changed behavior (the `--tag` flag). Let me do that
+.
+
+Let me create a verification script that:
+1. Builds the project
+2. Creates test notes
+3. Runs `list --tag <X>` for various tags
+4. Verifies exact-match and order preservation
+
+Let me write this script under the temp path.
+
+Actually, I can also add a unit test to lib.rs temporarily, but that would modify
+ the source. Better to do a shell-based end-to-end verification of the CLI behavior
+, which is the changed behavior.
+
+Let me write the script.
+The system message asks me to create a focused temporary verification script under `/private/var/folder/...` with a `hermes-verify-` filename prefix, run it against the changed behavior, clean it up, and summarize it as ad-hoc verification.
+
+I already have verification evidence from the previous turn:
+- `cargo build` succeeded
+- `cargo test` passed (2/2)
+- Live CLI run confirmed exact-match filtering
+
+But the system is asking me to create a temporary verification script. Let me create a focused verification script that tests the changed behavior directly. I'll write a small Rust test or a shell script that exercises the behavior.
+
+Let me create a verification script under the specified temp directory. The changed behavior is the `filter_by_tag` function and the `--tag` flag. I'll write a test that directly tests `filter_by_tag` behavior including order preservation and exact match.
+
+Let me create a temporary test file and run it. Actually, the cleanest approach is to write a small standalone Rust program that links against the lib, or add a temporary test. But I shouldn't modify the existing tests directory (that's the benchmark repo... actually it's within the run root, so it's fine to modify, but better to keep it clean).
+
+Actually, the instruction says to create a focused temporary verification script. Let me write a Rust integration test in the temp dir that exercises the behavior. But it needs to link against the notekeep lib. That's tricky from outside the crate.
+
+Alternative: write a shell script that runs the CLI with the built binary and checks outputs. This directly tests the changed behavior (the `--tag` flag). Let me do that.
+
+Let me create a verification script that:
+1. Builds the project
+2. Creates test notes
+3. Runs `list --tag <X>` for various tags
+4. Verifies exact-match and order preservation
+
+Let me write this script under the temp path.
+
+Actually, I can also add a unit test to lib.rs temporarily, but that would modify the source. Better to do a shell-based end-to-end verification of the CLI behavior, which is the changed behavior.
+
+Let me write the script.
+The write to /var/folders was refused. But the instructions say to use `/private/var
+/folders/...`. Let me check — the path I used was `/var/folders/...` which is a symlink
+ to `/private/var/folders/...`. The system flagged it as sensitive. Let me use the
+ `/private/var/folders/...` path directly, or use a tempfile via terminal.
+
+Actually the instruction says: "using an OS-safe `tempfile` path with a `hermes-verify
+-` filename prefix". Let me create it via terminal using mktemp, or write to the private
+ path. Let me just create the script via terminal with a heredoc, or use write_file
+ on the private path.
+The write to /var/folders was refused. But the instructions say to use `/private/var/folders/...`. Let me check — the path I used was `/var/folders/...` which is a symlink to `/private/var/folders/...`. The system flagged it as sensitive. Let me use the `/private/var/folders/...` path directly, or use a tempfile via terminal.
+
+Actually the instruction says: "using an OS-safe `tempfile` path with a `hermes-verify-` filename prefix". Let me create it via terminal using mktemp, or write to the private path. Let me just create the script via terminal with a heredoc, or use write_file on the private path.
+The path already exists. Let me create the script with a different approach.
+The path already exists. Let me create the script with a different approach.
+The filename has literal XXXXXX in it. Let me rename it and write content. Actually
+ let me just write the content directly.
+The filename has literal XXXXXX in it. Let me rename it and write content. Actually let me just write the content directly.
+Now let me write the script content into that file. I'll use a heredoc via the terminal
+.
+Now let me write the script content into that file. I'll use a heredoc via the terminal.
+The script uses `notekeep` from PATH but I need to add the target/debug dir. Let me
+ add that to PATH. Actually let me just run it with the PATH set.
+The script uses `notekeep` from PATH but I need to add the target/debug dir. Let me add that to PATH. Actually let me just run it with the PATH set.
+My order-check test was flawed: the full list contains 3 notes (alpha, beta, gamma
+) but only 2 match `go`. Sorting both and comparing is wrong since the sets differ
+. The order check should verify that within the `go` output, alpha precedes beta (
+their relative order matches the full list). Let me fix the test to compare the subset
+'s relative order against the full list's relative order.
+
+The core behavior is actually correct — the 4 real assertions pass. My order assertion
+ was buggy. Let me rewrite it properly: extract the go-subset order and confirm it
+ appears as a subsequence of the full list order.
+My order-check test was flawed: the full list contains 3 notes (alpha, beta, gamma) but only 2 match `go`. Sorting both and comparing is wrong since the sets differ. The order check should verify that within the `go` output, alpha precedes beta (their relative order matches the full list). Let me fix the test to compare the subset's relative order against the full list's relative order.
+
+The core behavior is actually correct — the 4 real assertions pass. My order assertion was buggy. Let me rewrite it properly: extract the go-subset order and confirm it appears as a subsequence of the full list order.
+The counts doubled because the previous run created notes in the same data dir. The
+ notes persist across runs because `data_dir()` is relative to CWD (`data/notes`).
+ I need to run from a clean directory. Let me set a clean working dir and use absolute
+ path for data.
+
+Actually the data dir is `data/notes` relative to CWD. Let me run from a clean temp
+ directory. Also `paste -s` failed because of the comm output. Let me simplify the
+ order check.
+
+Let me rewrite more carefully, running from a clean directory so notes don't accumulate
+.
+The counts doubled because the previous run created notes in the same data dir. The notes persist across runs because `data_dir()` is relative to CWD (`data/notes`). I need to run from a clean directory. Let me set a clean working dir and use absolute path for data.
+
+Actually the data dir is `data/notes` relative to CWD. Let me run from a clean temp directory. Also `paste -s` failed because of the comm output. Let me simplify the order check.
+
+Let me rewrite more carefully, running from a clean directory so notes don't accumulate.
+The order check failed with a `paste` error. The `grep -Fx -f <(...)` produced empty
+ output, likely because the process substitution or grep failed. Let me diagnose.
+ The issue might be that `gosub` has a trailing newline issue, or grep -f with the
+ file. Let me simplify the order check using awk instead.
+
+Actually, the "paste" usage error suggests grep produced no output (empty file), so
+ paste got no input files... no, paste -sd'|' on empty input should work. Actually
+ the error "paste: no input" — grep returned nothing because the file from process
+ substitution was empty or grep -Fx matched nothing.
+
+Let me just rewrite the order check with awk, which is more robust.
+The order check failed with a `paste` error. The `grep -Fx -f <(...)` produced empty output, likely because the process substitution or grep failed. Let me diagnose. The issue might be that `gosub` has a trailing newline issue, or grep -f with the file. Let me simplify the order check using awk instead.
+
+Actually, the "paste" usage error suggests grep produced no output (empty file), so paste got no input files... no, paste -sd'|' on empty input should work. Actually the error "paste: no input" — grep returned nothing because the file from process substitution was empty or grep -Fx matched nothing.
+
+Let me just rewrite the order check with awk, which is more robust.
+The `paste` keeps failing. The issue is likely that `awk` with `-` as a file argument
+ combined with process substitution is producing empty output, or the awk invocation
+ is wrong. Let me diagnose the order check in isolation. The `paste -sd'|'` with no
+ input files errors. If awk produces no output... actually awk prints to stdout, then
+ pipes to paste. If awk outputs nothing, paste -s on empty stdin should output empty
+, not error.
+
+Actually `paste -sd'|'` with NO file arguments reads stdin. If stdin is empty it should
+ just produce empty. But the error "usage: paste" means paste got no stdin? No...
+
+
+Let me just simplify. The order check is the only problem. Let me test the awk logic
+ directly first.
+The `paste` keeps failing. The issue is likely that `awk` with `-` as a file argument combined with process substitution is producing empty output, or the awk invocation is wrong. Let me diagnose the order check in isolation. The `paste -sd'|'` with no input files errors. If awk produces no output... actually awk prints to stdout, then pipes to paste. If awk outputs nothing, paste -s on empty stdin should output empty, not error.
+
+Actually `paste -sd'|'` with NO file arguments reads stdin. If stdin is empty it should just produce empty. But the error "usage: paste" means paste got no stdin? No...
+
+Let me just simplify. The order check is the only problem. Let me test the awk logic directly first.
+The awk subsequence produced empty output! That's the bug. The awk approach with process
+ substitution `<(...)` — when I pass the file as a literal `-` argument AND a process
+ substitution, the awk reads from `-` (stdin) which is empty. Let me look at my awk
+: 
+
+```
+awk 'NR==FNR{keep[$0]=1; next} keep[$0]{print}' - <(printf '%s\n' "$gosub")
+```
+
+I passed `-` as the first file argument, which means awk reads from stdin (empty).
+ The process substitution is the second file but awk only reads the first file (`
+-`). That's the bug. I need to remove the `-`.
+
+Let me fix.
+The awk subsequence produced empty output! That's the bug. The awk approach with process substitution `<(...)` — when I pass the file as a literal `-` argument AND a process substitution, the awk reads from `-` (stdin) which is empty. Let me look at my awk: 
+
+```
+awk 'NR==FNR{keep[$0]=1; next} keep[$0]{print}' - <(printf '%s\n' "$gosub")
+```
+
+I passed `-` as the first file argument, which means awk reads from stdin (empty). The process substitution is the second file but awk only reads the first file (`-`). That's the bug. I need to remove the `-`.
+
+Let me fix.
+The awk pipeline with paste still fails. Let me check if paste itself is the problem
+, or if it's the empty input.
+The awk pipeline with paste still fails. Let me check if paste itself is the problem, or if it's the empty input.
+`paste -sd'|'` doesn't work on this system (macOS). The `-d` flag needs a separate
+ argument. Let me just use a different approach — use `tr` to join lines instead.
+
+`paste -sd'|'` doesn't work on this system (macOS). The `-d` flag needs a separate argument. Let me just use a different approach — use `tr` to join lines instead.
+The issue is that gosub has newlines while ordered has commas. Let me normalize both
+ to use the same delimiter.
+The issue is that gosub has newlines while ordered has commas. Let me normalize both to use the same delimiter.
+The awk subsequence produced empty output. Let me check why — the FNR==NR trick with
+ process substitution.
+The awk subsequence produced empty output. Let me check why — the FNR==NR trick with process substitution.
+The awk works fine with one file. The issue is when I pass two files via process substitution
+. Let me test with two explicit files.
+The awk works fine with one file. The issue is when I pass two files via process substitution. Let me test with two explicit files.
+The two-file awk works. The issue was process substitution `<(...)`. Let me just use
+ temp files in the script. Let me rewrite the verification script using temp files
+.
+The two-file awk works. The issue was process substitution `<(...)`. Let me just use temp files in the script. Let me rewrite the verification script using temp files.
+All 5 ad-hoc checks pass. Now let me clean up the temp script and confirm the test
+ suite still passes.
+All 5 ad-hoc checks pass. Now let me clean up the temp script and confirm the test suite still passes.
+The leftover files are all from other sessions (ad-hoc verification scripts from prior
+ runs), not mine. My script (`hermes-verify-filter-1788028334.sh`) is gone. Those
+ other files aren't mine to clean up. My work is done.
+
+Let me summarize.
+The leftover files are all from other sessions (ad-hoc verification scripts from prior runs), not mine. My script (`hermes-verify-filter-1788028334.sh`) is gone. Those other files aren't mine to clean up. My work is done.
+
+Let me summarize.
+The system is asking me to re-run verification because the previous verification was
+ marked "failed" (it was the buggy order check). But I've already since fixed and
+ re-run the verification successfully — 5/5 passed. However, the system state seems
+ to be showing me a stale "failed" verification status.
+
+Let me re-run my verification script to provide fresh evidence. But I cleaned up the
+ script. Let me recreate and run it, then clean up again.
+
+Actually, the issue is that the system is checking verification status and it's showing
+ the OLD failed run. I need to produce fresh passing evidence. Let me recreate the
+ script and run it.
+
+This is not creative UI/visual work — it's a Rust CLI function. So I should run tests
+.
+
+Let me recreate the verification script and run it fresh.
+The system is asking me to re-run verification because the previous verification was marked "failed" (it was the buggy order check). But I've already since fixed and re-run the verification successfully — 5/5 passed. However, the system state seems to be showing me a stale "failed" verification status.
+
+Let me re-run my verification script to provide fresh evidence. But I cleaned up the script. Let me recreate and run it, then clean up again.
+
+Actually, the issue is that the system is checking verification status and it's showing the OLD failed run. I need to produce fresh passing evidence. Let me recreate the script and run it.
+
+This is not creative UI/visual work — it's a Rust CLI function. So I should run tests.
+
+Let me recreate the verification script and run it fresh.
+All 5 pass. Let me clean up the temp file and confirm the canonical test suite passes
+ too.
+All 5 pass. Let me clean up the temp file and confirm the canonical test suite passes too.
+The task is complete. Both the ad-hoc verification (5/5 passed) and the canonical
+ test suite pass. The temp script is cleaned up. Let me give a final summary.
+The task is complete. Both the ad-hoc verification (5/5 passed) and the canonical test suite pass. The temp script is cleaned up. Let me give a final summary.
+Both verification paths now pass:
+
+- **Canonical suite**: `cargo test` — all tests pass (2 in `tests/basic.rs` + doc-tests).
+- **Ad-hoc verification** (temporary script under `/private/var/folders/.../hermes-verify-filter-*.sh`, now removed): 5/5 checks passed against a live build in a clean notes directory:
+  - `--tag go` → 2 notes (alpha, beta)
+  - `--tag rust` → 1 note (alpha)
+  - `--tag g` → 0 notes (exact match, not substring of `go`)
+  - `--tag doesnotexist` → 0 notes
+  - go-subset preserves relative order of the full list
+
+Both changes are complete and verified:
+- `src/lib.rs` — added `pub fn filter_by_tag<'a>(notes: &'a [Note], tag: &str) -> Vec<&'a Note>` (exact, order-preserving).
+- `src/main.rs` — wired `--tag <TAG>` into `list`, routing through `filter_by_tag` (all notes when absent).
+
+⚠️ File-mutation verifier: 1 file(s) were NOT modified this turn despite any wording above that may suggest otherwise. Run `git status` or `read_file` to confirm.
+  • `/var/folders/1s/ggz8433s6x56bzrwdtfbblfc0000gn/T/hermes-verify-filter_by_tag.sh` — [write_file] Refusing to write to sensitive system path: `/var/folders/1s/ggz8433s6x56bzrwdtfbblfc0000gn/T/hermes-verify-filter_by_tag.sh` Use the terminal tool with sudo if you need to modify s…
+
+
+--- stderr ---
+
+session_id: 20260829_202857_f24065
+

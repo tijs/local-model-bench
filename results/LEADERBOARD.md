@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/1515 rows below predate 2026-08-21
+> **⚠ 138/1901 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -103,18 +103,20 @@ added explicitly to record that default rather than leave it invisible.
 
 | model | engine | quant | temp (coding only)¹ | reasoning | reasoning effort⁶ | sanity gate⁴ | config | runner | tasks | pass rate⁴ | slow passes² | avg tok/s | avg TTFT (s) | hallucinated tools⁵ | avg coding turns³ | coding tool errors³ | peak RSS (GB) | quant family | cache | MTP |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [6fa6f52fdc56](configs/6fa6f52fdc56.yaml) | 5fc289161e34 | 8 | 75% | 0 | 30.1 | 7.05 | 0 | — | 0 | 23.1 | — | — | — |
-| HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [6fa6f52fdc56](configs/6fa6f52fdc56.yaml) | 6bb085a043fe | 19 | 84% | 3 | 30.2 | 7.05 | 0 | 15.8 | 30 | 23.6 | — | — | — |
-| HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | — | [6fa6f52fdc56](configs/6fa6f52fdc56.yaml) | 8e7b1897f7e8+dirty | 11 | 91% | 1 | — | — | 0 | — | 0 | 23.8 | — | — | — |
-| HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | — | [6fa6f52fdc56](configs/6fa6f52fdc56.yaml) | d39c9c37bb8c+dirty | 0 | n/a (all harness errors) | 0 | — | — | 0 | — | 0 | — | — | — | — |
-| HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [6fa6f52fdc56](configs/6fa6f52fdc56.yaml) | d60debfa3654 | 1 | 100% | 0 | 29.0 | 17.32 | 0 | — | 0 | 21.6 | — | — | — |
-| HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | — | [6fa6f52fdc56](configs/6fa6f52fdc56.yaml) | d60debfa3654+dirty | 18 | 89% | 1 | 30.6 | 2.66 | 0 | 14.6 | 18 | 23.1 | — | — | — |
+| HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [6fa6f52fdc56](configs/6fa6f52fdc56.yaml) — *config since changed* | 5fc289161e34 | 8 | 75% | 0 | 30.1 | 7.05 | 0 | — | 0 | 23.1 | — | — | — |
+| HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [6fa6f52fdc56](configs/6fa6f52fdc56.yaml) — *config since changed* | 6bb085a043fe | 19 | 84% | 3 | 30.2 | 7.05 | 0 | 15.8 | 30 | 23.6 | — | — | — |
+| HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | — | [6fa6f52fdc56](configs/6fa6f52fdc56.yaml) — *config since changed* | 8e7b1897f7e8+dirty | 11 | 91% | 1 | — | — | 0 | — | 0 | 23.8 | — | — | — |
+| HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | — | [6fa6f52fdc56](configs/6fa6f52fdc56.yaml) — *config since changed* | d39c9c37bb8c+dirty | 0 | n/a (all harness errors) | 0 | — | — | 0 | — | 0 | — | — | — | — |
+| HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [6fa6f52fdc56](configs/6fa6f52fdc56.yaml) — *config since changed* | d60debfa3654 | 1 | 100% | 0 | 29.0 | 17.32 | 0 | — | 0 | 21.6 | — | — | — |
+| HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | — | [6fa6f52fdc56](configs/6fa6f52fdc56.yaml) — *config since changed* | d60debfa3654+dirty | 18 | 89% | 1 | 30.6 | 2.66 | 0 | 14.6 | 18 | 23.1 | — | — | — |
 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | medium | — | [32924ffd3dd9](configs/32924ffd3dd9.yaml) | 18b93c687e8d+dirty | 7 | 100% | 6 | — | — | 0 | 11.6 | 9 | 22.7 | — | — | — |
 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | medium | 2/2 | [32924ffd3dd9](configs/32924ffd3dd9.yaml) | 7336e84ce111 | 11 | 82% | 6 | 8.1 | 44.52 | 0 | 18.0 | 6 | 22.2 | — | — | — |
 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | n/a | 2/2 | [3a740261a79c](configs/3a740261a79c.yaml) — *config since changed* | 2477ca2ba371 | 19 | 79% | 11 | 8.1 | 44.53 | 0 | 11.9 | 14 | 22.6 | — | — | — |
 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | n/a | 2/2 | [3a740261a79c](configs/3a740261a79c.yaml) — *config since changed* | a04f5cd07f20 | 19 | 84% | 13 | 8.0 | 44.53 | 0 | — | 0 | 22.6 | — | — | — |
 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q5_K_M | llama.cpp | — | 1.0 | thinking | n/a | 2/2 | [7103a8c7677c](configs/7103a8c7677c.yaml) — *config since changed* | ba9bffb50e12+dirty | 19 | 74% | 10 | 6.7 | 46.45 | 0 | 11.6 | 9 | 23.9 | — | — | — |
-| JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q5_K_M | llama.cpp | — | 1.0 | thinking | medium | 2/2 | [b03fc3f2b8f8](configs/b03fc3f2b8f8.yaml) | 1dbc371640ce | 19 | 79% | 12 | 6.7 | 46.42 | 0 | 13.5 | 15 | 24.0 | — | — | — |
+| JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q5_K_M | llama.cpp | — | 1.0 | thinking | medium | 2/2 | [b03fc3f2b8f8](configs/b03fc3f2b8f8.yaml) — *config since changed* | 1dbc371640ce | 19 | 79% | 12 | 6.7 | 46.42 | 0 | 13.5 | 15 | 24.0 | — | — | — |
+| JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q5_K_M | llama.cpp | — | 1.0 | thinking | medium | — | [b03fc3f2b8f8](configs/b03fc3f2b8f8.yaml) — *config since changed* | 24ac4057b970 | 5 | 80% | 4 | — | — | 0 | 9.6 | 1 | 24.2 | — | — | — |
+| JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q5_K_M | llama.cpp | — | 1.0 | thinking | medium | 2/2 | [b03fc3f2b8f8](configs/b03fc3f2b8f8.yaml) — *config since changed* | 9df216e99cd9 | 17 | 76% | 10 | 6.7 | 46.48 | 0 | 14.3 | 14 | 24.9 | — | — | — |
 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | 1.0 | xhigh | n/a | 2/2 | [3618a30940bc](configs/3618a30940bc.yaml) — *config since changed* | e155170f4c1d | 0 | n/a (all harness errors) | 0 | 9.6 | 4.90 | 0 | — | 0 | 6.2 | oQ4e-fp16 mixed precision + MTP tensors | cold | lightning |
 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | 1.0 | xhigh | n/a | 2/2 | [3618a30940bc](configs/3618a30940bc.yaml) — *config since changed* | fc71ba2c66f8+dirty | 0 | n/a (all harness errors) | 0 | 9.0 | 4.15 | 0 | — | 0 | — | oQ4e-fp16 mixed precision + MTP tensors | cold | lightning |
 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | — | 1.0 | medium | n/a | 2/2 | [6f8f1c7b8d48](configs/6f8f1c7b8d48.yaml) — *config since changed* | e155170f4c1d | 0 | n/a (all harness errors) | 0 | 10.4 | 3.52 | 0 | — | 0 | 8.0 | oQ4e-fp16 mixed precision + MTP tensors | ssd | off |
@@ -180,7 +182,9 @@ added explicitly to record that default rather than leave it invisible.
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | gguf | — | 1.0 | thinking | n/a | 2/2 | [413f324b943c](configs/413f324b943c.yaml) — *config since changed* | 3182238013a3 | 8 | 50% | 1 | 8.5 | 35.49 | 0 | — | 0 | 21.2 | — | — | — |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | gguf | — | ? | ? | ? | 2/2 | [b0b30ac444da](configs/Muse-Glimmer-30B/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 4 | 50% | 0 | 8.0 | 57.94 | 0 | — | 0 | — | ? | ? | ? |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | n/a | 2/2 | [38ccea45c281](configs/38ccea45c281.yaml) | 141399e74bd0 | 19 | 74% | 10 | 8.5 | 35.50 | 0 | 28.1 | 23 | 22.2 | — | — | — |
+| bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | n/a | 2/2 | [38ccea45c281](configs/38ccea45c281.yaml) | 3959bd7a0f56+dirty | 5 | 60% | 1 | 8.0 | 45.62 | 0 | — | 0 | 21.2 | — | — | — |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | n/a | 2/2 | [38ccea45c281](configs/38ccea45c281.yaml) | 75f452b3bab1 | 19 | 74% | 10 | 8.5 | 35.47 | 0 | 32.4 | 28 | 22.2 | — | — | — |
+| bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | n/a | — | [38ccea45c281](configs/38ccea45c281.yaml) | b17cb6e405c0+dirty | 18 | 83% | 13 | 9.8 | 11.69 | 0 | 31.2 | 32 | 22.6 | — | — | — |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | n/a | 2/2 | [38ccea45c281](configs/38ccea45c281.yaml) | cf45f7655a7c | 19 | 63% | 9 | 8.5 | 35.47 | 0 | — | 0 | 21.8 | — | — | — |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M (+ incoai/Muse-Glimmer-30B-DFlash2-GGUF:Q4_K_M drafter) | gguf | — | 1.0 | thinking | n/a | 2/2 | [5e61e8c02089](configs/5e61e8c02089.yaml) — *config since changed* | 3182238013a3 | 1 | 100% | 0 | 7.2 | 89.00 | 0 | — | 0 | 23.4 | — | — | — |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M (+ incoai/Muse-Glimmer-30B-DFlash2-GGUF:Q4_K_M drafter) | gguf | — | 1.0 | thinking | n/a | — | [5e61e8c02089](configs/5e61e8c02089.yaml) — *config since changed* | 3182238013a3+dirty | 7 | 0% | 0 | 3.0 | 27.90 | 0 | — | 0 | 23.2 | — | — | — |
@@ -202,6 +206,7 @@ added explicitly to record that default rather than leave it invisible.
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | gguf | — | ? | ? | ? | — | [29ed581f7054](configs/Qwen3.5-9B/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 1 | 100% | 0 | — | — | 0 | — | 0 | — | ? | ? | ? |
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [a2d241742068](configs/a2d241742068.yaml) | 2e56f8121142 | 9 | 67% | 0 | 21.0 | 9.34 | 0 | — | 0 | 13.7 | — | — | — |
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [a2d241742068](configs/a2d241742068.yaml) | 38836484bab4 | 19 | 68% | 3 | 21.0 | 9.34 | 0 | 21.8 | 29 | 21.1 | — | — | — |
+| bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [a2d241742068](configs/a2d241742068.yaml) | 9df216e99cd9 | 23 | 83% | 3 | 20.9 | 9.34 | 0 | 18.7 | 33 | 21.0 | — | — | — |
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [a2d241742068](configs/a2d241742068.yaml) | c8d9bde5c6d6 | 19 | 68% | 3 | 20.9 | 9.34 | 0 | 20.9 | 29 | 22.1 | — | — | — |
 | empero-ai/Qwen3.8-27B-Ridge-GGUF | gguf | — | ? | ? | ? | 2/2 | [6a3700901e2b](configs/Qwen3.8-27B-Ridge/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 4 | 50% | 0 | 4.6 | 52.03 | 0 | — | 0 | — | ? | ? | ? |
 | empero-ai/Qwen3.8-27B-Ridge-GGUF | gguf | — | 0.7 | instruct | n/a | 2/2 | [d135df9d860f](configs/d135df9d860f.yaml) — *config since changed* | e155170f4c1d | 8 | 62% | 0 | 5.5 | 30.15 | 0 | — | 0 | 18.9 | — | — | — |
@@ -234,6 +239,10 @@ added explicitly to record that default rather than leave it invisible.
 | mlx-community/Qwen3.8-27B-4bit | omlx | — | 1.0 | thinking | n/a | 2/2 | [1eec0081c5d6](configs/1eec0081c5d6.yaml) — *config since changed* | fc71ba2c66f8+dirty | 3 | 0% | 0 | 3.4 | 5.65 | 0 | — | 0 | — | MLX 4-bit | cold | off |
 | mlx-community/Qwen3.8-27B-4bit | omlx | — | 1.0 | thinking | n/a | 2/2 | [3fbfdcc4ec02](configs/3fbfdcc4ec02.yaml) | 24d38de98cb4 | 8 | 0% | 0 | 1.7 | 4.97 | 0 | — | 0 | 9.1 | MLX 4-bit | cold | off |
 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | — | 0.6 | unspecified | n/a | 2/2 | [7b0652d1fb9e](configs/7b0652d1fb9e.yaml) | 4fd562e5fb7b | 19 | 100% | 4 | 28.6 | 7.12 | 0 | 17.5 | 28 | 22.0 | — | — | — |
+| mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | — | 0.6 | unspecified | n/a | 4/4 | [7b0652d1fb9e](configs/7b0652d1fb9e.yaml) | 755dc7f4b2a3 | 30 | 93% | 2 | 28.7 | 7.11 | 0 | 16.1 | 34 | 20.8 | — | — | — |
+| mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | — | 0.6 | unspecified | n/a | 2/2 | [7b0652d1fb9e](configs/7b0652d1fb9e.yaml) | 9df216e99cd9 | 23 | 87% | 3 | 25.6 | 10.29 | 0 | 15.3 | 28 | 18.9 | — | — | — |
+| mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | — | 0.6 | unspecified | n/a | — | [7b0652d1fb9e](configs/7b0652d1fb9e.yaml) | 9df216e99cd9+dirty | 13 | 92% | 3 | — | — | 0 | 16.1 | 29 | 20.3 | — | — | — |
+| mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Compact | llama.cpp | — | 1.0 | unspecified | n/a | 2/2 | [0b31098f54f7](configs/0b31098f54f7.yaml) | b17cb6e405c0 | 23 | 74% | 1 | 31.2 | 10.16 | 0 | 22.9 | 48 | 23.0 | — | — | — |
 | openai/gpt-5.6-luna | api | — | ? | ? | ? | 2/2 | [1f7b55bd4401](configs/Luna/openrouter.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 100% | 0 | 15.2 | 4.30 | 0 | — | 0 | — | ? | ? | ? |
 | openai/gpt-5.6-luna | api | — | ? | ? | ? | — | [bc97807766bc](configs/Luna/openrouter.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 1 | 100% | 0 | — | — | 0 | — | 0 | — | ? | ? | ? |
 | openai/gpt-5.6-luna | openrouter | — | None | unspecified | n/a | 2/2 | [f1e3043189f3](configs/f1e3043189f3.yaml) | 1e67356823c2 | 9 | 100% | 0 | 35.5 | 4.80 | 0 | — | 0 | — | — | — | — |
@@ -244,12 +253,14 @@ added explicitly to record that default rather than leave it invisible.
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | 0.6 | unspecified | n/a | 2/2 | [48d75180adbc](configs/48d75180adbc.yaml) | 319b144e6b0b | 5 | 100% | 0 | 29.4 | 8.67 | 0 | — | 0 | 22.5 | — | — | — |
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | 0.6 | unspecified | n/a | — | [48d75180adbc](configs/48d75180adbc.yaml) | 319b144e6b0b+dirty | 13 | 100% | 2 | 34.0 | 2.98 | 0 | 16.9 | 24 | 22.8 | — | — | — |
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | 0.6 | unspecified | n/a | 2/2 | [48d75180adbc](configs/48d75180adbc.yaml) | 6cc8b646db2e | 19 | 95% | 2 | 30.9 | 6.96 | 0 | 17.7 | 20 | 23.9 | — | — | — |
+| ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | 0.6 | unspecified | n/a | 2/2 | [48d75180adbc](configs/48d75180adbc.yaml) | 9df216e99cd9 | 23 | 96% | 3 | 28.9 | 7.70 | 0 | 15.6 | 20 | 6.7 | — | — | — |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | vllm-mlx | — | 0.6 | unspecified | n/a | 2/2 | [76414c6ab37c](configs/76414c6ab37c.yaml) | 0620219fd55e | 8 | 38% | 0 | 10.2 | 41.53 | 2 | — | 0 | 2.1 | — | — | — |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | vllm-mlx | — | 0.6 | unspecified | n/a | 2/2 | [76414c6ab37c](configs/76414c6ab37c.yaml) | dd3232d96137 | 8 | 62% | 1 | 10.5 | 41.50 | 2 | — | 0 | 2.4 | — | — | — |
 | ornith-ai/Ornith-1.5-9B-MLX-4bit | vllm-mlx | — | 0.7 | instruct | n/a | 2/2 | [d0d250e59d4e](configs/d0d250e59d4e.yaml) | 9235ceaef852 | 1 | 100% | 0 | 20.0 | 31.46 | 0 | — | 0 | 8.2 | — | — | — |
 | ornith-ai/Ornith-1.5-9B-MLX-4bit | vllm-mlx | — | 0.7 | instruct | n/a | 1/2 | [d0d250e59d4e](configs/d0d250e59d4e.yaml) | bb858f72fc84 | 0 | n/a (all harness errors) | 0 | 25.9 | 1.11 | 0 | — | 0 | 0.7 | — | — | — |
 | ornith-ai/Ornith-1.5-9B-MLX-4bit | vllm-mlx | — | 0.7 | instruct | n/a | — | [d0d250e59d4e](configs/d0d250e59d4e.yaml) | dd3232d96137 | 7 | 71% | 4 | 2.5 | 92.83 | 0 | — | 0 | 5.5 | — | — | — |
 | poolside/Laguna-XS-2.1-GGUF:Q4_K_M | gguf | — | ? | ? | ? | 1/2 | [e427e7a50b14](configs/Laguna-XS-2.1/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 0 | n/a (all harness errors) | 0 | 0.1 | 11.96 | 0 | — | 0 | — | ? | ? | ? |
+| poolside/Laguna-XS-2.1-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | n/a | 2/2 | [644ba3997136](configs/644ba3997136.yaml) | 9df216e99cd9 | 23 | 74% | 2 | 34.8 | n/a (proxied — not real TTFT) | 1 | 25.3 | 30 | 24.1 | — | — | — |
 | poolside/Laguna-XS-2.1-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | n/a | 2/2 | [644ba3997136](configs/644ba3997136.yaml) | e23570ec40be | 19 | 74% | 1 | 34.8 | n/a (proxied — not real TTFT) | 1 | 24.5 | 22 | 23.1 | — | — | — |
 | prism-ml/Ternary-Bonsai-27B-mlx-2bit | mlx | — | 0.7 | unspecified | n/a | 2/2 | [2152fbd9febb](configs/2152fbd9febb.yaml) — *config since changed* | e155170f4c1d | 8 | 62% | 4 | 4.1 | 155.61 | 1 | — | 0 | 7.8 | — | — | — |
 | prism-ml/Ternary-Bonsai-27B-mlx-2bit | mlx | — | ? | ? | ? | — | [8e85abe37e32](configs/Ternary-Bonsai-27B/mlx.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 1 | 0% | 0 | — | — | 0 | — | 0 | — | ? | ? | ? |
@@ -266,18 +277,27 @@ added explicitly to record that default rather than leave it invisible.
 | scottlowry/Ornith-1.5-9B-oQ4e-fp16 | omlx | — | 0.7 | instruct | n/a | 2/2 | [ab16f8d988bf](configs/ab16f8d988bf.yaml) | e0efff5679a7 | 0 | n/a (all harness errors) | 0 | 33.0 | 1.26 | 0 | — | 0 | 7.2 | oQ4e-fp16 mixed precision | ssd | off |
 | scottlowry/Ornith-1.5-9B-oQ4e-fp16 | omlx | — | 0.7 | instruct | n/a | 2/2 | [afecbd0a9f5f](configs/afecbd0a9f5f.yaml) — *config since changed* | e155170f4c1d | 8 | 62% | 3 | 9.4 | 46.77 | 2 | — | 0 | 7.2 | oQ4e-fp16 mixed precision | cold | off |
 | scottlowry/Ornith-1.5-9B-oQ4e-fp16 | omlx | — | 0.7 | instruct | n/a | 2/2 | [afecbd0a9f5f](configs/afecbd0a9f5f.yaml) — *config since changed* | fc71ba2c66f8+dirty | 4 | 75% | 0 | 13.9 | 35.28 | 0 | — | 0 | — | oQ4e-fp16 mixed precision | cold | off |
+| trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M | llama.cpp | — | 1.0 | thinking | medium | 2/2 | [891242963db5](configs/891242963db5.yaml) | be370d5982b4+dirty | 8 | 88% | 3 | 6.1 | 49.89 | 0 | — | 0 | 23.9 | — | — | — |
+| trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M | llama.cpp | — | 1.0 | thinking | medium | 2/2 | [d6a1d4a8db43](configs/d6a1d4a8db43.yaml) — *config since changed* | b17cb6e405c0 | 8 | 88% | 3 | 6.5 | 49.90 | 0 | — | 0 | 23.7 | — | — | — |
+| trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M | llama.cpp | — | 1.0 | thinking | medium | 2/2 | [d6a1d4a8db43](configs/d6a1d4a8db43.yaml) — *config since changed* | be370d5982b4 | 23 | 83% | 14 | 6.5 | 49.91 | 0 | 11.3 | 19 | 24.3 | — | — | — |
+| trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M | llama.cpp | — | 1.0 | thinking | medium | — | [d6a1d4a8db43](configs/d6a1d4a8db43.yaml) — *config since changed* | be370d5982b4+dirty | 14 | 86% | 11 | — | — | 0 | 12.3 | 15 | 23.9 | — | — | — |
+| unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | 0.15 | n/a | n/a | 2/2 | [ffa862c18cff](configs/ffa862c18cff.yaml) | 3959bd7a0f56+dirty | 23 | 65% | 8 | 7.7 | 28.10 | 0 | 27.9 | 52 | 26.5 | — | — | — |
 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | 0.15 | n/a | n/a | 2/2 | [ffa862c18cff](configs/ffa862c18cff.yaml) | 63c1cbdae938 | 19 | 74% | 6 | 7.7 | 28.07 | 0 | 19.8 | 27 | 27.0 | — | — | — |
 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | 0.15 | n/a | n/a | 2/2 | [ffa862c18cff](configs/ffa862c18cff.yaml) | 711cf4da25b3 | 19 | 74% | 6 | 7.7 | 28.06 | 0 | 29.4 | 43 | 26.5 | — | — | — |
 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | gguf | — | 0.7 | instruct | n/a | 2/2 | [1fea08092fdc](configs/1fea08092fdc.yaml) — *config since changed* | e155170f4c1d | 9 | 67% | 0 | 20.8 | 9.51 | 1 | — | 0 | 23.9 | — | — | — |
 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | gguf | — | ? | ? | ? | — | [840ac866adff](configs/Qwen3-Coder-30B-A3B/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 1 | 100% | 0 | — | — | 0 | — | 0 | — | ? | ? | ? |
 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | gguf | — | ? | ? | ? | 2/2 | [fe085c7fef30](configs/Qwen3-Coder-30B-A3B/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 100% | 0 | 18.0 | 18.49 | 0 | — | 0 | — | ? | ? | ? |
 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | — | 0.7 | instruct | n/a | 2/2 | [644415678c37](configs/644415678c37.yaml) | 520355356ee0 | 19 | 74% | 2 | 20.8 | 9.50 | 1 | 29.5 | 50 | 24.5 | — | — | — |
+| unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | — | 0.7 | instruct | n/a | 2/2 | [644415678c37](configs/644415678c37.yaml) | 9df216e99cd9 | 23 | 83% | 6 | 20.8 | 9.50 | 1 | 27.5 | 45 | 25.1 | — | — | — |
 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | — | 0.7 | instruct | n/a | 2/2 | [644415678c37](configs/644415678c37.yaml) | bf1cd0ed7a6f | 9 | 67% | 1 | 20.9 | 9.51 | 1 | — | 0 | 23.4 | — | — | — |
 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | — | 0.7 | instruct | n/a | 2/2 | [644415678c37](configs/644415678c37.yaml) | db7724641d7e | 19 | 89% | 8 | 20.9 | 9.50 | 1 | 32.9 | 43 | 24.2 | — | — | — |
 | unsloth/Qwen3.6-35B-A3B-GGUF:UD-Q4_K_XL | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [436d6d25d30c](configs/436d6d25d30c.yaml) — *config since changed* | 8d4f1f85f106 | 19 | 84% | 3 | 27.1 | 7.47 | 0 | — | 0 | 24.2 | — | — | — |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q2_K_XL | gguf | UD-Q2_K_XL | ? | ? | ? | 2/2 | [2233edb1c4f2](configs/Qwen3.8-27B/gguf-unsloth-ud-q2.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 100% | 0 | 6.3 | 55.08 | 0 | — | 0 | — | ? | ? | ? |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q4_K_M | gguf | — | ? | ? | ? | 2/2 | [89f4d8d04793](configs/Qwen3.8-27B/gguf-unsloth-ud-q4.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 100% | 0 | 6.4 | 55.57 | 0 | — | 0 | — | ? | ? | ? |
-| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | 1.0 | thinking | medium | 2/2 | [340ca3032e6c](configs/340ca3032e6c.yaml) | bfdc95c44bcb | 19 | 89% | 11 | 6.8 | 46.37 | 0 | 14.5 | 15 | 24.4 | — | — | — |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | 1.0 | thinking | medium | 2/2 | [340ca3032e6c](configs/340ca3032e6c.yaml) — *config since changed* | 24ac4057b970 | 9 | 89% | 3 | 6.8 | 46.40 | 0 | 17.0 | 2 | 24.8 | — | — | — |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | 1.0 | thinking | medium | — | [340ca3032e6c](configs/340ca3032e6c.yaml) — *config since changed* | 3959bd7a0f56+dirty | 12 | 92% | 10 | — | — | 0 | 11.0 | 9 | 24.6 | — | — | — |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | 1.0 | thinking | medium | 2/2 | [340ca3032e6c](configs/340ca3032e6c.yaml) — *config since changed* | b17cb6e405c0+dirty | 23 | 87% | 13 | 6.7 | 46.59 | 0 | 13.3 | 18 | 24.1 | — | — | — |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | 1.0 | thinking | medium | 2/2 | [340ca3032e6c](configs/340ca3032e6c.yaml) — *config since changed* | bfdc95c44bcb | 19 | 89% | 11 | 6.8 | 46.37 | 0 | 14.5 | 15 | 24.4 | — | — | — |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | 1.0 | thinking | xhigh | 2/2 | [41ee296edff9](configs/41ee296edff9.yaml) | 3f91f24193ba | 11 | 100% | 6 | 6.5 | 39.94 | 0 | 18.3 | 10 | 24.6 | — | — | — |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | 1.0 | thinking | xhigh | — | [41ee296edff9](configs/41ee296edff9.yaml) | f1ff19ce062d+dirty | 7 | 86% | 5 | — | — | 0 | 11.1 | 4 | 24.8 | — | — | — |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | 1.0 | thinking | n/a | 2/2 | [6d148ccbfd2e](configs/6d148ccbfd2e.yaml) — *config since changed* | 1166272411af | 9 | 67% | 2 | 6.7 | 46.41 | 0 | — | 0 | 24.5 | — | — | — |
@@ -312,7 +332,19 @@ whichever of its own config_hash/runner_sha fragments is full-suite-complete
 (over one that merely has more raw evidence but is missing an axis), then the
 most total coding+hermes_ops evidence, then recency.
 
-No group has a full-suite, benchmark-v2-or-later run (sanity + 8/8 hermes_ops + 15/15 coding) yet.
+| rank | model | engine | quant | reasoning⁶ | config | usefulness gate | score | coding | speed | avg time (s) | avg turns |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | unspecified | 48d75180adbc | PASS (100%, 8) | 0.902 | 93% (15) | 28.9 tok/s | 184 | 15.6 |
+| 2 | poolside/Laguna-XS-2.1-GGUF:Q4_K_M | llama.cpp | — | thinking | 644ba3997136 | PASS (50%, 8) | 0.827 | 87% (15) | 34.8 tok/s | 177 | 25.3 |
+| 3 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | — | unspecified | 7b0652d1fb9e | PASS (100%, 8) | 0.781 | 80% (15) | 25.6 tok/s | 267 | 15.3 |
+| 4 | mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Compact | llama.cpp | — | unspecified | 0b31098f54f7 | PASS (75%, 8) | 0.774 | 73% (15) | 31.2 tok/s | 212 | 22.9 |
+| 5 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | thinking | a2d241742068 | PASS (75%, 8) | 0.719 | 87% (15) | 20.9 tok/s | 259 | 18.7 |
+| 6 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | — | instruct | 644415678c37 | PASS (75%, 8) | 0.681 | 87% (15) | 20.8 tok/s | 299 | 27.5 |
+| 7 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | thinking (medium) | 340ca3032e6c | PASS (88%, 8) | 0.567 | 87% (15) | 6.7 tok/s | 841 | 13.3 |
+| 8 | trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M | llama.cpp | — | thinking (medium) | d6a1d4a8db43 | PASS (88%, 8) | 0.562 | 80% (15) | 6.5 tok/s | 807 | 11.3 |
+| 9 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | n/a | ffa862c18cff | PASS (75%, 8) | 0.424 | 60% (15) | 7.7 tok/s | 1021 | 27.9 |
+
+![Best overall composite score by model](score_chart.png)
 
 ## Flaky tasks (mixed pass/fail under identical conditions)
 
@@ -378,6 +410,13 @@ confirmed-stable, just untested for flakiness.
 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q5_K_M | llama.cpp | b03fc3f2b8f8 | 1dbc371640ce | kiem_mini | 4/5 |
 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q5_K_M | llama.cpp | b03fc3f2b8f8 | 1dbc371640ce | kipclip_mini | 3/3 |
 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q5_K_M | llama.cpp | b03fc3f2b8f8 | 1dbc371640ce | sanity | 2/2 |
+| JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q5_K_M | llama.cpp | b03fc3f2b8f8 | 24ac4057b970 | hearth_full | 3/3 |
+| JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q5_K_M | llama.cpp | b03fc3f2b8f8 | 24ac4057b970 | kipclip_mini | 1/2 |
+| JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q5_K_M | llama.cpp | b03fc3f2b8f8 | 9df216e99cd9 | hearth_mini | 3/3 |
+| JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q5_K_M | llama.cpp | b03fc3f2b8f8 | 9df216e99cd9 | hermes_ops | 5/8 |
+| JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q5_K_M | llama.cpp | b03fc3f2b8f8 | 9df216e99cd9 | kiem_mini | 4/5 |
+| JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q5_K_M | llama.cpp | b03fc3f2b8f8 | 9df216e99cd9 | kipclip_mini | 1/1 |
+| JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q5_K_M | llama.cpp | b03fc3f2b8f8 | 9df216e99cd9 | sanity | 2/2 |
 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | 3618a30940bc | e155170f4c1d | sanity | 2/2 |
 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | 3618a30940bc | fc71ba2c66f8+dirty | sanity | 2/2 |
 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | 6f8f1c7b8d48 | e155170f4c1d | sanity | 2/2 |
@@ -526,11 +565,18 @@ confirmed-stable, just untested for flakiness.
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | 38ccea45c281 | 141399e74bd0 | kiem_mini | 3/5 |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | 38ccea45c281 | 141399e74bd0 | kipclip_mini | 3/3 |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | 38ccea45c281 | 141399e74bd0 | sanity | 2/2 |
+| bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | 38ccea45c281 | 3959bd7a0f56+dirty | hermes_ops | 3/5 |
+| bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | 38ccea45c281 | 3959bd7a0f56+dirty | sanity | 2/2 |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | 38ccea45c281 | 75f452b3bab1 | hearth_mini | 3/3 |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | 38ccea45c281 | 75f452b3bab1 | hermes_ops | 5/8 |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | 38ccea45c281 | 75f452b3bab1 | kiem_mini | 3/5 |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | 38ccea45c281 | 75f452b3bab1 | kipclip_mini | 3/3 |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | 38ccea45c281 | 75f452b3bab1 | sanity | 2/2 |
+| bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | 38ccea45c281 | b17cb6e405c0+dirty | hearth_full | 2/3 |
+| bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | 38ccea45c281 | b17cb6e405c0+dirty | hearth_mini | 3/3 |
+| bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | 38ccea45c281 | b17cb6e405c0+dirty | hermes_ops | 2/3 |
+| bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | 38ccea45c281 | b17cb6e405c0+dirty | kiem_mini | 4/5 |
+| bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | 38ccea45c281 | b17cb6e405c0+dirty | kipclip_mini | 4/4 |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | 38ccea45c281 | cf45f7655a7c | hearth_mini | 3/3 |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | 38ccea45c281 | cf45f7655a7c | hermes_ops | 4/8 |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | llama.cpp | 38ccea45c281 | cf45f7655a7c | kiem_mini | 2/5 |
@@ -579,6 +625,12 @@ confirmed-stable, just untested for flakiness.
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | a2d241742068 | 38836484bab4 | kiem_mini | 2/5 |
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | a2d241742068 | 38836484bab4 | kipclip_mini | 3/3 |
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | a2d241742068 | 38836484bab4 | sanity | 2/2 |
+| bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | a2d241742068 | 9df216e99cd9 | hearth_full | 2/3 |
+| bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | a2d241742068 | 9df216e99cd9 | hearth_mini | 3/3 |
+| bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | a2d241742068 | 9df216e99cd9 | hermes_ops | 6/8 |
+| bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | a2d241742068 | 9df216e99cd9 | kiem_mini | 4/5 |
+| bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | a2d241742068 | 9df216e99cd9 | kipclip_mini | 4/4 |
+| bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | a2d241742068 | 9df216e99cd9 | sanity | 2/2 |
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | a2d241742068 | c8d9bde5c6d6 | hearth_mini | 3/3 |
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | a2d241742068 | c8d9bde5c6d6 | hermes_ops | 6/8 |
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | a2d241742068 | c8d9bde5c6d6 | kiem_mini | 2/5 |
@@ -643,6 +695,28 @@ confirmed-stable, just untested for flakiness.
 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | 7b0652d1fb9e | 4fd562e5fb7b | kiem_mini | 5/5 |
 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | 7b0652d1fb9e | 4fd562e5fb7b | kipclip_mini | 3/3 |
 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | 7b0652d1fb9e | 4fd562e5fb7b | sanity | 2/2 |
+| mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | 7b0652d1fb9e | 755dc7f4b2a3 | hearth_full | 2/2 |
+| mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | 7b0652d1fb9e | 755dc7f4b2a3 | hearth_mini | 3/3 |
+| mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | 7b0652d1fb9e | 755dc7f4b2a3 | hermes_ops | 16/16 |
+| mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | 7b0652d1fb9e | 755dc7f4b2a3 | kiem_mini | 3/5 |
+| mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | 7b0652d1fb9e | 755dc7f4b2a3 | kipclip_mini | 4/4 |
+| mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | 7b0652d1fb9e | 755dc7f4b2a3 | sanity | 4/4 |
+| mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | 7b0652d1fb9e | 9df216e99cd9 | hearth_full | 2/3 |
+| mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | 7b0652d1fb9e | 9df216e99cd9 | hearth_mini | 3/3 |
+| mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | 7b0652d1fb9e | 9df216e99cd9 | hermes_ops | 8/8 |
+| mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | 7b0652d1fb9e | 9df216e99cd9 | kiem_mini | 3/5 |
+| mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | 7b0652d1fb9e | 9df216e99cd9 | kipclip_mini | 4/4 |
+| mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | 7b0652d1fb9e | 9df216e99cd9 | sanity | 2/2 |
+| mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | 7b0652d1fb9e | 9df216e99cd9+dirty | hearth_full | 3/3 |
+| mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | 7b0652d1fb9e | 9df216e99cd9+dirty | hearth_mini | 3/3 |
+| mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | 7b0652d1fb9e | 9df216e99cd9+dirty | kiem_mini | 2/3 |
+| mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | 7b0652d1fb9e | 9df216e99cd9+dirty | kipclip_mini | 4/4 |
+| mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Compact | llama.cpp | 0b31098f54f7 | b17cb6e405c0 | hearth_full | 3/3 |
+| mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Compact | llama.cpp | 0b31098f54f7 | b17cb6e405c0 | hearth_mini | 3/3 |
+| mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Compact | llama.cpp | 0b31098f54f7 | b17cb6e405c0 | hermes_ops | 6/8 |
+| mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Compact | llama.cpp | 0b31098f54f7 | b17cb6e405c0 | kiem_mini | 2/5 |
+| mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Compact | llama.cpp | 0b31098f54f7 | b17cb6e405c0 | kipclip_mini | 3/4 |
+| mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Compact | llama.cpp | 0b31098f54f7 | b17cb6e405c0 | sanity | 2/2 |
 | openai/gpt-5.6-luna | api | 1f7b55bd4401 | *(predates tracking)* | hermes_ops | 3/3 |
 | openai/gpt-5.6-luna | api | 1f7b55bd4401 | *(predates tracking)* | sanity | 2/2 |
 | openai/gpt-5.6-luna | api | bc97807766bc | *(predates tracking)* | kiem_mini | 1/1 |
@@ -672,6 +746,12 @@ confirmed-stable, just untested for flakiness.
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | 48d75180adbc | 6cc8b646db2e | kiem_mini | 4/5 |
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | 48d75180adbc | 6cc8b646db2e | kipclip_mini | 3/3 |
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | 48d75180adbc | 6cc8b646db2e | sanity | 2/2 |
+| ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | 48d75180adbc | 9df216e99cd9 | hearth_full | 3/3 |
+| ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | 48d75180adbc | 9df216e99cd9 | hearth_mini | 3/3 |
+| ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | 48d75180adbc | 9df216e99cd9 | hermes_ops | 8/8 |
+| ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | 48d75180adbc | 9df216e99cd9 | kiem_mini | 4/5 |
+| ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | 48d75180adbc | 9df216e99cd9 | kipclip_mini | 4/4 |
+| ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | 48d75180adbc | 9df216e99cd9 | sanity | 2/2 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | vllm-mlx | 76414c6ab37c | 0620219fd55e | hermes_ops | 3/8 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | vllm-mlx | 76414c6ab37c | 0620219fd55e | sanity | 2/2 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | vllm-mlx | 76414c6ab37c | dd3232d96137 | hermes_ops | 5/8 |
@@ -681,6 +761,12 @@ confirmed-stable, just untested for flakiness.
 | ornith-ai/Ornith-1.5-9B-MLX-4bit | vllm-mlx | d0d250e59d4e | bb858f72fc84 | sanity | 1/2 |
 | ornith-ai/Ornith-1.5-9B-MLX-4bit | vllm-mlx | d0d250e59d4e | dd3232d96137 | hermes_ops | 5/7 |
 | poolside/Laguna-XS-2.1-GGUF:Q4_K_M | gguf | e427e7a50b14 | *(predates tracking)* | sanity | 1/2 |
+| poolside/Laguna-XS-2.1-GGUF:Q4_K_M | llama.cpp | 644ba3997136 | 9df216e99cd9 | hearth_full | 3/3 |
+| poolside/Laguna-XS-2.1-GGUF:Q4_K_M | llama.cpp | 644ba3997136 | 9df216e99cd9 | hearth_mini | 3/3 |
+| poolside/Laguna-XS-2.1-GGUF:Q4_K_M | llama.cpp | 644ba3997136 | 9df216e99cd9 | hermes_ops | 4/8 |
+| poolside/Laguna-XS-2.1-GGUF:Q4_K_M | llama.cpp | 644ba3997136 | 9df216e99cd9 | kiem_mini | 3/5 |
+| poolside/Laguna-XS-2.1-GGUF:Q4_K_M | llama.cpp | 644ba3997136 | 9df216e99cd9 | kipclip_mini | 4/4 |
+| poolside/Laguna-XS-2.1-GGUF:Q4_K_M | llama.cpp | 644ba3997136 | 9df216e99cd9 | sanity | 2/2 |
 | poolside/Laguna-XS-2.1-GGUF:Q4_K_M | llama.cpp | 644ba3997136 | e23570ec40be | hearth_mini | 3/3 |
 | poolside/Laguna-XS-2.1-GGUF:Q4_K_M | llama.cpp | 644ba3997136 | e23570ec40be | hermes_ops | 4/8 |
 | poolside/Laguna-XS-2.1-GGUF:Q4_K_M | llama.cpp | 644ba3997136 | e23570ec40be | kiem_mini | 4/5 |
@@ -710,6 +796,26 @@ confirmed-stable, just untested for flakiness.
 | scottlowry/Ornith-1.5-9B-oQ4e-fp16 | omlx | afecbd0a9f5f | fc71ba2c66f8+dirty | hermes_ops | 3/3 |
 | scottlowry/Ornith-1.5-9B-oQ4e-fp16 | omlx | afecbd0a9f5f | fc71ba2c66f8+dirty | kiem_mini | 0/1 |
 | scottlowry/Ornith-1.5-9B-oQ4e-fp16 | omlx | afecbd0a9f5f | fc71ba2c66f8+dirty | sanity | 2/2 |
+| trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M | llama.cpp | 891242963db5 | be370d5982b4+dirty | hermes_ops | 7/8 |
+| trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M | llama.cpp | 891242963db5 | be370d5982b4+dirty | sanity | 2/2 |
+| trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M | llama.cpp | d6a1d4a8db43 | b17cb6e405c0 | hermes_ops | 7/8 |
+| trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M | llama.cpp | d6a1d4a8db43 | b17cb6e405c0 | sanity | 2/2 |
+| trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M | llama.cpp | d6a1d4a8db43 | be370d5982b4 | hearth_full | 3/3 |
+| trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M | llama.cpp | d6a1d4a8db43 | be370d5982b4 | hearth_mini | 3/3 |
+| trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M | llama.cpp | d6a1d4a8db43 | be370d5982b4 | hermes_ops | 7/8 |
+| trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M | llama.cpp | d6a1d4a8db43 | be370d5982b4 | kiem_mini | 3/5 |
+| trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M | llama.cpp | d6a1d4a8db43 | be370d5982b4 | kipclip_mini | 3/4 |
+| trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M | llama.cpp | d6a1d4a8db43 | be370d5982b4 | sanity | 2/2 |
+| trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M | llama.cpp | d6a1d4a8db43 | be370d5982b4+dirty | hearth_full | 3/3 |
+| trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M | llama.cpp | d6a1d4a8db43 | be370d5982b4+dirty | hearth_mini | 3/3 |
+| trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M | llama.cpp | d6a1d4a8db43 | be370d5982b4+dirty | kiem_mini | 3/4 |
+| trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M | llama.cpp | d6a1d4a8db43 | be370d5982b4+dirty | kipclip_mini | 3/4 |
+| unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | ffa862c18cff | 3959bd7a0f56+dirty | hearth_full | 3/3 |
+| unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | ffa862c18cff | 3959bd7a0f56+dirty | hearth_mini | 2/3 |
+| unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | ffa862c18cff | 3959bd7a0f56+dirty | hermes_ops | 6/8 |
+| unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | ffa862c18cff | 3959bd7a0f56+dirty | kiem_mini | 2/5 |
+| unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | ffa862c18cff | 3959bd7a0f56+dirty | kipclip_mini | 2/4 |
+| unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | ffa862c18cff | 3959bd7a0f56+dirty | sanity | 2/2 |
 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | ffa862c18cff | 63c1cbdae938 | hearth_mini | 3/3 |
 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | ffa862c18cff | 63c1cbdae938 | hermes_ops | 6/8 |
 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | ffa862c18cff | 63c1cbdae938 | kiem_mini | 3/5 |
@@ -731,6 +837,12 @@ confirmed-stable, just untested for flakiness.
 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | 644415678c37 | 520355356ee0 | kiem_mini | 2/5 |
 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | 644415678c37 | 520355356ee0 | kipclip_mini | 3/3 |
 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | 644415678c37 | 520355356ee0 | sanity | 2/2 |
+| unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | 644415678c37 | 9df216e99cd9 | hearth_full | 3/3 |
+| unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | 644415678c37 | 9df216e99cd9 | hearth_mini | 3/3 |
+| unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | 644415678c37 | 9df216e99cd9 | hermes_ops | 6/8 |
+| unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | 644415678c37 | 9df216e99cd9 | kiem_mini | 3/5 |
+| unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | 644415678c37 | 9df216e99cd9 | kipclip_mini | 4/4 |
+| unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | 644415678c37 | 9df216e99cd9 | sanity | 2/2 |
 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | 644415678c37 | bf1cd0ed7a6f | hermes_ops | 5/8 |
 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | 644415678c37 | bf1cd0ed7a6f | kiem_mini | 1/1 |
 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | 644415678c37 | bf1cd0ed7a6f | sanity | 2/2 |
@@ -748,6 +860,19 @@ confirmed-stable, just untested for flakiness.
 | unsloth/Qwen3.8-27B-GGUF:UD-Q2_K_XL | gguf | 2233edb1c4f2 | *(predates tracking)* | sanity | 2/2 |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q4_K_M | gguf | 89f4d8d04793 | *(predates tracking)* | hermes_ops | 3/3 |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q4_K_M | gguf | 89f4d8d04793 | *(predates tracking)* | sanity | 2/2 |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 340ca3032e6c | 24ac4057b970 | hermes_ops | 7/8 |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 340ca3032e6c | 24ac4057b970 | kiem_mini | 1/1 |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 340ca3032e6c | 24ac4057b970 | sanity | 2/2 |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 340ca3032e6c | 3959bd7a0f56+dirty | hearth_full | 3/3 |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 340ca3032e6c | 3959bd7a0f56+dirty | hearth_mini | 3/3 |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 340ca3032e6c | 3959bd7a0f56+dirty | kiem_mini | 2/3 |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 340ca3032e6c | 3959bd7a0f56+dirty | kipclip_mini | 3/3 |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 340ca3032e6c | b17cb6e405c0+dirty | hearth_full | 3/3 |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 340ca3032e6c | b17cb6e405c0+dirty | hearth_mini | 3/3 |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 340ca3032e6c | b17cb6e405c0+dirty | hermes_ops | 7/8 |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 340ca3032e6c | b17cb6e405c0+dirty | kiem_mini | 3/5 |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 340ca3032e6c | b17cb6e405c0+dirty | kipclip_mini | 4/4 |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 340ca3032e6c | b17cb6e405c0+dirty | sanity | 2/2 |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 340ca3032e6c | bfdc95c44bcb | hearth_mini | 3/3 |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 340ca3032e6c | bfdc95c44bcb | hermes_ops | 7/8 |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | 340ca3032e6c | bfdc95c44bcb | kiem_mini | 5/5 |
@@ -771,7 +896,7 @@ confirmed-stable, just untested for flakiness.
 
 ## Harness errors (excluded from every table above)
 
-15 row(s) where the harness itself crashed (e.g. a network blip during `npm ci`, a malformed task spec) rather than the model producing a graded result — shown separately so they don't deflate pass rates or masquerade as model flakiness.
+23 row(s) where the harness itself crashed (e.g. a network blip during `npm ci`, a malformed task spec) rather than the model producing a graded result — shown separately so they don't deflate pass rates or masquerade as model flakiness.
 
 | model | engine | suite | task | grade_output (truncated) |
 |---|---|---|---|---|
@@ -784,12 +909,20 @@ confirmed-stable, just untested for flakiness.
 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | kiem_mini | kiem_mini-rename | HARNESS ERROR: PermissionError: [Errno 13] Permission denied: '/Users/tijs/projects/local-model-bench/runner/.dspark-hea |
 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | kiem_mini | kiem_mini-testwrite | HARNESS ERROR: PermissionError: [Errno 13] Permission denied: '/Users/tijs/projects/local-model-bench/runner/.dspark-hea |
 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | kiem_mini | kiem_mini-parse-note | [...truncated...] ✘ Test malformedInputThrowsRatherThanCrashingOrGuessing() failed after 0.001 seconds with 1 issue. ✘ T |
+| JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q5_K_M | llama.cpp | kipclip_mini | kipclip_mini-debug | [...truncated...] [0m[32mCheck[0m src/types.ts [0m[32mCheck[0m src/url_utils.ts [0m[32mCheck[0m tests/bookmarks |
 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | kiem_mini | kiem_mini-feature | HARNESS ERROR: child agent escaped the disposable workspace and modified the source fixture; result invalidated and sour |
 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | kiem_mini | kiem_mini-feature | HARNESS ERROR: child agent escaped the disposable workspace and created repository-root src/lib.rs; result invalidated a |
+| mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | hearth_full | hearth_full-feature | [...truncated...]  > hearth-full@0.1.0 test > vitest run    RUN  v2.1.9 /Users/tijs/projects/local-model-bench/runner/ru |
+| mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | kiem_mini | kiem_mini-feature | [...truncated...]      Running unittests src/lib.rs (target/debug/deps/notekeep-49d36e61ba6dd38e)      Running unittests |
+| mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | kiem_mini | kiem_mini-testwrite | HARNESS ERROR: agent escaped the disposable run root and edited the benchmark checkout; source bytes were restored. == b |
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | kiem_mini | kiem_mini-feature | [...truncated...]      Running unittests src/lib.rs (target/debug/deps/notekeep-49d36e61ba6dd38e)      Running unittests |
 | scottlowry/Ornith-1.5-9B-oQ4e-fp16 | omlx | kiem_mini | kiem_mini-feature | HARNESS ERROR: child agent escaped the disposable workspace and modified the source fixture; result invalidated and sour |
+| trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M | llama.cpp | kiem_mini | kiem_mini-feature | [...truncated...]      Running unittests src/lib.rs (target/debug/deps/notekeep-49d36e61ba6dd38e)      Running unittests |
+| trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M | llama.cpp | kiem_mini | kiem_mini-feature | [...truncated...]      Running unittests src/lib.rs (target/debug/deps/notekeep-49d36e61ba6dd38e)      Running unittests |
 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | kiem_mini | kiem_mini-feature | HARNESS ERROR: PermissionError: [Errno 13] Permission denied: '/Users/tijs/projects/local-model-bench/runner/.dspark-hea |
 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | kiem_mini | kiem_mini-parse-note | [...truncated...] ✘ Test run with 5 tests in 0 suites failed after 0.001 seconds with 1 issue. [0/1] Planning build Buil |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | kiem_mini | kiem_mini-rename | [...truncated...]     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.62s      Running unittests src/li |
+| unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | kipclip_mini | kipclip_mini-merge | [...truncated...] [0m[32mCheck[0m src/import_merge.ts [0m[32mCheck[0m src/tag_utils.ts [0m[32mCheck[0m src/type |
 
 ## Blocked configs (marked non-viable, excluded from every table above)
 

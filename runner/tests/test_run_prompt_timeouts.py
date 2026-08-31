@@ -59,7 +59,11 @@ class _SSEHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         length = int(self.headers.get("Content-Length", "0"))
-        self.rfile.read(length)
+        body = self.rfile.read(length)
+        try:
+            self.server.last_request_body = json.loads(body)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            pass
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-cache")
@@ -156,6 +160,20 @@ class MeaningfulEventClassificationTests(unittest.TestCase):
         self.assertTrue(run_prompt._sse_event_is_meaningful(_chunk(content="hi")))
         self.assertTrue(run_prompt._sse_event_is_meaningful(
             _chunk(tool_calls=[{"index": 0, "function": {"name": "f"}}])
+        ))
+
+    def test_reasoning_content_deltas_are_meaningful(self):
+        # A thinking-mode model can stream many real tokens of
+        # reasoning_content with no content/tool_calls delta at all --
+        # missing this made the watchdog classify active generation as a
+        # stall (confirmed live 2026-08-31 once hermes_ops's max_tokens
+        # cap was raised, exposing a thinking model reasoning past the
+        # first_progress budget).
+        self.assertTrue(run_prompt._sse_event_is_meaningful(
+            _chunk(reasoning_content="thinking...")
+        ))
+        self.assertFalse(run_prompt._sse_event_is_meaningful(
+            _chunk(reasoning_content="")
         ))
 
     def test_done_sentinel_is_meaningful(self):
@@ -444,14 +462,18 @@ class SuiteIntegrationTests(unittest.TestCase):
         import yaml
         (self.tmp / "tasks" / "faketest.yaml").write_text(yaml.safe_dump(spec))
 
-    def _run_suite(self, base_url):
+    def _run_suite(self, base_url, config_path=None):
         argv = [
             "run_prompt_suite.py", "--suite", "faketest",
             "--base-url", base_url, "--model", "fake-model",
             "--inference-engine", "fake",
             "--summary-out", str(self.tmp / "summary.json"),
         ]
+        if config_path is not None:
+            argv += ["--config", str(config_path)]
+        import bench_common
         with unittest.mock.patch.object(run_prompt_suite, "REPO", self.tmp), \
+                unittest.mock.patch.object(bench_common, "REPO", self.tmp), \
                 unittest.mock.patch.object(sys, "argv", argv):
             run_prompt_suite.main()
         return json.loads((self.tmp / "summary.json").read_text())
@@ -511,6 +533,33 @@ class SuiteIntegrationTests(unittest.TestCase):
         self.assertFalse(row["harness_error"])
         self.assertIsNotNone(row["partial_output_path"])
         self.assertTrue((self.tmp / row["partial_output_path"]).exists())
+
+    def test_hermes_ops_max_tokens_config_field_overrides_the_default(self):
+        import yaml
+        script = [
+            (0.05, f"data: {_chunk(content='hello there')}\n\n".encode()),
+            (0.05, b"data: [DONE]\n\n"),
+        ]
+        self._write_suite()
+        config_path = self.tmp / "fake_config.yaml"
+        config_path.write_text(yaml.safe_dump({"hermes_ops_max_tokens": 16384}))
+        server = FakeSSEServer(script)
+        with server as base_url:
+            self._run_suite(base_url, config_path=config_path)
+            body = server.httpd.last_request_body
+        self.assertEqual(body["max_tokens"], 16384)
+
+    def test_without_the_config_field_the_run_prompt_default_is_used(self):
+        script = [
+            (0.05, f"data: {_chunk(content='hello there')}\n\n".encode()),
+            (0.05, b"data: [DONE]\n\n"),
+        ]
+        self._write_suite()
+        server = FakeSSEServer(script)
+        with server as base_url:
+            self._run_suite(base_url)
+            body = server.httpd.last_request_body
+        self.assertEqual(body["max_tokens"], 4096)
 
     def test_the_real_results_log_is_never_touched(self):
         # Guard on the guard: this suite must not append to the months of

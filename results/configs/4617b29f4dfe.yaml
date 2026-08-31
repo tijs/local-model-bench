@@ -1,0 +1,176 @@
+model: mlx-community/Qwen3.8-27B-4bit
+# Added 2026-08-21 (adversarial review finding H7): reasoning-mode and
+# temperature differ across models presented in one ranked leaderboard
+# table with no column showing it — e.g. Qwen3.8-27B vs Qwen3.8-27B-Ridge
+# looked like a quant comparison but also differed in reasoning mode,
+# temperature, and presence_penalty (three confounds, one conclusion).
+# These two fields are read by build_leaderboard.py and shown as columns;
+# keep them in sync with benchmark_launch_command by hand.
+temperature: 1.0
+reasoning_mode: thinking
+  # CRITICAL BUG, found by a third independent adversarial review
+  # 2026-08-21 (finding CR3-14): this said "instruct", but this config's
+  # own settings block (see "temperature / top_p / top_k (thinking mode)"
+  # further down) explicitly says "thinking mode is ON by default (not
+  # disabled here)" — and every GGUF sibling of this same model
+  # (gguf.yaml, gguf-dflash2.yaml, gguf-unsloth-ud-q4.yaml,
+  # gguf-unsloth-ud-q2.yaml) already says reasoning_mode: thinking. This
+  # was the one config out of five for the same base model that
+  # disagreed with itself and all its siblings.
+inference_engine: vllm-mlx
+
+benchmark_launch_command: |
+  # vllm_mlx.server has NO --chat-template-file flag (confirmed via
+  # `python -m vllm_mlx.server --help` AND `vllm-mlx serve --help` — neither
+  # entry point supports it, unlike llama-server's --jinja
+  # --chat-template-file used for the GGUF leg). The community chat-template
+  # fix below therefore has to land in the HF cache itself, which is not
+  # something git tracks — fixed 2026-08-21 (adversarial review finding H9):
+  # this step now RE-APPLIES it from the repo-tracked copy every launch,
+  # idempotently, instead of relying on a one-time manual mutation from
+  # 2026-08-19 that a fresh clone/fresh model download would silently lose.
+  # Fails LOUDLY (exit 1, before the server even launches) if the glob
+  # matches nothing, instead of silently doing nothing and launching
+  # against the ORIGINAL buggy template with no error at all — found by a
+  # second independent adversarial review (finding M-6): a model not yet
+  # downloaded, an HF cache layout change, or a snapshot rename would all
+  # hit this, and the failure mode is exactly the bug H9 was fixing.
+  patched=0
+  for f in ~/.cache/huggingface/hub/models--mlx-community--Qwen3.8-27B-4bit/snapshots/*/chat_template.jinja; do
+    if [ -e "$f" ]; then
+      rm -f "$f" && cp configs/Qwen3.8-27B/chat_template.jinja "$f"
+      patched=$((patched + 1))
+    fi
+  done
+  if [ "$patched" -eq 0 ]; then
+    echo "FATAL: chat-template patch matched no files under ~/.cache/huggingface/hub/models--mlx-community--Qwen3.8-27B-4bit/snapshots/*/ — model not downloaded yet, or the HF cache layout changed. Refusing to launch with a possibly-unpatched template." >&2
+    exit 1
+  fi
+  HF_TOKEN=$(cat ~/.cache/huggingface/token) uv run --locked python -m vllm_mlx.server \
+    --model mlx-community/Qwen3.8-27B-4bit --host 127.0.0.1 --port 8018 \
+    --max-request-tokens 32768 --max-tokens 32768 --continuous-batching \
+    --default-temperature 1.0 --default-top-p 0.95 --default-top-k 20 \
+    --timeout 900
+
+benchmark_endpoint: http://127.0.0.1:8018/v1
+  # No proxy needed — confirmed live 2026-08-19: unlike LFM, Qwen3.8-27B's
+  # tool_calls come back natively parsed from raw vllm-mlx. This contradicts
+  # what was assumed after testing only LFM — tool-call parsing in vllm-mlx
+  # is MODEL-DEPENDENT (some families get native parsing, some don't), not
+  # universally absent. Always spot-check a new model directly before
+  # assuming either way.
+
+orchestration:
+  raw_port: 8018
+  needs_proxy: false
+  hermes_provider: qwen-mlx
+  blocked_reason: "Marked non-viable 2026-08-22: MLX leg (mlx.yaml, config_hash 968652aede2d) completed sanity + all 3 hermes_ops tasks (2/3 pass) but decode throughput collapsed as prompt size grew \u2014 12.37 tok/s at 29 prompt tokens down to 0.18/0.36/0.83 tok/s at 43312/65273/177877 prompt tokens, taking 668s/1021s/2904s (~77 min combined) for those 3 hermes_ops tasks alone (~1.5h total wall clock incl. load+sanity). Every hermes_ops row is flagged within_budget: false. Pilot stopped before the coding suite (even larger prompts) or the GGUF/oMLX legs were reached."
+  viable: blocked   # BLOCKED 2026-08-22: Qwen3.8-27B marked non-viable for
+    # this hardware after a live pilot run — this MLX config (4-bit,
+    # mlx-community/Qwen3.8-27B-4bit, config_hash 968652aede2d) DID
+    # complete both sanity tasks and all 3 hermes_ops tasks (2/3 pass,
+    # the one FAIL was a hallucinated tool name, not a timeout) — but
+    # decode throughput collapsed catastrophically as prompt size grew:
+    # 12.37 tok/s at 29 prompt tokens (sanity-basic) down to 0.18/0.36/
+    # 0.83 tok/s at 43312/65273/177877 prompt tokens (hermes_ops-
+    # selection/chaining/error-recovery), taking 668s/1021s/2904s
+    # (~77 min combined) for those 3 tasks alone — see results/log.jsonl
+    # rows with config_hash 968652aede2d for the exact numbers. Every
+    # hermes_ops row is flagged within_budget: false (each individually
+    # blew past bench_common.py's 300s INTERACTIVE_BUDGET_SECONDS by 2x-
+    # 10x), so even a technical PASS here is not a practically usable
+    # result in a real interactive agentic session. Test was stopped
+    # before the coding suite (even larger prompts, would be slower
+    # still) or the GGUF Q5-64K/oMLX legs were reached; this call was
+    # made on this MLX data point alone, not confirmed independently on
+    # the other two backends. --max-request-tokens 32768 was ALSO below
+    # hermes's 64K coding-suite minimum (the original reason this was
+    # sanity_and_hermes_ops_only), so this config never would have
+    # reached the coding suite either way.
+
+settings:
+  - name: quant
+    value: 4-bit (mlx-community/Qwen3.8-27B-4bit)
+    source: "chosen per 32GB-Mac RAM constraint at this model size — 8-bit
+      (~27GB+ for weights alone) leaves too little headroom. Confirmed this
+      exact quant repo exists and loads (auto-detected as VLM checkpoint,
+      loads text-only with strict=False, mllm=False in engine logs — no
+      --mllm flag needed despite the base model being multimodal)."
+  - name: tool_call_parser
+    value: native (vllm-mlx built-in, no bench_local_proxy.py needed)
+    source: "confirmed live 2026-08-19 by hitting the raw endpoint directly
+      with runner/run_prompt.py — tool_calls array present with no proxy in
+      front. Do not assume this for other model families without the same
+      spot-check."
+  - name: temperature / top_p / top_k (thinking mode)
+    value: 1.0 / 0.95 / 20
+    source: "https://huggingface.co/Qwen/Qwen3.8-27B model card — thinking
+      mode is ON by default (not disabled here), so its recommended
+      settings apply, not the non-thinking-mode ones (temp=0.7/top_p=0.80/
+      presence_penalty=1.5) — do not mix the two sets. Non-default:
+      `enable_thinking: false` via chat_template_kwargs would need to be
+      set to switch modes."
+  - name: context_length
+    value: 262144 (native)
+    source: "https://huggingface.co/Qwen/Qwen3.8-27B model card — native
+      context, extensible to 1M via RoPE scaling (not applied here)."
+  - name: "--timeout (vllm_mlx.server's own request timeout)"
+    value: 900 (was 300, the framework default)
+    source: "CRITICAL FIX, discovered live 2026-08-19: vllm_mlx.server has
+      its own internal request timeout (--timeout, default 300s per
+      `vllm_mlx.server --help`) that aborts a request and returns an empty
+      0-token response if prefill takes longer than that — confirmed via
+      server log: 'TIMEOUT after 300s ... ABORTING orphaned request (0
+      tokens generated in 300.0s)'. MLX prefill for this model's ~21.5K-token
+      hermes_ops prompt exceeds 300s (no error, no exception — just a
+      silent empty response that looks exactly like a model failure or a
+      harness bug). This is DISTINCT from the earlier OOM issue (that was
+      llama.cpp/GGUF-side and about memory; this is MLX-side and about a
+      request-timeout flag) — don't conflate the two when debugging a
+      similar-looking empty response on a different model."
+  - name: MTP (multi-token prediction)
+    value: "not available in this quant"
+    source: "observed in server startup log: 'MTP weights not found' warning
+      — this 4-bit MLX quant doesn't include them. Not investigated further;
+      note if pursuing speedups beyond DFlash2. unsloth/Qwen3.8-27B-GGUF DOES
+      ship separate MTP draft weights (mtp-Qwen3.8-27B-Q4_0.gguf) — relevant
+      if pursuing this for the GGUF leg instead."
+  - name: chat_template (community fix)
+    value: "https://huggingface.co/froggeric/Qwen-Fixed-Chat-Templates
+      applied 2026-08-19 — overwrote the cached model's chat_template.jinja
+      (original backed up to configs/Qwen3.8-27B/chat_template.jinja.original-backup)"
+    source: "Unofficial/community fix, not from Qwen. Its docs claim: official
+      Qwen3.8 template hardcodes reasoning_effort=xhigh (this fix defaults to
+      medium), crashes on JSON-string tool arguments from standard API
+      clients, and injects duplicate blank <think></think> blocks. CONFIRMED
+      live 2026-08-19: before the fix, hermes_ops-selection failed (tool
+      never called); after, it correctly calls web_search with clean JSON
+      object arguments (not stringified) and produces a correct final
+      answer. TTFT did not meaningfully improve (~330-365s either way) —
+      the fix's main confirmed benefit here is correctness, not speed,
+      at least for this one task; treat the 'exhausts token budget' claim
+      as plausible but not fully isolated/verified against effort=medium
+      explicitly set without the template swap."
+
+known_gaps:
+  - "run_prompt.py (sanity/hermes_ops) hardcodes temperature=0 client-side,
+    overriding the --default-temperature above — so these settings only
+    apply to the coding suites (driven via hermes chat), not sanity/
+    hermes_ops. See tasks/SCHEMA.md 'Temperature is deliberately fixed at 0'."
+  - "reasoning (<think>) format differs from LFM: observed a lone closing
+    </think> with no opening tag — grade_prompt.py's strip_reasoning was
+    fixed for this live 2026-08-19, but double check if grading looks off
+    for a new task type."
+
+process_discipline_note: |
+  Learned live 2026-08-19: never run more than one model server at a time
+  during ad-hoc testing. Running LFM MLX + LFM GGUF + Qwen MLX + Qwen GGUF
+  simultaneously (4 servers, ~4GB free RAM remaining) caused silent-looking
+  failures (empty responses, 1-token completions, and on the GGUF side a
+  hard Metal OOM crash) that looked like model/harness bugs but were
+  actually resource exhaustion — wasted significant debugging time before
+  the real cause was found. See configs/Qwen3.8-27B/gguf.yaml for the fuller
+  writeup (that side hit a harder, more diagnostic error).
+
+last_updated: 2026-08-19
+last_verified_against_docs: 2026-08-19

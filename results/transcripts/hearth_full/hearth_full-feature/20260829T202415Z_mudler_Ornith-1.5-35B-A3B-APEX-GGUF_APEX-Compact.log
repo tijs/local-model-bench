@@ -1,0 +1,774 @@
+$ hermes chat --profile bench --provider ornith-apex-gguf -m mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact --max-turns 40
+
+--- stdout ---
+
+┌─ Reasoning ──────────────────────────────────────────────────────────────────┐
+Let me start by exploring the repository structure to understand the codebase before
+ making any changes.
+Let me start by exploring the repository structure to understand the codebase before making any changes.
+Let me read the key files to understand the structure. Let me start with types.ts
+, the buildings registry, availability, and the sim index.
+Let me read the key files to understand the structure. Let me start with types.ts, the buildings registry, availability, and the sim index.
+Let me read the remaining relevant files: resources/costs.ts, resources/index.ts,
+ buildings/actions.ts, buildings/index.ts, and resources/production.ts to understand
+ conventions.
+Let me read the remaining relevant files: resources/costs.ts, resources/index.ts, buildings/actions.ts, buildings/index.ts, and resources/production.ts to understand conventions.
+Now I have a good understanding. Let me check the production.ts to understand the
+ ResourceKind usage and confirm the conventions, and check src/index.ts and any test
+ files.
+
+Actually, I have enough. Let me look at the existing test structure to understand
+ how tests are organized, so I can verify my work.
+Now I have a good understanding. Let me check the production.ts to understand the ResourceKind usage and confirm the conventions, and check src/index.ts and any test files.
+
+Actually, I have enough. Let me look at the existing test structure to understand how tests are organized, so I can verify my work.
+Now I understand the codebase. Let me look at the existing test files to understand
+ the testing conventions.
+Now I understand the codebase. Let me look at the existing test files to understand the testing conventions.
+Let me look at the existing test file to understand the test conventions and how settlements
+ are constructed in tests.
+Let me look at the existing test file to understand the test conventions and how settlements are constructed in tests.
+Now I have a full understanding of the conventions. Let me plan the changes:
+
+1. **types.ts**: Add "market" to `BuildingKind` union.
+2. **buildings/registry.ts**: Add `market` entry to `BUILDING_REGISTRY` with cost
+ `{ wood: 20, stone: 15 }`, requires `"storehouse"`. Add to `BUILDING_CATEGORY`.
+3. **sim/trade.ts**: New module with `sellResource`.
+4. **sim/index.ts**: Export from trade.ts.
+
+Let me think about the `sellResource` function:
+
+```typescript
+export function sellResource(settlement: Settlement, resource: ResourceKind, amount
+: number): Settlement
+```
+
+- Converting `amount` of the given resource into stone at a 2:1 ratio (rounded down
+), never taking the sold resource below 0.
+- Throws if no market is built.
+
+So:
+1. Check if market is built: `settlement.buildings.includes("market")`, else throw
+.
+2. Determine how much can actually be sold: `Math.min(amount, settlement.resources
+[resource])` — but never below 0. Actually the resource can't be below 0, so the sell
+able amount is `Math.min(amount, Math.max(0, settlement.resources[resource]))`.
+3. Stone gained = `Math.floor(sellable / 2)`.
+4. Return new settlement with resource reduced by sellable, stone increased by stone
+ gained.
+
+Let me think about edge cases:
+- `resource` not in resources? Well ResourceKind is "wood" | "food" | "stone", all
+ valid keys.
+- `amount` could be negative? Probably not a concern, but let's handle gracefully
+. If amount is negative... `Math.min(amount, ...)` where amount is negative would
+ give negative sellable, then we'd subtract a negative (add). Hmm. Let me guard: `
+const sellable = Math.min(amount, Math.max(0, settlement.resources[resource]))`. If
+ amount is negative, sellable would be negative. Let me clamp sellable to be >= 0
+. Actually, let me think about what's reasonable. The spec says "never taking the
+ sold resource below 0". It doesn't specify negative amounts. I'll add a guard so
+ that a non-positive amount results in no sale (sellable = 0), which is the safest
+ interpretation. Actually, let me keep it simple but robust: compute `available =
+ Math.max(0, settlement.resources[resource])`, then `sellable = Math.min(amount, available
+)` but also `Math.max(0, sellable)`.
+
+Actually, let me reconsider. The cleanest: 
+```
+const available = Math.max(0, settlement.resources[resource] ?? 0);
+const sellable = Math.min(Math.max(0, amount), available);
+const stoneGained = Math.floor(sellable / 2);
+```
+
+This handles negative amount (treated as 0), resource at 0 (sellable 0), amount exceeding
+ available (capped).
+
+Let me write the trade.ts module following the doc-comment style used throughout the
+ codebase.
+
+Let me also double check: should I create tests? The task doesn't explicitly ask for
+ tests, but the task says "verify" and the project has a test suite. However, the
+ instructions say "Do not edit the source fixture, benchmark repository". Wait — the
+ tests directory. Let me re-read.
+
+"Resolve every relative project path beneath /Users/tijs/projects/local-model-bench
+/runner/runs/tmpcpi2dvoh/run." — this is the run root, and I should work inside it
+.
+
+"Do not edit the source fixture, benchmark repository, or any sibling checkout." —
+ The run root IS the benchmark repository being edited. The "source fixture" / "benchmark
+ repository" likely refers to the parent benchmark harness, not this run's source
+. The task explicitly asks me to modify src files. So editing src/ is expected.
+
+Should I add tests? The task doesn't require tests but I should verify with typecheck
+ and tests. Let me add a test file to verify, following conventions. Actually, adding
+ tests is good practice and helps verify. But the task says "Export it from src/s
+im/index.ts alongside the module's other exports." It's focused on implementation
+. I'll add tests too since it's a library and verification is important, and it follows
+ the existing test conventions. Let me add a tests/trade.test.ts.
+
+Actually, let me be careful. The task is specific about what to implement. Adding
+ tests is reasonable for verification but not required. I'll add tests since they
+ help confirm the behavior and match the project's testing conventions. This is a
+ judgment call — I'll include them as they demonstrate the feature works.
+
+Let me make the changes now.
+
+First, types.ts - add "market" to BuildingKind.
+Now I have a full understanding of the conventions. Let me plan the changes:
+
+1. **types.ts**: Add "market" to `BuildingKind` union.
+2. **buildings/registry.ts**: Add `market` entry to `BUILDING_REGISTRY` with cost `{ wood: 20, stone: 15 }`, requires `"storehouse"`. Add to `BUILDING_CATEGORY`.
+3. **sim/trade.ts**: New module with `sellResource`.
+4. **sim/index.ts**: Export from trade.ts.
+
+Let me think about the `sellResource` function:
+
+```typescript
+export function sellResource(settlement: Settlement, resource: ResourceKind, amount: number): Settlement
+```
+
+- Converting `amount` of the given resource into stone at a 2:1 ratio (rounded down), never taking the sold resource below 0.
+- Throws if no market is built.
+
+So:
+1. Check if market is built: `settlement.buildings.includes("market")`, else throw.
+2. Determine how much can actually be sold: `Math.min(amount, settlement.resources[resource])` — but never below 0. Actually the resource can't be below 0, so the sellable amount is `Math.min(amount, Math.max(0, settlement.resources[resource]))`.
+3. Stone gained = `Math.floor(sellable / 2)`.
+4. Return new settlement with resource reduced by sellable, stone increased by stone gained.
+
+Let me think about edge cases:
+- `resource` not in resources? Well ResourceKind is "wood" | "food" | "stone", all valid keys.
+- `amount` could be negative? Probably not a concern, but let's handle gracefully. If amount is negative... `Math.min(amount, ...)` where amount is negative would give negative sellable, then we'd subtract a negative (add). Hmm. Let me guard: `const sellable = Math.min(amount, Math.max(0, settlement.resources[resource]))`. If amount is negative, sellable would be negative. Let me clamp sellable to be >= 0. Actually, let me think about what's reasonable. The spec says "never taking the sold resource below 0". It doesn't specify negative amounts. I'll add a guard so that a non-positive amount results in no sale (sellable = 0), which is the safest interpretation. Actually, let me keep it simple but robust: compute `available = Math.max(0, settlement.resources[resource])`, then `sellable = Math.min(amount, available)` but also `Math.max(0, sellable)`.
+
+Actually, let me reconsider. The cleanest: 
+```
+const available = Math.max(0, settlement.resources[resource] ?? 0);
+const sellable = Math.min(Math.max(0, amount), available);
+const stoneGained = Math.floor(sellable / 2);
+```
+
+This handles negative amount (treated as 0), resource at 0 (sellable 0), amount exceeding available (capped).
+
+Let me write the trade.ts module following the doc-comment style used throughout the codebase.
+
+Let me also double check: should I create tests? The task doesn't explicitly ask for tests, but the task says "verify" and the project has a test suite. However, the instructions say "Do not edit the source fixture, benchmark repository". Wait — the tests directory. Let me re-read.
+
+"Resolve every relative project path beneath /Users/tijs/projects/local-model-bench/runner/runs/tmpcpi2dvoh/run." — this is the run root, and I should work inside it.
+
+"Do not edit the source fixture, benchmark repository, or any sibling checkout." — The run root IS the benchmark repository being edited. The "source fixture" / "benchmark repository" likely refers to the parent benchmark harness, not this run's source. The task explicitly asks me to modify src files. So editing src/ is expected.
+
+Should I add tests? The task doesn't require tests but I should verify with typecheck and tests. Let me add a test file to verify, following conventions. Actually, adding tests is good practice and helps verify. But the task says "Export it from src/sim/index.ts alongside the module's other exports." It's focused on implementation. I'll add tests too since it's a library and verification is important, and it follows the existing test conventions. Let me add a tests/trade.test.ts.
+
+Actually, let me be careful. The task is specific about what to implement. Adding tests is reasonable for verification but not required. I'll add tests since they help confirm the behavior and match the project's testing conventions. This is a judgment call — I'll include them as they demonstrate the feature works.
+
+Let me make the changes now.
+
+First, types.ts - add "market" to BuildingKind.
+Let me start implementing. First, add "market" to the BuildingKind union in types
+.ts.
+Let me start implementing. First, add "market" to the BuildingKind union in types.ts.
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmpcpi2dvoh/run/src/types.ts → b//Users/tijs/projects/local-model-bench/runner/runs/tmpcpi2dvoh/run/src/types.ts
+@@ -1,7 +1,7 @@
+ export type ResourceKind = "wood" | "food" | "stone";
+ export type Resources = Record<ResourceKind, number>;
+ 
+-export type BuildingKind = "hut" | "farm" | "quarry" | "storehouse" | "watchtower" | "mine";
++export type BuildingKind = "hut" | "farm" | "quarry" | "storehouse" | "watchtower" | "mine" | "market";
+ 
+ export interface BuildingDef {
+   cost: Partial<Resources>;
+Now I need to update BUILDING_REGISTRY and BUILDING_CATEGORY. The registry requires
+ `Record<BuildingKind, BuildingDef>` so I must add "market". Also BUILDING_CATEGORY
+ is `Record<BuildingKind, BuildingCategory>` so I must add it there too.
+
+For category, market is a trade/commerce building. The existing categories are "sh
+elter" | "production" | "storage" | "defense". A market doesn't fit any of these well
+. Since BUILDING_CATEGORY is `Record<BuildingKind, BuildingCategory>`, I need to add
+ market to it. But which category? None of the existing categories fit.
+
+Let me think. The task says to add a new building kind. The BUILDING_CATEGORY type
+ is a closed union. I could add a new category like "trade" or "commerce". That would
+ be the cleanest. Let me add "trade" to the BuildingCategory union.
+
+Actually, let me reconsider. The comment says BUILDING_CATEGORY is a presentation
+ concern used by cli/format.ts. Adding a new category value "trade" is reasonable
+ and clean. Let me do that.
+Now I need to update BUILDING_REGISTRY and BUILDING_CATEGORY. The registry requires `Record<BuildingKind, BuildingDef>` so I must add "market". Also BUILDING_CATEGORY is `Record<BuildingKind, BuildingCategory>` so I must add it there too.
+
+For category, market is a trade/commerce building. The existing categories are "shelter" | "production" | "storage" | "defense". A market doesn't fit any of these well. Since BUILDING_CATEGORY is `Record<BuildingKind, BuildingCategory>`, I need to add market to it. But which category? None of the existing categories fit.
+
+Let me think. The task says to add a new building kind. The BUILDING_CATEGORY type is a closed union. I could add a new category like "trade" or "commerce". That would be the cleanest. Let me add "trade" to the BuildingCategory union.
+
+Actually, let me reconsider. The comment says BUILDING_CATEGORY is a presentation concern used by cli/format.ts. Adding a new category value "trade" is reasonable and clean. Let me do that.
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmpcpi2dvoh/run/src/buildings/registry.ts → b//Users/tijs/projects/local-model-bench/runner/runs/tmpcpi2dvoh/run/src/buildings/registry.ts
+@@ -18,6 +18,7 @@
+   storehouse: { cost: { wood: 25, stone: 10 }, requires: "hut" },
+   watchtower: { cost: { wood: 15, stone: 20 }, requires: "storehouse" },
+   mine: { cost: { wood: 30, stone: 10 }, requires: "quarry" },
++  market: { cost: { wood: 20, stone: 15 }, requires: "storehouse" },
+ };
+ 
+ /** Every building kind, in a stable declaration order — used by CLI
+The LSP confirms I need to add the market entry to BUILDING_CATEGORY. Let me add a
+ "trade" category.
+The LSP confirms I need to add the market entry to BUILDING_CATEGORY. Let me add a "trade" category.
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmpcpi2dvoh/run/src/buildings/registry.ts → b//Users/tijs/projects/local-model-bench/runner/runs/tmpcpi2dvoh/run/src/buildings/registry.ts
+@@ -26,7 +26,7 @@
+  * than hardcode the kind list a second time. */
+ export const ALL_BUILDING_KINDS = Object.keys(BUILDING_REGISTRY) as BuildingKind[];
+ 
+-export type BuildingCategory = "shelter" | "production" | "storage" | "defense";
++export type BuildingCategory = "shelter" | "production" | "storage" | "defense" | "trade";
+ 
+ /**
+  * A rough role classification per building kind, independent of
+@@ -45,6 +45,7 @@
+   mine: "production",
+   storehouse: "storage",
+   watchtower: "defense",
++  market: "trade",
+ };
+ 
+ /** Every built building kind matching `category`, in the settlement's own
+Now let me create the trade.ts module. Let me update the todos and implement.
+
+The `sellResource` function:
+- Takes a settlement, resource kind, and amount
+- Converts `amount` of the given resource into stone at 2:1 ratio (rounded down)
+- Never takes the sold resource below 0
+- Throws if no market is built
+
+So:
+- Check if "market" is in settlement.buildings. If not, throw.
+- Compute stone gained = Math.floor(amount / 2)
+- Deduct `amount` from the given resource, clamped to 0 (never below 0). So subtract
+ min(amount, resources[resource]).
+- Add stone gained to stone.
+
+I should use the `credit` helper from resources/costs.ts for adding stone. And for
+ deducting, I need to clamp to 0. Let me think about how to do the deduction cleanly
+.
+
+The sold resource: `amount` converted at 2:1. But "never taking the sold resource
+ below 0" — so if the settlement has fewer than `amount` of that resource, we only
+ take what's available. So we remove `Math.min(amount, resources[resource])` from
+ the resource.
+
+Wait, but should the stone gained be based on `amount` or on the actual amount sold
+? The spec says "Converting amount of the given resource into stone at a 2:1 ratio
+ (rounded down)". And "never taking the sold resource below 0". 
+
+I think the cleanest interpretation: the amount actually sold is min(amount, available
+). The stone gained is based on the amount sold. But the spec says "Converting amount
+ of the given resource into stone". Hmm.
+
+Let me re-read: "Converting amount of the given resource into stone at a 2:1 ratio
+ (rounded down), never taking the sold resource below 0."
+
+So the primary operation is converting `amount` into stone. The "never taking the
+ sold resource below 0" is a guard on the sold resource. 
+
+The question is whether the stone gained should reflect the actual amount sold (c
+apped) or the requested amount. Given the guard "never taking the sold resource below
+ 0", I think the intent is: the amount actually converted is capped at what's available
+. So if you have 10 wood and sell 30 wood, you only sell 10 wood, getting 5 stone
+.
+
+Actually, let me reconsider. The most natural reading that respects "never taking
+ the sold resource below 0": the amount removed from the resource is clamped to [
+0, available]. The stone gained = floor(amount_sold / 2).
+
+I'll implement it so the stone gained is based on the actual amount sold (capped).
+ This is the most sensible behavior and consistent with the guard.
+
+Let me use the `credit` helper for stone. For the deduction, I'll clamp manually.
+
+
+Let me write the module with clear comments matching the codebase style.
+
+For the resource removal: 
+```
+const available = resources[resource] ?? 0;
+const sold = Math.min(amount, Math.max(0, available));
+const stoneGained = Math.floor(sold / 2);
+```
+
+Wait, resources[resource] should always be a number since Resources is Record<Resource
+Kind, number>. But to be safe, treat missing as 0.
+
+Then:
+```
+const stone = resources[resource] ... 
+```
+
+Let me use credit for stone:
+```
+const resources2 = credit(resources, "stone", stoneGained);
+resources2[resource] = resources2[resource] - sold;
+```
+
+Actually credit creates a new object with stone updated. Then I subtract sold from
+ the resource kind.
+
+Let me write it cleanly:
+
+```ts
+import type { BuildingKind, ResourceKind, Resources, Settlement } from "../types";
+
+import { credit } from "../resources/costs";
+import { countOf } from "../buildings";
+
+export function sellResource(settlement: Settlement, resource: ResourceKind, amount
+: number): Settlement {
+  if (countOf(settlement, "market") === 0) {
+    throw new Error(`cannot sell ${resource}: no market built`);
+  }
+  const available = settlement.resources[resource] ?? 0;
+  const sold = Math.min(Math.max(0, amount), available);
+  const stoneGained = Math.floor(sold / 2);
+  const resources = credit(settlement.resources, "stone", stoneGained);
+  resources[resource] = resources[resource] - sold;
+  return { ...settlement, resources };
+}
+```
+
+Wait, should I use countOf from buildings? That imports buildings which is fine. But
+ let me check for import cycles. trade.ts is in sim/, importing from ../buildings
+ (buildings/index) and ../resources/costs. 
+
+Let me check: does buildings import sim? buildings/index.ts imports from registry
+, availability, actions, upgrades. None import sim. resources/costs only imports types
+. So no cycle.
+
+Actually, let me reconsider whether to import countOf or just check directly with
+ `settlement.buildings.includes("market")`. The availability.ts and events use `set
+tlement.buildings.includes(...)`. Let me keep it consistent and simple — but count
+Of is the shared way. Actually, for a single check, `.includes("market")` is fine
+ and matches availability.ts style. But countOf is more explicit. I'll use countOf
+ since it's the documented shared way and clearly communicates intent. Actually, simpler
+ is better here and matches the pattern in availability.ts. Let me just use includes
+. Hmm, but countOf is available and semantically clear.
+
+Let me use `countOf` — it's the idiomatic "how many of this kind" helper and it's
+ already exported from buildings. Actually, I want to minimize coupling. Let me just
+ do `settlement.buildings.includes("market")` directly, matching availability.ts's
+ `isUnlocked` pattern. That's the most consistent with how prerequisite checks are
+ done.
+
+Let me write it that way.
+Now let me create the trade.ts module. Let me update the todos and implement.
+
+The `sellResource` function:
+- Takes a settlement, resource kind, and amount
+- Converts `amount` of the given resource into stone at 2:1 ratio (rounded down)
+- Never takes the sold resource below 0
+- Throws if no market is built
+
+So:
+- Check if "market" is in settlement.buildings. If not, throw.
+- Compute stone gained = Math.floor(amount / 2)
+- Deduct `amount` from the given resource, clamped to 0 (never below 0). So subtract min(amount, resources[resource]).
+- Add stone gained to stone.
+
+I should use the `credit` helper from resources/costs.ts for adding stone. And for deducting, I need to clamp to 0. Let me think about how to do the deduction cleanly.
+
+The sold resource: `amount` converted at 2:1. But "never taking the sold resource below 0" — so if the settlement has fewer than `amount` of that resource, we only take what's available. So we remove `Math.min(amount, resources[resource])` from the resource.
+
+Wait, but should the stone gained be based on `amount` or on the actual amount sold? The spec says "Converting amount of the given resource into stone at a 2:1 ratio (rounded down)". And "never taking the sold resource below 0". 
+
+I think the cleanest interpretation: the amount actually sold is min(amount, available). The stone gained is based on the amount sold. But the spec says "Converting amount of the given resource into stone". Hmm.
+
+Let me re-read: "Converting amount of the given resource into stone at a 2:1 ratio (rounded down), never taking the sold resource below 0."
+
+So the primary operation is converting `amount` into stone. The "never taking the sold resource below 0" is a guard on the sold resource. 
+
+The question is whether the stone gained should reflect the actual amount sold (capped) or the requested amount. Given the guard "never taking the sold resource below 0", I think the intent is: the amount actually converted is capped at what's available. So if you have 10 wood and sell 30 wood, you only sell 10 wood, getting 5 stone.
+
+Actually, let me reconsider. The most natural reading that respects "never taking the sold resource below 0": the amount removed from the resource is clamped to [0, available]. The stone gained = floor(amount_sold / 2).
+
+I'll implement it so the stone gained is based on the actual amount sold (capped). This is the most sensible behavior and consistent with the guard.
+
+Let me use the `credit` helper for stone. For the deduction, I'll clamp manually.
+
+Let me write the module with clear comments matching the codebase style.
+
+For the resource removal: 
+```
+const available = resources[resource] ?? 0;
+const sold = Math.min(amount, Math.max(0, available));
+const stoneGained = Math.floor(sold / 2);
+```
+
+Wait, resources[resource] should always be a number since Resources is Record<ResourceKind, number>. But to be safe, treat missing as 0.
+
+Then:
+```
+const stone = resources[resource] ... 
+```
+
+Let me use credit for stone:
+```
+const resources2 = credit(resources, "stone", stoneGained);
+resources2[resource] = resources2[resource] - sold;
+```
+
+Actually credit creates a new object with stone updated. Then I subtract sold from the resource kind.
+
+Let me write it cleanly:
+
+```ts
+import type { BuildingKind, ResourceKind, Resources, Settlement } from "../types";
+import { credit } from "../resources/costs";
+import { countOf } from "../buildings";
+
+export function sellResource(settlement: Settlement, resource: ResourceKind, amount: number): Settlement {
+  if (countOf(settlement, "market") === 0) {
+    throw new Error(`cannot sell ${resource}: no market built`);
+  }
+  const available = settlement.resources[resource] ?? 0;
+  const sold = Math.min(Math.max(0, amount), available);
+  const stoneGained = Math.floor(sold / 2);
+  const resources = credit(settlement.resources, "stone", stoneGained);
+  resources[resource] = resources[resource] - sold;
+  return { ...settlement, resources };
+}
+```
+
+Wait, should I use countOf from buildings? That imports buildings which is fine. But let me check for import cycles. trade.ts is in sim/, importing from ../buildings (buildings/index) and ../resources/costs. 
+
+Let me check: does buildings import sim? buildings/index.ts imports from registry, availability, actions, upgrades. None import sim. resources/costs only imports types. So no cycle.
+
+Actually, let me reconsider whether to import countOf or just check directly with `settlement.buildings.includes("market")`. The availability.ts and events use `settlement.buildings.includes(...)`. Let me keep it consistent and simple — but countOf is the shared way. Actually, for a single check, `.includes("market")` is fine and matches availability.ts style. But countOf is more explicit. I'll use countOf since it's the documented shared way and clearly communicates intent. Actually, simpler is better here and matches the pattern in availability.ts. Let me just use includes. Hmm, but countOf is available and semantically clear.
+
+Let me use `countOf` — it's the idiomatic "how many of this kind" helper and it's already exported from buildings. Actually, I want to minimize coupling. Let me just do `settlement.buildings.includes("market")` directly, matching availability.ts's `isUnlocked` pattern. That's the most consistent with how prerequisite checks are done.
+
+Let me write it that way.
+Now let me write the trade.ts module. I'll use `credit` from costs and `countOf` from
+ buildings/actions. Let me consider the imports carefully.
+
+The function:
+- Throws if no market is built
+- Converts `amount` of the given resource into stone at 2:1 ratio (rounded down)
+- Never taking the sold resource below 0
+
+So: 
+- if `!settlement.buildings.includes("market")` throw
+- sellable = min(amount, resources[kind]) — never below 0
+- stoneGained = floor(sellable / 2)
+- new resources: deduct the sold amount from the resource, add stoneGained to stone
+
+
+Let me use `credit` for adding stone, and handle the deduction manually.
+
+The given resource kind is a `ResourceKind`. The sold resource is `resource`. The
+ stone gained goes to `stone`.
+
+Let me write it.
+Now let me write the trade.ts module. I'll use `credit` from costs and `countOf` from buildings/actions. Let me consider the imports carefully.
+
+The function:
+- Throws if no market is built
+- Converts `amount` of the given resource into stone at 2:1 ratio (rounded down)
+- Never taking the sold resource below 0
+
+So: 
+- if `!settlement.buildings.includes("market")` throw
+- sellable = min(amount, resources[kind]) — never below 0
+- stoneGained = floor(sellable / 2)
+- new resources: deduct the sold amount from the resource, add stoneGained to stone
+
+Let me use `credit` for adding stone, and handle the deduction manually.
+
+The given resource kind is a `ResourceKind`. The sold resource is `resource`. The stone gained goes to `stone`.
+
+Let me write it.
+  ┊ review diff
+a/src/sim/trade.ts → b/src/sim/trade.ts
+@@ -0,0 +1,37 @@
++import type { ResourceKind, Settlement } from "../types";
++import { credit } from "../resources/costs";
++import { countOf } from "../buildings";
++
++/**
++ * How much stone a single unit of any resource fetches at the market —
++ * one stone per two units sold, i.e. a 2:1 ratio. Kept as a named
++ * constant so the ratio is obvious at the call site and easy to tune
++ * without digging through the arithmetic in sellResource.
++ */
++export const SELL_TO_STONE_RATIO = 2;
++
++/**
++ * Sells `amount` of `resource` at the market, converting it into stone at
++ * a 2:1 ratio (rounded down). Never takes the sold resource below zero —
++ * if the settlement holds fewer than `amount` of that resource, only what
++ * it actually has is sold. Returns a new settlement; the settlement itself
++ * is not mutated.
++ *
++ * Requires a market to be built — there is nowhere to sell to otherwise,
++ * so this throws if the settlement has none.
++ */
++export function sellResource(settlement: Settlement, resource: ResourceKind, amount: number): Settlement {
++  if (countOf(settlement, "market") === 0) {
++    throw new Error(`cannot sell ${resource}: no market built`);
++  }
++
++  const have = settlement.resources[resource];
++  const sold = Math.min(amount, have);
++  const stoneGained = Math.floor(sold / SELL_TO_STONE_RATIO);
++
++  const resources = { ...settlement.resources, [resource]: have - sold };
++  return {
++    ...settlement,
++    resources: credit(resources, "stone", stoneGained),
++  };
++}
+The `credit` function already returns a new object with the resource credited. Let
+ me check: `credit(resources, "stone", stoneGained)` returns `{ ...resources, stone
+: resources.stone + stoneGained }`. So actually I'm doing redundant work — `resources
+` already has the decremented value, then credit adds stone. That's correct. But I
+ could simplify: just use credit directly on settlement.resources. Let me reconsider
+.
+
+Actually `resources` = `{ ...settlement.resources, [resource]: have - sold }`. Then
+ `credit(resources, "stone", stoneGained)` = `{ ...resources, stone: resources.st
+one + stoneGained }`. This is correct. But it's slightly convoluted. I could just
+ do it in one credit call if resource !== stone, but if resource === stone it would
+ be wrong. Since resource can be stone, I need the two-step. This is fine.
+
+Let me keep it clear. Actually let me simplify to avoid confusion - the current approach
+ is correct but let me verify the stone case: if resource is "stone", have = stone
+, sold = min(amount, stone), resources.stone = stone - sold, then credit adds stone
+Gained. Correct.
+
+Now export from index.ts.
+The `credit` function already returns a new object with the resource credited. Let me check: `credit(resources, "stone", stoneGained)` returns `{ ...resources, stone: resources.stone + stoneGained }`. So actually I'm doing redundant work — `resources` already has the decremented value, then credit adds stone. That's correct. But I could simplify: just use credit directly on settlement.resources. Let me reconsider.
+
+Actually `resources` = `{ ...settlement.resources, [resource]: have - sold }`. Then `credit(resources, "stone", stoneGained)` = `{ ...resources, stone: resources.stone + stoneGained }`. This is correct. But it's slightly convoluted. I could just do it in one credit call if resource !== stone, but if resource === stone it would be wrong. Since resource can be stone, I need the two-step. This is fine.
+
+Let me keep it clear. Actually let me simplify to avoid confusion - the current approach is correct but let me verify the stone case: if resource is "stone", have = stone, sold = min(amount, stone), resources.stone = stone - sold, then credit adds stoneGained. Correct.
+
+Now export from index.ts.
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmpcpi2dvoh/run/src/sim/index.ts → b//Users/tijs/projects/local-model-bench/runner/runs/tmpcpi2dvoh/run/src/sim/index.ts
+@@ -8,4 +8,5 @@
+   recordTurn, raidCount, droughtCount, netPopulationChange, netResourceChange, eventfulTurns,
+ } from "./history";
+ export { buildReport, summarizeHistory } from "./report";
++export { sellResource, SELL_TO_STONE_RATIO } from "./trade";
+ export type { SettlementReport, HistorySummary } from "./report";
+Now let me check the tsconfig to understand the module resolution, and then write
+ tests.
+Now let me check the tsconfig to understand the module resolution, and then write tests.
+Let me update todos and add tests. I'll create a dedicated test file for the market
+ + trade functionality.
+Let me update todos and add tests. I'll create a dedicated test file for the market + trade functionality.
+Let me add tests. I'll create a new test file `tests/trade.test.ts`. Let me follow
+ the conventions from the existing test file.
+Let me add tests. I'll create a new test file `tests/trade.test.ts`. Let me follow the conventions from the existing test file.
+  ┊ review diff
+a/tests/trade.test.ts → b/tests/trade.test.ts
+@@ -0,0 +1,67 @@
++import { describe, expect, it } from "vitest";
++import { availableBuildings, build } from "../src/buildings";
++import { sellResource } from "../src/sim/trade";
++import type { Settlement } from "../src/types";
++
++function settlement(overrides: Partial<Settlement> = {}): Settlement {
++  return {
++    resources: { wood: 30, food: 10, stone: 10 },
++    population: 2,
++    buildings: [],
++    turn: 0,
++    ...overrides,
++  };
++}
++
++describe("market building", () => {
++  it("requires a storehouse before it becomes available", () => {
++    const s = settlement({ resources: { wood: 100, food: 10, stone: 100 } });
++    expect(availableBuildings(s)).not.toContain("market");
++  });
++
++  it("becomes available once a storehouse is built", () => {
++    const s = settlement({ resources: { wood: 100, food: 10, stone: 100 }, buildings: ["storehouse"] });
++    expect(availableBuildings(s)).toContain("market");
++  });
++
++  it("costs wood: 20, stone: 15", () => {
++    const s = build(settlement({ resources: { wood: 30, food: 10, stone: 15 } }), "market");
++    expect(s.resources.wood).toBe(10);
++    expect(s.resources.stone).toBe(0);
++    expect(s.buildings).toContain("market");
++  });
++});
++
++describe("sellResource", () => {
++  it("throws when no market is built", () => {
++    expect(() => sellResource(settlement(), "wood", 10)).toThrow();
++  });
++
++  it("converts at a 2:1 ratio, rounded down", () => {
++    const s = settlement({ buildings: ["market"], resources: { wood: 40, food: 10, stone: 10 } });
++    const result = sellResource(s, "wood", 40);
++    expect(result.resources.wood).toBe(0);
++    expect(result.resources.stone).toBe(30); // 10 base + 20 sold -> 10
++  });
++
++  it("rounds the ratio down", () => {
++    const s = settlement({ buildings: ["market"], resources: { wood: 40, food: 10, stone: 10 } });
++    const result = sellResource(s, "wood", 30);
++    expect(result.resources.wood).toBe(10);
++    expect(result.resources.stone).toBe(25); // 10 base + 15 sold -> 7 stone, 10+7=17... check below
++  });
++
++  it("never takes the sold resource below zero", () => {
++    const s = settlement({ buildings: ["market"], resources: { wood: 40, food: 10, stone: 10 } });
++    const result = sellResource(s, "wood", 100);
++    expect(result.resources.wood).toBe(0);
++    expect(result.resources.stone).toBe(30); // 10 base + 40 sold -> 20 stone, 10+20=30
++  });
++
++  it("does not mutate the input settlement", () => {
++    const s = settlement({ buildings: ["market"], resources: { wood: 40, food: 10, stone: 10 } });
++    sellResource(s, "wood", 20);
++    expect(s.resources.wood).toBe(40);
++    expect(s.resources.stone).toBe(10);
++  });
++});
+Wait, let me reconsider the "rounds the ratio down" test. Selling 30 wood: have 4
+0, sold min(30, 40) = 30. stoneGained = floor(30/2) = 15. stone = 10 + 15 = 25. wood
+ = 40 - 30 = 10. So result: wood 10, stone 25. My comment is wrong but the assertion
+ is correct. Let me fix the comment to be accurate.
+Wait, let me reconsider the "rounds the ratio down" test. Selling 30 wood: have 40, sold min(30, 40) = 30. stoneGained = floor(30/2) = 15. stone = 10 + 15 = 25. wood = 40 - 30 = 10. So result: wood 10, stone 25. My comment is wrong but the assertion is correct. Let me fix the comment to be accurate.
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmpcpi2dvoh/run/tests/trade.test.ts → b//Users/tijs/projects/local-model-bench/runner/runs/tmpcpi2dvoh/run/tests/trade.test.ts
+@@ -48,7 +48,7 @@
+     const s = settlement({ buildings: ["market"], resources: { wood: 40, food: 10, stone: 10 } });
+     const result = sellResource(s, "wood", 30);
+     expect(result.resources.wood).toBe(10);
+-    expect(result.resources.stone).toBe(25); // 10 base + 15 sold -> 7 stone, 10+7=17... check below
++    expect(result.resources.stone).toBe(25); // 10 base + 30 sold -> floor(30/2)=15 stone, 10+15=25
+   });
+ 
+   it("never takes the sold resource below zero", () => {
+Also fix the comment in the first test which says "10 base + 20 sold -> 20 stone,
+ 10+20=30" — 40 sold -> floor(40/2)=20 stone, 10+20=30. That's correct. Good.
+
+Now let me run typecheck and tests.
+Also fix the comment in the first test which says "10 base + 20 sold -> 20 stone, 10+20=30" — 40 sold -> floor(40/2)=20 stone, 10+20=30. That's correct. Good.
+
+Now let me run typecheck and tests.
+The typecheck passes. One test failed: "costs wood: 20, stone: 15" — the market requires
+ a storehouse, so I can't build it without one. Let me fix the test to build a store
+house first.
+The typecheck passes. One test failed: "costs wood: 20, stone: 15" — the market requires a storehouse, so I can't build it without one. Let me fix the test to build a storehouse first.
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmpcpi2dvoh/run/tests/trade.test.ts → b//Users/tijs/projects/local-model-bench/runner/runs/tmpcpi2dvoh/run/tests/trade.test.ts
+@@ -25,9 +25,10 @@
+   });
+ 
+   it("costs wood: 20, stone: 15", () => {
+-    const s = build(settlement({ resources: { wood: 30, food: 10, stone: 15 } }), "market");
+-    expect(s.resources.wood).toBe(10);
+-    expect(s.resources.stone).toBe(0);
++    const withStorehouse = build(settlement({ resources: { wood: 60, food: 10, stone: 30 } }), "storehouse");
++    const s = build(withStorehouse, "market");
++    expect(s.resources.wood).toBe(40);
++    expect(s.resources.stone).toBe(5);
+     expect(s.buildings).toContain("market");
+   });
+ });
+The storehouse costs wood: 25, stone: 10. Starting with wood: 60, stone: 30 → after
+ storehouse: wood: 35, stone: 20. Then market costs wood: 20, stone: 15 → wood: 1
+5, stone: 5. So wood should be 15, not 40. Let me fix.
+The storehouse costs wood: 25, stone: 10. Starting with wood: 60, stone: 30 → after storehouse: wood: 35, stone: 20. Then market costs wood: 20, stone: 15 → wood: 15, stone: 5. So wood should be 15, not 40. Let me fix.
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmpcpi2dvoh/run/tests/trade.test.ts → b//Users/tijs/projects/local-model-bench/runner/runs/tmpcpi2dvoh/run/tests/trade.test.ts
+@@ -27,7 +27,7 @@
+   it("costs wood: 20, stone: 15", () => {
+     const withStorehouse = build(settlement({ resources: { wood: 60, food: 10, stone: 30 } }), "storehouse");
+     const s = build(withStorehouse, "market");
+-    expect(s.resources.wood).toBe(40);
++    expect(s.resources.wood).toBe(15);
+     expect(s.resources.stone).toBe(5);
+     expect(s.buildings).toContain("market");
+   });
+Wait, storehouse requires a hut. Let me check. storehouse requires "hut". So I can
+'t build storehouse directly without a hut first. Let me reconsider.
+
+Actually building storehouse requires a hut. So I need to build hut -> storehouse
+ -> market. Let me just build the market via a settlement that already has a store
+house in its buildings array, which is cleaner.
+Wait, storehouse requires a hut. Let me check. storehouse requires "hut". So I can't build storehouse directly without a hut first. Let me reconsider.
+
+Actually building storehouse requires a hut. So I need to build hut -> storehouse -> market. Let me just build the market via a settlement that already has a storehouse in its buildings array, which is cleaner.
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmpcpi2dvoh/run/tests/trade.test.ts → b//Users/tijs/projects/local-model-bench/runner/runs/tmpcpi2dvoh/run/tests/trade.test.ts
+@@ -25,8 +25,7 @@
+   });
+ 
+   it("costs wood: 20, stone: 15", () => {
+-    const withStorehouse = build(settlement({ resources: { wood: 60, food: 10, stone: 30 } }), "storehouse");
+-    const s = build(withStorehouse, "market");
++    const s = build(settlement({ resources: { wood: 35, food: 10, stone: 20 }, buildings: ["hut"] }), "market");
+     expect(s.resources.wood).toBe(15);
+     expect(s.resources.stone).toBe(5);
+     expect(s.buildings).toContain("market");
+Now with buildings: ["hut"], availableBuildings checks storehouse first (requires
+ hut ✓, affordable), then market (requires storehouse - not built ✗). So market won
+'t be available even with a hut. I need a storehouse in buildings. Let me fix.
+Now with buildings: ["hut"], availableBuildings checks storehouse first (requires hut ✓, affordable), then market (requires storehouse - not built ✗). So market won't be available even with a hut. I need a storehouse in buildings. Let me fix.
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmpcpi2dvoh/run/tests/trade.test.ts → b//Users/tijs/projects/local-model-bench/runner/runs/tmpcpi2dvoh/run/tests/trade.test.ts
+@@ -25,7 +25,7 @@
+   });
+ 
+   it("costs wood: 20, stone: 15", () => {
+-    const s = build(settlement({ resources: { wood: 35, food: 10, stone: 20 }, buildings: ["hut"] }), "market");
++    const s = build(settlement({ resources: { wood: 35, food: 10, stone: 20 }, buildings: ["hut", "storehouse"] }), "market");
+     expect(s.resources.wood).toBe(15);
+     expect(s.resources.stone).toBe(5);
+     expect(s.buildings).toContain("market");
+Wait, I need to verify: does building a market deduct from resources? Yes, `build
+` deducts cost. But there's a subtlety: the settlement already has "storehouse" in
+ its buildings array but I didn't pay for it. That's fine for the test — I'm just
+ testing that building a market deducts wood:20, stone:15. Starting from wood:35,
+ stone:20, building market deducts 20 wood and 15 stone → wood:15, stone:5. 
+
+Let me run the tests.
+Wait, I need to verify: does building a market deduct from resources? Yes, `build` deducts cost. But there's a subtlety: the settlement already has "storehouse" in its buildings array but I didn't pay for it. That's fine for the test — I'm just testing that building a market deducts wood:20, stone:15. Starting from wood:35, stone:20, building market deducts 20 wood and 15 stone → wood:15, stone:5. 
+
+Let me run the tests.
+Both typecheck and tests pass. Let me update the todo and give a summary.
+Both typecheck and tests pass. Let me update the todo and give a summary.
+All done. Let me summarize the work.
+All done. Let me summarize the work.
+Done. All changes are in place and verified — `npm run typecheck` and `npm test` both pass (23/23 tests).
+
+## What I changed
+
+**1. New building kind "market"** — wired into the existing data-driven registry so no other code needed hardcoding:
+
+- `src/types.ts` — added `"market"` to the `BuildingKind` union.
+- `src/buildings/registry.ts` — added `market` to `BUILDING_REGISTRY` with `cost: { wood: 20, stone: 15 }` and `requires: "storehouse"`, plus a `market: "trade"` entry to `BUILDING_CATEGORY` (added `"trade"` to the `BuildingCategory` union). The `requires` entry means the prerequisite is enforced automatically by `buildings/availability.ts` — a market won't be `availableBuildings` until a storehouse exists.
+
+**2. `src/sim/trade.ts`** (new module) — exports `sellResource(settlement, resource, amount)` and `SELL_TO_STONE_RATIO`:
+
+- Throws if no market is built (via `countOf(settlement, "market") === 0`).
+- Sells `min(amount, have)` units (never below 0), converting to stone at a 2:1 ratio with `Math.floor`.
+- Returns a new settlement (non-mutating), using the existing `credit` helper for the stone gain.
+
+**3. `src/sim/index.ts`** — exported `sellResource` and `SELL_TO_STONE_RATIO` alongside the module's other exports.
+
+**4. `tests/trade.test.ts`** (new) — covers the storehouse prerequisite, the cost, the 2:1 rounding, the no-below-zero clamp, non-mutation, and the throw-when-no-market case.
+
+One thing worth flagging: I introduced a new `trade` building category. If your CLI (`cli/format.ts`) has any exhaustive switch over `BuildingCategory`, it may need a `trade` arm — but nothing in the current codebase references it exhaustively, so typecheck passed clean.
+
+
+--- stderr ---
+
+session_id: 20260829_221619_bccf48
+

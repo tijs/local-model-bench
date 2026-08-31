@@ -1,0 +1,1109 @@
+$ hermes chat --profile bench --provider ornith-apex-gguf -m mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact --max-turns 40
+
+--- stdout ---
+
+┌─ Reasoning ──────────────────────────────────────────────────────────────────┐
+The user is reporting a bug in `extractTags(from:)` in `Sources/NoteKit/NoteKit.swift
+`. Let me first read the file to understand the code.
+
+Wait, the workspace isolation says I should work only inside the disposable run root
+. But the user is asking me to find a bug in a source file. Let me first locate the
+ file. The file is at `Sources/NoteKit/NoteKit.swift` — but relative to what? Let
+ me search for it.
+
+Let me start by finding the file.
+The user is reporting a bug in `extractTags(from:)` in `Sources/NoteKit/NoteKit.swift`. Let me first read the file to understand the code.
+
+Wait, the workspace isolation says I should work only inside the disposable run root. But the user is asking me to find a bug in a source file. Let me first locate the file. The file is at `Sources/NoteKit/NoteKit.swift` — but relative to what? Let me search for it.
+
+Let me start by finding the file.
+Let me read the file in the run root. I should only edit the one in the run root,
+ not the fixture.
+Let me read the file in the run root. I should only edit the one in the run root, not the fixture.
+Let me analyze the bug.
+
+Current implementation:
+```swift
+public func extractTags(from text: String) -> [String] {
+    return text.split(separator: " ")
+        .filter { $0.hasPrefix("#") }
+        .map { String($0.dropFirst()) }
+}
+```
+
+Problems:
+1. It only splits on spaces. So `"shopping list,#urgent."` splits into `["shopping
+", "list,#urgent."]`. The second element `list,#urgent.` does not have prefix `#`,
+ so it's filtered out. So `#urgent` is missed.
+2. `"(#ideas)"` splits into `["(#ideas)"]`, which doesn't have prefix `#`. So `#ideas
+` is missed.
+
+Also, even if it matched, `list,#urgent.` would map to `list,#urgent` — wrong.
+
+We need to fix so that:
+- `"shopping list,#urgent."` registers `#urgent`
+- `"(#ideas)"` registers `#ideas`
+- No regression of existing behavior
+- Return tags in order they appear.
+
+Approach: use a regex to find `#` followed by tag characters, then strip trailing
+ punctuation.
+
+Let me think about what a "tag" is. A tag is `#` followed by word characters. We should
+ extract the tag name as the characters after `#` up to the next non-tag character
+.
+
+For `"shopping list,#urgent."`: we want to find `#urgent` and strip the trailing `
+.`. The `#` is preceded by a space (or start). Actually `#` followed by `urgent` then
+ `.`.
+
+For `"(#ideas)"`: `#` preceded by `(`, followed by `ideas` then `)`.
+
+So a regex approach: find `#` followed by one or more word characters `[a-zA-Z0-9
+_]` or maybe including unicode. Actually tags could contain unicode letters. Let me
+ consider using a pattern that matches `#` followed by tag characters.
+
+Swift uses NSRegularExpression. Let me define:
+- Pattern: `#[\p{L}\p{N}_]+` — `#` followed by letters, numbers, underscore.
+- For each match, take the matched string, drop the first char (`#`), that's the tag
+.
+
+Check examples:
+- `"shopping list,#urgent."`: matches `#urgent` (since `.` is not in the class). Tag
+ = `urgent`. 
+- `"(#ideas)"`: matches `#ideas` (since `)` not in class). Tag = `ideas`. 
+- Existing behavior: `"#hello #world"` → `hello`, `world`. 
+- What about `"#hello,"`? matches `#hello`, tag `hello`. Previously split on space
+ gave `#hello,` → prefix `#` → dropFirst → `hello,`. So previously it would include
+ trailing comma. Now we strip it. That's an improvement, not a regression (it's more
+ correct). But "without regressing any tag extraction that already works today" —
+ the old behavior returned `hello,` which is arguably broken. Our new behavior returns
+ `hello` which is better. That's not a regression of working extraction; it's a fix
+.
+
+Wait, but we need to be careful: "without regressing any tag extraction that already
+ works today". If some test relies on the old buggy output (e.g., `hello,`), changing
+ it could break. But the task says fix the bug; the new behavior is the correct one
+. I think it's fine.
+
+Let me also consider: should the `#` be at a word boundary? E.g., `a#b` — should `
+#b` be a tag? Previously, `a#b` split on space → `["a#b"]`, prefix `#`? No, starts
+ with `a`. So not matched. With regex `#[\p{L}\p{N}_]+`, `a#b` would match `#b`. Hmm
+, is that a regression? It's a new match, not a removal. The task says don't regress
+ tags that already work. Adding a new match isn't a regression. But could it be considered
+ wrong? The examples suggest tags can be preceded by punctuation like `(`. So `a#
+b` matching `#b` is consistent with treating `#` as a tag marker regardless of preceding
+ char. I think that's acceptable and arguably more correct.
+
+Actually, let me reconsider. The first example "shopping list,#urgent." — the `#`
+ is preceded by a comma. Second "(#ideas)" — `#` preceded by `(`. Both are punctuation
+/word boundary. The regex approach handles these naturally.
+
+Let me write the implementation using NSRegularExpression.
+
+```swift
+public func extractTags(from text: String) -> [String] {
+    let pattern = "#[\\p{L}\\p{N}_]+"
+    guard let regex = try? NSRegularExpression(pattern: pattern) else {
+        return []
+    }
+    let range = NSRange(location: 0, length: text.utf16.count)
+    return regex.matches(in: text, range: range)
+        .map { String($0.range.map { text.index(text.startIndex, offsetBy: $0.location
+, relativeTo: $0.range.upperBound) ... }) }
+}
+```
+
+Hmm, converting NSRange location/length to Swift String.Index is a bit fiddly. Sim
+pler: for each match, take `range.location` and `range.length`, slice the utf16 or
+ use NSString.
+
+Actually a cleaner approach: use the matched range to slice `text` using utf16 indices
+. Let me do:
+
+```swift
+let substring = text.substring(with: match.range)
+return String(substring.dropFirst())
+```
+
+`String.substring(with:)` exists (deprecated in newer Swift in favor of `s[range]
+` but still works). Actually `substring(with:)` is deprecated in Swift 5+? Let me
+ recall. `String.substring(with:)` was deprecated in Swift 4.2? No... Actually `substring
+(with:)` is still available. Let me use it, it's safe.
+
+Wait, in Swift 5.0+, `substring(with:)` is deprecated? Let me recall. Actually `NSString
+.substring(with:)` ... The Foundation String method `substring(with:)` — I believe
+ it's still present. To be safe, I can convert to NSString.
+
+Let me think about the Swift version. There's a Package.swift presumably. Let me check
+. Actually let me just write robust code.
+
+Let me use a manual slicing with utf16:
+
+```swift
+public func extractTags(from text: String) -> [String] {
+    let pattern = "#[\\p{L}\\p{N}_]+"
+    guard let regex = try? NSRegularExpression(pattern: pattern) else {
+        return []
+    }
+    let ns = text as NSString
+    let range = NSRange(location: 0, length: ns.length)
+    let matches = regex.matches(in: text, options: [], range: range)
+    return matches.map {
+        let matched = ns.substring(with: $0.range)
+        return String(matched.dropFirst())
+    }
+}
+```
+
+Using NSString.substring(with:) which is not deprecated (it's NSString method). Good
+.
+
+Let me verify the regex handles the examples.
+
+Example 1: "shopping list,#urgent."
+- regex `#[\p{L}\p{N}_]+` matches `#urgent`. dropFirst → "urgent". Output: ["urgent
+"]. Correct.
+
+Example 2: "(#ideas)"
+- matches `#ideas`. dropFirst → "ideas". Output: ["ideas"]. Correct.
+
+Existing behavior preserved: "#hello #world" → ["hello", "world"]. Order preserved
+.
+
+Now, is there a test suite? Let me check for tests to run. Let me look at the swift
+ directory structure.
+
+Let me check the package and any tests.
+Let me analyze the bug.
+
+Current implementation:
+```swift
+public func extractTags(from text: String) -> [String] {
+    return text.split(separator: " ")
+        .filter { $0.hasPrefix("#") }
+        .map { String($0.dropFirst()) }
+}
+```
+
+Problems:
+1. It only splits on spaces. So `"shopping list,#urgent."` splits into `["shopping", "list,#urgent."]`. The second element `list,#urgent.` does not have prefix `#`, so it's filtered out. So `#urgent` is missed.
+2. `"(#ideas)"` splits into `["(#ideas)"]`, which doesn't have prefix `#`. So `#ideas` is missed.
+
+Also, even if it matched, `list,#urgent.` would map to `list,#urgent` — wrong.
+
+We need to fix so that:
+- `"shopping list,#urgent."` registers `#urgent`
+- `"(#ideas)"` registers `#ideas`
+- No regression of existing behavior
+- Return tags in order they appear.
+
+Approach: use a regex to find `#` followed by tag characters, then strip trailing punctuation.
+
+Let me think about what a "tag" is. A tag is `#` followed by word characters. We should extract the tag name as the characters after `#` up to the next non-tag character.
+
+For `"shopping list,#urgent."`: we want to find `#urgent` and strip the trailing `.`. The `#` is preceded by a space (or start). Actually `#` followed by `urgent` then `.`.
+
+For `"(#ideas)"`: `#` preceded by `(`, followed by `ideas` then `)`.
+
+So a regex approach: find `#` followed by one or more word characters `[a-zA-Z0-9_]` or maybe including unicode. Actually tags could contain unicode letters. Let me consider using a pattern that matches `#` followed by tag characters.
+
+Swift uses NSRegularExpression. Let me define:
+- Pattern: `#[\p{L}\p{N}_]+` — `#` followed by letters, numbers, underscore.
+- For each match, take the matched string, drop the first char (`#`), that's the tag.
+
+Check examples:
+- `"shopping list,#urgent."`: matches `#urgent` (since `.` is not in the class). Tag = `urgent`. 
+- `"(#ideas)"`: matches `#ideas` (since `)` not in class). Tag = `ideas`. 
+- Existing behavior: `"#hello #world"` → `hello`, `world`. 
+- What about `"#hello,"`? matches `#hello`, tag `hello`. Previously split on space gave `#hello,` → prefix `#` → dropFirst → `hello,`. So previously it would include trailing comma. Now we strip it. That's an improvement, not a regression (it's more correct). But "without regressing any tag extraction that already works today" — the old behavior returned `hello,` which is arguably broken. Our new behavior returns `hello` which is better. That's not a regression of working extraction; it's a fix.
+
+Wait, but we need to be careful: "without regressing any tag extraction that already works today". If some test relies on the old buggy output (e.g., `hello,`), changing it could break. But the task says fix the bug; the new behavior is the correct one. I think it's fine.
+
+Let me also consider: should the `#` be at a word boundary? E.g., `a#b` — should `#b` be a tag? Previously, `a#b` split on space → `["a#b"]`, prefix `#`? No, starts with `a`. So not matched. With regex `#[\p{L}\p{N}_]+`, `a#b` would match `#b`. Hmm, is that a regression? It's a new match, not a removal. The task says don't regress tags that already work. Adding a new match isn't a regression. But could it be considered wrong? The examples suggest tags can be preceded by punctuation like `(`. So `a#b` matching `#b` is consistent with treating `#` as a tag marker regardless of preceding char. I think that's acceptable and arguably more correct.
+
+Actually, let me reconsider. The first example "shopping list,#urgent." — the `#` is preceded by a comma. Second "(#ideas)" — `#` preceded by `(`. Both are punctuation/word boundary. The regex approach handles these naturally.
+
+Let me write the implementation using NSRegularExpression.
+
+```swift
+public func extractTags(from text: String) -> [String] {
+    let pattern = "#[\\p{L}\\p{N}_]+"
+    guard let regex = try? NSRegularExpression(pattern: pattern) else {
+        return []
+    }
+    let range = NSRange(location: 0, length: text.utf16.count)
+    return regex.matches(in: text, range: range)
+        .map { String($0.range.map { text.index(text.startIndex, offsetBy: $0.location, relativeTo: $0.range.upperBound) ... }) }
+}
+```
+
+Hmm, converting NSRange location/length to Swift String.Index is a bit fiddly. Simpler: for each match, take `range.location` and `range.length`, slice the utf16 or use NSString.
+
+Actually a cleaner approach: use the matched range to slice `text` using utf16 indices. Let me do:
+
+```swift
+let substring = text.substring(with: match.range)
+return String(substring.dropFirst())
+```
+
+`String.substring(with:)` exists (deprecated in newer Swift in favor of `s[range]` but still works). Actually `substring(with:)` is deprecated in Swift 5+? Let me recall. `String.substring(with:)` was deprecated in Swift 4.2? No... Actually `substring(with:)` is still available. Let me use it, it's safe.
+
+Wait, in Swift 5.0+, `substring(with:)` is deprecated? Let me recall. Actually `NSString.substring(with:)` ... The Foundation String method `substring(with:)` — I believe it's still present. To be safe, I can convert to NSString.
+
+Let me think about the Swift version. There's a Package.swift presumably. Let me check. Actually let me just write robust code.
+
+Let me use a manual slicing with utf16:
+
+```swift
+public func extractTags(from text: String) -> [String] {
+    let pattern = "#[\\p{L}\\p{N}_]+"
+    guard let regex = try? NSRegularExpression(pattern: pattern) else {
+        return []
+    }
+    let ns = text as NSString
+    let range = NSRange(location: 0, length: ns.length)
+    let matches = regex.matches(in: text, options: [], range: range)
+    return matches.map {
+        let matched = ns.substring(with: $0.range)
+        return String(matched.dropFirst())
+    }
+}
+```
+
+Using NSString.substring(with:) which is not deprecated (it's NSString method). Good.
+
+Let me verify the regex handles the examples.
+
+Example 1: "shopping list,#urgent."
+- regex `#[\p{L}\p{N}_]+` matches `#urgent`. dropFirst → "urgent". Output: ["urgent"]. Correct.
+
+Example 2: "(#ideas)"
+- matches `#ideas`. dropFirst → "ideas". Output: ["ideas"]. Correct.
+
+Existing behavior preserved: "#hello #world" → ["hello", "world"]. Order preserved.
+
+Now, is there a test suite? Let me check for tests to run. Let me look at the swift directory structure.
+
+Let me check the package and any tests.
+Let me read the tests to understand what's expected.
+Let me read the tests to understand what's expected.
+Now I understand the bug. The current implementation splits on spaces only, so:
+- "shopping list,#urgent." → splits into "shopping" and "list,#urgent." → "list,#
+urgent." doesn't havePrefix("#") so it's filtered out. Bug: it's not at word boundary
+.
+- "(#ideas)" → "(#ideas)" doesn't havePrefix("#") because it starts with "(". Bug
+: the tag is not at the start of a token.
+
+I need to fix `extractTags(from:)` so both examples work without regressing existing
+ behavior and preserving order.
+
+The robust approach: use a regex to find `#` followed by tag characters, where the
+ `#` is at a word boundary (preceded by non-tag char or start). Let me think about
+ what characters constitute a valid tag.
+
+Let me consider the test cases:
+1. "hello #world #swift" → ["world", "swift"] (existing)
+2. "just plain text" → [] (existing)
+3. "shopping list,#urgent." → ["urgent"] (new)
+4. "(#ideas)" → ["ideas"] (new)
+
+For case 3, the tag is preceded by a comma (non-space) and followed by a period. So
+ the tag characters should be delimited by non-tag characters, not just spaces.
+
+For case 4, the tag is preceded by `(` and followed by `)`.
+
+So I need a regex like `#([a-zA-Z0-9_]+)` with a word boundary before the `#` to avoid
+ matching `##` (like markdown bold) or `#` following another tag char. Actually, let
+ me think about word boundaries.
+
+The concern: `##bold` — the first `#` is a tag marker? In Markdown, `##` is a heading
+. But in the context of tags, `##` might be ambiguous. Let me think about what "without
+ regressing any tag extraction that already works today" means.
+
+Existing behavior: split on space, filter tokens withPrefix("#"). So:
+- "#world" → "world"
+- "a#b" → "a#b" doesn't havePrefix "#", so not a tag. Wait, "a#b" split on space is
+ ["a#b"], hasPrefix("#") is false. So "a#b" is NOT a tag today.
+- "##b" → split on space ["##b"], hasPrefix("#") true, dropFirst → "#b". So today
+ "##b" gives ["#b"]. Hmm, that's a weird edge case.
+
+I should be careful. Let me think about what regex approach preserves existing behavior
+ while adding the new cases.
+
+Actually, let me reconsider. The safest fix that handles all cases: use a regex to
+ match `#` followed by a run of tag characters, ensuring the `#` is preceded by a
+ non-tag-character boundary.
+
+Let me think about tag characters. What's a valid tag? Typically `[a-zA-Z0-9_]` and
+ maybe more. But to be safe and match the examples, I'll allow a reasonable set.
+
+Let me think about the word boundary issue. Consider "list,#urgent.":
+- The `#` is preceded by `,` (a non-word char) and followed by `urgent` then `.`.
+
+- Regex `#([a-zA-Z0-9_]+)` would match `#urgent` capturing "urgent". 
+
+Consider "(#ideas)":
+- `#` preceded by `(`, followed by "ideas" then `)`.
+- Regex matches "ideas". 
+
+Consider "hello #world #swift":
+- `#world` matches, `#swift` matches. 
+
+Now, what about the word boundary before `#`? Consider "a#world":
+- With regex `#([a-zA-Z0-9_]+)`, it would match `#world` inside "a#world" capturing
+ "world". But today, "a#world" split on space = ["a#world"], hasPrefix("#") = false
+, so NOT a tag today. So my regex would REGRESS this — it would now extract "world
+" as a tag.
+
+Hmm. So I need a word boundary before the `#`. Use `(?<![\w#])` lookbehind, or `\
+b` before `#`. Actually `\b#` — the `#` is a non-word character, so `\b` before `
+#` means the previous char is a word char or start. Wait, `\b` matches between a word
+ char and non-word char. Before `#` (non-word), `\b` requires the preceding char to
+ be a word char (or start of string). 
+
+Wait, that's the opposite of what I want. Let me think.
+
+`\b` before `#`: matches at a position where one side is a word char and the other
+ is not. The `#` is on the right (non-word). So `\b#` matches when the char to the
+ left is a word char. That means "a#world" — before `#`, char is "a" (word char),
+ so `\b#` matches at that position. That's what I DON'T want — I want to reject "
+a#world".
+
+Hmm wait, let me reconsider. Actually I want `#` to be at the start of a "word", meaning
+ preceded by whitespace or punctuation or start. So I want the opposite: reject when
+ preceded by a word char.
+
+So I want a negative lookbehind for word char: `(?<!\w)#`. This means: `#` not preceded
+ by a word character. 
+
+- "a#world": before `#` is "a" (word char), lookbehind fails, no match. Good — rejects
+ "a#world" (matches today's non-tag behavior).
+- "list,#urgent.": before `#` is "," (non-word), lookbehind passes, matches. Good
+.
+- "(#ideas)": before `#` is "(" (non-word), matches. Good.
+- "hello #world": before `#` is " " (space, non-word), matches. Good.
+- start of string "#world": lookbehind passes (nothing before), matches. Good.
+
+Now for the end of the tag. I want to capture tag characters. What defines the end
+? In "list,#urgent.", after "urgent" is "." which is not a tag char. In "(#ideas)",
+ after "ideas" is ")". So tag chars = word chars `[a-zA-Z0-9_]`. But should tags include
+ other unicode letters? For robustness, maybe include unicode letters/digits. But
+ let me keep it reasonable.
+
+Actually, to not regress and handle common cases, let me use a broader character class
+. But I need to be careful about the boundary. Consider "urgent." — if I include `
+.` in tag chars, I'd get "urgent." which is wrong. So tag chars should exclude punctuation
+.
+
+Let me think about what happens with the existing test "hello #world #swift" — both
+ are plain words, so `[a-zA-Z0-9_]+` works.
+
+Now, should I also worry about the case where `#` is followed by a word char on the
+ right but the whole thing is like "##"? Let me not overthink.
+
+Let me also consider: should there be a word boundary issue where `#` is preceded
+ by another `#`? Like "##tag". Today: split on space = ["##tag"], hasPrefix("#") true
+, dropFirst → "#tag". So today "##tag" gives ["#tag"]. With my regex `(?<!\w)#([a
+-zA-Z0-9_]+)`: for "##tag", the first `#` at index 0: lookbehind passes (start), matches
+ `#` then needs `[a-zA-Z0-9_]+` but next char is `#` (not a tag char), so no match
+ at index 0. At index 1: `#` preceded by `#` (not a word char, `#` is non-word), look
+behind passes, matches `#tag` capturing "tag". So "##tag" → ["tag"]. That differs
+ from today's ["#tag"], but that's arguably a bug fix, not a regression in meaningful
+ terms. This is an edge case unlikely to be tested.
+
+Hmm, but actually I want to be careful about "without regressing any tag extraction
+ that already works today". The key existing behaviors that MUST work are the two
+ tests. Let me make sure those pass. And the two new cases must work. The "##tag"
+ case is not in either list, so changing it is acceptable (it's arguably a bug).
+
+Let me write the regex: `(?<!\w)#([a-zA-Z0-9_]+)`.
+
+But wait — should I include more than word chars for tags? Consider tags with hyph
+ens or unicode. The examples don't require it. Let me keep it to `[a-zA-Z0-9_]` but
+ maybe expand to include unicode letters to be safe. Actually, Swift's regex supports
+ `\w` which is ASCII word chars by default in NSRegularExpression? Let me think about
+ the API.
+
+I'll use NSRegularExpression for reliability across macOS versions. Pattern: `(?<!
+\w)#([a-zA-Z0-9_]+)`.
+
+Actually, let me reconsider whether to use a broader character class. The concern
+ about regression: today, a tag like "#café" — split on space = ["#café"], hasPrefix
+("#") true, dropFirst → "caf" + "é" = "café". So today unicode letters ARE kept. If
+ I restrict to ASCII `[a-zA-Z0-9_]`, I'd drop "café" to "caf". That could be a regression
+!
+
+So to avoid regression, I should include unicode letters. Let me use a character class
+ that includes letters and digits. In NSRegularExpression, I can use `[\w]` but that
+ might be ASCII. To include unicode letters, I'd use `[^\s]`? No, that's too broad
+ (would include punctuation).
+
+Hmm. Let me think. The safest approach to avoid regression AND handle new cases: match
+ `#` followed by a maximal run of characters that are "word-like". 
+
+Actually, the cleanest way to think about it: a tag is `#` followed by a sequence
+ of characters that are NOT delimiters. The delimiters in the examples are: space
+, comma, period, paren. What characters should NOT end a tag? Letters, digits, underscore
+, and presumably unicode letters.
+
+Let me consider using a regex with a negated class of whitespace and common punctuation
+. But that's fragile.
+
+Alternative approach: Instead of regex, I could tokenize the string on any non-tag
+ character. Let me think of a cleaner algorithmic approach.
+
+Algorithm:
+1. Iterate through the string.
+2. When I find a `#` that is not preceded by a word character (to avoid "a#b"), start
+ collecting tag characters until I hit a delimiter.
+
+What's a delimiter? A character that's not a valid tag character. Valid tag chars
+: letters, digits, underscore. In Swift, `Character.isLetter || Character.isNumber
+ || c == "_"`.
+
+Wait, but there's a subtlety. Consider "list,#urgent." — after `#`, collect "urgent
+", then "." is a delimiter, stop. Result "urgent". 
+
+Consider "(#ideas)" — after `#`, collect "ideas", then ")" is delimiter, stop. Result
+ "ideas". 
+
+Consider "hello #world #swift" — collect "world", "swift". 
+
+Consider "a#world" — the `#` is preceded by "a" (a letter, which is a word char),
+ so we skip it. Result []. This matches today's behavior (no tag). 
+
+Consider "#world" at start — `#` at start, preceded by nothing, collect "world". 
+
+This algorithmic approach handles unicode letters naturally because `isLetter` includes
+ unicode letters.
+
+But wait, there's a subtlety with the "preceded by word char" check. Today, "a#b"
+ is not a tag. But what about "a,#b"? comma then #b. Preceded by comma (not a word
+ char), so it's a tag. Today: split on space = ["a,#b"], hasPrefix("#") = false, so
+ NOT a tag today. So my new behavior would extract "b" as a tag, which differs from
+ today. But is that a regression? It's an improvement (new behavior), and "a,#b" is
+ an odd input. The task explicitly wants list,#urgent to work, which is the same pattern
+ (text, #tag). So this is the desired direction.
+
+Now, what about the "preceded by word char" check — should I use isLetter/isNumber
+, or just isLetter? Let me think about "1#world". Preceded by "1" (number). Is that
+ a tag? Today: split on space = ["1#world"], hasPrefix("#") = false, not a tag. With
+ my check (preceded by number = word char), I'd skip it, giving []. Matches today
+. Good.
+
+What about "1,#world"? comma then #world. Preceded by comma, not word char, so tag
+ "world". New behavior, desired.
+
+OK so the check is: `#` is a tag start if the preceding character is NOT a word character
+ (not letter, not number). Actually, should underscore count? "_#world" — preceded
+ by underscore. Hmm. Underscore is a tag character typically. But here it's before
+ the `#`. Let me think... "_#world" — is this a tag? Today: split on space = ["_#
+world"], hasPrefix("#") = false, not a tag. If I treat underscore as a word char (
+skip), I'd give []. Matches today. If I don't, I'd give ["world"], differing. Either
+ way it's an edge case. Let me treat underscore as a word char for the lookbehind
+ to match today's behavior of "don't extract from the middle of a word-like token
+". Actually, hmm, let me reconsider.
+
+Actually, the cleanest and most defensible definition of "word boundary" for tags
+: the `#` must be preceded by a non-word character or start of string, where word
+ characters are `[A-Za-z0-9_]` (the standard `\w`). This is exactly `\b` semantics
+ but inverted. Actually `(?<!\w)` in regex = "not preceded by word char" = exactly
+ this.
+
+And tag characters: `[A-Za-z0-9_]`? But that excludes unicode. Hmm, the tension between
+ "standard \w" (ASCII) and unicode letters.
+
+Let me reconsider. For the given examples, ASCII is sufficient. The regression concern
+ is about unicode tags. But honestly, is that a real concern for this benchmark? The
+ task says "without regressing any tag extraction that already works today." The two
+ existing tests use ASCII. There's no unicode test. 
+
+But to be safe and correct, let me use the algorithmic approach with `isLetter ||
+ isNumber` for the lookbehind AND for collecting tag chars, OR use underscore too
+. Let me think about which is more robust.
+
+Actually, let me reconsider using NSRegularExpression with a pattern that captures
+ unicode. Swift's `NSRegularExpression` with pattern `\w` — in ICU regex (which NS
+RegularExpression uses), `\w` matches `[a-zA-Z0-9_]` by default but with the Unicode
+ option it can match more. Actually, `\w` in ICU without `UCASCaseSensitiveOption
+`... it's complicated.
+
+Let me just go with the algorithmic approach in Swift, which is clean, handles unicode
+, and is easy to reason about. Let me write it:
+
+```swift
+public func extractTags(from text: String) -> [String] {
+    var tags: [String] = []
+    let chars = Array(text)
+    var i = 0
+    while i < chars.count {
+        if chars[i] == "#",
+           let prev = i > 0 ? chars[i - 1] : nil,
+           prev.isLetter || prev.isNumber || prev == "_" {
+            // '#' is part of a word, not a tag start; skip
+            i += 1
+            continue
+        }
+        if chars[i] == "#" {
+            var j = i + 1
+            while j < chars.count,
+                  (chars[j].isLetter || chars[j].isNumber || chars[j] == "_") {
+                j += 1
+            }
+            let tag = String(chars[(i + 1)..<j])
+            if !tag.isEmpty {
+                tags.append(tag)
+            }
+            i = j
+            continue
+        }
+        i += 1
+    }
+    return tags
+}
+```
+
+Wait, there's a subtle issue with the lookbehind check and the skip. When I do `i
+ += 1; continue` after detecting `#` preceded by word char, I move past the `#`. But
+ what if there's another `#` right after? Like "a##world". Let me trace: 
+- i=0: 'a', not #, i=1
+- i=1: '#', prev='a' (letter), skip, i=2
+- i=2: '#', prev='#' (not letter/number/_), so it's a tag start. j=3, collect "world
+". tag="world". i=4... wait j goes to 3 (chars[3]='w'), collect until 'd' at end.
+ j=8. tag = chars[2..<8] = "#world"? No wait. chars = ['a','#','#','w','o','r','l
+','d']. i=2 is the second '#'. j starts at 3, collects 'w','o','r','l','d' (indices
+ 3-7), j=8. tag = String(chars[3..<8]) = "world". Good. So "a##world" → ["world"].
+ 
+
+Hmm, is that right? "a##world" — the first # is attached to 'a', the second # starts
+ a tag. So ["world"] seems reasonable.
+
+But wait, this differs from today's behavior for "##world" (no leading letter). Let
+ me trace "##world" today: split on space = ["##world"], hasPrefix("#") = true, drop
+First → "#world". So today ["#world"]. My new code: i=0 '#', prev=nil (start), tag
+ start. j=1, chars[1]='#' not a tag char, so j stays 1. tag = chars[1..<1] = "" empty
+. So not appended. i=j=1. i=1 '#', prev='#' (not letter/number/_), tag start. j=2
+, collect "world". tag="world". So "##world" → ["world"]. 
+
+This differs from today's ["#world"], but "##world" is an ambiguous edge case (could
+ be markdown headingNow I understand the bug. The current implementation splits on spaces only, so:
+- "shopping list,#urgent." → splits into "shopping" and "list,#urgent." → "list,#urgent." doesn't havePrefix("#") so it's filtered out. Bug: it's not at word boundary.
+- "(#ideas)" → "(#ideas)" doesn't havePrefix("#") because it starts with "(". Bug: the tag is not at the start of a token.
+
+I need to fix `extractTags(from:)` so both examples work without regressing existing behavior and preserving order.
+
+The robust approach: use a regex to find `#` followed by tag characters, where the `#` is at a word boundary (preceded by non-tag char or start). Let me think about what characters constitute a valid tag.
+
+Let me consider the test cases:
+1. "hello #world #swift" → ["world", "swift"] (existing)
+2. "just plain text" → [] (existing)
+3. "shopping list,#urgent." → ["urgent"] (new)
+4. "(#ideas)" → ["ideas"] (new)
+
+For case 3, the tag is preceded by a comma (non-space) and followed by a period. So the tag characters should be delimited by non-tag characters, not just spaces.
+
+For case 4, the tag is preceded by `(` and followed by `)`.
+
+So I need a regex like `#([a-zA-Z0-9_]+)` with a word boundary before the `#` to avoid matching `##` (like markdown bold) or `#` following another tag char. Actually, let me think about word boundaries.
+
+The concern: `##bold` — the first `#` is a tag marker? In Markdown, `##` is a heading. But in the context of tags, `##` might be ambiguous. Let me think about what "without regressing any tag extraction that already works today" means.
+
+Existing behavior: split on space, filter tokens withPrefix("#"). So:
+- "#world" → "world"
+- "a#b" → "a#b" doesn't havePrefix "#", so not a tag. Wait, "a#b" split on space is ["a#b"], hasPrefix("#") is false. So "a#b" is NOT a tag today.
+- "##b" → split on space ["##b"], hasPrefix("#") true, dropFirst → "#b". So today "##b" gives ["#b"]. Hmm, that's a weird edge case.
+
+I should be careful. Let me think about what regex approach preserves existing behavior while adding the new cases.
+
+Actually, let me reconsider. The safest fix that handles all cases: use a regex to match `#` followed by a run of tag characters, ensuring the `#` is preceded by a non-tag-character boundary.
+
+Let me think about tag characters. What's a valid tag? Typically `[a-zA-Z0-9_]` and maybe more. But to be safe and match the examples, I'll allow a reasonable set.
+
+Let me think about the word boundary issue. Consider "list,#urgent.":
+- The `#` is preceded by `,` (a non-word char) and followed by `urgent` then `.`.
+- Regex `#([a-zA-Z0-9_]+)` would match `#urgent` capturing "urgent". 
+
+Consider "(#ideas)":
+- `#` preceded by `(`, followed by "ideas" then `)`.
+- Regex matches "ideas". 
+
+Consider "hello #world #swift":
+- `#world` matches, `#swift` matches. 
+
+Now, what about the word boundary before `#`? Consider "a#world":
+- With regex `#([a-zA-Z0-9_]+)`, it would match `#world` inside "a#world" capturing "world". But today, "a#world" split on space = ["a#world"], hasPrefix("#") = false, so NOT a tag today. So my regex would REGRESS this — it would now extract "world" as a tag.
+
+Hmm. So I need a word boundary before the `#`. Use `(?<![\w#])` lookbehind, or `\b` before `#`. Actually `\b#` — the `#` is a non-word character, so `\b` before `#` means the previous char is a word char or start. Wait, `\b` matches between a word char and non-word char. Before `#` (non-word), `\b` requires the preceding char to be a word char (or start of string). 
+
+Wait, that's the opposite of what I want. Let me think.
+
+`\b` before `#`: matches at a position where one side is a word char and the other is not. The `#` is on the right (non-word). So `\b#` matches when the char to the left is a word char. That means "a#world" — before `#`, char is "a" (word char), so `\b#` matches at that position. That's what I DON'T want — I want to reject "a#world".
+
+Hmm wait, let me reconsider. Actually I want `#` to be at the start of a "word", meaning preceded by whitespace or punctuation or start. So I want the opposite: reject when preceded by a word char.
+
+So I want a negative lookbehind for word char: `(?<!\w)#`. This means: `#` not preceded by a word character. 
+
+- "a#world": before `#` is "a" (word char), lookbehind fails, no match. Good — rejects "a#world" (matches today's non-tag behavior).
+- "list,#urgent.": before `#` is "," (non-word), lookbehind passes, matches. Good.
+- "(#ideas)": before `#` is "(" (non-word), matches. Good.
+- "hello #world": before `#` is " " (space, non-word), matches. Good.
+- start of string "#world": lookbehind passes (nothing before), matches. Good.
+
+Now for the end of the tag. I want to capture tag characters. What defines the end? In "list,#urgent.", after "urgent" is "." which is not a tag char. In "(#ideas)", after "ideas" is ")". So tag chars = word chars `[a-zA-Z0-9_]`. But should tags include other unicode letters? For robustness, maybe include unicode letters/digits. But let me keep it reasonable.
+
+Actually, to not regress and handle common cases, let me use a broader character class. But I need to be careful about the boundary. Consider "urgent." — if I include `.` in tag chars, I'd get "urgent." which is wrong. So tag chars should exclude punctuation.
+
+Let me think about what happens with the existing test "hello #world #swift" — both are plain words, so `[a-zA-Z0-9_]+` works.
+
+Now, should I also worry about the case where `#` is followed by a word char on the right but the whole thing is like "##"? Let me not overthink.
+
+Let me also consider: should there be a word boundary issue where `#` is preceded by another `#`? Like "##tag". Today: split on space = ["##tag"], hasPrefix("#") true, dropFirst → "#tag". So today "##tag" gives ["#tag"]. With my regex `(?<!\w)#([a-zA-Z0-9_]+)`: for "##tag", the first `#` at index 0: lookbehind passes (start), matches `#` then needs `[a-zA-Z0-9_]+` but next char is `#` (not a tag char), so no match at index 0. At index 1: `#` preceded by `#` (not a word char, `#` is non-word), lookbehind passes, matches `#tag` capturing "tag". So "##tag" → ["tag"]. That differs from today's ["#tag"], but that's arguably a bug fix, not a regression in meaningful terms. This is an edge case unlikely to be tested.
+
+Hmm, but actually I want to be careful about "without regressing any tag extraction that already works today". The key existing behaviors that MUST work are the two tests. Let me make sure those pass. And the two new cases must work. The "##tag" case is not in either list, so changing it is acceptable (it's arguably a bug).
+
+Let me write the regex: `(?<!\w)#([a-zA-Z0-9_]+)`.
+
+But wait — should I include more than word chars for tags? Consider tags with hyphens or unicode. The examples don't require it. Let me keep it to `[a-zA-Z0-9_]` but maybe expand to include unicode letters to be safe. Actually, Swift's regex supports `\w` which is ASCII word chars by default in NSRegularExpression? Let me think about the API.
+
+I'll use NSRegularExpression for reliability across macOS versions. Pattern: `(?<!\w)#([a-zA-Z0-9_]+)`.
+
+Actually, let me reconsider whether to use a broader character class. The concern about regression: today, a tag like "#café" — split on space = ["#café"], hasPrefix("#") true, dropFirst → "caf" + "é" = "café". So today unicode letters ARE kept. If I restrict to ASCII `[a-zA-Z0-9_]`, I'd drop "café" to "caf". That could be a regression!
+
+So to avoid regression, I should include unicode letters. Let me use a character class that includes letters and digits. In NSRegularExpression, I can use `[\w]` but that might be ASCII. To include unicode letters, I'd use `[^\s]`? No, that's too broad (would include punctuation).
+
+Hmm. Let me think. The safest approach to avoid regression AND handle new cases: match `#` followed by a maximal run of characters that are "word-like". 
+
+Actually, the cleanest way to think about it: a tag is `#` followed by a sequence of characters that are NOT delimiters. The delimiters in the examples are: space, comma, period, paren. What characters should NOT end a tag? Letters, digits, underscore, and presumably unicode letters.
+
+Let me consider using a regex with a negated class of whitespace and common punctuation. But that's fragile.
+
+Alternative approach: Instead of regex, I could tokenize the string on any non-tag character. Let me think of a cleaner algorithmic approach.
+
+Algorithm:
+1. Iterate through the string.
+2. When I find a `#` that is not preceded by a word character (to avoid "a#b"), start collecting tag characters until I hit a delimiter.
+
+What's a delimiter? A character that's not a valid tag character. Valid tag chars: letters, digits, underscore. In Swift, `Character.isLetter || Character.isNumber || c == "_"`.
+
+Wait, but there's a subtlety. Consider "list,#urgent." — after `#`, collect "urgent", then "." is a delimiter, stop. Result "urgent". 
+
+Consider "(#ideas)" — after `#`, collect "ideas", then ")" is delimiter, stop. Result "ideas". 
+
+Consider "hello #world #swift" — collect "world", "swift". 
+
+Consider "a#world" — the `#` is preceded by "a" (a letter, which is a word char), so we skip it. Result []. This matches today's behavior (no tag). 
+
+Consider "#world" at start — `#` at start, preceded by nothing, collect "world". 
+
+This algorithmic approach handles unicode letters naturally because `isLetter` includes unicode letters.
+
+But wait, there's a subtlety with the "preceded by word char" check. Today, "a#b" is not a tag. But what about "a,#b"? comma then #b. Preceded by comma (not a word char), so it's a tag. Today: split on space = ["a,#b"], hasPrefix("#") = false, so NOT a tag today. So my new behavior would extract "b" as a tag, which differs from today. But is that a regression? It's an improvement (new behavior), and "a,#b" is an odd input. The task explicitly wants list,#urgent to work, which is the same pattern (text, #tag). So this is the desired direction.
+
+Now, what about the "preceded by word char" check — should I use isLetter/isNumber, or just isLetter? Let me think about "1#world". Preceded by "1" (number). Is that a tag? Today: split on space = ["1#world"], hasPrefix("#") = false, not a tag. With my check (preceded by number = word char), I'd skip it, giving []. Matches today. Good.
+
+What about "1,#world"? comma then #world. Preceded by comma, not word char, so tag "world". New behavior, desired.
+
+OK so the check is: `#` is a tag start if the preceding character is NOT a word character (not letter, not number). Actually, should underscore count? "_#world" — preceded by underscore. Hmm. Underscore is a tag character typically. But here it's before the `#`. Let me think... "_#world" — is this a tag? Today: split on space = ["_#world"], hasPrefix("#") = false, not a tag. If I treat underscore as a word char (skip), I'd give []. Matches today. If I don't, I'd give ["world"], differing. Either way it's an edge case. Let me treat underscore as a word char for the lookbehind to match today's behavior of "don't extract from the middle of a word-like token". Actually, hmm, let me reconsider.
+
+Actually, the cleanest and most defensible definition of "word boundary" for tags: the `#` must be preceded by a non-word character or start of string, where word characters are `[A-Za-z0-9_]` (the standard `\w`). This is exactly `\b` semantics but inverted. Actually `(?<!\w)` in regex = "not preceded by word char" = exactly this.
+
+And tag characters: `[A-Za-z0-9_]`? But that excludes unicode. Hmm, the tension between "standard \w" (ASCII) and unicode letters.
+
+Let me reconsider. For the given examples, ASCII is sufficient. The regression concern is about unicode tags. But honestly, is that a real concern for this benchmark? The task says "without regressing any tag extraction that already works today." The two existing tests use ASCII. There's no unicode test. 
+
+But to be safe and correct, let me use the algorithmic approach with `isLetter || isNumber` for the lookbehind AND for collecting tag chars, OR use underscore too. Let me think about which is more robust.
+
+Actually, let me reconsider using NSRegularExpression with a pattern that captures unicode. Swift's `NSRegularExpression` with pattern `\w` — in ICU regex (which NSRegularExpression uses), `\w` matches `[a-zA-Z0-9_]` by default but with the Unicode option it can match more. Actually, `\w` in ICU without `UCASCaseSensitiveOption`... it's complicated.
+
+Let me just go with the algorithmic approach in Swift, which is clean, handles unicode, and is easy to reason about. Let me write it:
+
+```swift
+public func extractTags(from text: String) -> [String] {
+    var tags: [String] = []
+    let chars = Array(text)
+    var i = 0
+    while i < chars.count {
+        if chars[i] == "#",
+           let prev = i > 0 ? chars[i - 1] : nil,
+           prev.isLetter || prev.isNumber || prev == "_" {
+            // '#' is part of a word, not a tag start; skip
+            i += 1
+            continue
+        }
+        if chars[i] == "#" {
+            var j = i + 1
+            while j < chars.count,
+                  (chars[j].isLetter || chars[j].isNumber || chars[j] == "_") {
+                j += 1
+            }
+            let tag = String(chars[(i + 1)..<j])
+            if !tag.isEmpty {
+                tags.append(tag)
+            }
+            i = j
+            continue
+        }
+        i += 1
+    }
+    return tags
+}
+```
+
+Wait, there's a subtle issue with the lookbehind check and the skip. When I do `i += 1; continue` after detecting `#` preceded by word char, I move past the `#`. But what if there's another `#` right after? Like "a##world". Let me trace: 
+- i=0: 'a', not #, i=1
+- i=1: '#', prev='a' (letter), skip, i=2
+- i=2: '#', prev='#' (not letter/number/_), so it's a tag start. j=3, collect "world". tag="world". i=4... wait j goes to 3 (chars[3]='w'), collect until 'd' at end. j=8. tag = chars[2..<8] = "#world"? No wait. chars = ['a','#','#','w','o','r','l','d']. i=2 is the second '#'. j starts at 3, collects 'w','o','r','l','d' (indices 3-7), j=8. tag = String(chars[3..<8]) = "world". Good. So "a##world" → ["world"]. 
+
+Hmm, is that right? "a##world" — the first # is attached to 'a', the second # starts a tag. So ["world"] seems reasonable.
+
+But wait, this differs from today's behavior for "##world" (no leading letter). Let me trace "##world" today: split on space = ["##world"], hasPrefix("#") = true, dropFirst → "#world". So today ["#world"]. My new code: i=0 '#', prev=nil (start), tag start. j=1, chars[1]='#' not a tag char, so j stays 1. tag = chars[1..<1] = "" empty. So not appended. i=j=1. i=1 '#', prev='#' (not letter/number/_), tag start. j=2, collect "world". tag="world". So "##world" → ["world"]. 
+
+This differs from today's ["#world"], but "##world" is an ambiguous edge case (could be markdown heading
+Let me continue. I understand the bug now. Let me fix it.
+
+The current implementation splits on spaces only, so `#urgent.` and `(#ideas)` don
+'t work because:
+1. `#urgent.` has a period attached — it has prefix `#` but the tag includes the trailing
+ period, and it's the last token so it does have prefix `#`. Wait, actually `#urgent
+.` does have prefix `#`, so it would map to `urgent.` including the period. So it
+ would return "urgent." not "urgent". Actually wait — the issue is the trailing punctuation
+.
+
+2. `(#ideas)` — the token is `(#ideas)` which does NOT have prefix `#` (it has prefix
+ `(`), so it's filtered out entirely.
+
+So the bug is:
+- Only splitting on spaces, not on other delimiters like `(`, `)`, `.`, etc.
+- Not stripping trailing punctuation from tags.
+
+I need to fix `extractTags(from:)` to handle both cases while preserving order and
+ not regressing existing behavior.
+
+Let me write a robust implementation. I'll iterate through the string character by
+ character, or use a regex.
+
+A clean approach: use a regex to find `#` followed by tag characters. But I need to
+ be careful about what counts as a tag. The existing test: "hello #world #swift" ->
+ ["world", "swift"].
+
+For "(#ideas)" -> ["ideas"]. For "shopping list,#urgent." -> ["urgent"].
+
+Let me think about what characters should be part of a tag. Typically hashtags include
+ letters, digits, underscore, and maybe hyphens. But to avoid over-engineering, I
+ should handle the given examples and not regress.
+
+The simplest robust approach: scan the string, find each `#`, then collect the following
+ characters that are "valid tag characters" (alphanumeric, underscore, hyphen, maybe
+ unicode letters). This naturally handles `(#ideas)` because the char after `#` is
+ `i` (valid), and stops at `)`. And `#urgent.` stops at the period.
+
+Let me write it character by character:
+
+```swift
+public func extractTags(from text: String) -> [String] {
+    var tags: [String] = []
+    let chars = Array(text)
+    var i = 0
+    while i < chars.count {
+        if chars[i] == "#" {
+            var j = i + 1
+            while j < chars.count && isValidTagChar(chars[j]) {
+                j += 1
+            }
+            if j > i + 1 {
+                tags.append(String(chars[(i + 1)..<j]))
+            }
+            i = j
+        } else {
+            i += 1
+        }
+    }
+    return tags
+}
+
+private func isValidTagChar(_ c: Character) -> Bool {
+    return c.isLetter || c.isNumber || c == "_" || c == "-"
+}
+```
+
+Wait, but should I include hyphen? The existing behavior with space-splitting would
+ include hyphens as part of a tag (e.g. "foo-bar" is one token). Let me think about
+ regressions.
+
+Existing test: "hello #world #swift" -> tags after # are "world" and "swift". With
+ my char-by-char, `#world` -> w,o,r,l,d all letters -> "world". Good. `#swift` ->
+ "swift". Good.
+
+"just plain text" -> no # -> []. Good.
+
+Now consider a potential regression: what about a tag followed by another character
+ that's a valid tag char but was previously included? E.g. previously "foo #bar-b
+az" (space separated) -> token "bar-baz" -> "bar-baz". With my approach, `#bar-baz
+` -> b,a,r,-,b,a,z all valid -> "bar-baz". Same. Good.
+
+What about "#bar_baz"? Previously token "bar_baz" -> "bar_baz". Mine: underscore valid
+ -> "bar_baz". Same. Good.
+
+Now the key question: what about a tag like "#123"? Previously token "#123" -> prefix
+ # -> "123". Mine: digits valid -> "123". Same.
+
+Now consider edge: what about something that previously returned a tag but now doesn
+'t? The only way my approach differs from space-splitting is:
+1. It strips trailing invalid chars (like `.`), which is the desired fix.
+2. It extracts tags not preceded by a space (like after `(`), desired fix.
+3. It could split a previously-single token into... no, it won't split, it just collects
+ contiguous valid chars after #.
+
+Potential regression: Consider "a#b" previously: token "a#b" has prefix #? No, prefix
+ is 'a'. So filtered out -> []. Mine: finds # at index 1, collects "b" -> ["b"]. This
+ is a behavior change but it's arguably a fix (extracting #b from "a#b"). Is this
+ a regression of "already works today"? Today it doesn't work, so making it work is
+ fine. The requirement is "without regressing any tag extraction that already works
+ today" — meaning don't break currently-passing cases. This is an improvement.
+
+Actually, let me reconsider whether to include hyphen and underscore. The risk: over
+-inclusion. But hyphen and underscore are standard hashtag chars. However, to be safe
+ and minimal, maybe I should consider what the test harness expects. The task only
+ specifies two examples. Let me keep it reasonable: letters, numbers, underscore,
+ hyphen. Actually, let me reconsider hyphen — could cause issues with things like
+ "a-b" no #. Fine.
+
+Hmm, but there's a subtle concern: `isLetter` for unicode. That's fine for Swift.
+
+
+Actually, let me reconsider. Should I use a simpler regex approach? Swift has NSRegularExpression
+ but it's more verbose. The char-by-char is clean and explicit. But it's a private
+ helper function in the same file. That's fine.
+
+Actually, I could inline the isValidTagChar check. Let me keep it readable.
+
+Let me reconsider: is there a concern that the harness might test that a `#` at end
+ of string or `#` followed by nothing returns empty? My `j > i+1` guard handles that
+ — if # is last char, j == i+1, so we skip. Good.
+
+Let me also double check the "shopping list,#urgent." example. Chars: s,h,o,p,p,i
+,n,g,space,l,i,s,t,.,#,u,r,g,e,n,t,. 
+At the # (after the period), we collect u,r,g,e,n,t then hit '.' which is invalid
+, stop. j points at '.'. j > i+1 so append "urgent". Good. Returns ["urgent"]. 
+
+"(#ideas)": '(' invalid, then '#' at index 1, collect i,d,e,a,s, then ')' invalid
+ stop. append "ideas". Good. Returns ["ideas"]. 
+
+Now let me write the fix and then build/test.
+
+Let me apply the patch.
+Let me continue. I understand the bug now. Let me fix it.
+
+The current implementation splits on spaces only, so `#urgent.` and `(#ideas)` don't work because:
+1. `#urgent.` has a period attached — it has prefix `#` but the tag includes the trailing period, and it's the last token so it does have prefix `#`. Wait, actually `#urgent.` does have prefix `#`, so it would map to `urgent.` including the period. So it would return "urgent." not "urgent". Actually wait — the issue is the trailing punctuation.
+
+2. `(#ideas)` — the token is `(#ideas)` which does NOT have prefix `#` (it has prefix `(`), so it's filtered out entirely.
+
+So the bug is:
+- Only splitting on spaces, not on other delimiters like `(`, `)`, `.`, etc.
+- Not stripping trailing punctuation from tags.
+
+I need to fix `extractTags(from:)` to handle both cases while preserving order and not regressing existing behavior.
+
+Let me write a robust implementation. I'll iterate through the string character by character, or use a regex.
+
+A clean approach: use a regex to find `#` followed by tag characters. But I need to be careful about what counts as a tag. The existing test: "hello #world #swift" -> ["world", "swift"].
+
+For "(#ideas)" -> ["ideas"]. For "shopping list,#urgent." -> ["urgent"].
+
+Let me think about what characters should be part of a tag. Typically hashtags include letters, digits, underscore, and maybe hyphens. But to avoid over-engineering, I should handle the given examples and not regress.
+
+The simplest robust approach: scan the string, find each `#`, then collect the following characters that are "valid tag characters" (alphanumeric, underscore, hyphen, maybe unicode letters). This naturally handles `(#ideas)` because the char after `#` is `i` (valid), and stops at `)`. And `#urgent.` stops at the period.
+
+Let me write it character by character:
+
+```swift
+public func extractTags(from text: String) -> [String] {
+    var tags: [String] = []
+    let chars = Array(text)
+    var i = 0
+    while i < chars.count {
+        if chars[i] == "#" {
+            var j = i + 1
+            while j < chars.count && isValidTagChar(chars[j]) {
+                j += 1
+            }
+            if j > i + 1 {
+                tags.append(String(chars[(i + 1)..<j]))
+            }
+            i = j
+        } else {
+            i += 1
+        }
+    }
+    return tags
+}
+
+private func isValidTagChar(_ c: Character) -> Bool {
+    return c.isLetter || c.isNumber || c == "_" || c == "-"
+}
+```
+
+Wait, but should I include hyphen? The existing behavior with space-splitting would include hyphens as part of a tag (e.g. "foo-bar" is one token). Let me think about regressions.
+
+Existing test: "hello #world #swift" -> tags after # are "world" and "swift". With my char-by-char, `#world` -> w,o,r,l,d all letters -> "world". Good. `#swift` -> "swift". Good.
+
+"just plain text" -> no # -> []. Good.
+
+Now consider a potential regression: what about a tag followed by another character that's a valid tag char but was previously included? E.g. previously "foo #bar-baz" (space separated) -> token "bar-baz" -> "bar-baz". With my approach, `#bar-baz` -> b,a,r,-,b,a,z all valid -> "bar-baz". Same. Good.
+
+What about "#bar_baz"? Previously token "bar_baz" -> "bar_baz". Mine: underscore valid -> "bar_baz". Same. Good.
+
+Now the key question: what about a tag like "#123"? Previously token "#123" -> prefix # -> "123". Mine: digits valid -> "123". Same.
+
+Now consider edge: what about something that previously returned a tag but now doesn't? The only way my approach differs from space-splitting is:
+1. It strips trailing invalid chars (like `.`), which is the desired fix.
+2. It extracts tags not preceded by a space (like after `(`), desired fix.
+3. It could split a previously-single token into... no, it won't split, it just collects contiguous valid chars after #.
+
+Potential regression: Consider "a#b" previously: token "a#b" has prefix #? No, prefix is 'a'. So filtered out -> []. Mine: finds # at index 1, collects "b" -> ["b"]. This is a behavior change but it's arguably a fix (extracting #b from "a#b"). Is this a regression of "already works today"? Today it doesn't work, so making it work is fine. The requirement is "without regressing any tag extraction that already works today" — meaning don't break currently-passing cases. This is an improvement.
+
+Actually, let me reconsider whether to include hyphen and underscore. The risk: over-inclusion. But hyphen and underscore are standard hashtag chars. However, to be safe and minimal, maybe I should consider what the test harness expects. The task only specifies two examples. Let me keep it reasonable: letters, numbers, underscore, hyphen. Actually, let me reconsider hyphen — could cause issues with things like "a-b" no #. Fine.
+
+Hmm, but there's a subtle concern: `isLetter` for unicode. That's fine for Swift.
+
+Actually, let me reconsider. Should I use a simpler regex approach? Swift has NSRegularExpression but it's more verbose. The char-by-char is clean and explicit. But it's a private helper function in the same file. That's fine.
+
+Actually, I could inline the isValidTagChar check. Let me keep it readable.
+
+Let me reconsider: is there a concern that the harness might test that a `#` at end of string or `#` followed by nothing returns empty? My `j > i+1` guard handles that — if # is last char, j == i+1, so we skip. Good.
+
+Let me also double check the "shopping list,#urgent." example. Chars: s,h,o,p,p,i,n,g,space,l,i,s,t,.,#,u,r,g,e,n,t,. 
+At the # (after the period), we collect u,r,g,e,n,t then hit '.' which is invalid, stop. j points at '.'. j > i+1 so append "urgent". Good. Returns ["urgent"]. 
+
+"(#ideas)": '(' invalid, then '#' at index 1, collect i,d,e,a,s, then ')' invalid stop. append "ideas". Good. Returns ["ideas"]. 
+
+Now let me write the fix and then build/test.
+
+Let me apply the patch.
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmpvt6_9ecu/run/swift/Sources/NoteKit/NoteKit.swift → b//Users/tijs/projects/local-model-bench/runner/runs/tmpvt6_9ecu/run/swift/Sources/NoteKit/NoteKit.swift
+@@ -1,10 +1,37 @@
+ import Foundation
+ 
+ /// Extracts #tags from a note's body text, in the order they appear.
++///
++/// A tag is any `#` immediately followed by one or more valid tag
++/// characters (letters, numbers, `_`, or `-`). Because we scan for `#`
++/// directly rather than splitting on whitespace, tags embedded after
++/// non-space characters (e.g. `(#ideas)`, `#urgent.`) are still found,
++/// and trailing punctuation is not included in the tag.
+ public func extractTags(from text: String) -> [String] {
+-    return text.split(separator: " ")
+-        .filter { $0.hasPrefix("#") }
+-        .map { String($0.dropFirst()) }
++    let chars = Array(text)
++    var tags: [String] = []
++    var i = 0
++    while i < chars.count {
++        if chars[i] == "#" {
++            var j = i + 1
++            while j < chars.count && Note.isValidTagChar(chars[j]) {
++                j += 1
++            }
++            if j > i + 1 { // at least one valid character followed the `#`
++                tags.append(String(chars[(i + 1)..<j]))
++            }
++            i = j
++        } else {
++            i += 1
++        }
++    }
++    return tags
++}
++
++private extension Note {
++    static func isValidTagChar(_ c: Character) -> Bool {
++        c.isLetter || c.isNumber || c == "_" || c == "-"
++    }
+ }
+ 
+ public struct Note: Equatable {
+Now let me build and run the tests to verify.
+Now let me build and run the tests to verify.
+The sandbox is blocking swift build. Let me try to work around it. The error is `
+sandbox-exec: sandbox_apply: Operation not permitted`. This is a sandbox issue in
+ the environment. Let me try running swiftc directly, or disabling sandbox.
+
+Let me try to compile the file directly with swiftc to at least verify it compiles
+, and write a small test harness.
+The sandbox is blocking swift build. Let me try to work around it. The error is `sandbox-exec: sandbox_apply: Operation not permitted`. This is a sandbox issue in the environment. Let me try running swiftc directly, or disabling sandbox.
+
+Let me try to compile the file directly with swiftc to at least verify it compiles, and write a small test harness.
+The file parses cleanly. Now let me run a harness to confirm the behavior of the two
+ reported cases and the existing tests.
+The file parses cleanly. Now let me run a harness to confirm the behavior of the two reported cases and the existing tests.
+All tests pass. Let me note that the sandbox prevents `swift test` from running, but
+ the behavior is verified. Let me clean up and report.
+All tests pass. Let me note that the sandbox prevents `swift test` from running, but the behavior is verified. Let me clean up and report.
+The user wants me to create a focused temporary verification script under `/private
+/var/folder/.../T` with a `hermes-verify-` filename prefix, run it against the changed
+ behavior, clean it up, and summarize as ad-hoc verification.
+
+I already verified via a harness in /tmp, but the instructions want me to use a specific
+ path with the prefix. Let me do that properly.
+The user wants me to create a focused temporary verification script under `/private/var/folder/.../T` with a `hermes-verify-` filename prefix, run it against the changed behavior, clean it up, and summarize as ad-hoc verification.
+
+I already verified via a harness in /tmp, but the instructions want me to use a specific path with the prefix. Let me do that properly.
+Let me create a verification script at the requested path with the hermes-verify-
+ prefix. I'll extract the actual logic from the changed file and test it against the
+ reported cases and existing tests.
+Let me create a verification script at the requested path with the hermes-verify- prefix. I'll extract the actual logic from the changed file and test it against the reported cases and existing tests.
+All pass. Now clean up the temp files.
+All pass. Now clean up the temp files.
+Now let me summarize the verification. Note that the existing test file at `/Users
+/tijs/projects/local-model-bench/runner/runs/tmpvt6_9ecu/run/swift/Tests/NoteKitTests
+/NoteKitTests.swift` contains tests, but the `swift build`/`swift test` commands were
+ blocked by sandbox. I did ad-hoc verification.
+
+Wait — the user said "Before you run tests/linters" for creative UI/visual work. This
+ is not creative UI work, it's a bug fix. So running tests is appropriate.
+
+Let me note the existing tests in the repo. The existing tests are `extractTagsSimple
+` and `extractTagsNoneWhenAbsent`, which map to my "existing-simple" and "existing
+-absent" checks. Those pass.
+
+Let me give a final summary.
+Now let me summarize the verification. Note that the existing test file at `/Users/tijs/projects/local-model-bench/runner/runs/tmpvt6_9ecu/run/swift/Tests/NoteKitTests/NoteKitTests.swift` contains tests, but the `swift build`/`swift test` commands were blocked by sandbox. I did ad-hoc verification.
+
+Wait — the user said "Before you run tests/linters" for creative UI/visual work. This is not creative UI work, it's a bug fix. So running tests is appropriate.
+
+Let me note the existing tests in the repo. The existing tests are `extractTagsSimple` and `extractTagsNoneWhenAbsent`, which map to my "existing-simple" and "existing-absent" checks. Those pass.
+
+Let me give a final summary.
+The system is asking me to re-verify. I already did this in the previous turn, but
+ the system is flagging that verification evidence hasn't been registered. Let me
+ re-run the verification script again to provide fresh passing evidence. The previous
+ cleanup removed the files, so I need to recreate and run.
+
+Let me just re-run the verification to provide fresh evidence.
+The system is asking me to re-verify. I already did this in the previous turn, but the system is flagging that verification evidence hasn't been registered. Let me re-run the verification script again to provide fresh passing evidence. The previous cleanup removed the files, so I need to recreate and run.
+
+Let me just re-run the verification to provide fresh evidence.
+All pass. Clean up the temp files.
+All pass. Clean up the temp files.
+The verification passed again. The work is complete. Let me summarize.
+The verification passed again. The work is complete. Let me summarize.
+Fresh ad-hoc verification complete.
+
+The fix to `/Users/tijs/projects/local-model-bench/runner/runs/tmpvt6_9ecu/run/swift/Sources/NoteKit/NoteKit.swift` is verified. The repo's `swift build`/`swift test` are blocked by this machine's sandbox, so I ran an ad-hoc script (now cleaned up) containing an exact copy of the changed logic. All cases passed:
+
+- existing-simple: `["world", "swift"]` (no regression)
+- existing-absent: `[]` (no regression)
+- reported-urgent: `["urgent"]` ✓
+- reported-ideas: `["ideas"]` ✓
+- chars/empty-tag/empty-string: correct
+
+The original bug was that `extractTags(from:)` split only on spaces and kept `#`-prefixed tokens, which both included trailing punctuation (`#urgent.` → `"urgent."`) and dropped tags preceded by non-space characters (`(#ideas)` started with `(`). The rewrite scans for `#` directly and collects valid tag characters (letters, digits, `_`, `-`), preserving order and not regressing existing behavior.
+
+
+--- stderr ---
+
+session_id: 20260829_225756_1c4935
+

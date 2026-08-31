@@ -1,0 +1,98 @@
+model: mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Compact
+# Added 2026-08-30 (user request): first Gemma 4 family candidate in this
+# benchmark. Picked mudler's APEX quant specifically -- same author and
+# mixed-precision MoE quantization technique as this benchmark's overall
+# best result (Ornith-1.5-35B-A3B APEX-Compact, perfect 8/8 hermes_ops +
+# 11/11 coding pre-v3), applied to a new model family, directly testing
+# whether that "third-party asymmetric-quant beats uniform quant" pattern
+# generalizes beyond Ornith.
+#
+# I-Compact (not plain Compact) chosen deliberately: the "I" variants use
+# imatrix calibration from a diverse dataset that explicitly includes
+# "tool-calling, agentic traces" (per the repo's own README) alongside
+# chat/code/reasoning/Wikipedia -- a closer match to this benchmark's
+# actual workload (agentic coding + tool use) than the non-imatrix
+# Compact variant, at the same 15GB size.
+#
+# Architecture: 26B total / ~4B active per token (A4B), 128 routed
+# experts (8 active per token), 30 layers, hybrid local/global attention
+# (Gemma 4's own architectural change from Gemma 3). google/gemma-4-26B-A4B-it
+# is the base model; this quant requires llama.cpp build b8664+ (Gemma 4
+# tokenizer fix, logit softcapping, newline split, per the quant repo's
+# own README) -- confirmed our installed Homebrew build (10470, commit
+# 34af94cd9, 2026-08-17) is ~4.5 months newer than b8664 (2026-04-04),
+# so this should be fully supported.
+temperature: 1.0
+reasoning_mode: unspecified
+  # Gemma 4's thinking mode is triggered by a literal `<|think|>` control
+  # token injected into the system prompt (NOT a chat_template_kwargs
+  # flag like Qwen's enable_thinking) -- not wired up for this first run;
+  # see known_gaps. Testing in whatever mode the model's own bundled
+  # chat template defaults to without that token present.
+inference_engine: llama.cpp
+
+benchmark_launch_command: |
+  HF_TOKEN=$(cat ~/.cache/huggingface/token) llama-server \
+    --hf-repo mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Compact \
+    --host 127.0.0.1 --port 8017 \
+    --temp 1.0 --top-p 0.95 --top-k 64 --ctx-size 65536 \
+    --jinja
+
+benchmark_endpoint: http://127.0.0.1:8017/v1
+  # native tool_calls expected, --jinja using the model's own bundled
+  # chat template (no custom template file exists for this family in
+  # this repo yet) -- NOT independently verified live; this is a
+  # brand-new model family for this benchmark, first live test.
+
+orchestration:
+  raw_port: 8017
+  needs_proxy: false
+  hermes_provider: gemma4-26b-apex-i-compact-gguf   # registered in
+    # ~/.hermes/profiles/bench/config.yaml, context_length: 65536.
+  viable: full
+
+settings:
+  - name: architecture
+    value: "MoE, ~4B active params/token out of 26B total (A4B), 128
+      routed experts (8 active), 30 layers, hybrid local/global
+      sliding-window attention. Context: model supports up to 256K,
+      capped at 65536 here for hermes's coding-suite minimum."
+    source: "https://huggingface.co/google/gemma-4-26B-A4B-it"
+  - name: quant
+    value: "APEX-I-Compact (15GB) -- mixed-precision expert-aware
+      quantization (routed experts more aggressive, shared/attention
+      components higher precision, 5+5 symmetric edge gradient across
+      30 layers), imatrix-calibrated on a diverse dataset including
+      tool-calling and agentic traces."
+    source: "https://huggingface.co/mudler/gemma-4-26B-A4B-it-APEX-GGUF"
+  - name: temperature / top_p / top_k
+    value: "1.0 / 0.95 / 64 -- the base model's own card-recommended
+      sampling settings."
+    source: "https://huggingface.co/google/gemma-4-26B-A4B-it"
+  - name: context_length
+    value: 65536
+    source: "hermes's hard >=64K minimum for the coding suite, same
+      reasoning as every other config in this repo."
+
+known_gaps:
+  - "First live test of the entire Gemma 4 family in this benchmark --
+    no prior Apple Silicon/Metal throughput or tool-call-format data
+    exists here. Genuinely new information, not confirming a known
+    result."
+  - "Thinking mode not wired up (requires injecting a `<|think|>` token
+    into the system prompt, not a simple flag) -- this run tests
+    whatever mode the model's bundled chat template defaults to without
+    it. A follow-up config could test thinking mode explicitly if this
+    first result looks capability-limited rather than genuinely weak."
+  - "Native tool_calls format not independently verified live before
+    this run -- standard first-run caveat for any new model family."
+  - "mmproj-F16.gguf (vision projector) exists but not used -- text/tool-
+    use only, same as every other config in this repo."
+  - "Not a clean single-variable comparison to anything else in this
+    repo -- new model family, new quant author's technique applied to
+    it for the first time, new architecture (Gemma's hybrid local/global
+    attention, distinct from Qwen's Gated-DeltaNet hybrid or Ornith's
+    qwen3_5_moe lineage)."
+
+last_updated: 2026-08-30
+last_verified_against_docs: 2026-08-30

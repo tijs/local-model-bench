@@ -117,11 +117,22 @@ class StreamStall(Exception):
 def _sse_event_is_meaningful(data):
     """True if this `data:` payload is real forward progress.
 
-    Content deltas, tool-call deltas, a finish_reason, and the terminal
-    `[DONE]` sentinel all count. A usage-only chunk does NOT (some
-    backends emit one long after generation has stalled), and neither do
-    role-only opening deltas — neither carries any of the response the
-    caller is waiting for.
+    Content deltas, tool-call deltas, reasoning-content deltas, a
+    finish_reason, and the terminal `[DONE]` sentinel all count. A
+    usage-only chunk does NOT (some backends emit one long after
+    generation has stalled), and neither do role-only opening deltas —
+    neither carries any of the response the caller is waiting for.
+
+    reasoning_content (thinking-mode models, e.g. llama.cpp's own
+    reasoning-parser output — see bench_local_proxy.py's own handling of
+    the same field) was missed here originally: a thinking model can
+    stream many real tokens of reasoning_content with no content/tool_calls
+    delta at all, and without this the first_progress/stream_idle
+    watchdogs would classify that as a stall even while the model was
+    actively generating (confirmed live 2026-08-31 — a Qwen3.8-27B
+    hermes_ops task hit exactly this once its max_tokens budget was
+    raised, having previously been masked by a truncation failure landing
+    first).
     """
     if data == "[DONE]":
         return True
@@ -134,7 +145,7 @@ def _sse_event_is_meaningful(data):
         return False
     for choice in chunk.get("choices") or []:
         delta = choice.get("delta") or {}
-        if delta.get("content") or delta.get("tool_calls"):
+        if delta.get("content") or delta.get("tool_calls") or delta.get("reasoning_content"):
             return True
         if choice.get("finish_reason"):
             return True

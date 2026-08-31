@@ -1,0 +1,69 @@
+$ hermes chat --profile bench --provider qwen-gguf-q5-64k -m unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M --max-turns 40
+
+--- stdout ---
+
+┌─ Reasoning ──────────────────────────────────────────────────────────────────┐
+Let's start by exploring the workspace to understand the codebase.
+Let's start by exploring the workspace to understand the codebase.
+I'm checking the storage module.
+I'm checking the storage module.
+The bug is literally documented in the comment. Fix: clamp food the same way. Also
+, update the comments that mention the bug. Let's fix it and also update the stale
+ comments.
+The bug is literally documented in the comment. Fix: clamp food the same way. Also, update the comments that mention the bug. Let's fix it and also update the stale comments.
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmpihtdywko/run/src/resources/storage.ts → b//Users/tijs/projects/local-model-bench/runner/runs/tmpihtdywko/run/src/resources/storage.ts
+@@ -15,14 +15,11 @@
+  * Clamps every resource down to the settlement's current storage cap —
+  * production beyond capacity is wasted, not stockpiled. Never raises a
+  * resource, only lowers it.
+- *
+- * BUG: only clamps wood and stone, not food — a settlement can stockpile
+- * unlimited food regardless of storage capacity.
+  */
+ export function clampToStorageCap(resources: Resources, cap: number): Resources {
+   return {
+     wood: Math.min(resources.wood, cap),
+-    food: resources.food,
++    food: Math.min(resources.food, cap),
+     stone: Math.min(resources.stone, cap),
+   };
+ }
+The doc comment on `utilizationOf` references the "still buggy food case," so I'll
+ update that comment too, and after checking whether any other code is handling food
+ separately, I'll run the tests.
+The doc comment on `utilizationOf` references the "still buggy food case," so I'll update that comment too, and after checking whether any other code is handling food separately, I'll run the tests.
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmpihtdywko/run/src/resources/storage.ts → b//Users/tijs/projects/local-model-bench/runner/runs/tmpihtdywko/run/src/resources/storage.ts
+@@ -32,8 +32,7 @@
+ 
+ /** Fraction (0-1) of the cap currently filled for `kind` — used by the
+  * CLI to render a "storage nearly full" style warning. A resource that
+- * has climbed past the cap (only possible for the still-buggy food case
+- * — see clampToStorageCap above) reports 1, not a value above 1, since a
++ * has climbed past the cap reports 1, not a value above 1, since a
+  * warning about being "over 100% full" would be confusing to show. */
+ export function utilizationOf(resources: Resources, kind: ResourceKind, cap: number): number {
+   if (cap <= 0) {
+The search results show stale content on line 35 of storage.ts — probably a cached
+ index. The other references to "food" are unrelated (production, consumption, drought
+). The fix is the only clamping path. Let me check where clampToStorageCap is called
+ to confirm the clamping is being applied on the turn, then run tests and type checking
+.
+The search results show stale content on line 35 of storage.ts — probably a cached index. The other references to "food" are unrelated (production, consumption, drought). The fix is the only clamping path. Let me check where clampToStorageCap is called to confirm the clamping is being applied on the turn, then run tests and type checking.
+The clamp is applied at turn.ts:19-20 after each turn's production, so the fix covers
+ the flow. Next, run the tests and type checks.
+The clamp is applied at turn.ts:19-20 after each turn's production, so the fix covers the flow. Next, run the tests and type checks.
+Done. All tests pass, and type checking passes too.
+Done. All tests pass, and type checking passes too.
+Fixed. The bug was in src/resources/storage.ts:22-28 — `clampToStorageCap` clamped wood and stone with `Math.min(value, cap)` but passed food through unchanged (`food: resources.food`), so food could stockpile past the storage limit forever. Since the clamp runs after every production turn (src/sim/turn.ts:19-20), that one line was the entire leak.
+
+Change: food is now clamped identically to the other resources, `food: Math.min(resources.food, cap)`, and I removed the stale "BUG" comment plus a comment in `utilizationOf` that referenced the food-only over-cap case (which can no longer happen).
+
+Verified: npm run test (15/15 pass) and npm run typecheck both clean.
+
+
+--- stderr ---
+
+session_id: 20260831_041854_8de725
+
