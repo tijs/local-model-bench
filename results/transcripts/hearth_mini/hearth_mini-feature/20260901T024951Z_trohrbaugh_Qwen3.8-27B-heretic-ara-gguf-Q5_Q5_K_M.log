@@ -1,0 +1,169 @@
+$ hermes chat --profile bench --provider qwen38-heretic-q5-gguf -m trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M --max-turns 40
+
+--- stdout ---
+
+┌─ Reasoning ──────────────────────────────────────────────────────────────────┐
+I need to look at the files that are relevant.
+I need to look at the files that are relevant.
+Simple task: add "storehouse" to BuildingKind, add cost, and add prerequisites and
+ availableBuildings. Also, check the test files to align with conventions.
+Simple task: add "storehouse" to BuildingKind, add cost, and add prerequisites and availableBuildings. Also, check the test files to align with conventions.
+Let me check the test file to understand the expected conventions, then make the changes
+.
+Let me check the test file to understand the expected conventions, then make the changes.
+I'm going to implement this now. Add "storehouse" to BuildingKind, the cost { wood
+: 25, stone: 10 }, and the prerequisites. Add a PREREQUISITES record (only storehouse
+ requires hut), and create an availableBuildings function in sim.ts.
+I'm going to implement this now. Add "storehouse" to BuildingKind, the cost { wood: 25, stone: 10 }, and the prerequisites. Add a PREREQUISITES record (only storehouse requires hut), and create an availableBuildings function in sim.ts.
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmpm4p8qj_b/run/src/types.ts → b//Users/tijs/projects/local-model-bench/runner/runs/tmpm4p8qj_b/run/src/types.ts
+@@ -1,7 +1,7 @@
+ export type ResourceKind = "wood" | "food" | "stone";
+ export type Resources = Record<ResourceKind, number>;
+ 
+-export type BuildingKind = "hut" | "farm" | "quarry";
++export type BuildingKind = "hut" | "farm" | "quarry" | "storehouse";
+ 
+ export interface Settlement {
+   resources: Resources;
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmpm4p8qj_b/run/src/sim.ts → b//Users/tijs/projects/local-model-bench/runner/runs/tmpm4p8qj_b/run/src/sim.ts
+@@ -4,6 +4,15 @@
+   hut: { wood: 10 },
+   farm: { wood: 15, stone: 5 },
+   quarry: { wood: 20 },
++  storehouse: { wood: 25, stone: 10 },
++};
++
++/** Building kinds that require another building to exist first. */
++export const PREREQUISITES: Record<BuildingKind, BuildingKind[] | undefined> = {
++  hut: undefined,
++  farm: undefined,
++  quarry: undefined,
++  storehouse: ["hut"],
+ };
+ 
+ export function canAfford(settlement: Settlement, kind: BuildingKind): boolean {
+Now I'll add an availableBuildings function to sim.ts. Should I also add a canBuild
+/prerequisite check? The task says to implement availableBuildings. I'll add a helper
+ `isUnlocked` or inline it. Let's add availableBuildings.
+Now I'll add an availableBuildings function to sim.ts. Should I also add a canBuild/prerequisite check? The task says to implement availableBuildings. I'll add a helper `isUnlocked` or inline it. Let's add availableBuildings.
+I need to add an availableBuildings function. I'll insert it after the canAfford function
+.
+I need to add an availableBuildings function. I'll insert it after the canAfford function.
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmpm4p8qj_b/run/src/sim.ts → b//Users/tijs/projects/local-model-bench/runner/runs/tmpm4p8qj_b/run/src/sim.ts
+@@ -19,6 +19,20 @@
+   const cost = BUILDING_COSTS[kind];
+   return (Object.entries(cost) as [keyof Resources, number][]).every(
+     ([res, amount]) => settlement.resources[res] >= amount,
++  );
++}
++
++/**
++ * Every building kind that is both affordable (per `canAfford`) and allowed
++ * given prerequisites (all required buildings already exist).
++ */
++export function availableBuildings(settlement: Settlement): BuildingKind[] {
++  return (Object.keys(PREREQUISITES) as BuildingKind[]).filter(
++    (kind) =>
++      canAfford(settlement, kind) &&
++      (PREREQUISITES[kind] ?? []).every((req) =>
++        settlement.buildings.includes(req),
++      ),
+   );
+ }
+ 
+I should probably add a few tests for availableBuildings and the storehouse, then
+ run test + type check. Adding tests is reasonable — the task asks for implementation
+, and tests will be helpful for verification. I'll go ahead and add some tests.
+I should probably add a few tests for availableBuildings and the storehouse, then run test + type check. Adding tests is reasonable — the task asks for implementation, and tests will be helpful for verification. I'll go ahead and add some tests.
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmpm4p8qj_b/run/tests/sim.test.ts → b//Users/tijs/projects/local-model-bench/runner/runs/tmpm4p8qj_b/run/tests/sim.test.ts
+@@ -1,5 +1,5 @@
+ import { describe, expect, it } from "vitest";
+-import { build, canAfford } from "../src/sim";
++import { build, canAfford, availableBuildings } from "../src/sim";
+ import type { Settlement } from "../src/types";
+ 
+ function settlement(overrides: Partial<Settlement> = {}): Settlement {
+Add test cases for availableBuildings.
+Add test cases for availableBuildings.
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmpm4p8qj_b/run/tests/sim.test.ts → b//Users/tijs/projects/local-model-bench/runner/runs/tmpm4p8qj_b/run/tests/sim.test.ts
+@@ -32,3 +32,25 @@
+     expect(() => build(s, "hut")).toThrow();
+   });
+ });
++
++describe("availableBuildings", () => {
++  it("lists hut/farm/quarry when affordable, but not storehouse without a hut", () => {
++    expect(availableBuildings(settlement())).toEqual(["hut", "farm", "quarry"]);
++  });
++
++  it("includes storehouse once a hut exists and resources allow", () => {
++    const s = settlement({ buildings: ["hut"] });
++    expect(availableBuildings(s)).toContain("storehouse");
++  });
++
++  it("excludes storehouse when unaffordable even with a hut", () => {
++    const s = settlement({ buildings: ["hut"], resources: { wood: 20, food: 10, stone: 10 } });
++    expect(availableBuildings(s)).not.toContain("storehouse");
++  });
++
++  it("excludes unaffordable kinds regardless of prerequisites", () => {
++    const s = settlement({ buildings: ["hut"], resources: { wood: 5, food: 10, stone: 10 } });
++    // Only hut costs 10 wood? No — hut costs 10, not affordable with 5.
++    expect(availableBuildings(s)).toEqual([]);
++  });
++});
+Let me tidy up that awkward test comment, then run the test and type-check.
+Let me tidy up that awkward test comment, then run the test and type-check.
+  ┊ review diff
+a//Users/tijs/projects/local-model-bench/runner/runs/tmpm4p8qj_b/run/tests/sim.test.ts → b//Users/tijs/projects/local-model-bench/runner/runs/tmpm4p8qj_b/run/tests/sim.test.ts
+@@ -50,7 +50,7 @@
+ 
+   it("excludes unaffordable kinds regardless of prerequisites", () => {
+     const s = settlement({ buildings: ["hut"], resources: { wood: 5, food: 10, stone: 10 } });
+-    // Only hut costs 10 wood? No — hut costs 10, not affordable with 5.
++    // Nothing affordable: hut needs 10 wood, farm 15, quarry 20, storehouse 25.
+     expect(availableBuildings(s)).toEqual([]);
+   });
+ });
+Wait: the test "exclude storehouse when unaffordable even if a hut exists" uses wood
+: 20 — storehouse requires 25 wood so it's excluded, but hut/farm/quarry are still
+ included; no problem, the assertion only checks for storehouse.
+
+The last test: wood 5, stone 10 — farm requires 15 wood + 5 stone → unaffordable.
+ All unaffordable → []. Good.
+
+Run the tests and type check.
+Wait: the test "exclude storehouse when unaffordable even if a hut exists" uses wood: 20 — storehouse requires 25 wood so it's excluded, but hut/farm/quarry are still included; no problem, the assertion only checks for storehouse.
+
+The last test: wood 5, stone 10 — farm requires 15 wood + 5 stone → unaffordable. All unaffordable → []. Good.
+
+Run the tests and type check.
+All 8 tests passed, and the type check passed as well. Done.
+All 8 tests passed, and the type check passed as well. Done.
+Done. All 8 tests pass and typecheck is clean.
+
+Changes in /Users/tijs/projects/local-model-bench/runner/runs/tmpm4p8qj_b/run:
+
+1. src/types.ts — added "storehouse" to the BuildingKind union.
+
+2. src/sim.ts:
+   - BUILDING_COSTS now includes storehouse: { wood: 25, stone: 10 }.
+   - New PREREQUISITES record: hut/farm/quarry have no prerequisite; storehouse requires ["hut"].
+   - New export:
+
+     availableBuildings(settlement) filters every BuildingKind by canAfford AND by all prerequisite buildings already present in settlement.buildings.
+
+3. tests/sim.test.ts — added an availableBuildings suite: base settlement yields [hut, farm, quarry]; storehouse appears once a hut exists and resources allow; it's excluded when unaffordable even with a hut; and an empty list when nothing is affordable.
+
+Verification: npm run test → 8/8 passed; npm run typecheck → clean.
+
+
+--- stderr ---
+
+session_id: 20260901_044142_f595c0
+

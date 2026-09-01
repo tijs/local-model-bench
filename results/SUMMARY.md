@@ -3,9 +3,90 @@
 **Hand-curated, not auto-regenerated** — unlike `LEADERBOARD.md` (rebuilt
 from `log.jsonl` after every run; never hand-edit it), this is a
 point-in-time reading of that data. Re-check against `LEADERBOARD.md` if
-it's been a while — last updated **2026-08-29**, after benchmark v2's
-full 14-config rerun (Phase D) completed and the "Best overall"
-eligibility tightening described below.
+it's been a while — last updated **2026-09-01**, after benchmark-v4's
+8-model rerun (see immediately below). Everything from "Benchmark v2, in
+one paragraph" onward is historical context from earlier rounds, kept for
+the reasoning behind past decisions, not the current picture.
+
+## Benchmark-v4 (2026-09-01): the hermes_ops real-answer fix, and the current active lineup
+
+**What changed and why**: hermes_ops's one-shot `run_prompt.py` client had
+no `finish_reason=length` continuation logic (unlike the coding suites'
+real `hermes chat` agentic loop), so thinking-mode models were getting
+truncated mid-answer at the default 4096-token cap — an artificial
+ceiling, not a real capability gap. Fixed with a per-config
+`hermes_ops_max_tokens` override (16384 for thinking-mode configs).
+Raising the cap exposed a SECOND, previously-masked bug: `run_prompt.py`
+never counted `reasoning_content` deltas as stream progress, so a
+thinking model reasoning past the first_progress/stream_idle watchdogs
+got misclassified as stalled even while actively generating — fixed by
+counting `reasoning_content` as meaningful progress. Both fixes verified
+live against the Heretic config, which reproduced both failures in
+sequence as each landed (`hermes_ops-targeted-edit`: FAIL/truncation →
+FAIL/stall → PASS). See git tag `benchmark-v4` and commit `0adb046` for
+the full technical writeup.
+
+**Full rerun results** (all under the new methodology, hermes_ops now
+correctly measuring real capability instead of an artificial token
+ceiling):
+
+| Model | Sanity | hermes_ops | Coding | avg tok/s | hermes_ops tokens (prompt/completion) | Coding tokens (in/out) |
+|---|---|---|---|---|---|---|
+| Ornith-1.5-35B-A3B Q4_K_M (baseline, no thinking) | 2/2 | 8/8 | 14/15 | **29.4** | 1,665,372 / 10,698 | 229,237 / 84,413 |
+| Qwen3.8-27B UD-Q5_K_M | 2/2 | 8/8 | 14/15 | 6.7 | 1,657,256 / 31,027 | 244,885 / 75,237 |
+| Qwen3.8-27B-Uncensored (Heretic) Q5_K_M | 2/2 | 8/8 | 12/15 | 6.4 | 1,550,982 / 36,334 | 249,028 / 82,317 |
+| Gemma 4 26B-A4B APEX-I-Quality | 2/2 | 7/8 | 13/15 | 28.1 | 1,376,115 / 10,609 | 321,682 / 108,123 |
+| Qwen3.6-35B-A3B-Uncensored Q4_K_M | 2/2 | 6/8 | 13/15 | 27.1 | 2,194,585 / 9,395 | 341,649 / 61,240 |
+| Ornith-1.5-35B-A3B Q5_K_M | **CRASHED (OOM)** | — | — | — | — | — |
+| Ornith-1.5-35B-A3B APEX-I-Quality | 2/2 | 7/8 | 14/15 | 27.4 | 1,875,678 / 7,693 | 324,217 / 82,559 |
+| Ornith-1.5-35B-A3B "thinking" attempt | 2/2 | 8/8 | 14/15 | 28.7 | 1,990,968 / 18,631 | 236,585 / 91,269 |
+
+**Two findings worth flagging on their own**:
+
+1. **Ornith Q5_K_M crashed on a genuine GPU/unified-memory OOM during
+   model warmup** (`kIOGPUCommandBufferCallbackErrorOutOfMemory`, real
+   Metal error, SIGABRT) — not a benchmark or config bug. The header
+   comment's own estimate (~26.9GB, comfortably under 32GB) was too
+   optimistic: real llama.cpp compute-buffer overhead costs more than
+   weights+KV arithmetic accounts for. Confirmed not transient: the very
+   next config (a *smaller* 21.25GB quant) launched and ran cleanly
+   seconds later, same machine, same code path. Marked `viable: blocked`
+   in `configs/Ornith-1.5-35B-A3B/gguf-q5.yaml`.
+2. **The Ornith "thinking mode" fix attempt did not work.** Ornith 1.5 is
+   genuinely built on the Qwen 3.5 MoE lineage and IS a reasoning model
+   by design (confirmed via its own `config.json` and README), but every
+   existing config launches its server without `--jinja`, silently
+   falling back to llama.cpp's generic template instead of the model's
+   real one — meaning every prior Ornith result in this benchmark ran
+   without its native thinking behavior. Adding `--jinja` plus the same
+   effort-aware template already used for the Qwen3.8-27B family DID load
+   and run cleanly (8/8 hermes_ops, 14/15 coding) — but a direct
+   transcript check across all 8 hermes_ops tasks found **zero
+   `reasoning_content`, zero `<think>` tags** anywhere. Something about
+   this template/model combination isn't actually activating visible
+   reasoning, despite loading without error. **This needs real diagnosis
+   before it's worth re-running** — the current config
+   (`gguf-thinking.yaml`) doesn't demonstrate thinking mode actually
+   works, it just demonstrates it doesn't crash.
+
+**Pruning decision (user call, 2026-09-01)** — active lineup going
+forward:
+- **Keep**: Ornith Q4_K_M (baseline — best plain result, fastest,
+  cleanest sweep), Qwen3.8-27B UD-Q5_K_M, Gemma 4 I-Quality.
+- **Keep deliberately despite the lower score**: Qwen3.8-27B-Uncensored
+  (Heretic) — kept specifically to have an uncensored option
+  represented in the lineup, even though its speed (6.4 tok/s) and
+  coding rate (80%) are near the bottom of this batch.
+- **Dropped** (real, viable results — not marked non-viable, just not
+  carried forward): Qwen3.6-35B-A3B-Uncensored, Ornith
+  APEX-I-Quality.
+- **Excluded — too large for this hardware, not a fixable bug**: Ornith
+  Q5_K_M. This isn't "blocked pending a fix and worth retrying later" —
+  the quant itself (23.6GB) doesn't fit this Mac's usable memory margin,
+  a permanent size constraint on this specific hardware, not a transient
+  or software issue.
+- **Open, not re-queued**: Ornith "thinking mode" — needs the
+  reasoning-activation gap above actually diagnosed first.
 
 **Benchmark v2, in one paragraph**: two real methodology bugs were found
 and fixed this round — a shared Swift fixture bug (`kiem_mini-parse-note`
@@ -58,16 +139,19 @@ without needing a hand-curated caveat about the chart's top row. The
 ≥50% hermes_ops gate itself is unchanged; this only changed what happens
 to score *above* it.
 
-**Chart below is stale as of benchmark-v3 (2026-08-29)**: `hearth_full`
-(a new 4th coding suite, realistic-navigation-scale) was just released,
-bumping `FULL_CODING_TASKS` 11→15. No model has been rerun against the
-new 15-task suite yet, so `LEADERBOARD.md`'s "Best overall" table is
-correctly empty right now — but `plot_leaderboard.py` leaves the last
-chart image in place rather than writing a blank one when there's
-nothing eligible to plot, so the image below still shows the pre-v3
-8-model ranking. Treat it as historical until the rerun happens.
+**Chart below is current as of benchmark-v4 (2026-09-01)**: the
+benchmark-v4 rerun (see above) ran the 8-model lineup against the full
+15-task coding suite (`hearth_full` included), so `LEADERBOARD.md`'s
+"Best overall" table and this chart now reflect real v4 data — no longer
+stale. Note the leaderboard's dedup logic keeps only one config per
+model+engine+quant triple: `ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M`
+appears ONCE in that table (the more recent "thinking mode" attempt's
+config_hash), silently superseding the plain baseline row even though
+both are legitimate, differently-configured results — see the
+benchmark-v4 section above for why that specific row's "reasoning:
+thinking (medium)" label doesn't reflect actually-observed behavior.
 
-![Best overall composite score by model — pre-benchmark-v3, stale](score_chart.png)
+![Best overall composite score by model — benchmark-v4](score_chart.png)
 
 *Composite score = combined hermes_ops+coding pass rate 45% + speed 25% +*
 *time taken 20% + turns used 10%, gate-passers only (hermes_ops ≥ 50%) —*

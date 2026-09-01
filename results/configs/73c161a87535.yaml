@@ -1,0 +1,96 @@
+model: mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-I-Quality
+# Added 2026-08-31 (user request): the untried imatrix-calibrated, highest-
+# quality APEX tier for this family. This repo already has real data for
+# plain APEX-Compact (16.54GB, no imatrix): sanity 8/8, hermes_ops 32/32,
+# kiem_mini 13/20 (a real weak spot vs the plain Q4_K_M baseline's usual
+# 90%+), hearth_mini 12/12, kipclip_mini 15/15, hearth_full 7/9. This
+# config tests two variables at once relative to that: (1) imatrix
+# calibration -- the model card states `I-` files are calibrated on
+# diverse data explicitly including "tool-calling, agentic traces",
+# unlike the tested plain Compact -- and (2) a bigger, higher-precision
+# tier (Quality vs Compact). Same rationale that made Gemma 4's
+# I-Compact -> I-Quality upgrade a reasonable next step in this repo
+# (configs/Gemma-4-26B-A4B/gguf-apex-i-quality.yaml).
+#
+# NOTE: this repo's own README "Files" table only lists Quality/Balanced/
+# Compact/I-Mini, omitting I-Compact/I-Balanced/I-Quality -- likely just a
+# stale table, since all three ARE present in the repo's file listing
+# (confirmed live via the HF API 2026-08-31) and I-Quality resolves with a
+# real content-length (see quant setting below). Flagged in known_gaps,
+# not silently assumed fine.
+#
+# Memory math: same hybrid-attention family as gguf.yaml/gguf-q5.yaml
+# (40 layers, only 10 full-attention, fixed-size linear-attention
+# elsewhere) -- KV cache at 65536 tokens stays ~1.25GB regardless of
+# quant. I-Quality confirmed 22,819,401,952 bytes (21.25GB) via a live HF
+# resolve HEAD request 2026-08-31. Budget: ~21.25GB weights + ~1.25GB KV
+# + ~2GB overhead ~= ~24.5GB, comfortably inside 32GB -- more headroom
+# than gguf-q5.yaml (Q5_K_M, ~26.9GB total).
+temperature: 0.6
+reasoning_mode: unspecified
+inference_engine: llama.cpp
+
+benchmark_launch_command: |
+  HF_TOKEN=$(cat ~/.cache/huggingface/token) llama-server \
+    --hf-repo mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-I-Quality \
+    --host 127.0.0.1 --port 8017 \
+    --temp 0.6 --top-p 0.95 --top-k 20 --ctx-size 65536
+
+benchmark_endpoint: http://127.0.0.1:8017/v1
+  # native tool_calls expected -- same precedent as gguf.yaml and
+  # gguf-apex.yaml (same base model/tool-call format), not independently
+  # re-verified live for this specific quant file before the first run.
+
+orchestration:
+  raw_port: 8017
+  needs_proxy: false
+  hermes_provider: ornith-apex-i-quality-gguf   # registered in
+    # ~/.hermes/profiles/bench/config.yaml, context_length: 65536 matching
+    # this config's --ctx-size.
+  viable: full
+
+settings:
+  - name: architecture
+    value: "MoE, ~3B active params/token out of 35B total (A3B), 40
+      layers, hybrid linear/full attention -- same family/reasoning as
+      gguf.yaml and gguf-apex.yaml, unchanged here."
+    source: "https://huggingface.co/ornith-ai/Ornith-1.5-35B-A3B (config.json)"
+  - name: temperature / top_p / top_k
+    value: 0.6 / 0.95 / 20
+    source: "Same as gguf.yaml/gguf-apex.yaml -- model card's 'general
+      tasks' preset."
+  - name: context_length
+    value: 65536 (native 262144, YaRN to ~1M -- capped for hermes's needs)
+    source: "https://huggingface.co/ornith-ai/Ornith-1.5-35B-A3B model card"
+  - name: quant
+    value: "APEX-I-Quality, 22,819,401,952 bytes (21.25GB) -- imatrix-
+      calibrated (diverse data including tool-calling/agentic traces per
+      the repo's own README), 'highest quality' size tier."
+    source: "https://huggingface.co/mudler/Ornith-1.5-35B-A3B-APEX-GGUF"
+  - name: APEX quantization strategy
+    value: "Routed experts (89.6% of weights, 8 of 256 active per token)
+      get lower precision; always-active shared expert and first/last
+      layers stay high precision. Attention is only 3.6% of weights on
+      this model, not a compression lever."
+    source: "https://huggingface.co/mudler/Ornith-1.5-35B-A3B-APEX-GGUF README"
+
+known_gaps:
+  - "Never run live as of authoring -- first run should watch for OOM/swap
+    behavior, same standing caution as every new quant in this repo."
+  - "This exact variant (I-Quality) is absent from the repo's own README
+    Files table (which lists Quality/Balanced/Compact/I-Mini only) --
+    the file itself resolves correctly via the HF API and a live HEAD
+    request, so treated as real, just not documented in that table.
+    Worth a sanity spot-check on first launch."
+  - "No throughput benchmarks were run on these files per the model
+    card's own Notes section -- same first-run caveat as every APEX
+    config in this repo."
+  - "Two variables change at once relative to the already-tested
+    APEX-Compact: imatrix calibration AND size/precision tier (Quality
+    vs Compact) -- if results differ, that could be either factor or
+    both. APEX-I-Compact (same 16.54GB size as the tested plain Compact)
+    would isolate imatrix alone if that distinction becomes important
+    later."
+
+last_updated: 2026-08-31
+last_verified_against_docs: 2026-08-31

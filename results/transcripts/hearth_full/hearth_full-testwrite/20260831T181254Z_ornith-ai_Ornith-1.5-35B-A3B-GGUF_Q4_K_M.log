@@ -1,0 +1,168 @@
+$ hermes chat --profile bench --provider ornith-gguf -m ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M --max-turns 40
+
+--- stdout ---
+
+┌─ Reasoning ──────────────────────────────────────────────────────────────────┐
+Let me start by exploring the repository structure to understand the codebase, then
+ read the relevant files.
+
+Let me look at the actions.ts file, the test setup, and understand the patterns used
+.
+Let me start by exploring the repository structure to understand the codebase, then read the relevant files.
+
+Let me look at the actions.ts file, the test setup, and understand the patterns used.
+Let me explore the project structure, the types, the registry, and existing tests
+ to understand the patterns.
+Let me explore the project structure, the types, the registry, and existing tests to understand the patterns.
+Let me look at the existing test file to understand the patterns used.
+Let me look at the existing test file to understand the patterns used.
+Now I understand the structure. Let me note the key facts:
+
+- `repairBuilding(settlement, kind)` returns the settlement unchanged if it doesn
+'t have that building (no-op).
+- Otherwise, for each resource in the building's cost, it deducts `Math.ceil(amount
+/2)`, clamped at 0.
+- Building costs:
+  - hut: wood 10
+  - farm: wood 15, stone 5
+  - quarry: wood 20
+  - storehouse: wood 25, stone 10
+  - watchtower: wood 15, stone 20
+  - mine: wood 30, stone 10
+
+Rounding-up case: storehouse cost wood 25, stone 10. repairCost wood = ceil(25/2)
+ = ceil(12.5) = 13, stone = ceil(10/2) = 5. Good, the odd cost 25 rounds up to 13
+. That's a nice odd-numbered cost example.
+
+The task says "an odd-numbered cost, e.g. storehouse". Storehouse wood cost is 25
+ (odd), stone is 10 (even). So repair wood = 13, stone = 5.
+
+Case where settlement has less of a resource than repair would cost: e.g., storehouse
+ repair needs wood 13, stone 5. Give settlement wood 10 → clamped to 0. Or stone 
+3 → clamped to 0.
+
+Let me write tests covering:
+1. Repairs an already-built building for half its original cost (rounded up per resource
+) — with the storehouse odd-cost rounding case.
+2. No-op if settlement doesn't have that building.
+3. Never takes a resource below 0.
+
+Let me write the test file. I'll match the style: import describe/expect/it from vit
+est, use a settlement helper.
+
+Let me write it.
+Now I understand the structure. Let me note the key facts:
+
+- `repairBuilding(settlement, kind)` returns the settlement unchanged if it doesn't have that building (no-op).
+- Otherwise, for each resource in the building's cost, it deducts `Math.ceil(amount/2)`, clamped at 0.
+- Building costs:
+  - hut: wood 10
+  - farm: wood 15, stone 5
+  - quarry: wood 20
+  - storehouse: wood 25, stone 10
+  - watchtower: wood 15, stone 20
+  - mine: wood 30, stone 10
+
+Rounding-up case: storehouse cost wood 25, stone 10. repairCost wood = ceil(25/2) = ceil(12.5) = 13, stone = ceil(10/2) = 5. Good, the odd cost 25 rounds up to 13. That's a nice odd-numbered cost example.
+
+The task says "an odd-numbered cost, e.g. storehouse". Storehouse wood cost is 25 (odd), stone is 10 (even). So repair wood = 13, stone = 5.
+
+Case where settlement has less of a resource than repair would cost: e.g., storehouse repair needs wood 13, stone 5. Give settlement wood 10 → clamped to 0. Or stone 3 → clamped to 0.
+
+Let me write tests covering:
+1. Repairs an already-built building for half its original cost (rounded up per resource) — with the storehouse odd-cost rounding case.
+2. No-op if settlement doesn't have that building.
+3. Never takes a resource below 0.
+
+Let me write the test file. I'll match the style: import describe/expect/it from vitest, use a settlement helper.
+
+Let me write it.
+  ┊ review diff
+a/tests/repair.test.ts → b/tests/repair.test.ts
+@@ -0,0 +1,60 @@
++import { describe, expect, it } from "vitest";
++import { repairBuilding } from "../src/buildings/actions";
++import type { Settlement } from "../src/types";
++
++function settlement(overrides: Partial<Settlement> = {}): Settlement {
++  return {
++    resources: { wood: 30, food: 10, stone: 10 },
++    population: 2,
++    buildings: [],
++    turn: 0,
++    ...overrides,
++  };
++}
++
++describe("repairBuilding", () => {
++  it("repairs an already-built building for half its original cost, rounded up per resource", () => {
++    // storehouse costs { wood: 25, stone: 10 }; half rounds up to 13 wood and 5 stone.
++    // The wood cost is odd (25), exercising the Math.ceil rounding.
++    const s = settlement({ resources: { wood: 30, food: 10, stone: 10 }, buildings: ["storehouse"] });
++    const result = repairBuilding(s, "storehouse");
++
++    expect(result.resources.wood).toBe(17); // 30 - 13
++    expect(result.resources.stone).toBe(5); // 10 - 5
++    expect(result.resources.food).toBe(10); // untouched
++    // The settlement still has the building — repair doesn't remove it.
++    expect(result.buildings).toEqual(["storehouse"]);
++  });
++
++  it("is a no-op when the settlement doesn't have that building", () => {
++    const s = settlement({ resources: { wood: 30, food: 10, stone: 10 }, buildings: ["hut"] });
++    const result = repairBuilding(s, "storehouse");
++
++    // Nothing changes — same resources, same buildings, and the same
++    // object reference back, matching the documented no-op behavior.
++    expect(result).toBe(s);
++    expect(result.resources).toEqual({ wood: 30, food: 10, stone: 10 });
++    expect(result.buildings).toEqual(["hut"]);
++  });
++
++  it("never takes a resource below 0 when the settlement can't afford the repair", () => {
++    // Repairing the storehouse needs 13 wood, but only 10 is available —
++    // wood is clamped to 0 rather than going negative.
++    const s = settlement({ resources: { wood: 10, food: 10, stone: 10 }, buildings: ["storehouse"] });
++    const result = repairBuilding(s, "storehouse");
++
++    expect(result.resources.wood).toBe(0); // clamped, not -3
++    expect(result.resources.stone).toBe(5); // 10 - 5, still fine
++    expect(result.buildings).toEqual(["storehouse"]);
++  });
++
++  it("clamps each resource independently below zero", () => {
++    // Both wood and stone fall short of their repair costs; each is
++    // clamped to 0 on its own.
++    const s = settlement({ resources: { wood: 5, food: 10, stone: 2 }, buildings: ["storehouse"] });
++    const result = repairBuilding(s, "storehouse");
++
++    expect(result.resources.wood).toBe(0); // needs 13, has 5
++    expect(result.resources.stone).toBe(0); // needs 5, has 2
++  });
++});
+Now let me verify the food resource isn't in the storehouse cost — correct, store
+house is `{ wood: 25, stone: 10 }`, no food. The repair only iterates over cost entries
+, so food stays untouched. Good.
+
+Let me run the tests.
+Now let me verify the food resource isn't in the storehouse cost — correct, storehouse is `{ wood: 25, stone: 10 }`, no food. The repair only iterates over cost entries, so food stays untouched. Good.
+
+Let me run the tests.
+All 4 tests pass. Let me also run typecheck to be safe.
+All 4 tests pass. Let me also run typecheck to be safe.
+Both pass. Let me summarize.
+Both pass. Let me summarize.
+Done. Created `tests/repair.test.ts` with 4 tests covering all three required behaviors:
+
+1. **Half cost, rounded up per resource** — repairs a `storehouse` (cost `{ wood: 25, stone: 10 }`); the odd wood cost 25 rounds up to 13, so wood 30→17 and stone 10→5. food is untouched, and the building stays in place.
+2. **No-op when the settlement doesn't have the building** — repairing a storehouse on a settlement that only has a hut returns the same object with unchanged resources and buildings.
+3. **Never takes a resource below 0** — a settlement with only 10 wood (needs 13) gets wood clamped to 0, not −3; stone still deducts normally.
+4. (bonus) **Independent clamping** — both wood and stone below their repair costs each clamp to 0 on their own.
+
+`npm run test` → 19/19 pass (including the 15 in `settlement.test.ts`). `npm run typecheck` → clean. `src/buildings/actions.ts` was not modified.
+
+
+--- stderr ---
+
+session_id: 20260831_201118_6cee62
+

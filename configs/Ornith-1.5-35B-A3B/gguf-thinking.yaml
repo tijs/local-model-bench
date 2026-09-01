@@ -1,0 +1,128 @@
+model: ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M
+# Added 2026-09-01 (user request): re-tests the EXACT SAME model/quant as
+# gguf.yaml (this benchmark's already-tested plain baseline: sanity 2/2,
+# hermes_ops 8/8, coding 14/15) but with native thinking mode actually
+# wired up this time, isolating thinking on/off as the one changed
+# variable.
+#
+# Root cause this config fixes: gguf.yaml (and every other Ornith config
+# in this repo) launches llama-server WITHOUT --jinja, so llama.cpp falls
+# back to its own generic built-in template instead of the model's real
+# bundled one. Confirmed live by inspecting an actual gguf.yaml transcript
+# (results/prompt_results/hermes_ops/hermes_ops-selection/20260831T172336Z_...):
+# zero <think> tags, no reasoning_content field at all, and the sanity
+# probe logged plain "Plain completion probe passed." (not "(reasoning_
+# content)" like the Qwen3.8-27B family gets) -- meaning every prior
+# Ornith result in this benchmark was silently run WITHOUT its native
+# reasoning behavior, not because Ornith doesn't reason, but because we
+# never invoked its real template.
+#
+# Ornith-1.5-35B-A3B IS a genuine reasoning model: architecture is
+# Qwen3_5MoeForConditionalGeneration / qwen3_5_moe (confirmed via the base
+# model's own config.json) -- a direct sibling of the Qwen3.8-27B family
+# already in this benchmark, sharing the same <think>/<tool_call> control-
+# token family and qwen3_xml tool-call format. The model's own README
+# states the assistant turn opens with <think>...</think> by default, and
+# its own bundled chat_template.jinja confirms this is controllable via
+# the standard `enable_thinking` chat_template_kwargs flag (defaults to
+# true), not unconditionally forced.
+#
+# Template choice: reusing configs/Qwen3.8-27B/chat_template.jinja (the
+# same custom effort-aware community fix already applied to
+# gguf-unsloth-ud-q5-64k.yaml and gguf-heretic-q5.yaml) rather than
+# Ornith's own bundled template, specifically for COMPARABLE reasoning
+# effort across this benchmark's thinking-mode models: this fix injects a
+# "Reasoning effort is set to medium..." system-prompt instruction from a
+# reasoning_effort chat_template_kwarg (defaulting to medium when absent,
+# matching what those other configs already run at), which Ornith's own
+# bundled template has no equivalent mechanism for (enable_thinking is
+# binary on/off only, no effort levels). This is not an arbitrary
+# substitution: Ornith's own model card states its evaluation harness
+# "adjusts the Qwen chat template to ensure consistency between training
+# and inference" -- using an adjusted Qwen-family template for evaluation
+# is exactly what the model's own authors do, and this repo's template is
+# built on the same Qwen3-lineage <think>/tool-call token set Ornith uses.
+temperature: 0.6
+reasoning_mode: thinking
+reasoning_effort: medium
+  # Same reasoning as every other config using this template fix
+  # (gguf-unsloth-ud-q5-64k.yaml, gguf-heretic-q5.yaml): never explicitly
+  # passed via a --reasoning-effort flag; this is the fix's own hardcoded
+  # default whenever the flag is absent, documented here for leaderboard
+  # column accuracy, not a claim that medium is optimal for this model.
+hermes_ops_max_tokens: 16384
+  # Added per benchmark-v4's hermes_ops fix: this model will now actually
+  # reason, and needs the same generous budget as the other thinking-mode
+  # configs to avoid the finish_reason=length truncation that motivated
+  # that fix in the first place -- see gguf-heretic-q5.yaml's own note for
+  # the fuller history.
+inference_engine: llama.cpp
+
+benchmark_launch_command: |
+  HF_TOKEN=$(cat ~/.cache/huggingface/token) llama-server \
+    --hf-repo ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M \
+    --host 127.0.0.1 --port 8017 \
+    --temp 0.6 --top-p 0.95 --top-k 20 --ctx-size 65536 \
+    --jinja --chat-template-file configs/Qwen3.8-27B/chat_template.jinja
+
+benchmark_endpoint: http://127.0.0.1:8017/v1
+  # native tool_calls expected -- same qwen3_xml format as gguf.yaml, now
+  # via the custom template rather than llama.cpp's generic fallback. Not
+  # independently re-verified live before this run; first-run caveat.
+
+orchestration:
+  raw_port: 8017
+  needs_proxy: false
+  hermes_provider: ornith-gguf-thinking   # registered in
+    # ~/.hermes/profiles/bench/config.yaml, context_length: 65536 matching
+    # this config's --ctx-size.
+  viable: full
+
+settings:
+  - name: architecture
+    value: "MoE, ~3B active params/token out of 35B total (A3B), 40
+      layers, hybrid linear/full attention -- same as gguf.yaml, unchanged
+      here. Only the chat template (and therefore thinking-mode
+      activation) differs between this config and gguf.yaml."
+    source: "https://huggingface.co/ornith-ai/Ornith-1.5-35B-A3B (config.json)"
+  - name: chat_template
+    value: "configs/Qwen3.8-27B/chat_template.jinja (community fix,
+      'qwen3.8-froggeric-v22.2') instead of gguf.yaml's implicit llama.cpp
+      fallback template or Ornith's own bundled one -- see header comment
+      for the full rationale (comparable reasoning_effort semantics
+      across this benchmark's thinking-mode models)."
+    source: "Ornith's own README: 'We adjust the Qwen chat template to
+      ensure consistency between training and inference' -- using an
+      adjusted Qwen-family template matches the model authors' own
+      evaluation practice."
+  - name: temperature / top_p / top_k
+    value: 0.6 / 0.95 / 20
+    source: "Same as gguf.yaml -- unchanged, isolating thinking-mode
+      activation as the only real variable."
+  - name: context_length
+    value: 65536 (native 262144, YaRN to ~1M -- capped for hermes's needs)
+    source: "https://huggingface.co/ornith-ai/Ornith-1.5-35B-A3B model card"
+
+known_gaps:
+  - "Never run live as of authoring -- first run should confirm the
+    sanity probe now reports '(reasoning_content)' (evidence the template
+    swap actually activated thinking mode) rather than assuming it from
+    the template's own logic alone."
+  - "Two things change at once relative to gguf.yaml: the chat template
+    itself (which could also alter non-thinking-related formatting,
+    e.g. tool-call framing) AND thinking-mode activation. If results
+    differ substantially, worth confirming the difference is really
+    about reasoning and not an unrelated template-formatting shift."
+  - "reasoning_effort is not actually read/applied anywhere in
+    run_bench.py -- it is purely descriptive metadata for the leaderboard
+    column. The actual effort level is whatever configs/Qwen3.8-27B/
+    chat_template.jinja defaults to (medium) when no --reasoning-effort
+    flag is passed, same caveat as every other config using this fix."
+  - "Not independently verified whether this exact community-fix template
+    is fully correct for Ornith's specific tokenizer/special-token IDs --
+    architecturally compatible (same qwen3_5_moe/<think>/qwen3_xml family)
+    but built for Qwen3.8-27B specifically. Watch first-run output for any
+    malformed tool calls or template artifacts."
+
+last_updated: 2026-09-01
+last_verified_against_docs: 2026-09-01

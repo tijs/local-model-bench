@@ -1,0 +1,154 @@
+$ hermes chat --profile bench --provider ornith-gguf-thinking -m ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M --max-turns 40
+
+--- stdout ---
+
+┌─ Reasoning ──────────────────────────────────────────────────────────────────┐
+Let me start by exploring the project structure to understand the codebase, the `
+repairBuilding` function, and the test setup conventions.
+Let me start by exploring the project structure to understand the codebase, the `repairBuilding` function, and the test setup conventions.
+Let me look at the types file and existing tests to understand conventions.
+Let me look at the types file and existing tests to understand conventions.
+Let me fix the search pattern.
+Let me fix the search pattern.
+There's an existing test file `tests/sim.test.ts`. Let me read it to match conventions
+.
+There's an existing test file `tests/sim.test.ts`. Let me read it to match conventions.
+Now I understand the conventions. Let me write the tests for `repairBuilding`. The
+ three behaviors:
+
+1. Repairs an already-built building for half its original cost (rounded up, per resource
+).
+2. No-op if the settlement doesn't have that building.
+3. Never takes any resource below 0.
+
+Plus:
+- A rounding-up case (an odd-numbered cost).
+- A case where the settlement has less of a resource than the repair would cost.
+
+Let me think about the costs:
+- hut: wood 10 → repair = ceil(10/2) = 5
+- farm: wood 15, stone 5 → repair = ceil(15/2)=8, ceil(5/2)=3 (this is the rounding
+-up case since 15 is odd → 8, and 5 is odd → 3)
+- quarry: wood 20 → repair = ceil(20/2) = 10
+
+For the rounding-up case, farm is perfect: wood cost 15 → ceil(15/2) = 8 (not 7.5
+ rounded to 7). stone cost 5 → ceil(5/2) = 3.
+
+For a multi-resource repair, farm has wood 15 and stone 5. If settlement has wood
+ 30, stone 10: after repair wood = 30-8=22, stone = 10-3=7.
+
+For the "less of a resource than repair would cost" case: e.g., quarry costs wood
+ 20, repair = 10. If settlement has wood 3, repair would be 10 but only 3 available
+ → wood = 0.
+
+Actually let me use farm for the clamp case. Farm repair needs wood 8, stone 3. If
+ settlement has wood 5 (less than 8), wood → 0. And stone 3 with stone 10 → 7.
+
+Let me write clear tests. I'll import repairBuilding and a helper settlement.
+
+Let me write the test file matching the existing style.
+Now I understand the conventions. Let me write the tests for `repairBuilding`. The three behaviors:
+
+1. Repairs an already-built building for half its original cost (rounded up, per resource).
+2. No-op if the settlement doesn't have that building.
+3. Never takes any resource below 0.
+
+Plus:
+- A rounding-up case (an odd-numbered cost).
+- A case where the settlement has less of a resource than the repair would cost.
+
+Let me think about the costs:
+- hut: wood 10 → repair = ceil(10/2) = 5
+- farm: wood 15, stone 5 → repair = ceil(15/2)=8, ceil(5/2)=3 (this is the rounding-up case since 15 is odd → 8, and 5 is odd → 3)
+- quarry: wood 20 → repair = ceil(20/2) = 10
+
+For the rounding-up case, farm is perfect: wood cost 15 → ceil(15/2) = 8 (not 7.5 rounded to 7). stone cost 5 → ceil(5/2) = 3.
+
+For a multi-resource repair, farm has wood 15 and stone 5. If settlement has wood 30, stone 10: after repair wood = 30-8=22, stone = 10-3=7.
+
+For the "less of a resource than repair would cost" case: e.g., quarry costs wood 20, repair = 10. If settlement has wood 3, repair would be 10 but only 3 available → wood = 0.
+
+Actually let me use farm for the clamp case. Farm repair needs wood 8, stone 3. If settlement has wood 5 (less than 8), wood → 0. And stone 3 with stone 10 → 7.
+
+Let me write clear tests. I'll import repairBuilding and a helper settlement.
+
+Let me write the test file matching the existing style.
+  ┊ review diff
+a/tests/repair.test.ts → b/tests/repair.test.ts
+@@ -0,0 +1,46 @@
++import { describe, expect, it } from "vitest";
++import { repairBuilding } from "../src/sim";
++import type { Settlement } from "../src/types";
++
++function settlement(overrides: Partial<Settlement> = {}): Settlement {
++  return {
++    resources: { wood: 30, food: 10, stone: 10 },
++    population: 2,
++    buildings: [],
++    ...overrides,
++  };
++}
++
++describe("repairBuilding", () => {
++  it("repairs an already-built building for half its cost (rounded up per resource)", () => {
++    const s = repairBuilding(settlement({ buildings: ["hut"] }), "hut");
++    // hut costs 10 wood -> half is 5.
++    expect(s.resources.wood).toBe(25);
++  });
++
++  it("rounds up each resource's half-cost independently for odd costs", () => {
++    // farm costs wood 15, stone 5 -> ceil(15/2)=8, ceil(5/2)=3.
++    const s = repairBuilding(
++      settlement({ buildings: ["farm"], resources: { wood: 30, food: 10, stone: 10 } }),
++      "farm",
++    );
++    expect(s.resources.wood).toBe(22);
++    expect(s.resources.stone).toBe(7);
++  });
++
++  it("is a no-op when the settlement does not have that building", () => {
++    const s = settlement({ buildings: ["hut"], resources: { wood: 30, food: 10, stone: 10 } });
++    const result = repairBuilding(s, "quarry");
++    expect(result).toBe(s);
++    expect(result.resources).toEqual({ wood: 30, food: 10, stone: 10 });
++  });
++
++  it("never takes a resource below 0 when the settlement lacks enough", () => {
++    // quarry costs wood 20 -> half is 10, but only 3 wood is available.
++    const s = repairBuilding(
++      settlement({ buildings: ["quarry"], resources: { wood: 3, food: 10, stone: 10 } }),
++      "quarry",
++    );
++    expect(s.resources.wood).toBe(0);
++  });
++});
+Let me verify the rounding-up case. The task says "including a rounding-up case (
+an odd-numbered cost)". The hut costs 10 wood, half is 5, no rounding needed. The
+ farm costs wood 15, stone 5 — both odd. ceil(15/2)=8, ceil(5/2)=3. That's the rounding
+-up case. Good.
+
+Let me run the tests.
+Let me verify the rounding-up case. The task says "including a rounding-up case (an odd-numbered cost)". The hut costs 10 wood, half is 5, no rounding needed. The farm costs wood 15, stone 5 — both odd. ceil(15/2)=8, ceil(5/2)=3. That's the rounding-up case. Good.
+
+Let me run the tests.
+All tests pass and typecheck passes. Let me summarize.
+All tests pass and typecheck passes. Let me summarize.
+Done. Created `tests/repair.test.ts` with 4 tests covering all three behaviors, plus the rounding-up and low-resource cases. Everything passes.
+
+**Tests added** (`tests/repair.test.ts`):
+- **Half cost (rounded up per resource)** — repairs a `hut` (cost 10 wood → 5), checking wood goes 30→25.
+- **Rounding-up case** — repairs a `farm` (wood 15, stone 5 → ceil(15/2)=8, ceil(5/2)=3), checking wood 30→22 and stone 10→7. Each resource is rounded up independently.
+- **No-op when the settlement doesn't have that building** — repairing a `quarry` on a settlement with only a `hut` returns the exact same object with unchanged resources.
+- **Low-resource case** — repairing a `quarry` (half-cost 10 wood) with only 3 wood leaves wood at 0 rather than going negative.
+
+**Results:**
+- `npm run test` → 8/8 passing (4 new + 4 existing)
+- `npm run typecheck` → clean
+
+`src/sim.ts` was not modified.
+
+
+--- stderr ---
+
+session_id: 20260901_105746_fe041a
+
