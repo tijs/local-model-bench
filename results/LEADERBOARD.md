@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/2087 rows below predate 2026-08-21
+> **⚠ 138/2137 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -109,7 +109,7 @@ added explicitly to record that default rather than leave it invisible.
 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | — | [6fa6f52fdc56](configs/6fa6f52fdc56.yaml) — *config since changed* | d39c9c37bb8c+dirty | 0 | n/a (all harness errors) | 0 | — | — | 0 | — | 0 | — | — | — | — |
 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [6fa6f52fdc56](configs/6fa6f52fdc56.yaml) — *config since changed* | d60debfa3654 | 1 | 100% | 0 | 29.0 | 17.32 | 0 | — | 0 | 21.6 | — | — | — |
 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | — | [6fa6f52fdc56](configs/6fa6f52fdc56.yaml) — *config since changed* | d60debfa3654+dirty | 18 | 89% | 1 | 30.6 | 2.66 | 0 | 14.6 | 18 | 23.1 | — | — | — |
-| HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [98fbff8ca864](configs/98fbff8ca864.yaml) | 0adb046c1c3e+dirty | 23 | 83% | 2 | 30.1 | 7.05 | 0 | 15.7 | 29 | 24.2 | — | — | — |
+| HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [98fbff8ca864](configs/98fbff8ca864.yaml) — *config since changed* | 0adb046c1c3e+dirty | 23 | 83% | 2 | 30.1 | 7.05 | 0 | 15.7 | 29 | 24.2 | — | — | — |
 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | medium | — | [32924ffd3dd9](configs/32924ffd3dd9.yaml) | 18b93c687e8d+dirty | 7 | 100% | 6 | — | — | 0 | 11.6 | 9 | 22.7 | — | — | — |
 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | medium | 2/2 | [32924ffd3dd9](configs/32924ffd3dd9.yaml) | 7336e84ce111 | 11 | 82% | 6 | 8.1 | 44.52 | 0 | 18.0 | 6 | 22.2 | — | — | — |
 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | n/a | 2/2 | [3a740261a79c](configs/3a740261a79c.yaml) — *config since changed* | 2477ca2ba371 | 19 | 79% | 11 | 8.1 | 44.53 | 0 | 11.9 | 14 | 22.6 | — | — | — |
@@ -243,7 +243,7 @@ added explicitly to record that default rather than leave it invisible.
 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | — | 0.6 | unspecified | n/a | 4/4 | [7b0652d1fb9e](configs/7b0652d1fb9e.yaml) | 755dc7f4b2a3 | 30 | 93% | 2 | 28.7 | 7.11 | 0 | 16.1 | 34 | 20.8 | — | — | — |
 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | — | 0.6 | unspecified | n/a | 2/2 | [7b0652d1fb9e](configs/7b0652d1fb9e.yaml) | 9df216e99cd9 | 23 | 87% | 3 | 25.6 | 10.29 | 0 | 15.3 | 28 | 18.9 | — | — | — |
 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | — | 0.6 | unspecified | n/a | — | [7b0652d1fb9e](configs/7b0652d1fb9e.yaml) | 9df216e99cd9+dirty | 13 | 92% | 3 | — | — | 0 | 16.1 | 29 | 20.3 | — | — | — |
-| mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-I-Quality | llama.cpp | — | 0.6 | unspecified | n/a | 2/2 | [73c161a87535](configs/73c161a87535.yaml) | 0adb046c1c3e+dirty | 23 | 91% | 4 | 28.9 | 7.16 | 0 | 14.2 | 27 | 24.4 | — | — | — |
+| mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-I-Quality | llama.cpp | — | 0.6 | unspecified | n/a | 2/2 | [73c161a87535](configs/73c161a87535.yaml) — *config since changed* | 0adb046c1c3e+dirty | 23 | 91% | 4 | 28.9 | 7.16 | 0 | 14.2 | 27 | 24.4 | — | — | — |
 | mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Compact | llama.cpp | — | 1.0 | unspecified | n/a | 2/2 | [0b31098f54f7](configs/0b31098f54f7.yaml) | b17cb6e405c0 | 23 | 74% | 1 | 31.2 | 10.16 | 0 | 22.9 | 48 | 23.0 | — | — | — |
 | mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Quality | llama.cpp | — | 1.0 | unspecified | n/a | 2/2 | [49ec38e05e0c](configs/49ec38e05e0c.yaml) | 0adb046c1c3e+dirty | 23 | 87% | 3 | 29.9 | 10.67 | 0 | 20.2 | 34 | 23.8 | — | — | — |
 | openai/gpt-5.6-luna | api | — | ? | ? | ? | 2/2 | [1f7b55bd4401](configs/Luna/openrouter.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 100% | 0 | 15.2 | 4.30 | 0 | — | 0 | — | ? | ? | ? |
@@ -259,6 +259,7 @@ added explicitly to record that default rather than leave it invisible.
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | 0.6 | unspecified | n/a | 2/2 | [48d75180adbc](configs/48d75180adbc.yaml) | 6cc8b646db2e | 19 | 95% | 2 | 30.9 | 6.96 | 0 | 17.7 | 20 | 23.9 | — | — | — |
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | 0.6 | unspecified | n/a | 2/2 | [48d75180adbc](configs/48d75180adbc.yaml) | 9df216e99cd9 | 23 | 96% | 3 | 28.9 | 7.70 | 0 | 15.6 | 20 | 6.7 | — | — | — |
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | 0.6 | thinking | medium | 2/2 | [f51c7e72e2ad](configs/f51c7e72e2ad.yaml) | 0adb046c1c3e+dirty | 23 | 96% | 3 | 30.0 | 7.01 | 0 | 16.8 | 28 | 23.6 | — | — | — |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | 4/4 | [22dac305d46e](configs/22dac305d46e.yaml) | 622d0ad7d2bd | 31 | 84% | 3 | 15.3 | 51.04 | 4 | 13.5 | 26 | 1.3 | MLX 4-bit (ornith-ai official) | — | — |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | vllm-mlx | — | 0.6 | unspecified | n/a | 2/2 | [76414c6ab37c](configs/76414c6ab37c.yaml) | 0620219fd55e | 8 | 38% | 0 | 10.2 | 41.53 | 2 | — | 0 | 2.1 | — | — | — |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | vllm-mlx | — | 0.6 | unspecified | n/a | 2/2 | [76414c6ab37c](configs/76414c6ab37c.yaml) | dd3232d96137 | 8 | 62% | 1 | 10.5 | 41.50 | 2 | — | 0 | 2.4 | — | — | — |
 | ornith-ai/Ornith-1.5-9B-MLX-4bit | vllm-mlx | — | 0.7 | instruct | n/a | 2/2 | [d0d250e59d4e](configs/d0d250e59d4e.yaml) | 9235ceaef852 | 1 | 100% | 0 | 20.0 | 31.46 | 0 | — | 0 | 8.2 | — | — | — |
@@ -348,13 +349,14 @@ most total coding+hermes_ops evidence, then recency.
 | 3 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-I-Quality | llama.cpp | — | unspecified | 73c161a87535 | PASS (88%, 8) | 0.871 | 93% (15) | 28.9 tok/s | 200 | 14.2 |
 | 4 | poolside/Laguna-XS-2.1-GGUF:Q4_K_M | llama.cpp | — | thinking | 644ba3997136 | PASS (50%, 8) | 0.815 | 87% (15) | 34.8 tok/s | 177 | 25.3 |
 | 5 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | — | unspecified | 7b0652d1fb9e | PASS (100%, 8) | 0.781 | 80% (15) | 25.6 tok/s | 267 | 15.3 |
-| 6 | mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Quality | llama.cpp | — | unspecified | 49ec38e05e0c | PASS (88%, 8) | 0.768 | 87% (15) | 29.9 tok/s | 330 | 20.2 |
-| 7 | mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Compact | llama.cpp | — | unspecified | 0b31098f54f7 | PASS (75%, 8) | 0.765 | 73% (15) | 31.2 tok/s | 212 | 22.9 |
-| 8 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | thinking | a2d241742068 | PASS (75%, 8) | 0.716 | 87% (15) | 20.9 tok/s | 259 | 18.7 |
-| 9 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | — | instruct | 644415678c37 | PASS (75%, 8) | 0.676 | 87% (15) | 20.8 tok/s | 299 | 27.5 |
-| 10 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | thinking (medium) | 340ca3032e6c | PASS (88%, 8) | 0.578 | 87% (15) | 6.7 tok/s | 841 | 13.3 |
-| 11 | trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M | llama.cpp | — | thinking (medium) | 891242963db5 | PASS (100%, 8) | 0.552 | 80% (15) | 6.5 tok/s | 1129 | 15.4 |
-| 12 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | n/a | ffa862c18cff | PASS (75%, 8) | 0.427 | 60% (15) | 7.7 tok/s | 1021 | 27.9 |
+| 6 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | unspecified | 22dac305d46e | PASS (75%, 16) | 0.773 | 93% (15) | 15.3 tok/s | 170 | 13.5 |
+| 7 | mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Quality | llama.cpp | — | unspecified | 49ec38e05e0c | PASS (88%, 8) | 0.768 | 87% (15) | 29.9 tok/s | 330 | 20.2 |
+| 8 | mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Compact | llama.cpp | — | unspecified | 0b31098f54f7 | PASS (75%, 8) | 0.765 | 73% (15) | 31.2 tok/s | 212 | 22.9 |
+| 9 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | thinking | a2d241742068 | PASS (75%, 8) | 0.716 | 87% (15) | 20.9 tok/s | 259 | 18.7 |
+| 10 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | — | instruct | 644415678c37 | PASS (75%, 8) | 0.676 | 87% (15) | 20.8 tok/s | 299 | 27.5 |
+| 11 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | thinking (medium) | 340ca3032e6c | PASS (88%, 8) | 0.578 | 87% (15) | 6.7 tok/s | 841 | 13.3 |
+| 12 | trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M | llama.cpp | — | thinking (medium) | 891242963db5 | PASS (100%, 8) | 0.552 | 80% (15) | 6.5 tok/s | 1129 | 15.4 |
+| 13 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | n/a | ffa862c18cff | PASS (75%, 8) | 0.427 | 60% (15) | 7.7 tok/s | 1021 | 27.9 |
 
 ![Best overall composite score by model](score_chart.png)
 
@@ -795,6 +797,12 @@ confirmed-stable, just untested for flakiness.
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | f51c7e72e2ad | 0adb046c1c3e+dirty | kiem_mini | 4/5 |
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | f51c7e72e2ad | 0adb046c1c3e+dirty | kipclip_mini | 4/4 |
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | f51c7e72e2ad | 0adb046c1c3e+dirty | sanity | 2/2 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | 22dac305d46e | 622d0ad7d2bd | hearth_full | 3/3 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | 22dac305d46e | 622d0ad7d2bd | hearth_mini | 3/3 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | 22dac305d46e | 622d0ad7d2bd | hermes_ops | 12/16 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | 22dac305d46e | 622d0ad7d2bd | kiem_mini | 4/5 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | 22dac305d46e | 622d0ad7d2bd | kipclip_mini | 4/4 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | 22dac305d46e | 622d0ad7d2bd | sanity | 4/4 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | vllm-mlx | 76414c6ab37c | 0620219fd55e | hermes_ops | 3/8 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | vllm-mlx | 76414c6ab37c | 0620219fd55e | sanity | 2/2 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | vllm-mlx | 76414c6ab37c | dd3232d96137 | hermes_ops | 5/8 |
@@ -953,7 +961,7 @@ confirmed-stable, just untested for flakiness.
 
 ## Harness errors (excluded from every table above)
 
-23 row(s) where the harness itself crashed (e.g. a network blip during `npm ci`, a malformed task spec) rather than the model producing a graded result — shown separately so they don't deflate pass rates or masquerade as model flakiness.
+38 row(s) where the harness itself crashed (e.g. a network blip during `npm ci`, a malformed task spec) rather than the model producing a graded result — shown separately so they don't deflate pass rates or masquerade as model flakiness.
 
 | model | engine | suite | task | grade_output (truncated) |
 |---|---|---|---|---|
@@ -973,6 +981,21 @@ confirmed-stable, just untested for flakiness.
 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | kiem_mini | kiem_mini-feature | [...truncated...]      Running unittests src/lib.rs (target/debug/deps/notekeep-49d36e61ba6dd38e)      Running unittests |
 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | kiem_mini | kiem_mini-testwrite | HARNESS ERROR: agent escaped the disposable run root and edited the benchmark checkout; source bytes were restored. == b |
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | kiem_mini | kiem_mini-feature | [...truncated...]      Running unittests src/lib.rs (target/debug/deps/notekeep-49d36e61ba6dd38e)      Running unittests |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | hearth_full | hearth_full-debug | HARNESS ERROR: hermes could not start (unknown provider 'bench-mei'); no backend request was issued, task invalidated an |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | hearth_full | hearth_full-feature | HARNESS ERROR: hermes could not start (unknown provider 'bench-mei'); no backend request was issued, task invalidated an |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | hearth_full | hearth_full-testwrite | HARNESS ERROR: hermes could not start (unknown provider 'bench-mei'); no backend request was issued, task invalidated an |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | hearth_mini | hearth_mini-debug | HARNESS ERROR: hermes could not start (unknown provider 'bench-mei'); no backend request was issued, task invalidated an |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | hearth_mini | hearth_mini-feature | HARNESS ERROR: hermes could not start (unknown provider 'bench-mei'); no backend request was issued, task invalidated an |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | hearth_mini | hearth_mini-testwrite | HARNESS ERROR: hermes could not start (unknown provider 'bench-mei'); no backend request was issued, task invalidated an |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | kiem_mini | kiem_mini-debug | HARNESS ERROR: hermes could not start (unknown provider 'bench-mei'); no backend request was issued, task invalidated an |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | kiem_mini | kiem_mini-feature | HARNESS ERROR: hermes could not start (unknown provider 'bench-mei'); no backend request was issued, task invalidated an |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | kiem_mini | kiem_mini-parse-note | HARNESS ERROR: hermes could not start (unknown provider 'bench-mei'); no backend request was issued, task invalidated an |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | kiem_mini | kiem_mini-rename | HARNESS ERROR: hermes could not start (unknown provider 'bench-mei'); no backend request was issued, task invalidated an |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | kiem_mini | kiem_mini-testwrite | HARNESS ERROR: hermes could not start (unknown provider 'bench-mei'); no backend request was issued, task invalidated an |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | kipclip_mini | kipclip_mini-debug | HARNESS ERROR: hermes could not start (unknown provider 'bench-mei'); no backend request was issued, task invalidated an |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | kipclip_mini | kipclip_mini-feature | HARNESS ERROR: hermes could not start (unknown provider 'bench-mei'); no backend request was issued, task invalidated an |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | kipclip_mini | kipclip_mini-merge | HARNESS ERROR: hermes could not start (unknown provider 'bench-mei'); no backend request was issued, task invalidated an |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | kipclip_mini | kipclip_mini-testwrite | HARNESS ERROR: hermes could not start (unknown provider 'bench-mei'); no backend request was issued, task invalidated an |
 | scottlowry/Ornith-1.5-9B-oQ4e-fp16 | omlx | kiem_mini | kiem_mini-feature | HARNESS ERROR: child agent escaped the disposable workspace and modified the source fixture; result invalidated and sour |
 | trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M | llama.cpp | kiem_mini | kiem_mini-feature | [...truncated...]      Running unittests src/lib.rs (target/debug/deps/notekeep-49d36e61ba6dd38e)      Running unittests |
 | trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M | llama.cpp | kiem_mini | kiem_mini-feature | [...truncated...]      Running unittests src/lib.rs (target/debug/deps/notekeep-49d36e61ba6dd38e)      Running unittests |
@@ -993,6 +1016,7 @@ vanish from this file with no trace of why.
 |---|---|---|---|
 | mlx-community/Laguna-XS-2.1-4bit | vllm-mlx | configs/Laguna-XS-2.1/mlx.yaml | (no blocked_reason set) |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M (+ incoai/Muse-Glimmer-30B-DFlash2-GGUF:Q4_K_M drafter) | llama.cpp-dflash2 | configs/Muse-Glimmer-30B/gguf-dflash2.yaml | Marked non-viable 2026-08-23: hermes_ops averaged 0.943 tok/s across 8 real trials — well under the viability cutoff. Specific to the DFlash2 speculative-decoding variant — the plain (non-speculative) config for this same model is fine (configs/Muse-Glimmer-30B/gguf.yaml, ~8.25 tok/s), so DFlash2 is actively hurting throughput here, not helping (same pattern already seen on LiquidAI-LFM2.5-8B-A1B's DSpark variant). |
+| ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q5_K_M | llama.cpp | configs/Ornith-1.5-35B-A3B/gguf-q5.yaml | Excluded from consideration 2026-09-01 -- too large for this hardware, not a fixable bug or transient issue. Server crashed during model warmup (returncode=-6/SIGABRT) on its very first forward pass. Server log: 'ggml_metal_synchronize: error: command buffer 0 failed with status 5' / 'error: Insufficient Memory (00000008:kIOGPUCommandBufferCallbackErrorOutOfMemory)' / 'GGML_ASSERT(i02 >= 0 && i02 < n_as) failed' in src/ggml-cpu/repack.cpp. This header comment's own budget estimate (~26.9GB) was too optimistic in practice -- real llama.cpp runtime compute-buffer overhead (graph allocation, batch scratch space) costs more than simple weights+KV arithmetic accounts for. Confirmed not a transient/leftover-process issue: the very next config run in the same chain (gguf-apex-i-quality.yaml, a SMALLER 21.25GB quant) launched and ran cleanly seconds later on the same machine, same code path, no cleanup steps changed in between -- the only variable was quant size. Never reached sanity; zero real benchmark data produced. |
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | omlx | configs/Qwen3-Coder-30B-A3B/omlx.yaml | Marked non-viable 2026-08-23: hermes_ops averaged 0.75 tok/s across 8 real trials — well under the viability cutoff. Specific to the oMLX serving path for this model — the same model+quant family is genuinely fast on its other two engines (configs/Qwen3-Coder-30B-A3B/gguf.yaml ~18.6 tok/s, configs/Qwen3-Coder-30B-A3B/mlx.yaml ~11.1 tok/s), so this blocks only this one config, not the model overall. |
 | mlx-community/Qwen3.8-27B-4bit | vllm-mlx | configs/Qwen3.8-27B/mlx.yaml | Marked non-viable 2026-08-22: MLX leg (mlx.yaml, config_hash 968652aede2d) completed sanity + all 3 hermes_ops tasks (2/3 pass) but decode throughput collapsed as prompt size grew — 12.37 tok/s at 29 prompt tokens down to 0.18/0.36/0.83 tok/s at 43312/65273/177877 prompt tokens, taking 668s/1021s/2904s (~77 min combined) for those 3 hermes_ops tasks alone (~1.5h total wall clock incl. load+sanity). Every hermes_ops row is flagged within_budget: false. Pilot stopped before the coding suite (even larger prompts) or the GGUF/oMLX legs were reached. |
 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | configs/Qwen3.8-27B-oQ4e-fp16-mtp/omlx-context-balanced.yaml | Marked non-viable 2026-08-23 BY EXTENSION (not independently tested at hermes_ops scale — this variant is sanity_only so never reached hermes_ops): the same underlying artifact (Jundot/Qwen3.8-27B-oQ4e-fp16-mtp) is confirmed to collapse to 0.008-0.012 tok/s on hermes_ops-scale prompts on 2 sibling configs in this same directory (omlx.yaml, omlx-mtp.yaml), traced to a broken chat_template.jinja shared by every config that serves this exact repo. No reason to expect this variant behaves differently. |
