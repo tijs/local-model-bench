@@ -63,11 +63,17 @@ def run_config(config_path: Path, args: argparse.Namespace) -> dict[str, Any]:
 
     command = split_launch_command(str(cfg["benchmark_launch_command"]))
     base_url = str(cfg.get("benchmark_endpoint", "http://127.0.0.1:8024/v1"))
-    # Staging dirs use short names (e.g. Qwen3.8-27B-4bit) while served model
-    # ids are full hub ids (e.g. mlx-community/Qwen3.8-27B-4bit). Try the
-    # full-id path first, then the basename, so both naming conventions work.
-    tokenizer_candidates = [MEI_MODEL_ROOT / model, MEI_MODEL_ROOT / model.split("/")[-1]]
-    tokenizer = next((p for p in tokenizer_candidates if (p / "config.json").exists()), tokenizer_candidates[1])
+    # The launch command's --model-dir is the authoritative tokenizer/model
+    # path. Failing that (defensive), try the served-id-name convention:
+    # full hub id (mlx-community/Qwen3.8-27B-4bit) then its basename.
+    # Staging dir names do NOT always equal the served-id basename
+    # (e.g. Qwen3.8-27B-Uncensored-MLX-4bit), so guess-and-check is not
+    # reliable — --model-dir is.
+    tokenizer_args = [command[i + 1] for i, a in enumerate(command) if a == "--model-dir"]
+    tokenizer: Path | None = Path(tokenizer_args[0]).expanduser() if tokenizer_args else None
+    if tokenizer is None or not (tokenizer / "config.json").exists():
+        candidates = [MEI_MODEL_ROOT / model, MEI_MODEL_ROOT / model.split("/")[-1]]
+        tokenizer = next((p for p in candidates if (p / "config.json").exists()), candidates[1])
     stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
     output_root = (
         Path("~/.local/share/local-model-bench/results-mei").expanduser()
@@ -113,13 +119,19 @@ def run_config(config_path: Path, args: argparse.Namespace) -> dict[str, Any]:
         record["status"] = "error"
         record["error"] = f"{type(exc).__name__}: {exc}"
     finally:
+        # Stop the real server FIRST, while the launcher (start_mei_server.sh
+        # wrapper) is still alive and its pid file still exists. Terminating
+        # the wrapper first triggers its EXIT trap, which deletes the pid
+        # file, turning stop_mei_server.sh into a no-op and ORPHANING the Mei
+        # server (observed live: leaked ~19-24 GB Metal heaps per run).
+        subprocess.run(
+            ["bash", str(REPO / "runner" / "stop_mei_server.sh")], capture_output=True, text=True)
         if process is not None:
             process.terminate()
             try:
                 process.wait(timeout=30)
             except subprocess.TimeoutExpired:
                 process.kill()
-        subprocess.run(["bash", str(REPO / "runner" / "stop_mei_server.sh")], capture_output=True, text=True)
     record["finished_epoch"] = time.time()
     (output_root / "record.json").write_text(json.dumps(record, indent=2, sort_keys=True) + "\n")
     return record
