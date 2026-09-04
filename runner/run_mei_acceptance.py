@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shlex
 import subprocess
 import sys
@@ -25,6 +26,13 @@ import yaml
 
 REPO = Path(__file__).resolve().parent.parent
 MEI_MODEL_ROOT = Path("~/.local/share/local-model-bench/mei-models").expanduser()
+
+
+def split_launch_command(command: str) -> list[str]:
+    # YAML |-blocks keep the trailing line-continuation backslashes; strip
+    # backslash-newline before shlex, otherwise they become literal "\n"
+    # arguments (mirrors runner/run_omlx_acceptance.py split_launch_command).
+    return shlex.split(re.sub(r"\\[ \t]*\n", " ", command))
 
 
 def get_json(url: str, timeout: float = 10) -> dict[str, Any]:
@@ -53,7 +61,7 @@ def run_config(config_path: Path, args: argparse.Namespace) -> dict[str, Any]:
     if cfg.get("inference_engine") != "mei" or not model:
         raise ValueError(f"not a Mei served-model config: {config_path}")
 
-    command = shlex.split(str(cfg["benchmark_launch_command"]))
+    command = split_launch_command(str(cfg["benchmark_launch_command"]))
     base_url = str(cfg.get("benchmark_endpoint", "http://127.0.0.1:8024/v1"))
     # Staging dirs use short names (e.g. Qwen3.8-27B-4bit) while served model
     # ids are full hub ids (e.g. mlx-community/Qwen3.8-27B-4bit). Try the
