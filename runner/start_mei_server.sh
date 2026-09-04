@@ -23,6 +23,10 @@ Options:
   --emit-reasoning BOOL     Expose reasoning_content (default: true)
   --cache-reuse BOOL        In-process KV/prefix reuse (default: true)
   --kv-bits N               KV quantization bits (default: none)
+  --kv-cache-dir DIR        On-disk KV cache dir for the prefix coordinator
+                            (default: none -> in-memory paged tier only; the
+                            qwen3_5_moe/Ornith hybrid requires this tier for
+                            cross-turn reuse — cached_tokens stays 0 without it)
   --mei-repo PATH           Mei checkout (default: ~/projects/mei)
   --runtime-base PATH       Mei runtime root (default: ~/.local/share/local-model-bench/mei-runtime)
   --build-dir PATH          SwiftPM scratch/build dir (default: .../mei-build)
@@ -42,6 +46,7 @@ TOP_K="20"
 EMIT_REASONING="true"
 CACHE_REUSE="true"
 KV_BITS=""
+KV_CACHE_DIR=""
 MEI_REPO="$MEI_REPO_DEFAULT"
 RUNTIME_BASE="$RUNTIME_BASE_DEFAULT"
 BUILD_DIR="$BUILD_DIR_DEFAULT"
@@ -61,6 +66,7 @@ while [[ $# -gt 0 ]]; do
     --emit-reasoning) EMIT_REASONING="${2:?missing value}"; shift 2 ;;
     --cache-reuse) CACHE_REUSE="${2:?missing value}"; shift 2 ;;
     --kv-bits) KV_BITS="${2:?missing value}"; shift 2 ;;
+    --kv-cache-dir) KV_CACHE_DIR="${2:?missing value}"; shift 2 ;;
     --mei-repo) MEI_REPO="${2:?missing value}"; shift 2 ;;
     --runtime-base) RUNTIME_BASE="${2:?missing value}"; shift 2 ;;
     --build-dir) BUILD_DIR="${2:?missing value}"; shift 2 ;;
@@ -112,6 +118,7 @@ ARGS=(--model-dir "$MODEL_DIR" --served-model-id "$SERVED_MODEL_ID"
   --temperature "$TEMPERATURE" --top-p "$TOP_P" --top-k "$TOP_K"
   --emit-reasoning "$EMIT_REASONING" --cache-reuse "$CACHE_REUSE")
 [[ -n "$KV_BITS" ]] && ARGS+=(--kv-bits "$KV_BITS")
+[[ -n "$KV_CACHE_DIR" ]] && ARGS+=(--kv-cache-dir "$KV_CACHE_DIR")
 
 printf 'mei isolated launch: '
 printf '%q ' "$BIN" "${ARGS[@]}"
