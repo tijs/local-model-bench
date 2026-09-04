@@ -20,6 +20,7 @@ prefill_step_size: 256
 tool_call_path: native_mei_requires_live_probe
 
 benchmark_launch_command: |
+  env VMLX_FUSED_GATE_UP_CACHE_LIMIT_BYTES=0 \
   bash runner/start_mei_server.sh --model-dir /Users/tijs/.local/share/local-model-bench/mei-models/gemma-4-26b-a4b-it-4bit \
     --served-model-id mlx-community/gemma-4-26b-a4b-it-4bit --port 8027 --context-cap 65536 \
     --prefill-step-size 256 --max-tokens 32768 \
@@ -41,8 +42,11 @@ settings:
     value: "91fed8be21319f92ce5220622c6dcde0b851bdae (Mei Package.resolved, tijs/vmlx-swift fork)"
     source: "~/projects/mei/Package.resolved, checked 2026-09-04."
   - name: prefill_chunking
-    value: "GenerateParameters.prefillStepSize = 256 — the proven Gemma config from Mei repo prefill-step sweep (30k decode 7.50/7.52 t/s cold-repeats on the lever matrix; short decode 51.3 t/s, peak mem 24.08 GB)"
-    source: "Mei repo gemma4-30k-decode-lever-matrix-20260904.md, probe-load-gemma4-r3-20260903T015921Z.json."
+    value: "GenerateParameters.prefillStepSize = 256 — the proven Gemma config from the Mei repo prefill-step sweep (30k fresh fill 318-349 pps with the fuse-gate env, +37% vs fuse-ON 229-266 pps; short decode 51.3 t/s)"
+    source: "Mei repo gemma4-prefill-step-sweep-20260903.md + gemma4-fuse-gate-ab-20260904.md."
+  - name: fused_gate_up_cache_disabled
+    value: "REQUIRED env VMLX_FUSED_GATE_UP_CACHE_LIMIT_BYTES=0: gemma4's SwitchGLU layers (switch_glu, Gemma4Text.swift) build the lazy fused gate+up concat bank (SwitchLayers.swift ensureFusedGateUp) on first forward — measured 2026-09-04 that it retained ~8.5 GB and collapsed 30k decode to 7.1-7.6 t/s. With the env set: 30k fresh decode 16.96/23.27/23.33 t/s (mean 21.19), reuse 15.27/19.51/23.83, prefill 318/349/349 pps, peak 18.76 GB (-8.47 GB); probe_mei 12/12 + coding 4/4 re-gated on this config. Launch command carries the env."
+    source: "Mei repo artifacts/gemma4-fuse-gate-ab-20260904.md + probe-30k-gemma-fuseoff-r{1,2,3}-*.json + probe-mei-gemma4-fuseoff-regate-*.json."
   - name: kv_cache
     value: "fp16 KV; hybrid attention = 25 sliding-window layers (window 1024, ring cap) + 5 full/global layers — KV ~1.5 GB at 64K, does NOT grow with context on the windowed layers. --kv-bits 8 CRASHES this architecture (KVCache.swift:1209 updateQuantized gap, vmlx-side blocker); kv-bits stays none."
     source: "Mei repo gemma4-30k-decode-lever-matrix-20260904.md (kv-quant leg)."
@@ -63,5 +67,5 @@ known_gaps:
   - "Live status and artifact paths are recorded in ~/.local/share/local-model-bench/results-mei/ after the acceptance gate; config existence alone is not proof of compatibility."
   - "KV quantization (--kv-bits 8) crashes this architecture in pinned vmlx (KVCache.swift:1209); kv-bits none is the only safe option."
   - "Metal kernel library (mlx.metallib) is provisioned by scripts/prepare_metallib.sh (adjacent-version Python mlx wheel; local Xcode lacks the metallib archiver)."
-  - "30k decode (~7.5 t/s) is far below the 30 t/s project target; short-context decode (51 t/s) is fast. Sliding-window attention cost at 30k context is the dominant cost; lever matrix shows compiled-decode is a silent no-op on this arch and KV-quant crashes — remaining levers are user-gated or exhausted."
+  - "30k loaded decode ~21.2 t/s (3-repeat mean; r2/r3 23.3) with the fuse-gate env — still ~1.6x below the llama.cpp APEX-I-Quality row (37.08 t/s); residual gap is the vmlx SDPA/long-KV kernel efficiency on the 5 full-attention layers (lever matrix + fuse-gate A/B), outside the Mei config surface. Short-context decode 51 t/s. KV-quant crashes (--kv-bits 8, KVCache.swift:1209) and compiled-decode is a silent no-op on this arch — both vmlx-side blockers recorded."
 last_updated: 2026-09-04
