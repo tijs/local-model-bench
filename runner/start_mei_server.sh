@@ -9,7 +9,11 @@ set -euo pipefail
 
 MEI_REPO_DEFAULT="${MEI_REPO:-$HOME/projects/mei}"
 RUNTIME_BASE_DEFAULT="$HOME/.local/share/local-model-bench/mei-runtime"
-BUILD_DIR_DEFAULT="$HOME/.local/share/local-model-bench/mei-build"
+# Pinned-scratch default: resolves vmlx-swift from the remote fork at the
+# exact Package.swift revision (91fed8be), NOT from any local clone — a
+# scratch dir built once against a local-path Package.swift leaks that
+# identity into every later build and dirties ~/projects/mei/Package.resolved.
+BUILD_DIR_DEFAULT="$HOME/.local/share/local-model-bench/mei-build-pinned-91fed8be"
 
 usage() {
   cat <<'EOF'
@@ -29,7 +33,7 @@ Options:
                             cross-turn reuse — cached_tokens stays 0 without it)
   --mei-repo PATH           Mei checkout (default: ~/projects/mei)
   --runtime-base PATH       Mei runtime root (default: ~/.local/share/local-model-bench/mei-runtime)
-  --build-dir PATH          SwiftPM scratch/build dir (default: .../mei-build)
+  --build-dir PATH          SwiftPM scratch/build dir (default: .../mei-build-pinned-91fed8be)
   --dry-run                 Validate and print, but do not launch
 EOF
 }
