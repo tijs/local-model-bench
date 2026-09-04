@@ -16,19 +16,19 @@ REPO = Path(__file__).resolve().parents[2]
 
 
 class UvPythonWorkflowTests(unittest.TestCase):
-    def test_mlx_serving_dependencies_are_unconditional_project_dependencies(self):
+    def test_retired_mlx_serving_dependencies_are_not_project_dependencies(self):
+        """The oMLX/vllm-mlx Python MLX serving stack (mlx, mlx-lm,
+        vllm-mlx) was removed from the project when those lanes retired
+        2026-09-04 — active engines (llama.cpp binaries, Swift Mei binary)
+        don't need it. Also assert the control-plane dep that remains is
+        still unconditional, not dropped into an extra."""
         project = tomllib.loads((REPO / "pyproject.toml").read_text())
         dependencies = set(project["project"]["dependencies"])
 
+        self.assertIn("PyYAML==6.0.3", dependencies)
         self.assertTrue(
-            {
-                "vllm-mlx==0.4.1",
-                "mlx==0.32.0",
-                "mlx-lm==0.31.3",
-            }.issubset(dependencies)
-        )
-        self.assertNotIn(
-            "mlx", project["project"].get("optional-dependencies", {})
+            {"mlx", "mlx-lm", "vllm-mlx"}.isdisjoint(dependencies),
+            "retired MLX serving deps must not be unconditional project deps",
         )
 
     def test_canonical_setup_and_legacy_requirements_mirror_are_documented(self):
@@ -75,26 +75,30 @@ class UvPythonWorkflowTests(unittest.TestCase):
                     offenders.append(f"{path.relative_to(REPO)}: {name}")
         self.assertEqual(offenders, [])
 
-    def test_vllm_mlx_configs_launch_through_single_locked_uv_environment(self):
-        configs = []
+    def test_retired_engines_are_not_active_or_advertised(self):
+        """After the oMLX/vllm-mlx retirement (2026-09-04), every omlx/vllm-mlx
+        config must be `viable: retired` (skipped, not runnable), and NO active
+        llama.cpp/Mei config's launch command may invoke the removed
+        `python -m vllm_mlx.server` engine."""
+        retired = []
         for path in sorted(REPO.glob("configs/*/*.yaml")):
             config = yaml.safe_load(path.read_text()) or {}
-            if config.get("inference_engine") == "vllm-mlx":
-                configs.append((path, config["benchmark_launch_command"]))
+            if config.get("inference_engine") in ("vllm-mlx", "omlx"):
+                viable = (config.get("orchestration") or {}).get("viable")
+                retired.append((path.relative_to(REPO), viable))
+        self.assertTrue(retired, "expected to find retired vllm-mlx/omlx configs")
+        for _c, viable in retired:
+            self.assertIn(viable, ("retired", "blocked"))
 
-        self.assertTrue(configs)
-        for path, command in configs:
-            with self.subTest(config=path.relative_to(REPO)):
-                expected = (
-                    "uv run --locked vllm-mlx serve"
-                    if path.parent.name == "Laguna-XS-2.1"
-                    else "uv run --locked python -m vllm_mlx.server"
-                )
-                self.assertIn(expected, command)
-                self.assertNotIn("--extra " + "mlx", command)
-                for line in command.splitlines():
-                    if "python runner/" in line:
-                        self.assertIn("uv run --locked python runner/", line)
+        for path in sorted(REPO.glob("configs/*/*.yaml")):
+            config = yaml.safe_load(path.read_text()) or {}
+            engine = config.get("inference_engine", "")
+            if engine.startswith("llama.cpp") or engine == "mei":
+                cmd = config.get("benchmark_launch_command", "")
+                self.assertNotIn("vllm_mlx.server", cmd,
+                                 f"active {engine} config must not spawn vllm-mlx")
+                self.assertNotIn("vllm-mlx serve", cmd,
+                                 f"active {engine} config must not spawn vllm-mlx")
 
     def test_proxy_script_always_uses_project_locked_uv_python(self):
         script = (REPO / "runner" / "start_bench_proxy.sh").read_text()

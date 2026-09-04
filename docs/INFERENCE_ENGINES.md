@@ -1,8 +1,15 @@
 # Inference engines on Mac (Apple Silicon) — research index
 
+> **Active lanes (2026-09-04):** supported active local comparison engines are
+> **llama.cpp variants** and **Mei**. The **oMLX** and **vllm-mlx** lanes were
+> retired by user decision; their sections below (and
+> [`docs/OMLX_MODEL_MATRIX.md`](OMLX_MODEL_MATRIX.md)) are preserved as
+> historical research, and their historical `results/log.jsonl` rows remain in
+> the leaderboard, but they are no longer runnable current paths.
+
 This is the canonical home for this project's research on the inference
 engines themselves — their bugs, quirks, version-specific behavior, and
-the ongoing MLX-vs-GGUF speed investigation. `results/SUMMARY.md` and
+the MLX-vs-GGUF speed investigation. `results/SUMMARY.md` and
 `AGENTS.md` link here instead of duplicating this content; keep it here
 so it doesn't drift between multiple copies. Two kinds of content
 deliberately live *elsewhere* and are only cross-referenced from this
@@ -13,26 +20,29 @@ file:
 - **oMLX per-model settings/provenance matrix** (recommended sampling,
   exact revisions, sequential test matrix) — that's
   [`docs/OMLX_MODEL_MATRIX.md`](OMLX_MODEL_MATRIX.md), a companion
-  document with a narrower, model-settings-specific purpose.
+  document with a narrower, model-settings-specific purpose (oMLX lane
+  retired 2026-09-04; kept as historical evidence).
 
 ## Engine landscape
 
 Four engines have been evaluated on this project's hardware (Mac Studio,
-M1 Max, 32GB unified memory):
+M1 Max, 32GB unified memory). **Bolded** rows are active lanes as of 2026-09-04;
+the vllm-mlx and oMLX rows are retired (historical results only):
 
 | Engine | What it is | Port | Tool-calling |
 |---|---|---|---|
 | **llama.cpp** (GGUF) | `llama-server`, Homebrew-installed, OpenAI-compatible | 8016 | Native `tool_calls`, no proxy needed |
-| **vllm-mlx** | Raw `mlx-lm` serving via `vllm_mlx.server` | 8012 | None in 0.4.0 (needs this repo's proxy); native parsers in 0.4.1+, with caveats — see below |
-| **oMLX** | Third-party, isolated `mlx-lm` wrapper with its own patches | 8020 | Native, schema-validated | 
-| **Osaurus / vmlx-swift** | Swift-native MLX stack, no Python `mlx-lm` at all | — | Native, OpenAI-compatible (evaluated, not yet benchmarked — see below) |
+| **Mei** (vmlx-swift/"Osaurus") | Swift-native MLX stack, no Python `mlx-lm` at all | 8024–8027 | Native, schema-validated |
+| ~~vllm-mlx~~ (RETIRED 2026-09-04) | Raw `mlx-lm` serving via `vllm_mlx.server` | 8012 | None in 0.4.0 (needs this repo's proxy); native parsers in 0.4.1+, with caveats — see below |
+| ~~oMLX~~ (RETIRED 2026-09-04) | Third-party, isolated `mlx-lm` wrapper with its own patches | 8020 | Native, schema-validated |
 
 llama.cpp/GGUF is the primary, proven engine for this benchmark — it won
 essentially every direct speed comparison against the MLX engines (see
-"The MLX slowdown investigation" below). The MLX engines remain in the
-repo and under active investigation because the *reason* they're slower
-turned out to be more specific and interesting than "MLX is just slower
-on this hardware."
+"The MLX slowdown investigation" below). The legacy MLX serving engines
+(vllm-mlx, oMLX) were investigated to understand *why* they were slower,
+and that investigation concluded 2026-09-04 with a user decision to retire
+both as active lanes; **Mei** (the native Swift/MLX stack) is the supported
+active MLX-family lane going forward.
 
 ## llama.cpp / GGUF
 

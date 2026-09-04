@@ -101,7 +101,7 @@ def main():
     ap.add_argument("--model", required=True)
     ap.add_argument("--request-model", default=None,
                     help="endpoint model ID when it differs from the source model recorded in --model")
-    ap.add_argument("--inference-engine", required=True, help="llama.cpp | vllm-mlx | omlx | ..., recorded in the log")
+    ap.add_argument("--inference-engine", required=True, help="llama.cpp | llama.cpp-dflash2 | llama.cpp-dspark | mei | ..., recorded in the log. oMLX and vllm-mlx are retired active lanes (2026-09-04); log rows reading those values remain backward-compatible, they just aren't runnable current engines")
     ap.add_argument("--quant", default=None, help="quant level, for gguf log rows")
     ap.add_argument("--config", default=None, help="path to configs/<model>/<backend>.yaml used for this run")
     ap.add_argument("--only-task", default=None, help="run just this one task id (e.g. to rerun a single fixed/flaky task)")

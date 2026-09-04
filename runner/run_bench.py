@@ -66,6 +66,12 @@ otherwise run — `full`):
   blocked                    -> skip entirely, print why and move on
                                  (e.g. Laguna-XS-2.1 MLX: mlx-lm doesn't
                                  support the architecture at all)
+  retired                    -> skip entirely, same as blocked (added
+                                 2026-09-04): the lane (oMLX / vllm-mlx) is
+                                 no longer an active comparison path per user
+                                 decision; config kept only as historical
+                                 evidence. Active local engines: llama.cpp
+                                 variants + Mei.
 
 A `raw_port: null` config (api backend, no local server, e.g. Luna) skips
 steps 1-4 entirely.
@@ -391,11 +397,10 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
     model = cfg["model"]
     inference_engine = cfg["inference_engine"]
     served_model_id = orch.get("served_model_id")
-    if cfg.get("inference_engine") == "omlx" and not served_model_id:
-        sys.exit(f"{config_path} is inference_engine: omlx but has no orchestration.served_model_id")
-    # oMLX/Mei deliberately serve a stable local directory/alias ID while log
+    # Mei deliberately serves a stable local directory/alias ID while log
     # rows retain the source artifact ID in `model`. Other frameworks request
-    # the model ID directly as before.
+    # the model ID directly as before. (oMLX retired as an active lane
+    # 2026-09-04; its served_model_id guard was removed with the lane.)
     if cfg.get("inference_engine") == "mei" and not served_model_id:
         sys.exit(f"{config_path} is inference_engine: mei but has no orchestration.served_model_id")
     request_model = served_model_id or model
@@ -404,8 +409,10 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
 
     print(f"\n{'=' * 70}\n{model} ({inference_engine}) — {config_path}\nviable={viable}\n{'=' * 70}")
 
-    if viable == "blocked":
-        print("SKIPPED (blocked) — see the config's known_gaps for why.")
+    if viable in ("blocked", "retired"):
+        reason = "config is blocked (see known_gaps)" if viable == "blocked" \
+            else "lane is retired (historical evidence only — active local engines are llama.cpp variants + Mei)"
+        print(f"SKIPPED ({viable}) — {reason}.")
         return
 
     raw_port = orch.get("raw_port")
@@ -422,9 +429,6 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
         return
 
     if raw_port is not None:
-        if cfg.get("inference_engine") == "omlx":
-            print("\n--- stop any prior isolated oMLX server ---")
-            run(["bash", str(REPO / "runner" / "stop_omlx_server.sh")])
         if cfg.get("inference_engine") == "mei":
             print("\n--- stop any prior isolated Mei server ---")
             run(["bash", str(REPO / "runner" / "stop_mei_server.sh")])
@@ -619,12 +623,13 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
 
 
 def run_one(config_path: Path, trials: int = 1, coding_suites=None, stage="all"):
-    """Run one config and always tear down the isolated oMLX process.
+    """Run one config and always tear down the isolated Mei process.
 
     The implementation has many deliberate fail-fast returns.  Keeping cleanup
     in this outer wrapper ensures an identity, load, completion, sanity, or
-    tool failure cannot strand a Metal model or stale port 8020 process.
-    Historical backends retain their original single-config lifecycle.
+    tool failure cannot strand a Metal model or stale port 8024-8027 process.
+    (The oMLX lane was retired 2026-09-04; its isolated-server teardown was
+    removed with it.)
     """
     try:
         return _run_one_impl(
@@ -635,8 +640,6 @@ def run_one(config_path: Path, trials: int = 1, coding_suites=None, stage="all")
             cfg = yaml.safe_load(config_path.read_text()) or {}
         except (OSError, yaml.YAMLError):
             cfg = {}
-        if cfg.get("inference_engine") == "omlx":
-            run(["bash", str(REPO / "runner" / "stop_omlx_server.sh")])
         if cfg.get("inference_engine") == "mei":
             run(["bash", str(REPO / "runner" / "stop_mei_server.sh")])
 
@@ -696,8 +699,10 @@ def build_arg_parser():
                           "--all's runtime substantially: budget for it.")
     ap.add_argument("--inference-engine", default=None,
                     help="with --all, run only configs whose top-level inference_engine "
-                         "matches this value (for example: omlx); keeps an oMLX sweep from "
-                         "re-running every historical llama.cpp/vllm-mlx config")
+                         "matches this value (for example: mei); keeps an engine sweep from "
+                         "re-running every historical/retired llama.cpp/vllm-mlx/omlx "
+                         "config. Note oMLX and vllm-mlx are retired active lanes "
+                         "(2026-09-04) and are always skipped regardless of this flag.")
     ap.add_argument("--stage", choices=("all", "coding"), default="all",
                     help="run the normal full config matrix (all), or only the coding "
                          "fixture stage after a harness repair (coding); identity, cold "

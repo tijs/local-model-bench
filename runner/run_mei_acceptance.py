@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Run isolated Mei acceptance probes sequentially from benchmark configs.
 
-Mirrors runner/run_omlx_acceptance.py: launches each mei config's
-benchmark_launch_command, waits for health, runs runner/probe_mei.py, and
-records probe JSON + launcher logs under
+Launches each mei config's benchmark_launch_command, waits for health, runs
+runner/probe_mei.py, and records probe JSON + launcher logs under
 ~/.local/share/local-model-bench/results-mei/<model>/<config-stem>-<stamp>/.
 Historical results are never overwritten: each run lands in a timestamped
 subdirectory.
@@ -31,7 +30,7 @@ MEI_MODEL_ROOT = Path("~/.local/share/local-model-bench/mei-models").expanduser(
 def split_launch_command(command: str) -> list[str]:
     # YAML |-blocks keep the trailing line-continuation backslashes; strip
     # backslash-newline before shlex, otherwise they become literal "\n"
-    # arguments (mirrors runner/run_omlx_acceptance.py split_launch_command).
+    # arguments (same handling as the retired oMLX acceptance runner).
     return shlex.split(re.sub(r"\\[ \t]*\n", " ", command))
 
 

@@ -16,6 +16,16 @@ benchmark runs against that model — each setting with a citation, so results
 are auditable and reproducible, and so a value is never just "chosen because
 it seemed right" without saying so explicitly.
 
+**Active lanes (as of 2026-09-04):** supported active local comparison engines
+are **llama.cpp variants** (`llama.cpp` / `llama.cpp-dflash2` /
+`llama.cpp-dspark`) and **Mei** (`inference_engine: mei`). The **oMLX** and
+**vllm-mlx** lanes were retired by user decision (oMLX will not be revisited;
+active local comparisons are llama.cpp + Mei only). Their config files remain
+in place and their historical `results/log.jsonl` rows remain visible in the
+leaderboard as reproducible evidence, but every retired config carries
+`orchestration.viable: retired`, so the runner skips it and the lane is no
+longer a runnable current path.
+
 ## Schema
 
 ```yaml
@@ -31,11 +41,12 @@ model: LiquidAI/LFM2.5-2.6B-MLX-bf16
 # actually runs at.
 temperature: 0.1
 reasoning_mode: n/a   # thinking | instruct | n/a (no thinking-mode concept) | unspecified
-inference_engine: vllm-mlx        # vllm-mlx | llama.cpp | llama.cpp-dflash2 |
-                                  # llama.cpp-dspark | omlx | openrouter |
-                                  # hermes-openai-codex — the inference
-                                  # engine identity; primary grouping key
-                                  # for build_leaderboard.py
+inference_engine: llama.cpp  # llama.cpp | llama.cpp-dflash2 | llama.cpp-dspark |
+                                  # mei (active lanes) | vllm-mlx | omlx | openrouter |
+                                  # hermes-openai-codex — every engine is a grouping
+                                  # key for build_leaderboard.py; vllm-mlx/omlx are
+                                  # RETIRED active lanes (2026-09-04) but their
+                                  # historical rows are still read backward-compatibly
 benchmark_launch_command: |
   uv run --locked python -m vllm_mlx.server \
     --model LiquidAI/LFM2.5-2.6B-MLX-bf16 \
@@ -73,13 +84,18 @@ orchestration:
                            # holding the key; the key itself is never written
                            # to this file or passed as a CLI arg anywhere
   viable: full             # full | sanity_and_hermes_ops_only |
-                           # sanity_only | coding_only | blocked
+                           # sanity_only | coding_only | blocked | retired
                            # — see runner/run_bench.py's docstring for
-                           # exactly what each value skips and why
+                           # exactly what each value skips and why. `retired`
+                           # (2026-09-04) = engine lane no longer active
+                           # (oMLX/vllm-mlx); skipped, kept as evidence.
 
 # Required when inference_engine: omlx. These are first-class experiment factors,
 # snapshotted with the config and rendered by build_leaderboard.py so cache /
 # acceleration variants cannot be silently averaged or mislabeled.
+# NOTE (2026-09-04): the oMLX lane is RETIRED. This schema block is kept for
+# historical reproducibility only; no oMLX config is a runnable current path
+# (`orchestration.viable: retired` — the runner skips it).
 omlx_version: 0.6.2
 omlx_commit: f2d36f3d25a7e7a2401a92eecafc28b8f8968ec7
 source_revision: <full Hugging Face revision>
@@ -135,15 +151,22 @@ last_verified_against_docs: 2026-08-20   # bump when re-checked — configs go s
    bench_common.py:snapshot_config()`) — the hash alone is not enough to
    reconstruct what was run, since the live config file gets edited again
    afterward; the snapshot is what actually stays traceable.
-5. For oMLX, run `runner/probe_omlx.py` before accepting benchmark rows. It
-   proves exact identity, cold generation, native streaming/non-streaming
-   structured calls against the benchmark's `add_numbers` schema, exact
-   65,536-token success plus over-cap rejection, and cache/timing metrics.
+5. For active native-serving engines, run the engine's acceptance probe before
+   accepting benchmark rows. For **Mei** (the supported active native-Swift-MLX
+   lane), run `runner/run_mei_acceptance.py --config configs/<model>/mei.yaml`
+   (which drives `runner/probe_mei.py`): it proves exact served identity, a
+   real generation, native streaming/non-streaming structured calls against the
+   benchmark's `add_numbers` schema, the exact context-cap gate, and cache/timing
+   metrics. The oMLX probe (`probe_omlx.py`) was removed with that lane's
+   retirement (2026-09-04).
 
 ## Config files
 
-One directory per model family, `gguf.yaml`/`mlx.yaml` (or a variant name,
-e.g. `gguf-unsloth-ud-q4.yaml`, for a distinct quant/engine combo) inside:
+One directory per model family, `gguf.yaml`/`mei.yaml`/`mlx.yaml` (or a variant
+name, e.g. `gguf-unsloth-ud-q4.yaml`, for a distinct quant/engine combo) inside.
+`mlx.yaml` (vllm-mlx) and every `omlx*.yaml` are **retired active lanes
+(2026-09-04)** — kept as historical evidence, skipped by the runner. Active
+configs are marked `viable: full`; retired ones carry `viable: retired`:
 
 - `LiquidAI-LFM2.5-2.6B/` — gguf, mlx
 - `LiquidAI-LFM2.5-8B-A1B/` — gguf, mlx, gguf-dspark (speculative decoding,

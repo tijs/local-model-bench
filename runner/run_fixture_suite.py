@@ -881,7 +881,7 @@ def main():
     ap.add_argument("--hermes-model", required=True)
     ap.add_argument("--log-model", default=None,
                     help="source model ID to record when --hermes-model is a stable served alias")
-    ap.add_argument("--inference-engine", required=True, help="llama.cpp | vllm-mlx | omlx | ..., recorded in the log")
+    ap.add_argument("--inference-engine", required=True, help="llama.cpp | llama.cpp-dflash2 | llama.cpp-dspark | mei | ..., recorded in the log. oMLX and vllm-mlx are retired active lanes (2026-09-04); log rows reading those values remain backward-compatible, they just aren't runnable current engines")
     ap.add_argument("--quant", default=None)
     ap.add_argument("--only-task", default=None, help="run just this one task id")
     ap.add_argument("--max-turns", type=int, default=40)

@@ -1,5 +1,11 @@
 # oMLX model coverage and settings matrix
 
+> **RETIRED LANE (2026-09-04):** the oMLX engine was retired from
+> local-model-bench by user decision (oMLX will not be revisited). This
+> document is preserved as historical research/evidence only. No `omlx*.yaml`
+> config is a runnable current path (`orchestration.viable: retired`).
+> Supported active local comparison engines: **llama.cpp variants + Mei.**
+
 Research date: 2026-08-21
 
 Target hardware: Sulaco, Apple M1 Max, 32 GB unified memory, `hw.optional.arm.FEAT_BF16=0`.

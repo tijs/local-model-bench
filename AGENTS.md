@@ -8,8 +8,12 @@ This repo is Kiem project `proj/local_model_bench`. Run `kiem todos` / `kiem not
 Benchmark harness for picking a local LLM to drive Hermes (Tijs's local agent
 framework at `~/.hermes`) for agentic coding — light JS/TS, Rust, and Swift
 work with a large system prompt and many tools. Compares candidate models on
-quality, speed, and tool-use reliability, each across two inference engines: MLX (via
-the `cocore` serving stack) and GGUF (via llama.cpp's `llama-server`).
+quality, speed, and tool-use reliability across the supported active local
+inference engines: **llama.cpp variants** (GGUF, via `llama-server`) and
+**Mei** (a native Swift/MLX serving stack). The **oMLX** and **vllm-mlx**
+engines were retired as active lanes 2026-09-04 (see "Retired lanes" below);
+their configs and historical log rows remain as evidence but are not runnable
+current paths.
 
 **Project management lives in kiem, not in scratch files or markdown TODOs.**
 Use `kiem todos` / `kiem notes` to see state, `kiem note add` to log
@@ -220,47 +224,19 @@ a few-minutes-per-config sweep into hours.
 
 ## Backends
 
-- **MLX**: three layers. `vllm_mlx.server --model <candidate>` is the raw
-  engine on port 8012 — no server-side tool-call parsing exists in vllm-mlx
-  at all (confirmed: no `--tool-call-parser` flag in `vllm_mlx.server
-  --help`, only `--reasoning-parser` for `<think>`-style extraction), so it
-  returns tool calls as raw text in `content` (e.g. LFM's
-  `<|tool_call_start|>[fn(a=1)]<|tool_call_end|>`), not a real `tool_calls`
-  array. **The benchmark uses its own proxy for this — `runner/
-  bench_local_proxy.py`, started via `runner/start_bench_proxy.sh`, listening
-  on port 8015.** This is a fork of `~/.hermes/profiles/fitness/
-  mara_local_proxy.py` (the "fitness" hermes profile's own proxy on port
-  8013) with one critical difference: that file unconditionally filters
-  every caller's `tools` array down to its own ~12-tool allowlist tuned for
-  the fitness/Kiri profile. **Never point the benchmark at port 8013** — this
-  was discovered live 2026-08-19 after it silently gave false-passing
-  `hermes_ops` tool-selection results (the intended tool wasn't even in the
-  manifest the model received, and since tool-call parsing is regex-based on
-  raw text with no schema validation, the model can still "call" a tool name
-  it was never given — which further masked the filtering). All prior
-  `results/log.jsonl` rows from before this fix were cleared as invalid.
-  `bench_local_proxy.py` is also **parser-pluggable per model family** — it
-  registers named parsers (`lfm` confirmed working; `hermes_style` for
-  Qwen-style `<tool_call>{...}</tool_call>` JSON blocks, added but not yet
-  verified against a real Qwen response) selected via `BENCH_TOOL_PARSER`.
-  Every new candidate model's `configs/<model>/mlx.yaml` must research and
-  cite its actual raw tool-call format (from the model card/creator docs)
-  and set `tool_call_parser:` accordingly — getting this wrong doesn't
-  error, it silently produces zero or hallucinated tool calls.
-
-  **vllm-mlx 0.4.1+ ships native tool-call parsers** (`vllm-mlx serve
-  <model> --enable-auto-tool-choice --tool-call-parser <name>`, a
-  different, richer entry point than the bare `python -m vllm_mlx.server`
-  module invocation used elsewhere in this repo) — but two real bugs/gaps
-  were found in it (the `poolside_v1`/Laguna parser missing from the CLI's
-  `choices=` list — use `--tool-call-parser auto` as the workaround; and a
-  critical streaming-mode bug in the native `qwen3_coder` parser, which is
-  why this benchmark's qwen3_coder MLX numbers use `bench_local_proxy.py`'s
-  own parser instead of the native one). Full story, versions, and the
-  exact reproduction in
-  [`docs/INFERENCE_ENGINES.md`](docs/INFERENCE_ENGINES.md)'s vllm-mlx
-  section — read it before trusting any new native vllm-mlx parser for
-  this benchmark's streaming requests.
+- **MLX**: the **retired** serving engines are `vllm_mlx.server` (vllm-mlx,
+  raw `mlx-lm` serving) and the isolated **oMLX** wrapper — both retired as
+  active lanes 2026-09-04 by user decision; their configs and historical log
+  rows are preserved as evidence, and every `mlx.yaml`/`omlx*.yaml` config is
+  now `orchestration.viable: retired` (skipped by the runner). The supported
+  **active** MLX-family engine is **Mei** (a native Swift/MLX serving stack,
+  `inference_engine: mei`; see the "Mei backend" section below). The proxy
+  notes below remain historically accurate: vllm-mlx had no server-side
+  tool-call parsing (hence this repo's `runner/bench_local_proxy.py`,
+  started via `runner/start_bench_proxy.sh`, listening on port 8015) and its
+  0.4.1+ native `--tool-call-parser` had confirmed bugs. `bench_local_proxy.py`
+  is still used for the two active Llama-GGUF legs that need it
+  (`Laguna-XS-2.1/gguf*.yaml`).
 - **GGUF**: llama.cpp's `llama-server` (installed via `brew install
   llama.cpp`, build 10470), OpenAI-compatible, port 8016 — **no proxy
   needed**, confirmed live: it returns proper `tool_calls` natively for LFM
@@ -332,10 +308,12 @@ fought and respawned):
   be byte-for-byte reproducible, not dependent on whatever happens to be
   latest on a registry that day.
 - **Runner scripts** (Python): `pyproject.toml` declares the control-plane
-  dependencies plus the pinned MLX serving stack; `uv.lock` pins the resolved
-  environment. Set up the project with `uv sync --locked`; uv is the sole
-  benchmark Python workflow, so invoke runner/proxy scripts and vllm-mlx with
-  `uv run --locked ...`. Do not reuse CoCore's Python environment for benchmark
+  dependencies; `uv.lock` pins the resolved environment. Set up the project
+  with `uv sync --locked`; uv is the sole benchmark Python workflow, so invoke
+  runner/proxy scripts with `uv run --locked ...`. (The oMLX/vllm-mlx Python MLX
+  serving stack was removed from the project when those lanes retired 2026-09-04;
+  Mei is a Swift binary and llama.cpp is a C++ binary — neither needs Python
+  serving deps.) Do not reuse CoCore's Python environment for benchmark
   processes. Hermes remains an intentionally
   external CLI and may be selected with `BENCH_HERMES_BIN=/path/to/hermes`.
 - **Every logged result** carries `config_path`, `config_hash` (a sha256
@@ -366,34 +344,51 @@ fought and respawned):
   session and any hermes-spawned agent session): token in
   `~/.cache/huggingface/token` and `HF_TOKEN` exported in `~/.zshrc`.
 
-## Isolated oMLX backend (added 2026-08-21)
+## Mei backend (native Swift/MLX; active lane)
 
-oMLX is a third, first-class framework, not another spelling of `mlx`.
-The pinned 0.6.2 checkout lives under
-`~/.local/share/local-model-bench/omlx-src` at commit
-`f2d36f3d25a7e7a2401a92eecafc28b8f8968ec7`; `runner/bootstrap_omlx.sh` uses
-uv to create/update its dedicated virtualenv. Its model root, base path, port
-8020, logs, and caches do not overlap CoCore, Mara, vllm-mlx, llama.cpp,
-`~/.omlx`, or the project's uv `.venv`. Do not add oMLX or its patched pinned
-MLX stack to `pyproject.toml`; the isolated runtime is intentional.
+Mei is the supported active MLX-family serving engine — a native Swift/MLX
+stack with no Python `mlx-lm` at all (see `~/projects/mei`, which is NOT part
+of this repo and must not be modified from here). It serves an OpenAI-compatible
+`/v1` endpoint on the model's dedicated port (8024–8027; see each `mei.yaml`).
 
-- Start through `runner/start_omlx_server.sh`; it requires an exact local
-  served-directory ID, disables implicit Hugging Face cache discovery, writes
-  validated global/per-model settings, and distinguishes cold, hot-only, and
-  SSD cache modes plus Lightning MTP off/on.
-- Stop through `runner/stop_omlx_server.sh`. `run_bench.py` invokes it in a
-  `finally` path, including identity/load/sanity failures, so no stale Metal
-  model is left on port 8020.
-- A successful `/v1/models` catalog response is not readiness. Require exact
-  served-ID membership, a real plain completion, and
-  `runner/probe_omlx.py`'s streaming/non-streaming schema validation before
-  recording tool-use results.
-- The Qwen/LFM `oQ4e-fp16` / `oQ4-fp16` artifacts are mixed-precision 4-bit
-  oQ models with FP16-preserved tensors, not full-FP16 controls. Keep
-  `quant_family`, `cache_mode`, and `mtp_mode` explicit in every config.
-- Use `uv run --locked python runner/run_bench.py --all --inference-engine omlx` for
-  the sequential oMLX-only matrix. Never launch two local model servers
-  concurrently.
+- The four active Mei configs are `configs/{Gemma-4-26B-A4B, Ornith-1.5-35B-A3B,
+  Qwen3.8-27B, Qwen3.8-27B-Uncensored}/mei.yaml`, all `orchestration.viable: full`.
+  Model weights are staged under
+  `~/.local/share/local-model-bench/mei-models/` (provenance JSON alongside).
+- Launch through `runner/start_mei_server.sh` (builds the pinned Swift package on
+  demand into `~/.local/share/local-model-bench/mei-build-pinned-91fed8be/`),
+  stop through `runner/stop_mei_server.sh`. `run_bench.py` invokes the stop script
+  in a `finally` path, including on identity/load/sanity failures, so no stale
+  Metal model is stranded.
+- A `/v1/models` catalog response is not readiness. Require exact served-ID
+  membership, a real plain completion, and `runner/probe_mei.py`'s
+  streaming/non-streaming schema validation before recording tool-use results
+  (`runner/run_mei_acceptance.py` drives this and records per-config probe JSON
+  under `~/.local/share/local-model-bench/results-mei/<model>/`, never overwriting
+  historical probes).
+- Cold-start discipline: run from clean Mei runtime/cache state per model; the
+  durable benchmark rows are what go in `results/log.jsonl`. A full Mei run is
+  `uv run --locked python runner/run_bench.py --config configs/<model>/mei.yaml`.
+  Never launch two local model servers concurrently.
+
+## Retired lanes: oMLX + vllm-mlx (2026-09-04)
+
+Both legacy MLX serving lanes are retired as active paths by user decision
+(oMLX will not be revisited; active local comparisons are llama.cpp variants +
+Mei only). The former "Isolated oMLX backend" section was removed with the lane:
+
+- every `configs/**/*omlx*.yaml` and `configs/**/mlx.yaml` is
+  `orchestration.viable: retired` (runner skips it) with a `retired_reason`.
+- The oMLX runner scripts that supported the lane were removed
+  (`runner/bootstrap_omlx.sh`, `start_omlx_server.sh`, `stop_omlx_server.sh`,
+  `probe_omlx.py`, `run_omlx_acceptance.py`, `stage_omlx_models.py`) along with
+  the oMLX Python MLX/vllm serving dependencies. All still recoverable from git.
+- Historical `results/log.jsonl` rows and config snapshots for oMLX and vllm-mlx
+  remain fully intact and are still read (backward-compatibly) by
+  `build_leaderboard.py`; they are simply no longer advertised as runnable paths.
+- Engine identity precedence for ACTIVE lanes going forward:
+  `llama.cpp` / `llama.cpp-dflash2` / `llama.cpp-dspark` / `mei` surrounded by the
+  hosted/API baselines (`openrouter`, `hermes-openai-codex`) as references.
 
 ## Killed-task retry hazard (found live 2026-08-20, auto-fixed 2026-08-21)
 

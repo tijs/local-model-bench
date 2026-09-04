@@ -236,6 +236,38 @@ def _blocked_configs():
     return found
 
 
+def _retired_lane_configs():
+    """Configs marked `orchestration.viable: retired` (a whole engine lane —
+    oMLX and vllm-mlx — removed from the active comparison surface 2026-09-04
+    by user decision; those engines are no longer runnable current paths, not
+    merely blocked on a per-model basis). Like _blocked_configs(), scanned
+    directly from `configs/**/*.yaml` rather than log rows: retired configs may
+    or may not have historical log rows (they usually do), but the config file
+    is the durable record of the retirement itself. The configs themselves are
+    kept in place as historical evidence (and repairable via git); they are
+    only no longer *advertised or run*."""
+
+    found = []
+    for path in sorted((REPO / "configs").glob("**/*.yaml")):
+        try:
+            cfg = yaml.safe_load(path.read_text()) or {}
+        except yaml.YAMLError:
+            continue
+        orch = cfg.get("orchestration") or {}
+        if orch.get("viable") != "retired":
+            continue
+        found.append({
+            "model": cfg.get("model", "—"),
+            "inference_engine": cfg.get("inference_engine", "—"),
+            "config_path": str(path.relative_to(REPO)),
+            "retired_reason": orch.get(
+                "retired_reason",
+                "(no retired_reason set — active lanes are llama.cpp variants + Mei as of 2026-09-04)",
+            ),
+        })
+    return found
+
+
 def _speed_gated_configs():
     """Configs that run_bench.py itself stopped early because that
     config's own hermes_ops run averaged under
@@ -938,6 +970,31 @@ def main():
         for b in blocked:
             reason = b["blocked_reason"].replace("|", "\\|").replace("\n", " ")
             lines.append(f"| {b['model']} | {b['inference_engine']} | {b['config_path']} | {reason} |")
+
+    retired = _retired_lane_configs()
+    lines.append("")
+    lines.append("## Retired lanes (historical evidence only — no longer runnable current paths)")
+    lines.append("")
+    lines.append("The oMLX and vllm-mlx engine lanes were retired from the active comparison")
+    lines.append("surface 2026-09-04 by user decision: future local comparisons use llama.cpp")
+    lines.append("variants and Mei only. These configs are kept in place (and historical log rows")
+    lines.append("for them remain visible in every table above) as reproducible evidence, but")
+    lines.append("`orchestration.viable: retired` means the runner skips them — they are not")
+    lines.append("advertised as runnable current paths.")
+    lines.append("")
+    if not retired:
+        lines.append("None currently retired.")
+    else:
+        lines.append("| engine | models (retired configs) | expansion |")
+        lines.append("|---|---|---|")
+        by_engine: dict[str, list[str]] = {}
+        for r in retired:
+            by_engine.setdefault(r["inference_engine"], []).append(r["config_path"])
+        for engine in sorted(by_engine):
+            paths = by_engine[engine]
+            lines.append(
+                f"| {engine} | {len(paths)} configs | {'; '.join(paths)} |"
+            )
 
     speed_gated = _speed_gated_configs()
     lines.append("")

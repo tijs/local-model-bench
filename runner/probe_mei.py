@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Black-box acceptance and performance probes for one isolated Mei model.
 
-Mirrors local-model-bench's runner/probe_omlx.py contract so the same
+Mirrors the retired oMLX probe contract so the same
 validation logic gates Mei: exact /v1/models identity, plain completion,
 structured add-numbers tool calls (non-streaming AND streaming), cache reuse
 reporting, and the exact-token context-cap 65536 pass / 65537 reject gate.

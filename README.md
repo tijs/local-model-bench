@@ -8,19 +8,18 @@ three axes: tool-use reliability, speed, and coding capability under
 realistic agentic conditions, on a Mac Studio (M1 Max, 32GB unified
 memory).
 
-**GGUF/llama.cpp is the primary, proven engine; MLX is an open question
-under active investigation, not a closed one.** vllm-mlx and isolated
-oMLX were both compared against llama.cpp across many models and
-consistently lost by a wide, structural margin. That finding was closed
-out 2026-08-25 — but reopened 2026-08-28 after a specific lead pointed at
-the MLX *serving layer* (not the underlying `mlx-lm` library) as the
-likely cause, which reframes why a third, differently-implemented MLX
-serving engine might behave very differently. See
-[`docs/INFERENCE_ENGINES.md`](docs/INFERENCE_ENGINES.md) for the full,
-current investigation. Until it resolves one way or the other,
-GGUF/llama.cpp remains the safe default for new model additions and
-speed/reliability work; the `mlx.yaml`/`omlx.yaml` configs and harness
-support for both engines stay in the repo either way.
+**Active local comparison engines (as of 2026-09-04): llama.cpp variants
+and Mei.** GGUF/llama.cpp is the primary, proven engine. The MLX serving
+engines were investigated across many models; **oMLX and vllm-mlx were
+retired as active lanes by user decision** (oMLX will not be revisited) —
+their configs and historical `results/log.jsonl` rows are preserved as
+reproducible evidence (kept in `configs/`, still read by the leaderboard),
+but they are not runnable current paths (`orchestration.viable: retired`
+skips them). **Mei** (a native Swift/MLX serving stack, see `~/projects/mei`)
+is the supported active MLX-family lane. See
+[`docs/INFERENCE_ENGINES.md`](docs/INFERENCE_ENGINES.md) for the full engine
+research. New model additions and speed/reliability work default to
+llama.cpp variants and Mei.
 
 This harness (every runner script, config, task, and fix) was built and is
 run by Claude (Anthropic) working autonomously in the terminal, directed
@@ -58,27 +57,26 @@ outcome the speed data already answered.
 - **macOS on Apple Silicon.** MLX only runs there; GGUF/llama.cpp would
   work elsewhere but this repo's launch commands assume Metal.
 - **[uv](https://docs.astral.sh/uv/)** for the Python orchestration scripts.
-  Run `uv sync --locked` to install all project dependencies, including the
-  vllm-mlx serving stack. uv is the sole workflow for every benchmark Python
-  process: invoke runner and proxy scripts with `uv run --locked python ...`,
-  and vllm-mlx serving with `uv run --locked ...`. Set
+  Run `uv sync --locked` to install all project dependencies. uv is the sole
+  workflow for every benchmark Python process: invoke runner and proxy scripts
+  with `uv run --locked python ...`. Set
   `BENCH_HERMES_BIN=/path/to/hermes` only if your external Hermes install
   isn't at `~/.hermes/hermes-agent/venv/bin/hermes`.
 - **`llama.cpp`** (`brew install llama.cpp`) for the `llama.cpp` inference
   engine — the primary one; only prerequisite most people need.
-- **`vllm-mlx` 0.4.1 or newer** for the `vllm-mlx` inference engine, included
-  in the locked project environment. See
-  [`docs/INFERENCE_ENGINES.md`](docs/INFERENCE_ENGINES.md) for its
-  tool-call-parser version history and a real streaming-mode bug to know
-  about. Not required for GGUF-only work; relevant if you're extending the
-  ongoing MLX investigation (see the note at the top of this file).
-- **oMLX 0.6.2** for the isolated `omlx` inference engine. Bootstrap it with
-  `runner/bootstrap_omlx.sh`; that script creates/manages the separate
-  environment under `~/.local/share/local-model-bench/`, pins source commit
-  `f2d36f3d25a7e7a2401a92eecafc28b8f8968ec7`, and never installs oMLX into
-  the project `.venv`, `~/.omlx`, or the CoCore Python environment. See
-  `runner/start_omlx_server.sh`. Same status as vllm-mlx above — not
-  required for GGUF-only work.
+- **Mei** for the `mei` inference engine (native Swift/MLX): a local checkout of
+  the Mei Swift package (`~/projects/mei` by default; see each `mei.yaml`'s
+  `benchmark_launch_command` for the pinned build/scratch-dir). Required only
+  when running the four active Mei configs.
+- **Retired engines (do not install for new work):** `vllm-mlx` (the `vllm-mlx`
+  engine) and **oMLX 0.6.2** (the isolated `omlx` engine) were retired as active
+  lanes 2026-09-04 (oMLX will not be revisited; active local engines are
+  llama.cpp variants + Mei). Their Python MLX serving dependencies were removed
+  from `pyproject.toml`, and their configs are `orchestration.viable: retired`
+  (kept as historical evidence, skipped by the runner). See
+  [`docs/INFERENCE_ENGINES.md`](docs/INFERENCE_ENGINES.md) and
+  [`docs/OMLX_MODEL_MATRIX.md`](docs/OMLX_MODEL_MATRIX.md) for the preserved
+  historical research.
 - **[Hermes](https://hermes-agent.nousresearch.com/docs)** installed
   locally, with an isolated `bench` profile
   (`~/.hermes/profiles/bench/config.yaml`) — this is what the coding-suite

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Start an isolated Mei server for local-model-bench.
 #
-# Conventions mirrored from start_omlx_server.sh: dedicated port (8024),
+# Conventions: dedicated port (8024),
 # dedicated logs/runtime base, pid file at BASE/server.pid, refuses to
 # start when the port is already listening, and never touches the ports or
 # processes of other engines. Builds the pinned Swift package on demand.
