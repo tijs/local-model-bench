@@ -1,0 +1,72 @@
+model: mlx-community/Qwen3.8-27B-4bit
+# Mei — the native Swift/MLX serving engine (see ~/projects/mei). This is the
+# SAME model artifact the repo's vllm-mlx leg (mlx.yaml) serves on port 8018,
+# served on Mei's dedicated port 8025 under the identical served ID so /v1/models
+# identity checks compare like-for-like across engines.
+#
+# Temperature/reasoning mirror configs/Qwen3.8-27B/gguf.yaml (bartowski
+# Q4_K_M leg, temp 1.0, thinking) so the four-model cross-engine comparison
+# holds settings constant.
+temperature: 1.0
+reasoning_mode: thinking
+inference_engine: mei
+mei_commit: 91fed8be21319f92ce5220622c6dcde0b851bdae  # vmlx-swift pin (exact, Mei Package.resolved)
+source_revision: 3e6447f0  # mlx-community/Qwen3.8-27B-4bit commit measured in Mei repo A/B (2026-09-03); provenance.json records pinned_revision main at staging + config_sha256 14b65a0e…
+model_bytes: 16054541349
+quant_family: MLX 4-bit affine g64 (mlx-community, qwen3_5 arch)
+context_cap: 65536
+prefill_step_size: 64
+tool_call_path: native_mei_requires_live_probe
+
+benchmark_launch_command: |
+  bash runner/start_mei_server.sh --model-dir /Users/tijs/.local/share/local-model-bench/mei-models/Qwen3.8-27B-4bit \
+    --served-model-id mlx-community/Qwen3.8-27B-4bit --port 8025 --context-cap 65536 \
+    --prefill-step-size 64 --max-tokens 32768 \
+    --temperature 1.0 --top-p 0.95 --top-k 20 --emit-reasoning true --cache-reuse true
+benchmark_endpoint: http://127.0.0.1:8025/v1
+
+orchestration:
+  raw_port: 8025
+  needs_proxy: false   # native tool_calls required; probe_mei.py gates this.
+  hermes_provider: bench-mei-qwen38   # custom_providers entry created during the run
+  served_model_id: mlx-community/Qwen3.8-27B-4bit
+  viable: full
+
+settings:
+  - name: artifact_identity
+    value: "mlx-community/Qwen3.8-27B-4bit @ 3e6447f0 (16054541349 bytes, 3 safetensors shards, config_sha256 14b65a0ee06517060a6bbd979bb1a8ff54e7b304b1a1f01d54344b88b8285e85) staged at ~/.local/share/local-model-bench/mei-models/Qwen3.8-27B-4bit"
+    source: "mei-models/Qwen3.8-27B-4bit.provenance.json + Mei repo qwen38-gguf-ab-20260904.md (measured revision)."
+  - name: vmlx_swift_pin
+    value: "91fed8be21319f92ce5220622c6dcde0b851bdae (Mei Package.resolved, tijs/vmlx-swift fork)"
+    source: "~/projects/mei/Package.resolved, checked 2026-09-04."
+  - name: quant_family
+    value: "MLX 4-bit affine, group 64 (qwen3_5 architecture; dense 48/64 GDN linear-attention + 16/64 full attention)"
+    source: "Mei-models provenance verify (quant_bits 4, quant_group_size 64, quant_mode affine)."
+  - name: prefill_chunking
+    value: "GenerateParameters.prefillStepSize = 64 — the proven safe config for this model in Mei repo 3x3 decode A/B (15.66 t/s mean short decode, peak 18.87 GB)"
+    source: "Mei repo artifacts/probe-load-q38-4bit-r1..r3-20260902T2004*.json; Kiem note 9edbab1b/9bbbcba6."
+  - name: kv_cache
+    value: "fp16 KV, disposable disk-backed paged KV (no explicit --kv-cache-dir); --kv-bits is a no-op for this hybrid topology (MambaCache/RotatingKVCache)"
+    source: "Mei repo qwen38-gguf-ab-20260904.md; Ornith mei.yaml known_gaps."
+  - name: context_and_generation_caps
+    value: "65536 prompt tokens (exact-cap gate); up to 32768 generated tokens"
+    source: "Mei ServerConfig; probe_mei.py exact-token gate."
+  - name: in_process_kv_reuse
+    value: "exact-extension token-prefix slot; usage.prompt_tokens_details.cached_tokens reports the reused prefix (30k slot-cache reuse 29699/29703 measured on the GGUF leg; Mei MLX 30k loaded decode 11.61/11.76 t/s)"
+    source: "Mei repo qwen38-30k-suffix-retest-20260904.json; local-model-bench GGUF leg notes."
+  - name: native_tool_call_parser
+    value: "must pass both non-streaming and streaming add_numbers schema probes; no benchmark proxy/parser shim allowed"
+    source: "runner/probe_mei.py."
+  - name: cross_engine_parity
+    value: "The vllm-mlx leg (mlx.yaml) is marked viable: blocked from the 2026-08-22 pilot (decode collapse 12.4 -> 0.18 tok/s at 178k prompt). The Mei row is a DIFFERENT engine (native Swift/MLX, chunked prefill + disk KV): no collapse in its own matrix (30k fresh 82.7 pps GGUF vs 55.8 pps MLX; decode 9.29 GGUF vs 15.66 MLX on same-suite A/B). Row remains probe-gated."
+    source: "Mei repo artifacts/qwen38-gguf-ab-20260904.md."
+  - name: quant_vs_gguf_sibling
+    value: "4-bit affine g64 (MLX) vs bartowski Q4_K_M (GGUF) are different quant families; the sorted comparison is model-level, quant caveat recorded as in the Qwen UD-Q5 vs 4-bit Mei repo A/B."
+    source: "Mei repo qwen38-gguf-ab-20260904.md."
+
+known_gaps:
+  - "Live status and artifact paths are recorded in ~/.local/share/local-model-bench/results-mei/ after the acceptance gate; config existence alone is not proof of compatibility."
+  - "KV quantization (--kv-bits) is a no-op for the qwen3_5 hybrid cache topology; fp16 KV fits 64K on this 32 GB machine."
+  - "Metal kernel library (mlx.metallib) is provisioned by scripts/prepare_metallib.sh: the local Xcode lacks the metallib archiver, so the adjacent-version Python mlx wheel metallib is used."
+  - "30k+ prefill is slower than the GGUF leg (55.8 vs 82.7 pps); decode is faster (+68.6%). Neither engine reaches the 30 t/s project target on this 32 GB M1 Max for this dense model (hardware ceiling accepted in Kiem 9edbab1b)."
+last_updated: 2026-09-04

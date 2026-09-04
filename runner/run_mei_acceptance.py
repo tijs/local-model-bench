@@ -55,7 +55,11 @@ def run_config(config_path: Path, args: argparse.Namespace) -> dict[str, Any]:
 
     command = shlex.split(str(cfg["benchmark_launch_command"]))
     base_url = str(cfg.get("benchmark_endpoint", "http://127.0.0.1:8024/v1"))
-    tokenizer = MEI_MODEL_ROOT / model
+    # Staging dirs use short names (e.g. Qwen3.8-27B-4bit) while served model
+    # ids are full hub ids (e.g. mlx-community/Qwen3.8-27B-4bit). Try the
+    # full-id path first, then the basename, so both naming conventions work.
+    tokenizer_candidates = [MEI_MODEL_ROOT / model, MEI_MODEL_ROOT / model.split("/")[-1]]
+    tokenizer = next((p for p in tokenizer_candidates if (p / "config.json").exists()), tokenizer_candidates[1])
     stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
     output_root = (
         Path("~/.local/share/local-model-bench/results-mei").expanduser()

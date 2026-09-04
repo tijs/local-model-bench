@@ -1,0 +1,67 @@
+model: mlx-community/gemma-4-26b-a4b-it-4bit
+# Mei — the native Swift/MLX serving engine (see ~/projects/mei). This is the
+# MLX row for Gemma 4 26B-A4B IT, the first MLX leg in this repo for the
+# Gemma-4-26B-A4B lineup (its siblings are GGUF-only: gguf-apex-i-compact.yaml,
+# gguf-apex-i-quality.yaml). Same base model (google/gemma-4-26B-A4B-it);
+# different quant family from the mudler APEX legs — recorded as a caveat.
+#
+# Temperature/reasoning mirror configs/Gemma-4-26B-A4B/gguf-apex-i-quality.yaml
+# (temp 1.0, reasoning unspecified) so the cross-engine comparison holds
+# settings constant.
+temperature: 1.0
+reasoning_mode: unspecified
+inference_engine: mei
+mei_commit: 91fed8be21319f92ce5220622c6dcde0b851bdae  # vmlx-swift pin (exact, Mei Package.resolved)
+source_revision: main  # resolved at staging 2026-09-01; config_sha256 419e13a2… is the immutable pin
+model_bytes: 15341205776
+quant_family: MLX 4-bit affine g64 (mlx-community, gemma4 arch)
+context_cap: 65536
+prefill_step_size: 256
+tool_call_path: native_mei_requires_live_probe
+
+benchmark_launch_command: |
+  bash runner/start_mei_server.sh --model-dir /Users/tijs/.local/share/local-model-bench/mei-models/gemma-4-26b-a4b-it-4bit \
+    --served-model-id mlx-community/gemma-4-26b-a4b-it-4bit --port 8027 --context-cap 65536 \
+    --prefill-step-size 256 --max-tokens 32768 \
+    --temperature 1.0 --top-p 0.95 --top-k 20 --emit-reasoning true --cache-reuse true
+benchmark_endpoint: http://127.0.0.1:8027/v1
+
+orchestration:
+  raw_port: 8027
+  needs_proxy: false   # native tool_calls required; probe_mei.py gates this.
+  hermes_provider: bench-mei-gemma   # custom_providers entry created during the run
+  served_model_id: mlx-community/gemma-4-26b-a4b-it-4bit
+  viable: full
+
+settings:
+  - name: artifact_identity
+    value: "mlx-community/gemma-4-26b-a4b-it-4bit @ main (resolved 2026-09-01; config_sha256 419e13a27ec359654c1ce7dd06d1a87149fd07d0c8af9f770494185e62e1b2ba), 15341205776 bytes, 3 safetensors shards, staged at ~/.local/share/local-model-bench/mei-models/gemma-4-26b-a4b-it-4bit"
+    source: "mei-models/gemma-4-26b-a4b-it-4bit.provenance.json."
+  - name: vmlx_swift_pin
+    value: "91fed8be21319f92ce5220622c6dcde0b851bdae (Mei Package.resolved, tijs/vmlx-swift fork)"
+    source: "~/projects/mei/Package.resolved, checked 2026-09-04."
+  - name: prefill_chunking
+    value: "GenerateParameters.prefillStepSize = 256 — the proven Gemma config from Mei repo prefill-step sweep (30k decode 7.50/7.52 t/s cold-repeats on the lever matrix; short decode 51.3 t/s, peak mem 24.08 GB)"
+    source: "Mei repo gemma4-30k-decode-lever-matrix-20260904.md, probe-load-gemma4-r3-20260903T015921Z.json."
+  - name: kv_cache
+    value: "fp16 KV; hybrid attention = 25 sliding-window layers (window 1024, ring cap) + 5 full/global layers — KV ~1.5 GB at 64K, does NOT grow with context on the windowed layers. --kv-bits 8 CRASHES this architecture (KVCache.swift:1209 updateQuantized gap, vmlx-side blocker); kv-bits stays none."
+    source: "Mei repo gemma4-30k-decode-lever-matrix-20260904.md (kv-quant leg)."
+  - name: context_and_generation_caps
+    value: "65536 prompt tokens (exact-cap gate); up to 32768 generated tokens"
+    source: "Mei ServerConfig; probe_mei.py exact-token gate."
+  - name: in_process_kv_reuse
+    value: "exact-extension token-prefix slot; usage.prompt_tokens_details.cached_tokens reports the reused prefix"
+    source: "Mei Engine SlotDecision (cache-reuse true); probe cache_repeat probes."
+  - name: native_tool_call_parser
+    value: "must pass both non-streaming and streaming add_numbers schema probes (schema-aware JSON type normalization — plan todo 0b87b76a#7/9 contract); no benchmark proxy/parser shim allowed"
+    source: "runner/probe_mei.py; Mei repo gemma4-tool-api-contract-20260903.md."
+  - name: cross_engine_parity
+    value: "Same-suite GGUF reference leg (mudler APEX-I-Quality, llama.cpp) exists in Mei repo: gguf-ref-gemma4-apexq-20260903.json — caveat: APEX quant vs standard 4-bit affine are different quant recipes; the #14 comparison must call this out (same model, different quant families)."
+    source: "Mei repo gemma4-gguf-ab-20260903.md."
+
+known_gaps:
+  - "Live status and artifact paths are recorded in ~/.local/share/local-model-bench/results-mei/ after the acceptance gate; config existence alone is not proof of compatibility."
+  - "KV quantization (--kv-bits 8) crashes this architecture in pinned vmlx (KVCache.swift:1209); kv-bits none is the only safe option."
+  - "Metal kernel library (mlx.metallib) is provisioned by scripts/prepare_metallib.sh (adjacent-version Python mlx wheel; local Xcode lacks the metallib archiver)."
+  - "30k decode (~7.5 t/s) is far below the 30 t/s project target; short-context decode (51 t/s) is fast. Sliding-window attention cost at 30k context is the dominant cost; lever matrix shows compiled-decode is a silent no-op on this arch and KV-quant crashes — remaining levers are user-gated or exhausted."
+last_updated: 2026-09-04
