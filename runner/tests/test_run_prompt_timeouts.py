@@ -27,6 +27,7 @@ import threading
 import time
 import unittest
 import unittest.mock
+import urllib.error
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -57,13 +58,7 @@ class _SSEHandler(BaseHTTPRequestHandler):
     def log_message(self, *_args):
         return
 
-    def do_POST(self):
-        length = int(self.headers.get("Content-Length", "0"))
-        body = self.rfile.read(length)
-        try:
-            self.server.last_request_body = json.loads(body)
-        except (json.JSONDecodeError, UnicodeDecodeError):
-            pass
+    def _serve_script(self):
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-cache")
@@ -79,11 +74,102 @@ class _SSEHandler(BaseHTTPRequestHandler):
         except (BrokenPipeError, ConnectionResetError, OSError):
             pass
 
+    def do_POST(self):
+        length = int(self.headers.get("Content-Length", "0"))
+        body = self.rfile.read(length)
+        try:
+            self.server.last_request_body = json.loads(body)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            pass
+        self._serve_script()
+
 
 class FakeSSEServer:
     def __init__(self, script):
         self.httpd = ThreadingHTTPServer(("127.0.0.1", 0), _SSEHandler)
         self.httpd.script = script
+        self.httpd.daemon_threads = True
+        self.thread = threading.Thread(target=self.httpd.serve_forever, daemon=True)
+
+    def __enter__(self):
+        self.thread.start()
+        host, port = self.httpd.server_address[:2]
+        return f"http://{host}:{port}/v1"
+
+    def __exit__(self, *_exc):
+        self.httpd.shutdown()
+        self.httpd.server_close()
+
+
+class _FlakySSEHandler(_SSEHandler):
+    """_SSEHandler that, for the first `fail_first` POSTs, sends NO response
+    headers and simply blocks — the exact shape that trips run_prompt.py's
+    "connect" phase (backends that accept the socket then never answer).
+    Subsequent requests are served normally from `script`."""
+
+    def do_POST(self):
+        self.server.request_count = getattr(self.server, "request_count", 0) + 1
+        length = int(self.headers.get("Content-Length", "0"))
+        self.rfile.read(length)
+        if self.server.fail_remaining > 0:
+            self.server.fail_remaining -= 1
+            if self.server.fail_before_headers:
+                time.sleep(60)  # never send headers -> client connect timeout
+            else:
+                self._serve_script()  # headers, but no meaningful event
+            try:
+                self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError, OSError):
+                pass
+            return
+        self._serve_script()
+
+
+class FlakySSEServer:
+    """A FakeSSEServer that drops the first `fail_first` requests (accepts
+    the connection but never answers — a "connect" no-response), then serves
+    `script` normally. Lets a test prove run_prompt.py retries a
+    no-response attempt against the same URL, and count how many requests it
+    actually sent."""
+
+    def __init__(self, script, fail_first, fail_before_headers=True):
+        self.httpd = ThreadingHTTPServer(("127.0.0.1", 0), _FlakySSEHandler)
+        self.httpd.script = script
+        self.httpd.fail_remaining = fail_first
+        self.httpd.fail_before_headers = fail_before_headers
+        self.httpd.request_count = 0
+        self.httpd.daemon_threads = True
+        self.thread = threading.Thread(target=self.httpd.serve_forever, daemon=True)
+
+    def __enter__(self):
+        self.thread.start()
+        host, port = self.httpd.server_address[:2]
+        return f"http://{host}:{port}/v1"
+
+    def __exit__(self, *_exc):
+        self.httpd.shutdown()
+        self.httpd.server_close()
+
+
+class _HTTPErrorHandler(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+
+    def log_message(self, *_args):
+        return
+
+    def do_POST(self):
+        self.server.request_count += 1
+        length = int(self.headers.get("Content-Length", "0"))
+        self.rfile.read(length)
+        self.send_response(503)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+
+class HTTPErrorServer:
+    def __init__(self):
+        self.httpd = ThreadingHTTPServer(("127.0.0.1", 0), _HTTPErrorHandler)
+        self.httpd.request_count = 0
         self.httpd.daemon_threads = True
         self.thread = threading.Thread(target=self.httpd.serve_forever, daemon=True)
 
@@ -304,6 +390,121 @@ class StreamLivenessTests(unittest.TestCase):
             with self.assertRaises(run_prompt.StreamStall):
                 _call(base_url, first_progress_timeout=0.3, timeout=30.0)
             self.assertLess(time.monotonic() - start, 5.0)
+
+
+class NoResponseRetryTests(unittest.TestCase):
+    """Bounded, pre-response-only retry for a model that never answers
+    (2026-09-04). run_prompt.py may re-issue one HTTP turn ONLY while no
+    meaningful SSE event / response body has begun — a connect-phase
+    no-answer, or a first_progress stall with zero meaningful bytes. It must
+    NEVER retry mid-stream (stream_idle / turn_total, once a response has
+    begun), and each retry is strictly sequential (the previous attempt's
+    socket is fully torn down first), so a retry never becomes a second
+    concurrent backend request."""
+
+    def _single(self, base_url, connect_timeout, no_response_retries, retry_delay,
+                first_progress_timeout=5.0, stream_idle_timeout=5.0, timeout=20.0):
+        return run_prompt.call_backend_streaming(
+            base_url, "fake-model", [{"role": "user", "content": "hi"}], None, 0,
+            timeout, 64,
+            connect_timeout=connect_timeout,
+            first_progress_timeout=first_progress_timeout,
+            stream_idle_timeout=stream_idle_timeout,
+            no_response_retries=no_response_retries,
+            retry_delay=retry_delay,
+        )
+
+    def test_connect_no_answer_is_retried_once_then_recovers(self):
+        script = [
+            (0.02, f"data: {_chunk(content='hello there')}\n\n".encode()),
+            (0.02, b"data: [DONE]\n\n"),
+        ]
+        server = FlakySSEServer(script, fail_first=1)
+        with server as base_url:
+            resp, _ttft = self._single(
+                base_url, connect_timeout=0.3, no_response_retries=1, retry_delay=0.05,
+            )
+        self.assertEqual(resp["choices"][0]["message"]["content"], "hello there")
+        # The first (dropped) attempt AND the successful retry were both sent.
+        self.assertGreaterEqual(server.httpd.request_count, 2)
+
+    def test_connect_no_answer_with_retries_exhausted_reports_connect_phase(self):
+        # One retry (no_response_retries=1) but the backend drops the first
+        # TWO requests: the turn still fails as a bounded "connect" timeout —
+        # never an unbounded hang, never a different classification.
+        script = [
+            (0.02, f"data: {_chunk(content='hello there')}\n\n".encode()),
+            (0.02, b"data: [DONE]\n\n"),
+        ]
+        server = FlakySSEServer(script, fail_first=2)
+        with server as base_url:
+            with self.assertRaises(run_prompt.StreamStall) as ctx:
+                self._single(
+                    base_url, connect_timeout=0.3, no_response_retries=1, retry_delay=0.05,
+                )
+        self.assertEqual(ctx.exception.phase, "connect")
+        self.assertEqual(server.httpd.request_count, 2)
+
+    def test_no_retry_once_a_meaningful_event_has_begun(self):
+        # A partial content event then silence = stream_idle, a response HAS
+        # begun. Even with retries configured, this must NOT be retried — the
+        # turn is a genuine mid-stream stall, not a no-response.
+        script = [
+            (0.02, f"data: {_chunk(content='partial')}\n\n".encode()),
+            (30.0, None),
+        ]
+        server = FlakySSEServer(script, fail_first=0)
+        with server as base_url:
+            with self.assertRaises(run_prompt.StreamStall) as ctx:
+                self._single(
+                    base_url, connect_timeout=0.3, no_response_retries=3, retry_delay=0.05,
+                    stream_idle_timeout=0.4,
+                )
+        self.assertEqual(ctx.exception.phase, "stream_idle")
+        self.assertEqual(server.httpd.request_count, 1)
+
+    def test_first_progress_no_meaningful_bytes_is_retried(self):
+        # Headers received but nothing meaningful (kept-alive-but-silent) is
+        # still a no-response: retry it, don't give up on a lonely backend.
+        script = [
+            (30.0, None),  # silent prefill, no meaningful event
+        ]
+        server = FlakySSEServer(script, fail_first=2, fail_before_headers=False)
+        # The script above sends a 200 then nothing meaningful; every attempt
+        # hits the first_progress budget. First attempt fails, retry also
+        # fails -> bounded first_progress, and more than one request sent.
+        with server as base_url:
+            with self.assertRaises(run_prompt.StreamStall) as ctx:
+                self._single(
+                    base_url, connect_timeout=5.0, no_response_retries=1, retry_delay=0.05,
+                    first_progress_timeout=0.4,
+                )
+        self.assertEqual(ctx.exception.phase, "first_progress")
+        self.assertEqual(server.httpd.request_count, 2)
+
+    def test_http_error_is_not_retried_as_no_response(self):
+        # An HTTP error is an actual response from the backend, not a
+        # no-response startup failure. It must preserve the existing error
+        # behavior and make exactly one request.
+        server = HTTPErrorServer()
+        with server as base_url:
+            with self.assertRaises(urllib.error.HTTPError):
+                self._single(
+                    base_url, connect_timeout=1.0, no_response_retries=3, retry_delay=0,
+                )
+        self.assertEqual(server.httpd.request_count, 1)
+
+    def test_retry_limits_are_bounded(self):
+        with self.assertRaises(ValueError):
+            self._single(
+                "http://127.0.0.1:1/v1", connect_timeout=0.1,
+                no_response_retries=4, retry_delay=0,
+            )
+        with self.assertRaises(ValueError):
+            self._single(
+                "http://127.0.0.1:1/v1", connect_timeout=0.1,
+                no_response_retries=0, retry_delay=30.1,
+            )
 
 
 class EndToEndStallTests(unittest.TestCase):
@@ -575,6 +776,32 @@ class SuiteIntegrationTests(unittest.TestCase):
             self._run_suite(base_url)
         after = real_log.stat().st_size if real_log.exists() else None
         self.assertEqual(before, after)
+
+    def test_suite_no_response_retries_config_is_passed_through(self):
+        # The suite spec sets no_response_retries=0 (retry DISABLED) and the
+        # backend drops the first request, so the task must fail with a
+        # connect timeout after exactly ONE request — proving run_prompt_suite.py
+        # forwarded the spec value to run_prompt.py. If it silently dropped the
+        # field, run_prompt.py's default of 1 retry would recover this same
+        # scenario into a PASS (and the harness bug would be invisible).
+        script = [
+            (0.02, f"data: {_chunk(content='hello there')}\n\n".encode()),
+            (0.02, b"data: [DONE]\n\n"),
+        ]
+        self._write_suite(
+            no_response_retries=0,
+            connect_timeout_seconds=2,
+        )
+        server = FlakySSEServer(script, fail_first=1)
+        with server as base_url:
+            rows = self._run_suite(base_url)
+        row = rows[0]
+        self.assertFalse(row["pass"])
+        self.assertEqual(row["timeout_phase"], "connect")
+        self.assertEqual(server.httpd.request_count, 1)
+        # Not a harness error — run_prompt.py reported the engine no-answer
+        # cleanly through its normal classified-error path.
+        self.assertFalse(row["harness_error"])
 
 
 class SuiteBudgetDefaultsTests(unittest.TestCase):

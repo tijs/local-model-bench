@@ -93,6 +93,30 @@ DEFAULT_CONNECT_TIMEOUT = 60.0
 DEFAULT_FIRST_PROGRESS_TIMEOUT = 600.0
 DEFAULT_STREAM_IDLE_TIMEOUT = 300.0
 
+# Bounded no-response retry (2026-09-04): a backend that never answers at all
+# (connect) — or sends headers but nothing MEANINGFUL (first_progress) — is
+# re-issued up to `no_response_retries` additional times, so a single dropped
+# connection or a lonely prefill no longer scores a model as a failure. Both
+# phases are BEFORE any meaningful SSE event/response body has begun, which is
+# the ONLY condition under which a retry is legal here: once a content/tool/
+# finish_reason/[DONE] delta has started (stream_idle/turn_total) the turn is
+# a real mid-stream response and is NEVER retried. Each retry is strictly
+# sequential — the previous attempt's socket is fully torn down before the
+# next is opened — so a retry can never become a second concurrent backend
+# request. Both knobs are bounded and configurable via CLI / suite spec.
+DEFAULT_NO_RESPONSE_RETRIES = 1
+DEFAULT_RETRY_DELAY_SECONDS = 2.0
+MAX_NO_RESPONSE_RETRIES = 3
+MAX_RETRY_DELAY_SECONDS = 30.0
+
+
+class InitialNoResponse(Exception):
+    """The backend failed before returning an HTTP response."""
+
+    def __init__(self, cause):
+        self.cause = cause
+        super().__init__(str(cause))
+
 
 class StreamStall(Exception):
     """One HTTP turn ran out of one of its liveness/total budgets.
@@ -340,7 +364,9 @@ def guardrail_warning(tool_history, name, args_key, warned):
 def call_backend_streaming(base_url, model, messages, tools, temperature, timeout, max_tokens,
                            api_key=None, connect_timeout=DEFAULT_CONNECT_TIMEOUT,
                            first_progress_timeout=DEFAULT_FIRST_PROGRESS_TIMEOUT,
-                           stream_idle_timeout=DEFAULT_STREAM_IDLE_TIMEOUT):
+                           stream_idle_timeout=DEFAULT_STREAM_IDLE_TIMEOUT,
+                           no_response_retries=DEFAULT_NO_RESPONSE_RETRIES,
+                           retry_delay=DEFAULT_RETRY_DELAY_SECONDS):
     """Streams the response so we can measure real time-to-first-token
     (TTFT) — separate from total wall time, since a big fixed system prompt
     mostly costs prefill time, not generation time. Reassembles the stream
@@ -354,124 +380,178 @@ def call_backend_streaming(base_url, model, messages, tools, temperature, timeou
     socket inactivity timeout, which could never bound a turn at all —
     see the module-level budget block). The liveness budgets are layered
     on top of it and always clamped by it: no budget can extend a turn
-    past its total deadline."""
-    body = {
-        "model": model,
-        "messages": messages,
-        "temperature": temperature,
-        "max_tokens": max_tokens,
-        "stream": True,
-        "stream_options": {"include_usage": True},
-    }
-    if tools:
-        body["tools"] = tools
-    headers = {"Content-Type": "application/json"}
-    if api_key:
-        headers["Authorization"] = f"Bearer {api_key}"
-    req = urllib.request.Request(
-        f"{base_url.rstrip('/')}/chat/completions",
-        data=json.dumps(body).encode("utf-8"),
-        headers=headers,
-        method="POST",
-    )
+    past its total deadline.
 
-    start = time.time()
-    mono_start = time.monotonic()
-    total_deadline = mono_start + timeout
-    ttft = None
-    content_parts = []
-    tool_calls_acc = {}
-    usage = {}
-    finish_reason = None
-
-    # The connect budget covers TCP connect + request send + response
-    # headers, and is clamped to the turn's own total budget so a short
-    # total can never be overrun waiting for headers. urlopen() raises
-    # TimeoutError here for a backend that accepts the socket and then
-    # says nothing — translated into an explicit "connect" phase rather
-    # than the generic "request failed" every timeout used to produce.
-    try:
-        resp = urllib.request.urlopen(req, timeout=min(connect_timeout, timeout))
-    except TimeoutError as exc:
-        raise StreamStall("connect", min(connect_timeout, timeout), min(connect_timeout, timeout)) from exc
-
-    # contextlib.closing, not a bare `for`: breaking out of the loop on
-    # [DONE] must run the generator's own finally (which closes the HTTP
-    # response and unblocks its reader thread) deterministically, not
-    # whenever the generator happens to be collected.
-    events = _read_sse_events(resp, total_deadline, first_progress_timeout, stream_idle_timeout)
-    with contextlib.closing(events):
-        for data, _meaningful in events:
-            if data == "[DONE]":
-                break
-            chunk = json.loads(data)
-            if chunk.get("usage"):
-                usage = chunk["usage"]
-            choices = chunk.get("choices") or []
-            if not choices:
-                continue
-            delta = choices[0].get("delta", {})
-            if delta.get("content") or delta.get("tool_calls"):
-                if ttft is None:
-                    ttft = time.time() - start
-            if delta.get("content"):
-                content_parts.append(delta["content"])
-            for tc_delta in delta.get("tool_calls") or []:
-                # Flagged by a 3rd adversarial review (low finding): if a
-                # backend ever streamed TWO parallel tool calls without an
-                # "index" field on either delta, both would collapse into
-                # tool_calls_acc[0] and their names/arguments would
-                # concatenate into one garbled call. Accepted as a known
-                # limitation rather than patched: "index" is part of
-                # OpenAI's streaming tool_calls delta spec and every
-                # backend actually configured in this repo
-                # (llama-server/vllm-mlx, proxied or not) includes it —
-                # confirmed by inspecting live streamed responses during
-                # this session, no index-less parallel-call case observed.
-                # A backend that genuinely omits it would ALSO be giving
-                # this code no way to tell two calls apart after the fact,
-                # so there's no purely-code fix that recovers information
-                # the stream never sent.
-                idx = tc_delta.get("index", 0)
-                if idx not in tool_calls_acc:
-                    tool_calls_acc[idx] = {"id": tc_delta.get("id"), "type": "function", "function": {"name": "", "arguments": ""}}
-                if tc_delta.get("id"):
-                    tool_calls_acc[idx]["id"] = tc_delta["id"]
-                fn_delta = tc_delta.get("function") or {}
-                if fn_delta.get("name"):
-                    tool_calls_acc[idx]["function"]["name"] += fn_delta["name"]
-                if fn_delta.get("arguments"):
-                    tool_calls_acc[idx]["function"]["arguments"] += fn_delta["arguments"]
-            if choices[0].get("finish_reason"):
-                finish_reason = choices[0]["finish_reason"]
-
-    message = {"role": "assistant", "content": "".join(content_parts) or None}
-    if tool_calls_acc:
-        message["tool_calls"] = [tool_calls_acc[i] for i in sorted(tool_calls_acc)]
-
-    usage_estimated = False
-    if not usage.get("prompt_tokens") and not usage.get("completion_tokens"):
-        # This backend never sends a usage chunk during streaming (confirmed
-        # live — stream_options.include_usage is a no-op here), even though
-        # the non-streaming endpoint reports it accurately. Fall back to a
-        # rough ~4-chars-per-token estimate rather than silently reporting 0.
-        usage_estimated = True
-        prompt_chars = sum(len(json.dumps(m)) for m in messages)
-        if tools:
-            prompt_chars += len(json.dumps(tools))
-        completion_chars = len("".join(content_parts)) + sum(
-            len(tc["function"]["arguments"]) + len(tc["function"]["name"]) for tc in tool_calls_acc.values()
+    *no_response_retries* and *retry_delay* bound the no-response retry
+    (2026-09-04): a turn that stalls in the "connect" or "first_progress"
+    phase — i.e. BEFORE any meaningful SSE event/response body has begun —
+    may be re-issued up to *no_response_retries* ADDITIONAL times (default
+    1), sleeping *retry_delay* seconds between attempts. Both are bounded
+    and configurable from the CLI / suite spec. Once a meaningful response
+    has begun (stream_idle / turn_total) a turn is NEVER retried, and each
+    retry is strictly sequential — the aborted attempt's socket is fully
+    torn down first — so a retry can never become a second concurrent
+    backend request.
+    """
+    if (isinstance(no_response_retries, bool)
+            or not isinstance(no_response_retries, int)
+            or not 0 <= no_response_retries <= MAX_NO_RESPONSE_RETRIES):
+        raise ValueError(
+            f"no_response_retries must be an integer between 0 and {MAX_NO_RESPONSE_RETRIES}"
         )
-        usage = {
-            "prompt_tokens": max(1, prompt_chars // 4),
-            "completion_tokens": max(1, completion_chars // 4),
-        }
+    if not 0 <= retry_delay <= MAX_RETRY_DELAY_SECONDS:
+        raise ValueError(
+            f"retry_delay must be between 0 and {MAX_RETRY_DELAY_SECONDS} seconds"
+        )
 
-    return {
-        "choices": [{"message": message, "finish_reason": finish_reason}],
-        "usage": usage,
-        "usage_estimated": usage_estimated,
-    }, ttft
+    def _attempt_once():
+        body = {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "stream": True,
+            "stream_options": {"include_usage": True},
+        }
+        if tools:
+            body["tools"] = tools
+        headers = {"Content-Type": "application/json"}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+        req = urllib.request.Request(
+            f"{base_url.rstrip('/')}/chat/completions",
+            data=json.dumps(body).encode("utf-8"),
+            headers=headers,
+            method="POST",
+        )
+
+        start = time.time()
+        mono_start = time.monotonic()
+        total_deadline = mono_start + timeout
+        ttft = None
+        content_parts = []
+        tool_calls_acc = {}
+        usage = {}
+        finish_reason = None
+
+        # The connect budget covers TCP connect + request send + response
+        # headers, and is clamped to the turn's own total budget so a short
+        # total can never be overrun waiting for headers. urlopen() raises
+        # TimeoutError here for a backend that accepts the socket and then
+        # says nothing — translated into an explicit "connect" phase rather
+        # than the generic "request failed" every timeout used to produce.
+        try:
+            resp = urllib.request.urlopen(req, timeout=min(connect_timeout, timeout))
+        except TimeoutError as exc:
+            raise StreamStall("connect", min(connect_timeout, timeout), min(connect_timeout, timeout)) from exc
+        except urllib.error.HTTPError:
+            # An HTTP status is already a response from the backend; do not
+            # mistake authentication, validation, or server errors for a
+            # model that never answered.
+            raise
+        except urllib.error.URLError as exc:
+            raise InitialNoResponse(exc) from exc
+
+        # contextlib.closing, not a bare `for`: breaking out of the loop on
+        # [DONE] must run the generator's own finally (which closes the HTTP
+        # response and unblocks its reader thread) deterministically, not
+        # whenever the generator happens to be collected.
+        events = _read_sse_events(resp, total_deadline, first_progress_timeout, stream_idle_timeout)
+        with contextlib.closing(events):
+            for data, _meaningful in events:
+                if data == "[DONE]":
+                    break
+                chunk = json.loads(data)
+                if chunk.get("usage"):
+                    usage = chunk["usage"]
+                choices = chunk.get("choices") or []
+                if not choices:
+                    continue
+                delta = choices[0].get("delta", {})
+                if delta.get("content") or delta.get("tool_calls"):
+                    if ttft is None:
+                        ttft = time.time() - start
+                if delta.get("content"):
+                    content_parts.append(delta["content"])
+                for tc_delta in delta.get("tool_calls") or []:
+                    # Flagged by a 3rd adversarial review (low finding): if a
+                    # backend ever streamed TWO parallel tool calls without an
+                    # "index" field on either delta, both would collapse into
+                    # tool_calls_acc[0] and their names/arguments would
+                    # concatenate into one garbled call. Accepted as a known
+                    # limitation rather than patched: "index" is part of
+                    # OpenAI's streaming tool_calls delta spec and every
+                    # backend actually configured in this repo
+                    # (llama-server/vllm-mlx, proxied or not) includes it —
+                    # confirmed by inspecting live streamed responses during
+                    # this session, no index-less parallel-call case observed.
+                    # A backend that genuinely omits it would ALSO be giving
+                    # this code no way to tell two calls apart after the fact,
+                    # so there's no purely-code fix that recovers information
+                    # the stream never sent.
+                    idx = tc_delta.get("index", 0)
+                    if idx not in tool_calls_acc:
+                        tool_calls_acc[idx] = {"id": tc_delta.get("id"), "type": "function", "function": {"name": "", "arguments": ""}}
+                    if tc_delta.get("id"):
+                        tool_calls_acc[idx]["id"] = tc_delta["id"]
+                    fn_delta = tc_delta.get("function") or {}
+                    if fn_delta.get("name"):
+                        tool_calls_acc[idx]["function"]["name"] += fn_delta["name"]
+                    if fn_delta.get("arguments"):
+                        tool_calls_acc[idx]["function"]["arguments"] += fn_delta["arguments"]
+                if choices[0].get("finish_reason"):
+                    finish_reason = choices[0]["finish_reason"]
+
+        message = {"role": "assistant", "content": "".join(content_parts) or None}
+        if tool_calls_acc:
+            message["tool_calls"] = [tool_calls_acc[i] for i in sorted(tool_calls_acc)]
+
+        usage_estimated = False
+        if not usage.get("prompt_tokens") and not usage.get("completion_tokens"):
+            # This backend never sends a usage chunk during streaming (confirmed
+            # live — stream_options.include_usage is a no-op here), even though
+            # the non-streaming endpoint reports it accurately. Fall back to a
+            # rough ~4-chars-per-token estimate rather than silently reporting 0.
+            usage_estimated = True
+            prompt_chars = sum(len(json.dumps(m)) for m in messages)
+            if tools:
+                prompt_chars += len(json.dumps(tools))
+            completion_chars = len("".join(content_parts)) + sum(
+                len(tc["function"]["arguments"]) + len(tc["function"]["name"]) for tc in tool_calls_acc.values()
+            )
+            usage = {
+                "prompt_tokens": max(1, prompt_chars // 4),
+                "completion_tokens": max(1, completion_chars // 4),
+            }
+
+        return {
+            "choices": [{"message": message, "finish_reason": finish_reason}],
+            "usage": usage,
+            "usage_estimated": usage_estimated,
+        }, ttft
+
+    # Bounded no-response retry. A StreamStall from _attempt_once() has already
+    # had its response socket torn down (the SSE generator's finally ran), so
+    # the next attempt is strictly sequential — at no point are two HTTP turns
+    # in flight. Only a "connect" (never answered) or "first_progress" (headers
+    # but nothing meaningful) stall is retried, because only those happen
+    # BEFORE a meaningful SSE event/response body has begun; stream_idle /
+    # turn_total mean a response was underway and are surfaced straight through
+    # with their original phase classification.
+    total_attempts = no_response_retries + 1
+    for attempt in range(total_attempts):
+        try:
+            return _attempt_once()
+        except InitialNoResponse as exc:
+            if attempt < total_attempts - 1:
+                time.sleep(retry_delay)
+                continue
+            raise exc.cause
+        except StreamStall as exc:
+            if exc.phase in ("connect", "first_progress") and attempt < total_attempts - 1:
+                time.sleep(retry_delay)
+                continue
+            raise
 
 
 def main():
@@ -499,6 +579,13 @@ def main():
                      help="budget between two MEANINGFUL SSE events "
                           f"(default {DEFAULT_STREAM_IDLE_TIMEOUT:.0f}s) — the watchdog that "
                           "actually catches a stalled response, in minutes rather than hours")
+    ap.add_argument("--no-response-retries", type=int, default=DEFAULT_NO_RESPONSE_RETRIES,
+                    help="additional sequential retries before any meaningful response event "
+                         f"(default {DEFAULT_NO_RESPONSE_RETRIES}, maximum {MAX_NO_RESPONSE_RETRIES}); "
+                         "mid-stream stalls are never retried")
+    ap.add_argument("--retry-delay", type=float, default=DEFAULT_RETRY_DELAY_SECONDS,
+                    help="seconds between initial no-response retries "
+                         f"(default {DEFAULT_RETRY_DELAY_SECONDS:g}, maximum {MAX_RETRY_DELAY_SECONDS:g})")
     ap.add_argument("--max-tokens", type=int, default=4096,
                      help="per-turn completion cap sent as the request's max_tokens "
                           "(default 4096, matching the bench profile's own cap in "
@@ -510,6 +597,14 @@ def main():
                           "APIs (e.g. OPENROUTER_API_KEY) — the value is read from "
                           "this process's own environment, never passed as a CLI arg")
     args = ap.parse_args()
+    if not 0 <= args.no_response_retries <= MAX_NO_RESPONSE_RETRIES:
+        ap.error(
+            f"--no-response-retries must be between 0 and {MAX_NO_RESPONSE_RETRIES}"
+        )
+    if not 0 <= args.retry_delay <= MAX_RETRY_DELAY_SECONDS:
+        ap.error(
+            f"--retry-delay must be between 0 and {MAX_RETRY_DELAY_SECONDS:g} seconds"
+        )
 
     api_key = os.environ.get(args.api_key_env) if args.api_key_env else None
     if args.api_key_env and not api_key:
@@ -547,6 +642,8 @@ def main():
                 connect_timeout=args.connect_timeout,
                 first_progress_timeout=args.first_progress_timeout,
                 stream_idle_timeout=args.stream_idle_timeout,
+                no_response_retries=args.no_response_retries,
+                retry_delay=args.retry_delay,
             )
             if ttft_seconds is None:
                 ttft_seconds = turn_ttft

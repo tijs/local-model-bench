@@ -133,6 +133,8 @@ def main():
     connect_timeout = task_spec.get("connect_timeout_seconds")
     first_progress_timeout = task_spec.get("first_progress_timeout_seconds")
     stream_idle_timeout = task_spec.get("stream_idle_timeout_seconds")
+    no_response_retries = task_spec.get("no_response_retries")
+    retry_delay = task_spec.get("retry_delay_seconds")
     # Default keeps the old derived value for suites that never came close
     # to it (sanity: 60*40+60 = 2460s), but caps it so no suite can
     # silently inherit the ~11-hour ceiling hermes_ops used to have.
@@ -228,6 +230,10 @@ def main():
                         cmd += ["--first-progress-timeout", str(first_progress_timeout)]
                     if stream_idle_timeout is not None:
                         cmd += ["--stream-idle-timeout", str(stream_idle_timeout)]
+                    if no_response_retries is not None:
+                        cmd += ["--no-response-retries", str(no_response_retries)]
+                    if retry_delay is not None:
+                        cmd += ["--retry-delay", str(retry_delay)]
                     # Bounded by an EXPLICIT task budget, terminated as a
                     # process group, with partial output preserved — see
                     # run_with_task_deadline() and
