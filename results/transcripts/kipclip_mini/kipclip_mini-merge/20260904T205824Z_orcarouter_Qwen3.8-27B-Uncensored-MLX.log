@@ -1,0 +1,22 @@
+$ hermes chat --profile bench --provider bench-mei-heretic -m orcarouter/Qwen3.8-27B-Uncensored-MLX --max-turns 40
+
+--- stdout ---
+Fixed. All 8 tests pass and `deno check` is clean.
+
+**Root cause** (`src/import_merge.ts:7`): duplicate detection used a strict string compare `b.url === inc.url`, so `https://EXAMPLE.com/a` ≠ `https://example.com/a` and the bookmark was appended instead of merged. The project already had the canonical URL normalizer — `normalizeUrl()` in `src/url_utils.ts`, which lowercases the hostname (plus strips tracking params) — but `import_merge.ts` never used it.
+
+**Fix**: route both sides of the comparison through a `urlKey()` helper that applies `normalizeUrl()`, with a try/catch falling back to the raw string for unparseable URLs (preserves the old exact-compare behavior there). Matching still keeps the existing entry and unions tags; the incoming `url` itself is left untouched on append.
+
+**Verified** (real `deno test` output in the run root):
+- New test `tests/import_merge.test.ts`, 5 cases: hostname-case-only difference merges (the reported bug) → 1 entry, existing id kept, tags unioned; non-matching URL appended; exact-match merge (regression guard); tracking-param difference also merges; inputs not mutated. All pass.
+- Existing `bookmarks` + `tag_utils` tests still pass (8 total, 0 failed); `deno check` over all `src/**` and `tests/**` exits clean.
+
+Files touched: `src/import_merge.ts` (fixed), `tests/import_merge.test.ts` (new).
+
+One side effect worth noting: because the fix uses the shared normalizer, the fix also merges URL pairs that differ only by tracking params (e.g. `?utm_source=rss`) — that's consistent with the normalizer's documented purpose, but it goes slightly beyond the reported case-sensitivity bug. If you'd prefer strict hostname-case-only matching, say so and I'll narrow it to `u.hostname` lowercasing only.
+
+
+--- stderr ---
+
+session_id: 20260904_224801_8f6ee6
+
