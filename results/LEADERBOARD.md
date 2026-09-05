@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/2197 rows below predate 2026-08-21
+> **⚠ 138/2220 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -233,13 +233,15 @@ added explicitly to record that default rather than leave it invisible.
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | omlx | — | 0.7 | instruct | n/a | 2/2 | [08e51e50397d](configs/08e51e50397d.yaml) — *config since changed* | e155170f4c1d | 8 | 12% | 0 | 2.9 | 79.16 | 0 | — | 0 | 11.5 | MLX 4-bit | cold | off |
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | omlx | — | 0.7 | instruct | n/a | 1/2 | [08e51e50397d](configs/08e51e50397d.yaml) — *config since changed* | fc71ba2c66f8+dirty | 0 | n/a (all harness errors) | 0 | 13.1 | 0.80 | 0 | — | 0 | — | MLX 4-bit | cold | off |
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | vllm-mlx | — | 0.7 | instruct | n/a | 2/2 | [fe9f7a44a702](configs/fe9f7a44a702.yaml) — *config since changed* | c17e058823c1 | 8 | 75% | 4 | 2.9 | n/a (proxied — not real TTFT) | 0 | — | 0 | 7.2 | — | — | — |
+| mlx-community/Qwen3.8-27B-4bit | mei | — | 1.0 | thinking | n/a | 2/2 | [d23c67ad6d2d](configs/d23c67ad6d2d.yaml) — *config since changed* | 3496bdf4e3aa | 11 | 55% | 6 | 5.1 | 293.24 | 2 | 5.7 | 1 | 1.8 | MLX 4-bit affine g64 (mlx-community, qwen3_5 arch) | — | — |
 | mlx-community/Qwen3.8-27B-4bit | mlx | — | ? | ? | ? | 2/2 | [152424abaa13](configs/Qwen3.8-27B/mlx.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 100% | 0 | 3.1 | 198.83 | 0 | — | 0 | — | ? | ? | ? |
 | mlx-community/Qwen3.8-27B-4bit | mlx | — | 1.0 | thinking | n/a | 2/2 | [968652aede2d](configs/968652aede2d.yaml) — *config since changed* | 69e4b1fd937f | 3 | 67% | 2 | 3.6 | 198.67 | 1 | — | 0 | 1.6 | — | — | — |
 | mlx-community/Qwen3.8-27B-4bit | mlx | — | ? | ? | ? | 2/2 | [bbaa3dfa1953](configs/Qwen3.8-27B/mlx.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 0 | n/a (all harness errors) | 0 | 8.6 | 3.76 | 0 | — | 0 | — | ? | ? | ? |
 | mlx-community/Qwen3.8-27B-4bit | mlx | — | ? | ? | ? | — | [f894953f1f80](configs/Qwen3.8-27B/mlx.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 4 | 75% | 0 | 0.3 | 337.71 | 0 | — | 0 | — | ? | ? | ? |
 | mlx-community/Qwen3.8-27B-4bit | omlx | — | 1.0 | thinking | n/a | 2/2 | [1eec0081c5d6](configs/1eec0081c5d6.yaml) — *config since changed* | fc71ba2c66f8+dirty | 3 | 0% | 0 | 3.4 | 5.65 | 0 | — | 0 | — | MLX 4-bit | cold | off |
 | mlx-community/Qwen3.8-27B-4bit | omlx | — | 1.0 | thinking | n/a | 2/2 | [3fbfdcc4ec02](configs/3fbfdcc4ec02.yaml) — *config since changed* | 24d38de98cb4 | 8 | 0% | 0 | 1.7 | 4.97 | 0 | — | 0 | 9.1 | MLX 4-bit | cold | off |
-| mlx-community/gemma-4-26b-a4b-it-4bit | mei | — | 1.0 | unspecified | n/a | 2/2 | [c9417ad40f57](configs/c9417ad40f57.yaml) | b293b2de057f | 8 | 75% | 0 | 3.9 | 53.68 | 0 | — | 0 | 2.7 | MLX 4-bit affine g64 (mlx-community, gemma4 arch) | — | — |
+| mlx-community/gemma-4-26b-a4b-it-4bit | mei | — | 1.0 | unspecified | n/a | 2/2 | [bc93f3cc55a1](configs/bc93f3cc55a1.yaml) | 06f997b70746 | 8 | 75% | 0 | 4.2 | 53.56 | 0 | — | 0 | 2.7 | MLX 4-bit affine g64 (mlx-community, gemma4 arch) | — | — |
+| mlx-community/gemma-4-26b-a4b-it-4bit | mei | — | 1.0 | unspecified | n/a | 2/2 | [c9417ad40f57](configs/c9417ad40f57.yaml) — *config since changed* | b293b2de057f | 8 | 75% | 0 | 3.9 | 53.68 | 0 | — | 0 | 2.7 | MLX 4-bit affine g64 (mlx-community, gemma4 arch) | — | — |
 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | — | 0.6 | unspecified | n/a | 2/2 | [7b0652d1fb9e](configs/7b0652d1fb9e.yaml) | 4fd562e5fb7b | 19 | 100% | 4 | 28.6 | 7.12 | 0 | 17.5 | 28 | 22.0 | — | — | — |
 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | — | 0.6 | unspecified | n/a | 4/4 | [7b0652d1fb9e](configs/7b0652d1fb9e.yaml) | 755dc7f4b2a3 | 30 | 93% | 2 | 28.7 | 7.11 | 0 | 16.1 | 34 | 20.8 | — | — | — |
 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | — | 0.6 | unspecified | n/a | 2/2 | [7b0652d1fb9e](configs/7b0652d1fb9e.yaml) | 9df216e99cd9 | 23 | 87% | 3 | 25.6 | 10.29 | 0 | 15.3 | 28 | 18.9 | — | — | — |
@@ -252,8 +254,8 @@ added explicitly to record that default rather than leave it invisible.
 | openai/gpt-5.6-luna | openrouter | — | None | unspecified | n/a | 2/2 | [f1e3043189f3](configs/f1e3043189f3.yaml) | 1e67356823c2 | 9 | 100% | 0 | 35.5 | 4.80 | 0 | — | 0 | — | — | — | — |
 | openai/gpt-5.6-luna | openrouter | — | None | unspecified | n/a | — | [f1e3043189f3](configs/f1e3043189f3.yaml) | 20ce58c43993+dirty | 17 | 94% | 0 | 25.9 | 3.35 | 0 | 11.8 | 17 | — | — | — | — |
 | openai/gpt-5.6-luna | openrouter | — | None | unspecified | n/a | 2/2 | [f1e3043189f3](configs/f1e3043189f3.yaml) | 9d8c6a3619ec+dirty | 2 | 100% | 0 | 12.3 | 2.15 | 0 | — | 0 | — | — | — | — |
-| orcarouter/Qwen3.8-27B-Uncensored-MLX (subdir 4-bit) | mei | — | 1.0 | thinking | n/a | — | [9a0bccfab07b](configs/9a0bccfab07b.yaml) | 952f3df59606 | 20 | 65% | 13 | 5.7 | 379.91 | 1 | 10.7 | 12 | 2.3 | MLX 4-bit affine g64 (orcarouter repack of heretic-org abliteration, qwen3_5 arch) | — | — |
-| orcarouter/Qwen3.8-27B-Uncensored-MLX (subdir 4-bit) | mei | — | 1.0 | thinking | n/a | 2/2 | [9a0bccfab07b](configs/9a0bccfab07b.yaml) | b293b2de057f | 3 | 33% | 1 | 5.8 | 218.79 | 0 | — | 0 | 2.0 | MLX 4-bit affine g64 (orcarouter repack of heretic-org abliteration, qwen3_5 arch) | — | — |
+| orcarouter/Qwen3.8-27B-Uncensored-MLX (subdir 4-bit) | mei | — | 1.0 | thinking | n/a | — | [9a0bccfab07b](configs/9a0bccfab07b.yaml) — *config since changed* | 952f3df59606 | 20 | 65% | 13 | 5.7 | 379.91 | 1 | 10.7 | 12 | 2.3 | MLX 4-bit affine g64 (orcarouter repack of heretic-org abliteration, qwen3_5 arch) | — | — |
+| orcarouter/Qwen3.8-27B-Uncensored-MLX (subdir 4-bit) | mei | — | 1.0 | thinking | n/a | 2/2 | [9a0bccfab07b](configs/9a0bccfab07b.yaml) — *config since changed* | b293b2de057f | 3 | 33% | 1 | 5.8 | 218.79 | 0 | — | 0 | 2.0 | MLX 4-bit affine g64 (orcarouter repack of heretic-org abliteration, qwen3_5 arch) | — | — |
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | gguf | — | ? | ? | ? | 2/2 | [3047922de5b7](configs/Ornith-1.5-35B-A3B/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 4 | 100% | 0 | 34.7 | 1.90 | 0 | — | 0 | — | ? | ? | ? |
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | 0.6 | unspecified | n/a | 2/2 | [48d75180adbc](configs/48d75180adbc.yaml) | 0adb046c1c3e | 23 | 96% | 3 | 30.9 | 6.96 | 0 | 15.5 | 22 | 23.5 | — | — | — |
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | 0.6 | unspecified | n/a | 2/2 | [48d75180adbc](configs/48d75180adbc.yaml) | 0b3a2a523049 | 9 | 89% | 0 | 31.0 | 6.96 | 0 | — | 0 | 22.8 | — | — | — |
@@ -263,7 +265,7 @@ added explicitly to record that default rather than leave it invisible.
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | 0.6 | unspecified | n/a | 2/2 | [48d75180adbc](configs/48d75180adbc.yaml) | 9df216e99cd9 | 23 | 96% | 3 | 28.9 | 7.70 | 0 | 15.6 | 20 | 6.7 | — | — | — |
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | 0.6 | thinking | medium | 2/2 | [f51c7e72e2ad](configs/f51c7e72e2ad.yaml) | 0adb046c1c3e+dirty | 23 | 96% | 3 | 30.0 | 7.01 | 0 | 16.8 | 28 | 23.6 | — | — | — |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | 4/4 | [22dac305d46e](configs/22dac305d46e.yaml) — *config since changed* | 622d0ad7d2bd | 31 | 84% | 3 | 15.3 | 51.04 | 4 | 13.5 | 26 | 1.3 | MLX 4-bit (ornith-ai official) | — | — |
-| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | 2/2 | [dc3e7e62a965](configs/dc3e7e62a965.yaml) | b293b2de057f | 23 | 87% | 1 | 15.5 | 50.92 | 2 | 8.2 | 11 | 1.3 | MLX 4-bit (ornith-ai official) | — | — |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | 2/2 | [dc3e7e62a965](configs/dc3e7e62a965.yaml) — *config since changed* | b293b2de057f | 23 | 87% | 1 | 15.5 | 50.92 | 2 | 8.2 | 11 | 1.3 | MLX 4-bit (ornith-ai official) | — | — |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | vllm-mlx | — | 0.6 | unspecified | n/a | 2/2 | [76414c6ab37c](configs/76414c6ab37c.yaml) — *config since changed* | 0620219fd55e | 8 | 38% | 0 | 10.2 | 41.53 | 2 | — | 0 | 2.1 | — | — | — |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | vllm-mlx | — | 0.6 | unspecified | n/a | 2/2 | [76414c6ab37c](configs/76414c6ab37c.yaml) — *config since changed* | dd3232d96137 | 8 | 62% | 1 | 10.5 | 41.50 | 2 | — | 0 | 2.4 | — | — | — |
 | ornith-ai/Ornith-1.5-9B-MLX-4bit | vllm-mlx | — | 0.7 | instruct | n/a | 2/2 | [d0d250e59d4e](configs/d0d250e59d4e.yaml) — *config since changed* | 9235ceaef852 | 1 | 100% | 0 | 20.0 | 31.46 | 0 | — | 0 | 8.2 | — | — | — |
@@ -705,6 +707,9 @@ confirmed-stable, just untested for flakiness.
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | omlx | 08e51e50397d | fc71ba2c66f8+dirty | sanity | 1/2 |
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | vllm-mlx | fe9f7a44a702 | c17e058823c1 | hermes_ops | 6/8 |
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | vllm-mlx | fe9f7a44a702 | c17e058823c1 | sanity | 2/2 |
+| mlx-community/Qwen3.8-27B-4bit | mei | d23c67ad6d2d | 3496bdf4e3aa | hermes_ops | 4/8 |
+| mlx-community/Qwen3.8-27B-4bit | mei | d23c67ad6d2d | 3496bdf4e3aa | kiem_mini | 2/3 |
+| mlx-community/Qwen3.8-27B-4bit | mei | d23c67ad6d2d | 3496bdf4e3aa | sanity | 2/2 |
 | mlx-community/Qwen3.8-27B-4bit | mlx | 152424abaa13 | *(predates tracking)* | hermes_ops | 3/3 |
 | mlx-community/Qwen3.8-27B-4bit | mlx | 152424abaa13 | *(predates tracking)* | sanity | 2/2 |
 | mlx-community/Qwen3.8-27B-4bit | mlx | 968652aede2d | 69e4b1fd937f | hermes_ops | 2/3 |
@@ -715,6 +720,8 @@ confirmed-stable, just untested for flakiness.
 | mlx-community/Qwen3.8-27B-4bit | omlx | 1eec0081c5d6 | fc71ba2c66f8+dirty | sanity | 2/2 |
 | mlx-community/Qwen3.8-27B-4bit | omlx | 3fbfdcc4ec02 | 24d38de98cb4 | hermes_ops | 0/8 |
 | mlx-community/Qwen3.8-27B-4bit | omlx | 3fbfdcc4ec02 | 24d38de98cb4 | sanity | 2/2 |
+| mlx-community/gemma-4-26b-a4b-it-4bit | mei | bc93f3cc55a1 | 06f997b70746 | hermes_ops | 6/8 |
+| mlx-community/gemma-4-26b-a4b-it-4bit | mei | bc93f3cc55a1 | 06f997b70746 | sanity | 2/2 |
 | mlx-community/gemma-4-26b-a4b-it-4bit | mei | c9417ad40f57 | b293b2de057f | hermes_ops | 6/8 |
 | mlx-community/gemma-4-26b-a4b-it-4bit | mei | c9417ad40f57 | b293b2de057f | sanity | 2/2 |
 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | 7b0652d1fb9e | 4fd562e5fb7b | hearth_mini | 3/3 |
@@ -1082,3 +1089,4 @@ has to infer from a config missing coding rows.
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | vllm-mlx | configs/Qwen3-Coder-30B-A3B/mlx.yaml | 0.68 | 0.22, 0.49, 0.58, 0.64, 0.54, 0.52, 0.48, 2.01 | 4.0 | 2026-08-25T00:08:49Z |
 | mlx-community/Qwen3.8-27B-4bit | omlx | configs/Qwen3.8-27B/omlx.yaml | 0.01 | 0.00, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01 | 4.0 | 2026-08-25T07:28:30Z |
 | mlx-community/gemma-4-26b-a4b-it-4bit | mei | configs/Gemma-4-26B-A4B/mei.yaml | 2.00 | 0.67, 1.08, 2.10, 1.54, 0.80, 0.17, 2.21, 7.44 | 4.0 | 2026-09-04T14:56:21Z |
+| mlx-community/gemma-4-26b-a4b-it-4bit | mei | configs/Gemma-4-26B-A4B/mei.yaml | 2.01 | 0.68, 1.07, 2.12, 1.55, 0.80, 0.17, 2.25, 7.44 | 4.0 | 2026-09-05T10:20:48Z |
