@@ -710,6 +710,44 @@ def build_arg_parser():
     return ap
 
 
+def _discover_ordered_configs(repo, inference_engine=None):
+    """Return the --all / engine-sweep config list, in run order.
+
+    Enumerates `configs/*/*.yaml`, keeps only files whose top-level dict has an
+    `orchestration:` block (a stray non-config .yaml must never become a run —
+    adversarial review finding L3), optionally filters by a top-level
+    `inference_engine`, then sorts deterministically.
+
+    Ordering (added 2026-09-05): a config may carry an optional
+    `orchestration.run_order` int (higher = later in the sweep); configs that
+    omit it default to 0. Sorting by `(run_order, path)` keeps every existing
+    config in its historical lexical order while letting a late-added model
+    (e.g. configs/Ling-3.0-tiny/mei.yaml, whose directory would otherwise
+    lexically sort before Ornith) run LAST in the four-model Mei sweep without
+    renaming its directory. One-config `--config` runs ignore this entirely.
+    """
+    candidates = sorted(repo.glob("configs/*/*.yaml"))
+    entries = []
+    for c in candidates:
+        try:
+            loaded = yaml.safe_load(c.read_text())
+        except yaml.YAMLError:
+            continue
+        if not (isinstance(loaded, dict) and "orchestration" in loaded):
+            continue
+        if inference_engine is not None and loaded.get("inference_engine") != inference_engine:
+            continue
+        run_order = 0
+        orch = loaded.get("orchestration")
+        if isinstance(orch, dict):
+            raw = orch.get("run_order")
+            if isinstance(raw, int) and not isinstance(raw, bool):
+                run_order = raw
+        entries.append((run_order, c))
+    entries.sort()  # deterministic: (run_order, path)
+    return [p for _, p in entries]
+
+
 def main():
     args = build_arg_parser().parse_args()
     coding_suites = parse_coding_suites(args.coding_suites)
@@ -720,20 +758,11 @@ def main():
     sweep_stale_run_dirs()
 
     if args.all:
-        # Only files with an orchestration: block are real benchmark
-        # configs — a stray non-config .yaml dropped into a model
-        # directory used to become a silent, unintended benchmark run
-        # (adversarial review finding L3).
-        candidates = sorted(REPO.glob("configs/*/*.yaml"))
-        configs = []
-        for c in candidates:
-            try:
-                loaded = yaml.safe_load(c.read_text())
-            except yaml.YAMLError:
-                continue
-            if (isinstance(loaded, dict) and "orchestration" in loaded
-                    and (args.inference_engine is None or loaded.get("inference_engine") == args.inference_engine)):
-                configs.append(c)
+        # _discover_ordered_configs enumerates only files with an
+        # orchestration: block (a stray non-config .yaml in a model directory
+        # must never become a run — adversarial review finding L3) and sorts
+        # by optional orchestration.run_order (existing configs unchanged).
+        configs = _discover_ordered_configs(REPO, inference_engine=args.inference_engine)
         print(f"Running {len(configs)} configs...")
         for i, config_path in enumerate(configs, 1):
             print(f"\n\n########## [{i}/{len(configs)}] {config_path} ##########")

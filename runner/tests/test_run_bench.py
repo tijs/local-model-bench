@@ -161,5 +161,78 @@ class CodingSuitesDefaultTests(unittest.TestCase):
         )
 
 
+class AllSweepOrderingTests(unittest.TestCase):
+    """_discover_ordered_configs drives the --all / engine sweep. Existing
+    configs carry no orchestration.run_order, so they must enumerate in plain
+    lexical order exactly as before; a deliberately-orderable model (Ling-3.0-
+    tiny, whose directory would lexically sort before Ornith) must run LAST
+    behind the four established Mei configs without renaming its directory and
+    without perturbing any other config's relative order."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        (self.tmp / "configs").mkdir()
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _write(self, model, run_order=None, engine="mei", include_orchestration=True):
+        d = self.tmp / "configs" / model
+        d.mkdir(parents=True, exist_ok=True)
+        lines = [f"model: {model}", f"inference_engine: {engine}"]
+        if include_orchestration:
+            lines.append("orchestration:")
+            if run_order is not None:
+                lines.append(f"  run_order: {run_order}")
+        (d / "mei.yaml").write_text("\n".join(lines) + "\n")
+
+    def _names(self, **kw):
+        return [p.parent.name for p in rb._discover_ordered_configs(self.tmp, **kw)]
+
+    def test_existing_configs_keep_lexical_order_without_run_order(self):
+        for m in ["Gemma-4-26B-A4B", "Ling-3.0-tiny", "Ornith-1.5-35B-A3B", "Qwen3.8-27B"]:
+            self._write(m)
+        self.assertEqual(self._names(), [
+            "Gemma-4-26B-A4B", "Ling-3.0-tiny", "Ornith-1.5-35B-A3B", "Qwen3.8-27B",
+        ])
+
+    def test_high_run_order_places_model_last_behind_the_four(self):
+        # Without run_order, Ling would run 2nd (lexically before Ornith).
+        # With run_order it must run LAST behind the four established configs,
+        # whose relative order is unchanged.
+        self._write("Ling-3.0-tiny", run_order=1)
+        for m in ["Gemma-4-26B-A4B", "Ornith-1.5-35B-A3B", "Qwen3.8-27B", "Qwen3.8-27B-Uncensored"]:
+            self._write(m)
+        got = self._names()
+        self.assertEqual(got[-1], "Ling-3.0-tiny")
+        self.assertEqual(got[:-1], [
+            "Gemma-4-26B-A4B", "Ornith-1.5-35B-A3B", "Qwen3.8-27B", "Qwen3.8-27B-Uncensored",
+        ])
+
+    def test_engine_filter_applies_before_run_order_sort(self):
+        self._write("Zzz-gguf", engine="llama.cpp")
+        self._write("Ling-3.0-tiny", run_order=1, engine="mei")
+        self._write("Ornith-1.5-35B-A3B", engine="mei")
+        self.assertEqual(self._names(inference_engine="mei"), [
+            "Ornith-1.5-35B-A3B", "Ling-3.0-tiny",
+        ])
+
+    def test_non_int_run_order_is_ignored(self):
+        # Robustness: only int run_order is honored; a non-int (here a float)
+        # falls back to 0 so a malformed value can't mis-order the sweep.
+        self._write("Ling-3.0-tiny", run_order=1.5, engine="mei")
+        self._write("Ornith-1.5-35B-A3B", engine="mei")
+        self.assertEqual(self._names(inference_engine="mei"), [
+            "Ling-3.0-tiny", "Ornith-1.5-35B-A3B",
+        ])
+
+    def test_config_without_orchestration_block_is_skipped(self):
+        # A stray non-config .yaml must never become a run (finding L3).
+        self._write("Aaa")
+        (self.tmp / "configs" / "Notes").mkdir()
+        (self.tmp / "configs" / "Notes" / "memo.yaml").write_text("not a config\n")
+        self.assertEqual(self._names(), ["Aaa"])
+
+
 if __name__ == "__main__":
     unittest.main()
