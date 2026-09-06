@@ -11,8 +11,11 @@ LEADERBOARD.md, SUMMARY.md, or any results rows (it only writes the PNGs).
 
 Headline charts use only the FULL ELIGIBLE groups returned by
 build_leaderboard.rank_groups() (full-suite completion + benchmark-v2-or-later +
-usefulness gate), matching the "Best overall" table. A chart that shows partial
-data explicitly documents that ("(partial)").
+usefulness gate), matching the "Best overall" table — extended with two curation
+admissions that clear the SAME real full-suite + zero-harness-error bar: curated
+multi-fragment combinations (see below) and explicitly pinned single-fragment
+selections whose key rank_groups deduplicates to a different (older/richer)
+fragment. A chart that shows partial data explicitly documents that ("(partial)").
 
 Run (callable with `uv`, headless — Matplotlib is forced to the Agg backend):
 
@@ -314,25 +317,39 @@ def _resolve_one(selector, group_stats, eligible_keys):
     return _pick_gs(matches, eligible_keys)
 
 
-def _combined_eligible(gs, combined_rows):
-    """Eligibility for a CURATED multi-fragment combination.
+def _row_group_eligible(gs, rows):
+    """Eligibility of ONE leaderboard group by its own real full-suite counts.
 
-    A combined group is full/eligible exactly when it meets the real full-suite
-    counts (the same completeness rule rank_groups applies to a single run:
-    sanity present + FULL hermes_ops + FULL coding tasks) AND has zero harness
-    errors across all combined rows. This deliberately mirrors the leaderboard's
-    completeness gate on the concatenated rows rather than trusting each
-    fragment's individual completeness — a fragment may be part of a coherent
-    combined run (e.g. one runner leg covering sanity+hermes_ops, another
-    covering the coding suites).
+    A group is full/eligible exactly when it meets the real full-suite counts
+    (the same completeness rule rank_groups applies to a single run: sanity
+    present + FULL hermes_ops + FULL coding tasks) AND has zero harness errors
+    across its rows. This is the single source of truth for "is this a complete,
+    trustworthy benchmark leg?"; both curated multi-fragment combinations
+    (_combined_eligible) and explicitly pinned single-fragment selections share
+    this same bar.
     """
     complete = bool(
         gs["n_sanity"]
         and gs["n_hermes_ops"] >= _bl.FULL_HERMES_OPS_TASKS
         and gs["n_coding"] >= _bl.FULL_CODING_TASKS
     )
-    zero_harness_errors = not any(r.get("harness_error") for r in combined_rows)
+    zero_harness_errors = not any(r.get("harness_error") for r in rows)
     return complete and zero_harness_errors
+
+
+def _combined_eligible(gs, combined_rows):
+    """Eligibility for a CURATED multi-fragment combination.
+
+    A combined group is full/eligible exactly when it clears the SAME bar as a
+    real group (_row_group_eligible) on the concatenated rows: real full-suite
+    counts (sanity present + FULL hermes_ops + FULL coding tasks) AND zero
+    harness errors across all combined rows. This deliberately mirrors the
+    leaderboard's completeness gate on the concatenated rows rather than trusting
+    each fragment's individual completeness — a fragment may be part of a
+    coherent combined run (e.g. one runner leg covering sanity+hermes_ops,
+    another covering the coding suites).
+    """
+    return _row_group_eligible(gs, combined_rows)
 
 
 def _combine_selection_fragments(rec, group_stats, eligible_keys, groups):
@@ -452,10 +469,25 @@ def resolve_selection(records, group_stats, eligible_keys, groups=None):
                 "label": f"{rec['family']}/{rec['engine']} (NO MATCHING GROUP)",
             })
             continue
+        in_eligible = gs["key"] in eligible_keys
+        pinned_eligible = False
+        # An explicitly PINNED single-fragment selection (config_hash and/or
+        # runner_git_sha given) is admitted to the headline set on its own merit
+        # when its stats clear the same real full-suite + zero-harness-error bar
+        # as a combined selection (_row_group_eligible) — even when rank_groups
+        # deduplicates this model/engine to a different (older/richer) fragment
+        # so its key is not among the vanilla eligible_keys. This never admits a
+        # genuinely partial pinned record: full-suite completeness + zero harness
+        # errors are still mandatory.
+        if not in_eligible and (rec.get("config_hash") or rec.get("runner_git_sha")) \
+                and groups is not None:
+            pinned_eligible = _row_group_eligible(gs, groups.get(gs["key"], []))
+        eligible = in_eligible or pinned_eligible
         selected.append({
             "family": rec["family"], "engine": rec["engine"], "gs": gs,
-            "eligible": gs["key"] in eligible_keys,
-            "partial": gs["key"] not in eligible_keys,
+            "eligible": eligible,
+            "partial": not eligible,
+            "pinned_eligible": pinned_eligible,
             "label": _group_label(gs),
         })
     return selected
@@ -981,9 +1013,12 @@ def build(log_path=None, output_dir=None, models=None, engines=None, selection_p
     # set (keys present in eligible_keys) PLUS curated synthetic multi-fragment
     # combinations that met the full-suite + zero-harness-error bar (their curated
     # synthetic key is by definition not in the original eligible_keys, so they
-    # are marked in via `synthetic_eligible`).
+    # are marked in via `synthetic_eligible`) PLUS explicitly pinned single-fragment
+    # selections that met that same real bar on their own rows (marked in via
+    # `pinned_eligible`). Genuinely partial pinned records stay out.
     headline = [s for s in selected if s["gs"] is not None and (
-        s["gs"]["key"] in eligible_keys or s.get("synthetic_eligible"))]
+        s["gs"]["key"] in eligible_keys
+        or s.get("synthetic_eligible") or s.get("pinned_eligible"))]
 
     output = {"written": {}, "skipped": [], "selected": selected, "ranked": ranked}
 

@@ -623,6 +623,119 @@ class MultiFragmentSelectionTests(_Base):
         self.assertEqual(combined[0]["gs"]["n_coding"], 15)
 
 
+class PinnedSingleFragmentHeadlineTests(_Base):
+    """An explicitly PINNED single-fragment selection (config_hash/runner_git_sha
+    given) whose own stats clear the real full-suite + zero-harness-error bar is
+    admitted to the headline charts even when rank_groups deduplicates that
+    model/engine to a different (older/richer) fragment — so its key is NOT in the
+    vanilla eligible_keys. A genuinely partial pinned record is NOT admitted.
+    FULL_*_TASKS is patched to 1 module-wide (see setUpModule)."""
+
+    MODEL = "ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit"
+    PINNED_CFG = "77d7ab43a6ee"
+    PINNED_SHA = "84e884b96aee"
+    RICHER_CFG = "22dac305d46e"
+    RICHER_SHA = "622d0ad7d2bd"
+
+    def _leg(self, config, sha, suites, start_hour=10):
+        rows = []
+        base = datetime(2026, 9, 5, start_hour, 0, 0)
+        for i, suite in enumerate(suites):
+            ts = (base + timedelta(minutes=i)).strftime("%Y-%m-%dT%H:%M:%SZ")
+            rows.append(self._row(self.MODEL, "mei", suite, pass_=True, ts=ts,
+                                  wall=60.0, config_hash=config, runner_sha=sha))
+        return rows
+
+    def _complete_leg(self, config, sha):
+        # n_sanity>=1, n_hermes_ops>=1, n_coding>=1 (FULL_*_TASKS patched to 1).
+        return self._leg(config, sha, ["sanity", "hermes_ops", "kiem_mini"])
+
+    def _partial_leg(self, config, sha):
+        # No coding suite -> n_coding=0 -> not a complete full-suite leg.
+        return self._leg(config, sha, ["sanity", "hermes_ops"])
+
+    def _pinned_record(self):
+        return {"family": "Ornith-1.5-35B", "engine": "mei",
+                "model_contains": "ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit",
+                "config_hash": self.PINNED_CFG, "runner_git_sha": self.PINNED_SHA}
+
+    def _pinned_key(self):
+        return (self.MODEL, "mei", None, self.PINNED_CFG, self.PINNED_SHA)
+
+    def _headline_keys(self, out):
+        """Mirror build()'s headline filter from its returned selected+ranked."""
+        eligible_keys = {g["key"] for (_g, _s, g) in out["ranked"]}
+        return {s["gs"]["key"] for s in out["selected"] if s["gs"] is not None and (
+            s["gs"]["key"] in eligible_keys
+            or s.get("synthetic_eligible") or s.get("pinned_eligible"))}
+
+    def test_pinned_complete_group_outside_eligible_keys_is_admitted(self):
+        rows = self._complete_leg(self.PINNED_CFG, self.PINNED_SHA) + \
+               self._complete_leg(self.RICHER_CFG, self.RICHER_SHA)
+        groups = sbc.group_rows(rows)
+        gs = sbc.compute_group_stats(groups)
+        # rank_groups dedupes this model/engine to the richer fragment (as in the
+        # reported bug), so the pinned complete group's key is NOT eligible.
+        eligible = {(self.MODEL, "mei", None, self.RICHER_CFG, self.RICHER_SHA)}
+        selected = sbc.resolve_selection([self._pinned_record()], gs, eligible, groups)
+        entry = selected[0]
+        self.assertIsNotNone(entry["gs"])
+        self.assertEqual(entry["gs"]["key"], self._pinned_key())
+        self.assertTrue(entry["pinned_eligible"])
+        self.assertTrue(entry["eligible"])
+        self.assertFalse(entry["partial"])
+
+    def test_pinned_partial_group_outside_eligible_keys_is_not_admitted(self):
+        # Same pin, but only sanity + hermes_ops (n_coding=0) -> genuinely partial.
+        rows = self._partial_leg(self.PINNED_CFG, self.PINNED_SHA) + \
+               self._complete_leg(self.RICHER_CFG, self.RICHER_SHA)
+        groups = sbc.group_rows(rows)
+        gs = sbc.compute_group_stats(groups)
+        eligible = {(self.MODEL, "mei", None, self.RICHER_CFG, self.RICHER_SHA)}
+        selected = sbc.resolve_selection([self._pinned_record()], gs, eligible, groups)
+        entry = selected[0]
+        self.assertEqual(entry["gs"]["key"], self._pinned_key())
+        self.assertFalse(entry["pinned_eligible"])
+        self.assertFalse(entry["eligible"])
+        self.assertTrue(entry["partial"])
+
+    @unittest.skipUnless(_matplotlib_ok(), "matplotlib not available")
+    def test_build_headline_charts_pinned_complete_group(self):
+        rows = self._complete_leg(self.PINNED_CFG, self.PINNED_SHA) + \
+               self._complete_leg(self.RICHER_CFG, self.RICHER_SHA)
+        log = self._write_log(rows)
+        sel = Path(self.tmp) / "sel.json"
+        sel.write_text(json.dumps([
+            {"family": "Ornith-1.5-35B", "engine": "mei", "model_contains": "ornith",
+             "config_hash": self.RICHER_CFG, "runner_git_sha": self.RICHER_SHA},
+            self._pinned_record(),
+        ]))
+        out = sbc.build(log_path=log, output_dir=self.out, selection_path=str(sel))
+        self.assertIn(self._pinned_key(), self._headline_keys(out))
+        # The richer + pinned complete groups are both admitted -> 2 comparable
+        # points -> the headline chart actually renders.
+        self.assertIsNotNone(out["written"]["quality_vs_runtime"])
+
+    @unittest.skipUnless(_matplotlib_ok(), "matplotlib not available")
+    def test_build_headline_excludes_pinned_partial_group(self):
+        rows = self._partial_leg(self.PINNED_CFG, self.PINNED_SHA) + \
+               self._complete_leg(self.RICHER_CFG, self.RICHER_SHA)
+        log = self._write_log(rows)
+        sel = Path(self.tmp) / "sel.json"
+        sel.write_text(json.dumps([
+            {"family": "Ornith-1.5-35B", "engine": "mei", "model_contains": "ornith",
+             "config_hash": self.RICHER_CFG, "runner_git_sha": self.RICHER_SHA},
+            self._pinned_record(),
+        ]))
+        out = sbc.build(log_path=log, output_dir=self.out, selection_path=str(sel))
+        # The partial pinned group is NOT in the headline set.
+        self.assertNotIn(self._pinned_key(), self._headline_keys(out))
+        pinned = [s for s in out["selected"] if s["gs"] and s["gs"]["key"] == self._pinned_key()]
+        self.assertEqual(len(pinned), 1)
+        self.assertFalse(pinned[0]["pinned_eligible"])
+        self.assertTrue(pinned[0]["partial"])
+
+
 class ParetoTests(_Base):
     def test_pareto_efficient(self):
         # minimize x, maximize y
