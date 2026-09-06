@@ -7,6 +7,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from datetime import datetime, timedelta
 from pathlib import Path
 from unittest import mock
 
@@ -276,6 +277,88 @@ class SlowPassColumnTests(unittest.TestCase):
         self.assertEqual(cells[12], "0")  # "slow passes" column
 
 
+class TotalRuntimeTests(unittest.TestCase):
+    """Recovered TOTAL run runtime (build_leaderboard._group_total_runtime).
+
+    Methodology recovered from a group's own saved rows, so it needs no
+    extra harness instrumentation — approximate, honestly labeled "total
+    runtime (approx)" not an exact process duration:
+
+    * each row's ISO-8601 `timestamp` is its COMPLETION time;
+    * sort the timed rows chronologically;
+    * estimated start = first row's timestamp minus that row's numeric
+      `wall_seconds` when present (a half-open window: excludes server
+      startup/teardown outside the first/last recorded task);
+    * run end = last row's timestamp;
+    * `total_runtime_seconds = max(0, end - estimated_start)`.
+
+    Includes the gaps BETWEEN tasks but not process startup/teardown
+    outside the recorded rows. Returns None when no usable timestamp is
+    available; a single timed row reverts to that row's own wall_seconds
+    (its best available self-duration estimate) when present, else None.
+    """
+
+    def _row(self, ts, wall=None, **kw):
+        r = {
+            "suite": "sanity", "task_id": "sanity-basic", "model": "m",
+            "inference_engine": "vllm-mlx", "quant": None, "config_path": None,
+            "config_hash": "h", "runner_git_sha": "abc", "trial": 1,
+            "pass": True, "grade_output": "PASS",
+        }
+        if ts is not None:
+            r["timestamp"] = ts
+        if wall is not None:
+            r["wall_seconds"] = wall
+        r.update(kw)
+        return r
+
+    def test_reconstructs_start_from_first_timestamp_minus_wall(self):
+        # first completion 10:00:00 with wall 100s -> start 09:58:20;
+        # last completion 13:00:00 -> total 3:01:40 == 10900s (gap between
+        # the 10:00 and 12:00 rows is included, server startup before the
+        # first task is not).
+        rows = [
+            self._row("2026-01-01T10:00:00Z", wall=100.0),
+            self._row("2026-01-01T12:00:00Z"),
+            self._row("2026-01-01T13:00:00Z"),
+        ]
+        self.assertAlmostEqual(bl._group_total_runtime(rows), 10900.0)
+
+    def test_no_valid_timestamps_returns_none(self):
+        # No timestamp key at all.
+        self.assertIsNone(bl._group_total_runtime([self._row(None, wall=10.0)]))
+        # Unparseable timestamp values only.
+        self.assertIsNone(bl._group_total_runtime([self._row("garbage"), self._row("nope")]))
+
+    def test_invalid_timestamp_skipped_but_valid_ones_used(self):
+        rows = [
+            self._row("not-a-date", wall=100.0),
+            self._row("2026-01-01T10:00:00Z", wall=100.0),
+            self._row("2026-01-01T11:00:00Z"),
+        ]
+        self.assertAlmostEqual(bl._group_total_runtime(rows), 3700.0)  # 11:00 - (10:00 - 100s)
+
+    def test_single_timestamp_reverts_to_its_own_wall_seconds(self):
+        self.assertAlmostEqual(
+            bl._group_total_runtime([self._row("2026-01-01T10:00:00Z", wall=42.0)]), 42.0
+        )
+
+    def test_single_timestamp_without_wall_returns_none(self):
+        # A single completion snapshot with no duration can't estimate a
+        # span; report None (missing) rather than a false 0, so scoring
+        # treats it as zero contribution, not a perfect (0-second) time score.
+        self.assertIsNone(bl._group_total_runtime([self._row("2026-01-01T10:00:00Z")]))
+
+    def test_rows_out_of_order_are_sorted_chronologically(self):
+        # Row order in the log is whatever order tasks ran/completed; the
+        # helper must sort timed rows by timestamp before taking first/last.
+        rows = [
+            self._row("2026-01-01T11:00:00Z"),
+            self._row("2026-01-01T10:00:00Z", wall=100.0),
+        ]
+        self.assertAlmostEqual(bl._group_total_runtime(rows), 3700.0)  # 11:00 - (10:00 - 100s)
+
+
 class CompositeRankingTests(unittest.TestCase):
     """Round 3 (2026-08-27, benchmark v2) of the "Best overall" ranking,
     replacing round 2's plain "primary sort: coding_pass_rate, tie-break:
@@ -378,7 +461,21 @@ class CompositeRankingTests(unittest.TestCase):
             if turns is not None:
                 row["hermes_turns"] = turns
             rows.append(row)
-        if timestamp is not None:
+        if wall_seconds is not None:
+            # Now that the composite score's time axis reads recovered
+            # TOTAL run runtime (not per-task avg wall), a wall-bearing
+            # fixture must also carry timestamps that make the recovered
+            # total runtime track wall_seconds — otherwise switching the
+            # axis would silently zero the time component of every
+            # pre-existing wall-based scoring test. Stamp rows in order,
+            # incrementing by each row's own wall_seconds (sanity/hermes_ops
+            # rows carry none, so they advance by a 1s epsilon), so a
+            # bigger wall_seconds yields a proportionally bigger total span.
+            acc = datetime(2026, 1, 1, 0, 0, 0)
+            for row in rows:
+                row["timestamp"] = acc.isoformat()
+                acc += timedelta(seconds=row.get("wall_seconds", 1.0))
+        elif timestamp is not None:
             for row in rows:
                 row["timestamp"] = timestamp
         return rows
@@ -611,6 +708,93 @@ class CompositeRankingTests(unittest.TestCase):
         few_rank = next(i for i, l in enumerate(section.splitlines()) if "few-turns" in l)
         many_rank = next(i for i, l in enumerate(section.splitlines()) if "many-turns" in l)
         self.assertLess(few_rank, many_rank, "fewer turns per task must score higher, all else equal")
+
+    def test_main_table_contains_total_runtime_column_and_value(self):
+        # The main leaderboard table must surface the recovered total run
+        # runtime: header cell present, and each group row shows a real
+        # number (not blank), matching _group_total_runtime's estimate.
+        rows = [
+            {"suite": "sanity", "task_id": "sanity-basic", "model": "spread-out",
+             "inference_engine": "mei", "quant": None, "config_path": None,
+             "config_hash": "h1", "runner_git_sha": "abc", "trial": 1,
+             "pass": True, "grade_output": "PASS", "tokens_per_second": 20.0,
+             "timestamp": "2026-01-01T10:00:00Z", "wall_seconds": 100.0},
+            {"suite": "hermes_ops", "task_id": "ho-1", "model": "spread-out",
+             "inference_engine": "mei", "quant": None, "config_path": None,
+             "config_hash": "h1", "runner_git_sha": "abc", "trial": 1,
+             "pass": True, "grade_output": "PASS", "tokens_per_second": 20.0,
+             "timestamp": "2026-01-01T10:30:00Z"},
+            {"suite": "kiem_mini", "task_id": "k-1", "model": "spread-out",
+             "inference_engine": "mei", "quant": None, "config_path": None,
+             "config_hash": "h1", "runner_git_sha": "abc", "trial": 1,
+             "pass": True, "grade_output": "PASS", "tokens_per_second": 20.0,
+             "timestamp": "2026-01-01T11:00:00Z", "wall_seconds": 10.0},
+        ]
+        self._write_log(rows)
+        bl.main()
+        text = (self.repo / "results" / "LEADERBOARD.md").read_text()
+        header = next(l for l in text.splitlines() if l.startswith("| model |"))
+        self.assertIn("total runtime", header)
+        row_line = next(l for l in text.splitlines() if l.startswith("| spread-out |"))
+        # 10:00:00 - 100s start = 09:58:20; end 11:00:00 -> 1:01:40 == 3700s.
+        self.assertIn("3700", row_line)
+
+    def test_score_time_axis_uses_total_runtime_not_avg_coding_wall(self):
+        # Two groups with identical pass rate, speed, and turns whose
+        # orderings by per-task avg coding wall and by recovered TOTAL run
+        # runtime DISAGREE, to prove the composite's time axis reads
+        # total_runtime_seconds (not avg_coding_wall).
+        #   spread-out: coding tasks FAST (avg_coding_wall=10) but the run
+        #               is stretched out -> large total runtime (~3700s).
+        #   compact:    coding tasks SLOW (avg_coding_wall=90) but the run
+        #               is compact -> small total runtime (~220s).
+        # Under the OLD avg-coding-wall axis "spread-out" would win; under
+        # the recovered-total-runtime axis "compact" (FAR shorter total run)
+        # must win, despite its slower per-task coding time.
+        rows = [
+            {"suite": "sanity", "task_id": "sanity-basic", "model": "spread-out",
+             "inference_engine": "mei", "quant": None, "config_path": None,
+             "config_hash": "h1", "runner_git_sha": "abc", "trial": 1,
+             "pass": True, "grade_output": "PASS", "tokens_per_second": 20.0,
+             "timestamp": "2026-01-01T10:00:00Z", "wall_seconds": 100.0},
+            {"suite": "hermes_ops", "task_id": "ho-1", "model": "spread-out",
+             "inference_engine": "mei", "quant": None, "config_path": None,
+             "config_hash": "h1", "runner_git_sha": "abc", "trial": 1,
+             "pass": True, "grade_output": "PASS", "tokens_per_second": 20.0,
+             "timestamp": "2026-01-01T10:30:00Z"},
+            {"suite": "kiem_mini", "task_id": "k-1", "model": "spread-out",
+             "inference_engine": "mei", "quant": None, "config_path": None,
+             "config_hash": "h1", "runner_git_sha": "abc", "trial": 1,
+             "pass": True, "grade_output": "PASS", "tokens_per_second": 20.0,
+             "timestamp": "2026-01-01T11:00:00Z", "wall_seconds": 10.0},
+            {"suite": "sanity", "task_id": "sanity-basic", "model": "compact",
+             "inference_engine": "mei", "quant": None, "config_path": None,
+             "config_hash": "h2", "runner_git_sha": "abc", "trial": 1,
+             "pass": True, "grade_output": "PASS", "tokens_per_second": 20.0,
+             "timestamp": "2026-01-01T20:00:00Z", "wall_seconds": 100.0},
+            {"suite": "hermes_ops", "task_id": "ho-1", "model": "compact",
+             "inference_engine": "mei", "quant": None, "config_path": None,
+             "config_hash": "h2", "runner_git_sha": "abc", "trial": 1,
+             "pass": True, "grade_output": "PASS", "tokens_per_second": 20.0,
+             "timestamp": "2026-01-01T20:01:00Z"},
+            {"suite": "kiem_mini", "task_id": "k-1", "model": "compact",
+             "inference_engine": "mei", "quant": None, "config_path": None,
+             "config_hash": "h2", "runner_git_sha": "abc", "trial": 1,
+             "pass": True, "grade_output": "PASS", "tokens_per_second": 20.0,
+             "timestamp": "2026-01-01T20:02:00Z", "wall_seconds": 90.0},
+        ]
+        self._write_log(rows)
+        bl.main()
+        text = (self.repo / "results" / "LEADERBOARD.md").read_text()
+        section = self._best_overall_section(text)
+        spread_rank = next(i for i, l in enumerate(section.splitlines()) if "spread-out" in l)
+        compact_rank = next(i for i, l in enumerate(section.splitlines()) if "compact" in l)
+        self.assertLess(
+            compact_rank, spread_rank,
+            "time axis must read recovered TOTAL run runtime (not per-task avg "
+            "coding wall): the compact run wins even though its coding tasks "
+            "are individually slower",
+        )
 
     def test_timed_out_row_with_no_turns_recorded_is_not_rewarded_for_it(self):
         # A coding row killed by the wall-clock timeout has hermes_turns =

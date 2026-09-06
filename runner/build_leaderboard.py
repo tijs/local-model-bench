@@ -5,6 +5,7 @@ import hashlib
 import json
 import subprocess
 from collections import defaultdict
+from datetime import datetime, timedelta
 from pathlib import Path
 from statistics import mean
 
@@ -326,13 +327,79 @@ def _config_label(config_hash, config_path):
     return link
 
 
+def _parse_timestamp(raw):
+    """Best-effort parse of a row's ISO-8601 timestamp into a tz-aware
+    datetime, or None if missing/unparseable. Real rows log UTC with a
+    trailing `Z` (e.g. `2026-08-19T09:33:38Z`); `fromisoformat` wants a
+    `+00:00` offset, so normalize `Z` first. Returns None (never raises)
+    on any malformed input — a single bad row must not sink the whole
+    runtime recovery for a group."""
+    if not raw:
+        return None
+    try:
+        return datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+    except (ValueError, TypeError):
+        return None
+
+
+def _group_total_runtime(group):
+    """Recover an APPROXIMATE total elapsed benchmark runtime (seconds) for
+    one leaderboard group — `(model, inference_engine, quant, config_hash,
+    runner_git_sha)` — from its saved rows alone, with no extra harness
+    instrumentation. This is deliberately an ESTIMATE, so display and docs
+    label it "total runtime (approx)": it is recovered timestamps, NOT a
+    true, process-measured run duration.
+
+    Method (see also the leaderboard methodology footnote, and the
+    explicit metric definition in tests/test_build_leaderboard.py):
+
+    * each row's ISO-8601 `timestamp` is that task's COMPLETION time;
+    * take the rows with a valid timestamp, sorted chronologically;
+    * estimated run START = first row's timestamp minus that first row's
+      numeric `wall_seconds` when present (how long that task actually
+      ran, so the completion stamp — not just the boundary between logged
+      tasks — best approximates when the run began);
+    * run END = the last row's timestamp;
+    * `total_runtime_seconds = max(0, end - estimated_start)`.
+
+    The result includes the wall-clock gaps BETWEEN tasks (hermes→coding
+    handoffs, server-idle windows) but excludes server startup/teardown
+    that happened outside the first/last recorded task, since neither has
+    a row. If no usable timestamp exists the run duration is unknowable:
+    return None (so scoring contributes 0 on the time axis rather than
+    rewarding an unmeasured run as if it were instant). A group with only
+    ONE timed row can't span anything, so it reverts to that row's own
+    wall_seconds when available (its best self-duration estimate),
+    otherwise None."""
+    timed = [(dt, r) for dt, r in ((_parse_timestamp(r.get("timestamp")), r) for r in group) if dt is not None]
+    if not timed:
+        return None
+    timed.sort(key=lambda dt_r: dt_r[0])
+    first_dt, first_row = timed[0]
+    last_dt = timed[-1][0]
+    first_wall = first_row.get("wall_seconds")
+    first_wall_num = first_wall if isinstance(first_wall, (int, float)) else None
+    if len(timed) == 1:
+        return float(first_wall) if first_wall_num is not None else None
+    start = first_dt
+    if first_wall_num is not None:
+        start = first_dt - timedelta(seconds=first_wall_num)
+    return max(0.0, (last_dt - start).total_seconds())
+
+
+def _total_runtime_display(seconds):
+    if seconds is None:
+        return "—"
+    return f"{seconds:.0f}"
+
+
 def compute_group_stats(groups):
     """One row of the main leaderboard table (and the raw scoring inputs
     the composite "Best overall" ranking below needs) per (model,
     inference_engine, quant, config_hash, runner_git_sha) group. A
     separate pass from rank_groups() below: rank_groups() needs every
-    group's raw numeric avg_tps/avg_coding_wall/avg_coding_turns visible
-    at once before it can normalize any one group's speed/time/turns
+    group's raw numeric avg_tps/avg_coding_wall/avg_coding_turns/total_runtime_seconds
+    visible at once before it can normalize any one group's speed/time/turns
     against the best value seen this run — that global best isn't known
     until all groups have been computed once. group_stats carries both
     the raw numbers (for scoring) and the pre-formatted display string
@@ -373,6 +440,13 @@ def compute_group_stats(groups):
         quant_family, cache_mode, mtp_mode = _experiment_fields(config_hash, config_path)
         runner_label = runner_sha or "*(predates tracking)*"
 
+        # Recovered TOTAL benchmark runtime (approx) — see
+        # _group_total_runtime()'s own docstring for the estimation method.
+        # Displayed in the main table AND used as the composite score's
+        # "time" axis (see rank_groups()).
+        total_runtime_seconds = _group_total_runtime(group)
+        total_runtime_disp = _total_runtime_display(total_runtime_seconds)
+
         coding_scored = [r for r in non_sanity_scored if r["suite"] in CODING_SUITES]
         hermes_ops_scored = [r for r in non_sanity_scored if r["suite"] not in CODING_SUITES]
         n_coding_pass = sum(1 for r in coding_scored if r.get("pass"))
@@ -396,7 +470,8 @@ def compute_group_stats(groups):
                 f"| {model} | {inference_engine} | {quant or '—'} | {temp} | {reasoning_mode} | "
                 f"{reasoning_effort} | {sanity_gate} | {config_label} | {runner_label} | {n} | {pass_rate} | "
                 f"{n_slow_pass} | {avg_tps} | {avg_ttft} | {n_hallucinated} | {avg_turns} | "
-                f"{n_tool_errors} | {peak_rss} | {quant_family} | {cache_mode} | {mtp_mode} |"
+                f"{n_tool_errors} | {peak_rss} | {quant_family} | {cache_mode} | {mtp_mode} | "
+                f"{total_runtime_disp} |"
             ),
             "avg_tps_val": avg_tps_val,
             "reasoning_mode": reasoning_mode,
@@ -407,6 +482,7 @@ def compute_group_stats(groups):
             "n_hermes_ops_pass": n_hermes_ops_pass,
             "avg_coding_wall": avg_coding_wall,
             "avg_coding_turns": avg_coding_turns,
+            "total_runtime_seconds": total_runtime_seconds,
             "n_sanity": len(sanity_scored),
             "n_coding": len(coding_scored),
             "n_hermes_ops": len(hermes_ops_scored),
@@ -496,8 +572,10 @@ def rank_groups(group_stats):
               alone (changed 2026-08-29, see _composite_coding_score's
               own comment for why)
       speed = avg_tps / fastest group's avg_tps
-      time  = fastest (lowest) group's avg_coding_wall / this group's
-              avg_coding_wall (shorter is better, so INVERTED)
+      time  = shortest (lowest) group's total_runtime_seconds / this
+              group's total_runtime_seconds (recovered TOTAL run runtime,
+              shorter is better, so INVERTED; see _group_total_runtime()
+              — switched from per-task avg_coding_wall 2026-09-06)
       turns = fewest-turns group's avg_coding_turns / this group's
               avg_coding_turns (fewer is better, so INVERTED)
     A group missing a denominator input (e.g. every coding row somehow
@@ -580,8 +658,14 @@ def rank_groups(group_stats):
     max_tps_for_score = max(
         (gs["avg_tps_val"] for gs in eligible_for_norm if gs["avg_tps_val"]), default=None,
     )
-    min_wall_for_score = min(
-        (gs["avg_coding_wall"] for gs in eligible_for_norm if gs["avg_coding_wall"]), default=None,
+    # "time" axis normalizes recovered TOTAL run runtime (see
+    # _group_total_runtime()), not per-task avg coding wall — the user
+    # wants the whole test run's elapsed time represented in final
+    # scoring, not just how long the coding tasks individually took
+    # (2026-09-06). Shorter total runtime is better, so the axis is
+    # inverted against the shortest (min) runtime seen.
+    min_runtime_for_score = min(
+        (gs["total_runtime_seconds"] for gs in eligible_for_norm if gs["total_runtime_seconds"]), default=None,
     )
     min_turns_for_score = min(
         (gs["avg_coding_turns"] for gs in eligible_for_norm if gs["avg_coding_turns"]), default=None,
@@ -611,8 +695,8 @@ def rank_groups(group_stats):
             if gs["avg_tps_val"] and max_tps_for_score else 0.0
         )
         time_component = (
-            min_wall_for_score / gs["avg_coding_wall"]
-            if gs["avg_coding_wall"] and min_wall_for_score else 0.0
+            min_runtime_for_score / gs["total_runtime_seconds"]
+            if gs["total_runtime_seconds"] and min_runtime_for_score else 0.0
         )
         turns_component = (
             min_turns_for_score / gs["avg_coding_turns"]
@@ -782,8 +866,17 @@ def main():
         "\"no reasoning was used.\" Configs for this family have had this field",
         "added explicitly to record that default rather than leave it invisible.",
         "",
-        "| model | engine | quant | temp (coding only)¹ | reasoning | reasoning effort⁶ | sanity gate⁴ | config | runner | tasks | pass rate⁴ | slow passes² | avg tok/s | avg TTFT (s) | hallucinated tools⁵ | avg coding turns³ | coding tool errors³ | peak RSS (GB) | quant family | cache | MTP |",
-        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+        "**⁷ `total runtime (s)`**: approximate total elapsed benchmark run",
+        "time for that group, RECOVERED from its own saved rows -- not an exact",
+        "process-measured duration. Each row's ISO-8601 `timestamp` is that task's",
+        "COMPLETION time; estimated start = first row's timestamp minus that row's",
+        "`wall_seconds` (when present). End = last row's timestamp. The span",
+        "therefore includes the gaps BETWEEN tasks but excludes server",
+        "startup/teardown that happened outside the first/last recorded task. `—`",
+        "means no usable timestamp was recoverable from that group's rows.",
+        "",
+        "| model | engine | quant | temp (coding only)¹ | reasoning | reasoning effort⁶ | sanity gate⁴ | config | runner | tasks | pass rate⁴ | slow passes² | avg tok/s | avg TTFT (s) | hallucinated tools⁵ | avg coding turns³ | coding tool errors³ | peak RSS (GB) | quant family | cache | MTP | total runtime (s)⁷ |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     group_stats = compute_group_stats(groups)
 
@@ -818,7 +911,7 @@ def main():
         "no longer scores identically to a 100% one once both clear the gate above),"
     )
     lines.append(
-        f"speed ({CODING_SCORE_WEIGHTS['speed']:.0%}), time taken ({CODING_SCORE_WEIGHTS['time']:.0%}),"
+        f"speed ({CODING_SCORE_WEIGHTS['speed']:.0%}), total runtime ({CODING_SCORE_WEIGHTS['time']:.0%}),"
     )
     lines.append(
         f"and turns used ({CODING_SCORE_WEIGHTS['turns']:.0%}) — each normalized 0.0-1.0 against"
@@ -840,7 +933,7 @@ def main():
             f"{FULL_CODING_TASKS}/{FULL_CODING_TASKS} coding) yet."
         )
     else:
-        lines.append("| rank | model | engine | quant | reasoning⁶ | config | usefulness gate | score | coding | speed | avg time (s) | avg turns |")
+        lines.append("| rank | model | engine | quant | reasoning⁶ | config | usefulness gate | score | coding | speed | total runtime (s)⁷ | avg turns |")
         lines.append("|---|---|---|---|---|---|---|---|---|---|---|---|")
         for i, (gate_pass, score, gs) in enumerate(
             sorted(ranked, key=lambda t: (t[0], t[1]), reverse=True), start=1
@@ -853,7 +946,7 @@ def main():
             score_disp = f"{score:.3f}" if gate_pass else "—"
             coding_disp = f"{100 * gs['coding_pass_rate']:.0f}% ({gs['n_coding']})"
             speed_disp = f"{gs['avg_tps_val']:.1f} tok/s" if gs["avg_tps_val"] is not None else "—"
-            time_disp = f"{gs['avg_coding_wall']:.0f}" if gs["avg_coding_wall"] is not None else "—"
+            time_disp = _total_runtime_display(gs["total_runtime_seconds"])
             turns_disp = f"{gs['avg_coding_turns']:.1f}" if gs["avg_coding_turns"] is not None else "—"
             reasoning_disp = (
                 gs["reasoning_mode"] if gs["reasoning_effort"] in ("n/a", "?", "None")
