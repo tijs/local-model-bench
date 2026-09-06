@@ -180,6 +180,50 @@ class SelectionFilteringAndPairingTests(_Base):
         self.assertIsNotNone(pairs[0]["score_delta"])
 
 
+class EngineDeltaUnitAnnotationTests(_Base):
+    """Regression: engine-delta pass_delta is a FRACTION (0..1), but chart
+    annotations display PERCENTAGE POINTS (markers plot at pass*100). The _pp
+    helper multiplies by 100 so a real fractional delta never renders as a
+    misleading -0pp/+0pp."""
+
+    def test_pp_multiplies_fraction_to_percentage_points(self):
+        self.assertEqual(sbc._pp(0.1739), "+17pp")
+        self.assertEqual(sbc._pp(-0.1739), "-17pp")
+        self.assertEqual(sbc._pp(0.5), "+50pp")
+        # Fraction-safe zero stays +0pp when there is genuinely no delta.
+        self.assertEqual(sbc._pp(0.0), "+0pp")
+
+    @unittest.skipUnless(_matplotlib_ok(), "matplotlib not available")
+    def test_renderer_annotates_fractional_delta_in_percentage_points(self):
+        # A nonzero fractional pass_delta (0.173913) must render as "+17pp",
+        # NOT the pre-fix "+0pp" produced by formatting the raw fraction.
+        labels = []
+
+        def fake_subplots(*args, **kwargs):
+            axl = mock.MagicMock(name="axl")
+            axr = mock.MagicMock(name="axr")
+            axl.annotate.side_effect = lambda text, *a, **k: labels.append(str(text))
+            axl.get_legend_handles_labels.return_value = ([], [])
+            fig = mock.MagicMock(name="fig")
+            return fig, (axl, axr)
+
+        def _gs(model, engine, pass_=True):
+            return {"key": (model, engine, None, "h", "s"),
+                    "total_runtime_seconds": 3600.0,
+                    "n_hermes_ops": 1, "n_coding": 1,
+                    "n_hermes_ops_pass": 1 if pass_ else 0,
+                    "n_coding_pass": 1 if pass_ else 1}
+
+        pairs = [{"family": "f", "mei_gs": _gs("m/x", "mei", True),
+                  "llama_gs": _gs("m/x", "llama.cpp", False),
+                  "mei_engine": "mei", "llama_engine": "llama.cpp",
+                  "pass_delta": 0.173913, "runtime_hours": -1.0}]
+        with mock.patch.object(sbc.plt, "subplots", side_effect=fake_subplots):
+            sbc.render_engine_delta(pairs, self.out)
+        self.assertTrue(any(l.startswith("+17pp") for l in labels), labels)
+        self.assertFalse(any(l.startswith("+0pp") for l in labels), labels)
+
+
 class QualityRuntimeUsesTotalRuntimeTests(_Base):
     """quality_vs_runtime uses the RECOVERED total_runtime_seconds, not a
     per-task wall average; groups without a recoverable runtime are skipped."""

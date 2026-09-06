@@ -665,6 +665,17 @@ def _save(fig, output_dir, filename):
     return out
 
 
+def _pp(fraction):
+    """Render a pass-rate fraction as +/- percentage points (e.g. 0.1739 -> \"+18pp\").
+
+    Engine-delta pass_delta is stored as a fraction (0..1) so zero-delta checks
+    stay fraction-safe, but annotations display percentage points because the
+    markers are plotted at pass*100. Calling this helper keeps any fractional
+    nonzero delta from rendering as a misleading -0pp/+0pp on the chart.
+    """
+    return f"{fraction * 100:+.0f}pp"
+
+
 def _engine_colors(engines):
     mapping = {}
     order = sorted({e for e in engines if e})
@@ -773,10 +784,10 @@ def render_engine_delta(pairs, output_dir, title="Mei vs llama.cpp engine deltas
         axl.scatter([ll_pr], [yi], s=70, color=colors.get(p["llama_engine"].split("-")[0], "#555555"), zorder=3, label=p["llama_engine"] if yi == 0 else None)
         axl.scatter([mi_pr], [yi], s=70, color=colors.get("mei"), zorder=3, label="mei" if yi == 0 else None)
         if zero_delta:
-            axl.annotate(f"{p['pass_delta']:+.0f}pp{suffix}", (mi_pr, yi), textcoords="offset points",
+            axl.annotate(f"{_pp(p['pass_delta'])}{suffix}", (mi_pr, yi), textcoords="offset points",
                          xytext=(0, 7), ha="center", va="bottom", fontsize=7.5, color=COLOR_TEXT)
         else:
-            axl.annotate(f"{p['pass_delta']:+.0f}pp{suffix}", (mi_pr, yi), textcoords="offset points",
+            axl.annotate(f"{_pp(p['pass_delta'])}{suffix}", (mi_pr, yi), textcoords="offset points",
                          xytext=(6, 0), va="center", fontsize=7.5, color=COLOR_TEXT)
         # right: runtime hours dumbbell (or ratio text if hours missing)
         if mi_h is not None and ll_h is not None:
