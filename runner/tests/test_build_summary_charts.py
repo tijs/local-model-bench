@@ -456,6 +456,172 @@ class SelectionSchemaValidationTests(_Base):
         self.assertEqual(recs[1]["model"], "mudler/gemma")
         self.assertEqual(recs[1]["config_hash"], "abc")
 
+    def test_fragment_selection_schema_accepted(self):
+        good = Path(self.tmp) / "good_frag.json"
+        good.write_text(json.dumps([{
+            "family": "gemma-4-26B", "engine": "mei", "fragments": [
+                {"model_contains": "gemma-4-26b", "config_hash": "bc93f3cc55a1", "runner_git_sha": "06f997b70746"},
+                {"model_contains": "gemma-4-26b", "config_hash": "bc93f3cc55a1", "runner_git_sha": "a171c0999673"},
+            ],
+        }]))
+        recs = sbc.load_selection(good)
+        self.assertEqual(len(recs), 1)
+        self.assertEqual(len(recs[0]["fragments"]), 2)
+        self.assertEqual(recs[0]["fragments"][1]["runner_git_sha"], "a171c0999673")
+
+    def test_fragment_selection_empty_list_rejected(self):
+        bad = Path(self.tmp) / "bad_frag.json"
+        bad.write_text(json.dumps([{"family": "g", "engine": "mei", "fragments": []}]))
+        with self.assertRaises(ValueError):
+            sbc.load_selection(bad)
+
+    def test_fragment_plus_single_matcher_rejected(self):
+        bad = Path(self.tmp) / "bad_frag2.json"
+        bad.write_text(json.dumps([
+            {"family": "g", "engine": "mei", "model_contains": "gemma",
+             "fragments": [{"model_contains": "gemma"}]},
+        ]))
+        with self.assertRaises(ValueError):
+            sbc.load_selection(bad)
+
+    def test_fragment_without_matcher_rejected(self):
+        bad = Path(self.tmp) / "bad_frag3.json"
+        bad.write_text(json.dumps([
+            {"family": "g", "engine": "mei", "fragments": [{"config_hash": "abc"}]},
+        ]))
+        with self.assertRaises(ValueError):
+            sbc.load_selection(bad)
+
+
+class MultiFragmentSelectionTests(_Base):
+    """A curated `fragments` list concatenates multiple leaderboard fragments
+    into ONE combined group. This is how the final Gemma/Mei leg (a
+    sanity+hermes_ops run under one runner sha + the coding suites under a later
+    sha, same config = 25 rows) is represented as a single full group rather than
+    silently selecting one fragment. The FULL_*_TASKS sizes are patched down
+    module-wide (see setUpModule), so combined groups that meet the real full-suite
+    counts are considered eligible here just as in production."""
+
+    MODEL = "mlx-community/gemma-4-26b-a4b-it-4bit"
+    CONFIG = "bc93f3cc55a1"
+    SHA_FRAGA = "06f997b70746"   # sanity + hermes_ops leg
+    SHA_FRAGB = "a171c0999673"   # coding leg
+
+    def _fragA_rows(self):
+        return self._leg(self.SHA_FRAGA, datetime(2026, 9, 5, 10, 0, 0), 1,
+                         ["sanity", "sanity"] + ["hermes_ops"] * 8)
+
+    def _fragB_rows(self):
+        suites = ["kiem_mini"] * 5 + ["hearth_mini"] * 3 + ["kipclip_mini"] * 4 + ["hearth_full"] * 3
+        return self._leg(self.SHA_FRAGB, datetime(2026, 9, 5, 11, 0, 0), 1, suites)
+
+    def _leg(self, sha, base, step_min, suites):
+        rows = []
+        for i, suite in enumerate(suites):
+            ts = (base + timedelta(minutes=i * step_min)).strftime("%Y-%m-%dT%H:%M:%SZ")
+            rows.append(self._row(self.MODEL, "mei", suite, pass_=True, ts=ts,
+                                  wall=60.0, config_hash=self.CONFIG, runner_sha=sha))
+        return rows
+
+    def _combined_record(self):
+        return {"family": "gemma-4-26B", "engine": "mei", "fragments": [
+            {"model_contains": "gemma-4-26b-a4b-it-4bit", "config_hash": self.CONFIG, "runner_git_sha": self.SHA_FRAGA},
+            {"model_contains": "gemma-4-26b-a4b-it-4bit", "config_hash": self.CONFIG, "runner_git_sha": self.SHA_FRAGB},
+        ]}
+
+    def _resolve(self, rows):
+        groups = sbc.group_rows(rows)
+        gs = sbc.compute_group_stats(groups)
+        eligible = {x["key"] for x in gs}
+        return groups, gs, eligible
+
+    def test_combine_two_fragments_into_one_eligible_group(self):
+        rows = self._fragA_rows() + self._fragB_rows()
+        groups, gs, eligible = self._resolve(rows)
+        # Without fragments Gemma/Mei is split into two separate groups (the bug).
+        self.assertEqual(len(gs), 2)
+        selected = sbc.resolve_selection([self._combined_record()], gs, eligible, groups)
+        self.assertEqual(len(selected), 1)
+        entry = selected[0]
+        self.assertTrue(entry["combined"] and entry["synthetic"])
+        self.assertFalse(entry["partial"])
+        self.assertTrue(entry["eligible"] and entry["synthetic_eligible"])
+        cgs = entry["gs"]
+        # 25 rows combined: 2 sanity + 8 hermes_ops + 15 coding.
+        self.assertEqual(cgs["n_sanity"], 2)
+        self.assertEqual(cgs["n_hermes_ops"], 8)
+        self.assertEqual(cgs["n_coding"], 15)
+        self.assertIn("curated", entry["label"])
+        # Combined rows are surfaced under the synthetic key for later charts.
+        self.assertIn(cgs["key"], groups)
+        self.assertEqual(len(groups[cgs["key"]]), 25)
+
+    def test_combined_runtime_spans_both_fragments(self):
+        fragA = self._leg(self.SHA_FRAGA, datetime(2026, 9, 5, 10, 0, 0), 1, ["sanity", "hermes_ops"])
+        fragB = self._leg(self.SHA_FRAGB, datetime(2026, 9, 5, 11, 0, 0), 5, ["kiem_mini", "kiem_mini"])
+        _ga, gsA, _ = self._resolve(fragA)
+        _gb, gsB, _ = self._resolve(fragB)
+        totalA = gsA[0]["total_runtime_seconds"]
+        totalB = gsB[0]["total_runtime_seconds"]
+        rows = fragA + fragB
+        groups, gs, eligible = self._resolve(rows)
+        selected = sbc.resolve_selection([self._combined_record()], gs, eligible, groups)
+        combined = selected[0]["gs"]["total_runtime_seconds"]
+        # Recovered runtime spans first-fragment start → last-fragment end, so it
+        # exceeds either fragment's own span and equals the reconstructed estimate.
+        self.assertGreater(combined, totalA)
+        self.assertGreater(combined, totalB)
+        firstA = datetime.fromisoformat(fragA[0]["timestamp"].replace("Z", "+00:00"))
+        lastB = datetime.fromisoformat(fragB[-1]["timestamp"].replace("Z", "+00:00"))
+        expected = (lastB - (firstA - timedelta(seconds=60))).total_seconds()
+        self.assertAlmostEqual(combined, expected, places=3)
+
+    def test_combine_missing_fragment_surfaces_partial(self):
+        # Only fragment A is in the log; fragment B's runner sha is absent.
+        rows = self._fragA_rows()
+        groups, gs, eligible = self._resolve(rows)
+        selected = sbc.resolve_selection([self._combined_record()], gs, eligible, groups)
+        self.assertEqual(len(selected), 1)
+        entry = selected[0]
+        self.assertTrue(entry["combined"])
+        self.assertTrue(entry["partial"])
+        self.assertFalse(entry["eligible"])
+        self.assertIsNone(entry["gs"])
+        self.assertIn("NO MATCH", entry["label"])
+        self.assertIn("missing: runner=", entry["label"].lower())
+        # No synthetic combined group is (silently) created.
+        self.assertFalse(any(k[4].startswith("curated:") for k in groups))
+
+    @unittest.skipUnless(_matplotlib_ok(), "matplotlib not available")
+    def test_build_fragment_selection_writes_combined_group_charts(self):
+        llama = [
+            self._row("mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Compact", "llama.cpp", suite,
+                      pass_=True,
+                      ts=(datetime(2026, 9, 5, 9, 0, 0) + timedelta(minutes=i)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                      wall=60.0, config_hash="g2", runner_sha="ccc111111111")
+            for i, suite in enumerate(["sanity", "hermes_ops", "kiem_mini"])
+        ]
+        rows = self._fragA_rows() + self._fragB_rows() + llama
+        log = self._write_log(rows)
+        sel = Path(self.tmp) / "sel.json"
+        sel.write_text(json.dumps([
+            self._combined_record(),
+            {"family": "gemma-4-26B", "engine": "llama.cpp", "model_contains": "gemma-4-26B-A4B"},
+        ]))
+        out = sbc.build(log_path=log, output_dir=self.out, selection_path=str(sel))
+        # Combined Gemma/Mei (admitted via synthetic_eligible) + the llama.cpp leg
+        # give >=2 comparable points, and a same-family engine-delta pair.
+        self.assertIsNotNone(out["written"]["quality_vs_runtime"])
+        self.assertIsNotNone(out["written"]["engine_delta"])
+        self.assertIsNotNone(out["written"]["suite_heatmap"])
+        self.assertIsNotNone(out["written"]["runtime_breakdown"])
+        # The combined group is charted with 8+15 task coverage on the full leg.
+        combined = [s for s in out["selected"] if s.get("combined")]
+        self.assertEqual(len(combined), 1)
+        self.assertIsNotNone(combined[0]["gs"])
+        self.assertEqual(combined[0]["gs"]["n_hermes_ops"], 8)
+        self.assertEqual(combined[0]["gs"]["n_coding"], 15)
+
 
 class ParetoTests(_Base):
     def test_pareto_efficient(self):

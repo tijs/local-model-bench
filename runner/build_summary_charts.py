@@ -41,6 +41,28 @@ points at a JSON document that is a list of records with this schema:
         "config_hash": "a1b2c3d4e5f6",            # OPTIONAL 12-hex; when set the record must match this exact group
         "runner_git_sha": "b053b9647e1a"          # OPTIONAL 12-hex; when set the record must match this exact group
       },
+      # -- OR combine MULTIPLE leaderboard fragments into ONE curated leg --
+      # A record with `fragments` instead of a single `model_contains`/`model`
+      # concatenates the rows of each listed fragment into one synthetic group.
+      # This is how a run that spanned multiple runner_git_sha commits (e.g. a
+      # sanity+hermes_ops leg under one sha and the coding suites under a later
+      # sha, same config) is represented as a single full 25-row benchmark leg
+      # rather than silently picking one fragment. Each fragment is resolved with
+      # the SAME matching rules as a single record (model_contains/model +
+      # optional config_hash/runner_git_sha); a missing fragment is surfaced as
+      # partial/no-match, never silently dropped. The combined group is marked
+      # full/eligible only when it meets the real full-suite counts with zero
+      # harness errors; total_runtime_seconds is recovered across the combined
+      # rows. `fragments` and a single-fragment matcher are mutually exclusive.
+      {
+        "family": "Gemma-4-26B", "engine": "mei",
+        "fragments": [
+          {"model_contains": "mlx-community/gemma-4-26b-a4b-it-4bit",
+           "config_hash": "bc93f3cc55a1", "runner_git_sha": "06f997b70746"},
+          {"model_contains": "mlx-community/gemma-4-26b-a4b-it-4bit",
+           "config_hash": "bc93f3cc55a1", "runner_git_sha": "a171c0999673"}
+        ]
+      },
       { "family": "gemma-4-26B", "engine": "llama.cpp",
         "model_contains": "gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Compact" },
       { "family": "ornith-1.5-35B", "engine": "mei", "model_contains": "Ornith-1.5-35B-A3B-MLX-4bit" },
@@ -88,6 +110,7 @@ from build_leaderboard import (  # noqa: E402
     rank_groups,
     _row_inference_engine,
 )
+import build_leaderboard as _bl  # noqa: E402  (module ref so the FULL_*_TASKS patch in tests is honored)
 
 REPO = Path(__file__).resolve().parent.parent
 
@@ -171,6 +194,13 @@ def load_selection(path):
     Returns a list of record dicts. Raises ValueError with a human-readable
     message on a schema violation so a bad curation file fails loudly rather than
     silently influencing the charts.
+
+    A record is EITHER a single-fragment selection (sets `model_contains`/`model`,
+    with optional `config_hash`/`runner_git_sha`) OR a multi-fragment `fragments`
+    list (see module docstring). Both are mutually exclusive; a record that sets
+    neither (or both) is a schema error. Multi-fragment combinations lift the
+    `family`/`engine` from the outer record and apply the same per-fragment
+    matching rules (model_contains/model + optional config_hash/runner_git_sha).
     """
     raw = json.loads(Path(path).read_text())
     if not isinstance(raw, list):
@@ -183,6 +213,45 @@ def load_selection(path):
             raise ValueError(f"selection record #{i} missing required 'family' (got {rec!r})")
         if not rec.get("engine"):
             raise ValueError(f"selection record #{i} missing required 'engine' (got {rec!r})")
+        frags = rec.get("fragments")
+        if frags is not None:
+            if not isinstance(frags, list) or not frags:
+                raise ValueError(
+                    f"selection record #{i} ({rec.get('family')}/{rec.get('engine')}) "
+                    "'fragments' must be a non-empty list of fragment selectors"
+                )
+            if rec.get("model_contains") or rec.get("model"):
+                raise ValueError(
+                    f"selection record #{i} ({rec.get('family')}/{rec.get('engine')}) "
+                    "cannot set both 'fragments' and a single-fragment 'model_contains'/'model'"
+                )
+            parsed_frags = []
+            for j, frag in enumerate(frags):
+                if not isinstance(frag, dict):
+                    raise ValueError(
+                        f"selection record #{i} fragment #{j} must be an object, got {type(frag).__name__}"
+                    )
+                if not frag.get("model_contains") and not frag.get("model"):
+                    raise ValueError(
+                        f"selection record #{i} fragment #{j} must set 'model_contains' "
+                        "(case-insensitive substring) or exact 'model'"
+                    )
+                parsed_frags.append({
+                    "model_contains": frag.get("model_contains"),
+                    "model": frag.get("model"),
+                    "config_hash": frag.get("config_hash"),
+                    "runner_git_sha": frag.get("runner_git_sha"),
+                })
+            records.append({
+                "family": str(rec["family"]),
+                "engine": str(rec["engine"]),
+                "fragments": parsed_frags,
+                "model_contains": None,
+                "model": None,
+                "config_hash": None,
+                "runner_git_sha": None,
+            })
+            continue
         if not rec.get("model_contains") and not rec.get("model"):
             raise ValueError(
                 f"selection record #{i} ({rec.get('family')}/{rec.get('engine')}) "
@@ -225,32 +294,164 @@ def _record_matches_gs(rec, gs):
     return True
 
 
-def resolve_selection(records, group_stats, eligible_keys):
+def _pick_gs(matches, eligible_keys):
+    """Pick exactly one group from the candidate matches: prefer a full-eligible
+    (rank_groups' "Best overall") group, else the most recently-run one."""
+    eligible_matches = [gs for gs in matches if gs["key"] in eligible_keys]
+    if eligible_matches:
+        return eligible_matches[0]
+    return sorted(matches, key=lambda g: g.get("latest_timestamp") or "")[-1]
+
+
+def _resolve_one(selector, group_stats, eligible_keys):
+    """Resolve a single selector dict (a selection record OR one fragment) to
+    exactly one group's stats row, or None when nothing matches. A selector here
+    has `engine` plus `model_contains`/`model` and optional config_hash /
+    runner_git_sha pins — the same matching rules as a single-fragment record."""
+    matches = [gs for gs in group_stats if _record_matches_gs(selector, gs)]
+    if not matches:
+        return None
+    return _pick_gs(matches, eligible_keys)
+
+
+def _combined_eligible(gs, combined_rows):
+    """Eligibility for a CURATED multi-fragment combination.
+
+    A combined group is full/eligible exactly when it meets the real full-suite
+    counts (the same completeness rule rank_groups applies to a single run:
+    sanity present + FULL hermes_ops + FULL coding tasks) AND has zero harness
+    errors across all combined rows. This deliberately mirrors the leaderboard's
+    completeness gate on the concatenated rows rather than trusting each
+    fragment's individual completeness — a fragment may be part of a coherent
+    combined run (e.g. one runner leg covering sanity+hermes_ops, another
+    covering the coding suites).
+    """
+    complete = bool(
+        gs["n_sanity"]
+        and gs["n_hermes_ops"] >= _bl.FULL_HERMES_OPS_TASKS
+        and gs["n_coding"] >= _bl.FULL_CODING_TASKS
+    )
+    zero_harness_errors = not any(r.get("harness_error") for r in combined_rows)
+    return complete and zero_harness_errors
+
+
+def _combine_selection_fragments(rec, group_stats, eligible_keys, groups):
+    """Resolve a multi-fragment selection record into ONE curated combined group.
+
+    Resolves each fragment to exactly one group (same matching rules as a single
+    record), concatenates their rows into a synthetic group, and computes a
+    synthetic group_stats row via build_leaderboard.compute_group_stats on the
+    combined rows so its recovered total_runtime_seconds spans all fragments and
+    its per-suite/quality numbers reflect the whole 25-row leg.
+
+    A missing fragment is SURFACED (partial/no-match), never silently dropped:
+    the record resolves to a partial entry with gs=None and a label naming which
+    fragment(s) were not found, and no synthetic group is added.
+
+    Returns a selected-entry dict, sending its synthetic group's rows into
+    `groups` (mutated in place) so downstream per-suite / runtime / failure
+    charts can read rows for the combined key exactly like a real group.
+    """
+    resolved = []          # list of (fragment_selector, gs) for matched fragments
+    missing = []           # fragment selectors that matched nothing
+    for frag in rec["fragments"]:
+        selector = {
+            "engine": rec["engine"],
+            "model": frag.get("model"),
+            "model_contains": frag.get("model_contains"),
+            "config_hash": frag.get("config_hash"),
+            "runner_git_sha": frag.get("runner_git_sha"),
+        }
+        gs = _resolve_one(selector, group_stats, eligible_keys)
+        if gs is None:
+            missing.append(selector)
+        else:
+            resolved.append((selector, gs))
+
+    if missing:
+        missing_desc = "; ".join(
+            f"runner={_short_sha(f.get('runner_git_sha'))}"
+            f"{'/config=' + f.get('config_hash') if f.get('config_hash') else ''}"
+            for f in missing
+        )
+        matched_desc = f"{len(resolved)} of {len(rec['fragments'])}"
+        return {
+            "family": rec["family"], "engine": rec["engine"], "gs": None,
+            "eligible": False, "partial": True, "combined": True,
+            "label": (f"{rec['family']}/{rec['engine']} combined — "
+                      f"NO MATCH ({matched_desc} fragments resolved; missing: {missing_desc})"),
+        }
+
+    # Concatenate the fragment groups' rows into one synthetic group.
+    combined_rows = []
+    for _selector, gs in resolved:
+        combined_rows.extend(groups.get(gs["key"], []))
+    shas = [gs["key"][4] for (_s, gs) in resolved]
+    # Synthetic key: same model/engine/quant/config as the fragments, but a
+    # reserved `curated:` runner sha that cannot collide with a real 12-hex sha,
+    # so the combined legs stay distinct from any single-fragment group while the
+    # downstream charts can still look up its rows by this key.
+    first_key = resolved[0][1]["key"]
+    synth_key = (first_key[0], first_key[1], first_key[2], first_key[3],
+                 "curated:" + "+".join(shas))
+    synthetic_gs = compute_group_stats({synth_key: combined_rows})[0]
+    eligible = _combined_eligible(synthetic_gs, combined_rows)
+    # Surface the combined rows under the synthetic key so suite heatmap /
+    # runtime breakdown / failure taxonomy can read them like any other group.
+    groups[synth_key] = combined_rows
+    return {
+        "family": rec["family"], "engine": rec["engine"],
+        "gs": synthetic_gs,
+        "eligible": eligible, "partial": not eligible,
+        "combined": True, "synthetic": True, "synthetic_eligible": eligible,
+        "label": (f"{_group_label(synthetic_gs)} · curated "
+                  f"{len(resolved)}-fragment combo"),
+        "runner_fragments": [
+            {"config_hash": gs["key"][3], "runner_git_sha": gs["key"][4]}
+            for (_s, gs) in resolved
+        ],
+    }
+
+
+def _short_sha(sha):
+    """First 12 chars of a runner sha given (or a placeholder) for provenance text."""
+    if not sha:
+        return "(none)"
+    return sha[:12]
+
+
+def resolve_selection(records, group_stats, eligible_keys, groups=None):
     """Resolve a curated --selection into a list of selected-group dicts.
 
     Each output dict has: family, engine, gs (the group_stats row), eligible
-    (bool), label. For each record we pick one group: exact model_match first,
-    else prefer an eligible (full "Best overall") group, else the most recent
-    group. Every record yields an entry even if it is partial, because a
-    selection explicitly chooses those records; a `partial` flag makes that
-    explicit to downstream charts.
+    (bool), label. For a single-fragment record we pick one group: exact
+    model_match first, else prefer an eligible (full "Best overall") group, else
+    the most recent group. For a multi-fragment record (rec["fragments"]) we
+    combine the matched fragment groups into one curated synthetic group — see
+    _combine_selection_fragments(). Every record yields an entry even if it is
+    partial, because a selection explicitly chooses those records; a `partial`
+    flag makes that explicit to downstream charts. `groups` (key -> rows) is
+    required when any record uses fragments; it is mutated to carry the synthetic
+    combined rows.
     """
     selected = []
     for rec in records:
-        matches = [gs for gs in group_stats if _record_matches_gs(rec, gs)]
-        if not matches:
+        if rec.get("fragments"):
+            if groups is None:
+                raise ValueError(
+                    "resolve_selection: combining fragments requires the rows map "
+                    "(pass `groups`)" + f" for {rec['family']}/{rec['engine']}"
+                )
+            selected.append(_combine_selection_fragments(rec, group_stats, eligible_keys, groups))
+            continue
+        gs = _resolve_one(rec, group_stats, eligible_keys)
+        if gs is None:
             selected.append({
                 "family": rec["family"], "engine": rec["engine"], "gs": None,
                 "eligible": False, "partial": True,
                 "label": f"{rec['family']}/{rec['engine']} (NO MATCHING GROUP)",
             })
             continue
-        eligible_matches = [gs for gs in matches if gs["key"] in eligible_keys]
-        if eligible_matches:
-            gs = eligible_matches[0]
-        else:
-            # most recent by latest_timestamp
-            gs = sorted(matches, key=lambda g: g.get("latest_timestamp") or "")[-1]
         selected.append({
             "family": rec["family"], "engine": rec["engine"], "gs": gs,
             "eligible": gs["key"] in eligible_keys,
@@ -764,7 +965,7 @@ def build(log_path=None, output_dir=None, models=None, engines=None, selection_p
     # Determine the working set of groups.
     if selection_path:
         records = load_selection(selection_path)
-        selected = resolve_selection(records, group_stats, eligible_keys)
+        selected = resolve_selection(records, group_stats, eligible_keys, groups)
     else:
         working = filter_group_stats(group_stats, models, engines)
         if only_eligible:
@@ -776,7 +977,13 @@ def build(log_path=None, output_dir=None, models=None, engines=None, selection_p
             for gs in working
         ]
 
-    headline = [s for s in selected if s["gs"] is not None and s["gs"]["key"] in eligible_keys]
+    # Headline charts use full-eligible groups: the leaderboard's "Best overall"
+    # set (keys present in eligible_keys) PLUS curated synthetic multi-fragment
+    # combinations that met the full-suite + zero-harness-error bar (their curated
+    # synthetic key is by definition not in the original eligible_keys, so they
+    # are marked in via `synthetic_eligible`).
+    headline = [s for s in selected if s["gs"] is not None and (
+        s["gs"]["key"] in eligible_keys or s.get("synthetic_eligible"))]
 
     output = {"written": {}, "skipped": [], "selected": selected, "ranked": ranked}
 
