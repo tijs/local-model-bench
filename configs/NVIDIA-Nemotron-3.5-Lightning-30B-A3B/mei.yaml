@@ -22,7 +22,20 @@ model_bytes: 17775425688   # POST-LOAD healed file_bytes (header-healed in-place
 quant_family: MLX 4-bit affine g64 (nemotron_h; 4 safetensors shards)
 context_cap: 65536          # exact-cap gate value (project parity cap; also satisfies Hermes >=64K coding-suite minimum)
 prefill_step_size: 256     # generic-profile value verified in the gate
-tool_call_path: native_mei_requires_live_probe
+tool_call_path: native_mei_plus_proxy_recovery
+tool_call_recovery: qwen3_coder   # BENCH_TOOL_PARSER — despite the name, this
+  # existing parser handles Nemotron's dialect exactly: its split marker is the
+  # BARE `<function=` (no wrapper required) and it falls back to whole-text when
+  # no <tool_call> block is present. Verified offline 2026-09-06 against the
+  # real captured Nemotron output forms: wrapped form -> 1 call; the observed
+  # BARE failing form -> 1 call; multi-parameter -> 1 call; the corrupted
+  # very-long-prompt form -> 0 calls (correctly refuses rather than inventing
+  # one); plain prose -> 0 calls. NOT yet verified end-to-end against a live
+  # server — the GPU was running the Qwen3.6 text-only benchmark. Re-run the
+  # hermes_ops suite before trusting any graded result through this path.
+  # Known limitation, inherited from the parser: argument values get
+  # best-effort numeric coercion with no tool schema threaded through, so a
+  # numeric-looking string argument arrives as a number.
 
 benchmark_launch_command: |
   bash runner/start_mei_server.sh --model-dir /Users/tijs/.local/share/local-model-bench/mei-models/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit \
@@ -43,7 +56,25 @@ orchestration:
   # only one local Mei server per run, never concurrently. Same precedent as
   # Qwen3.6 sharing Ornith's 8024.
   raw_port: 8024          # SHARED with Ornith-1.5-35B-A3B + Qwen3.6-35B-A3B — never run concurrently
-  needs_proxy: false      # native tool_calls required; probe_mei.py gates this. Gate-verified 12/12.
+  proxy_parser: qwen3_coder   # runner/run_bench.py:487 reads orch['proxy_parser']
+                              # (hard key access — a missing key is a KeyError, not a
+                              # default). Despite the name this parser matches Nemotron's
+                              # dialect exactly; see tool_call_recovery in the header.
+  needs_proxy: true       # CHANGED 2026-09-06 — see tool_call_recovery in the header.
+                          # Mei DOES emit native tool_calls when the model
+                          # produces the wrapped form (gate: 12/12). But under
+                          # real Hermes-shaped prompts the model drops the
+                          # <tool_call> wrapper and emits a bare
+                          # <function=NAME><parameter=NAME>… block, which
+                          # vmlx's XMLFunctionParser (gated on its startTag)
+                          # never triggers on — so it lands in `content` as
+                          # text, tool_calls is empty, and the agent loop ends
+                          # after one turn. The proxy parser sees exactly that
+                          # text and recovers it. It does NOT clobber native
+                          # tool_calls: bench_local_proxy.py only sets
+                          # message["tool_calls"] when its parser finds a call,
+                          # and a natively-parsed response leaves no
+                          # `<function=` text in content for it to match.
   hermes_provider: bench-mei  # 8024 bench-profile provider exists (custom_providers.bench-mei in ~/.hermes/profiles/bench/config.yaml) — the runner passes the served model explicitly via --hermes-model. Set so a future coding-only run could drive this exploratory leg; coding rows were SKIPPED because the hermes_ops speed gate fired (see known_gaps).
   served_model_id: mlx-community/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit
   viable: full            # admitted after its independently verified bounded gate; speed-gated partial run recorded (see known_gaps)
