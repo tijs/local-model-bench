@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/2326 rows below predate 2026-08-21
+> **⚠ 138/2353 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -242,6 +242,10 @@ means no usable timestamp was recoverable from that group's rows.
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | omlx | — | 0.7 | instruct | n/a | 2/2 | [08e51e50397d](configs/08e51e50397d.yaml) — *config since changed* | e155170f4c1d | 8 | 12% | 0 | 2.9 | 79.16 | 0 | — | 0 | 11.5 | MLX 4-bit | cold | off | 2795 |
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | omlx | — | 0.7 | instruct | n/a | 1/2 | [08e51e50397d](configs/08e51e50397d.yaml) — *config since changed* | fc71ba2c66f8+dirty | 0 | n/a (all harness errors) | 0 | 13.1 | 0.80 | 0 | — | 0 | — | MLX 4-bit | cold | off | 2 |
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | vllm-mlx | — | 0.7 | instruct | n/a | 2/2 | [fe9f7a44a702](configs/fe9f7a44a702.yaml) — *config since changed* | c17e058823c1 | 8 | 75% | 4 | 2.9 | n/a (proxied — not real TTFT) | 0 | — | 0 | 7.2 | — | — | — | 3289 |
+| mlx-community/Qwen3.6-35B-A3B-4bit | mei | — | 0.6 | thinking | n/a | — | [cea524483faf](configs/cea524483faf.yaml) | 6a6d9f534804 | 6 | 83% | 2 | — | — | 0 | 10.5 | 3 | 0.9 | MLX 4-bit affine g64 (mlx-community; qwen3_5_moe conditional-generation arch), 8-bit router gates | — | — | 2434 |
+| mlx-community/Qwen3.6-35B-A3B-4bit | mei | — | 0.6 | thinking | n/a | 2/2 | [cea524483faf](configs/cea524483faf.yaml) | de1d34279681 | 13 | 92% | 3 | 14.8 | 52.79 | 0 | 20.8 | 19 | 1.1 | MLX 4-bit affine g64 (mlx-community; qwen3_5_moe conditional-generation arch), 8-bit router gates | — | — | 3325 |
+| mlx-community/Qwen3.6-35B-A3B-4bit | mei | — | 0.6 | thinking | n/a | — | [cea524483faf](configs/cea524483faf.yaml) | e5e8e82cdeb9 | 3 | 100% | 0 | — | — | 0 | 7.0 | 0 | 0.7 | MLX 4-bit affine g64 (mlx-community; qwen3_5_moe conditional-generation arch), 8-bit router gates | — | — | 840 |
+| mlx-community/Qwen3.6-35B-A3B-4bit | mei | — | 0.6 | thinking | n/a | 2/2 | [e9d6db1b6675](configs/e9d6db1b6675.yaml) — *config since changed* | 39dae7a6ea44 | 0 | n/a (all harness errors) | 0 | 40.2 | 5.87 | 0 | — | 0 | 0.3 | MLX 4-bit affine g64 (mlx-community; qwen3_5_moe conditional-generation arch), 8-bit router gates | — | — | 14 |
 | mlx-community/Qwen3.8-27B-4bit | mei | — | 1.0 | thinking | n/a | 2/2 | [c7f10a958b1e](configs/c7f10a958b1e.yaml) | 7f3de21dba70 | 23 | 87% | 19 | 5.1 | 294.05 | 0 | 11.8 | 9 | 2.0 | MLX 4-bit affine g64 (mlx-community, qwen3_5 arch) | — | — | 22412 |
 | mlx-community/Qwen3.8-27B-4bit | mei | — | 1.0 | thinking | n/a | 2/2 | [d23c67ad6d2d](configs/d23c67ad6d2d.yaml) — *config since changed* | 3496bdf4e3aa | 11 | 55% | 6 | 5.1 | 293.24 | 2 | 5.7 | 1 | 1.8 | MLX 4-bit affine g64 (mlx-community, qwen3_5 arch) | — | — | 7441 |
 | mlx-community/Qwen3.8-27B-4bit | mlx | — | ? | ? | ? | 2/2 | [152424abaa13](configs/Qwen3.8-27B/mlx.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 100% | 0 | 3.1 | 198.83 | 0 | — | 0 | — | ? | ? | ? | 4851 |
@@ -724,6 +728,14 @@ confirmed-stable, just untested for flakiness.
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | omlx | 08e51e50397d | fc71ba2c66f8+dirty | sanity | 1/2 |
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | vllm-mlx | fe9f7a44a702 | c17e058823c1 | hermes_ops | 6/8 |
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | vllm-mlx | fe9f7a44a702 | c17e058823c1 | sanity | 2/2 |
+| mlx-community/Qwen3.6-35B-A3B-4bit | mei | cea524483faf | 6a6d9f534804 | hearth_full | 3/3 |
+| mlx-community/Qwen3.6-35B-A3B-4bit | mei | cea524483faf | 6a6d9f534804 | kipclip_mini | 2/3 |
+| mlx-community/Qwen3.6-35B-A3B-4bit | mei | cea524483faf | de1d34279681 | hermes_ops | 7/8 |
+| mlx-community/Qwen3.6-35B-A3B-4bit | mei | cea524483faf | de1d34279681 | kiem_mini | 5/5 |
+| mlx-community/Qwen3.6-35B-A3B-4bit | mei | cea524483faf | de1d34279681 | sanity | 2/2 |
+| mlx-community/Qwen3.6-35B-A3B-4bit | mei | cea524483faf | e5e8e82cdeb9 | hearth_mini | 2/2 |
+| mlx-community/Qwen3.6-35B-A3B-4bit | mei | cea524483faf | e5e8e82cdeb9 | kipclip_mini | 1/1 |
+| mlx-community/Qwen3.6-35B-A3B-4bit | mei | e9d6db1b6675 | 39dae7a6ea44 | sanity | 2/2 |
 | mlx-community/Qwen3.8-27B-4bit | mei | c7f10a958b1e | 7f3de21dba70 | hearth_full | 3/3 |
 | mlx-community/Qwen3.8-27B-4bit | mei | c7f10a958b1e | 7f3de21dba70 | hearth_mini | 3/3 |
 | mlx-community/Qwen3.8-27B-4bit | mei | c7f10a958b1e | 7f3de21dba70 | hermes_ops | 6/8 |
@@ -1029,7 +1041,7 @@ confirmed-stable, just untested for flakiness.
 
 ## Harness errors (excluded from every table above)
 
-39 row(s) where the harness itself crashed (e.g. a network blip during `npm ci`, a malformed task spec) rather than the model producing a graded result — shown separately so they don't deflate pass rates or masquerade as model flakiness.
+40 row(s) where the harness itself crashed (e.g. a network blip during `npm ci`, a malformed task spec) rather than the model producing a graded result — shown separately so they don't deflate pass rates or masquerade as model flakiness.
 
 | model | engine | suite | task | grade_output (truncated) |
 |---|---|---|---|---|
@@ -1045,6 +1057,7 @@ confirmed-stable, just untested for flakiness.
 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q5_K_M | llama.cpp | kipclip_mini | kipclip_mini-debug | [...truncated...] [0m[32mCheck[0m src/types.ts [0m[32mCheck[0m src/url_utils.ts [0m[32mCheck[0m tests/bookmarks |
 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | kiem_mini | kiem_mini-feature | HARNESS ERROR: child agent escaped the disposable workspace and modified the source fixture; result invalidated and sour |
 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | kiem_mini | kiem_mini-feature | HARNESS ERROR: child agent escaped the disposable workspace and created repository-root src/lib.rs; result invalidated a |
+| mlx-community/Qwen3.6-35B-A3B-4bit | mei | hearth_mini | hearth_mini-feature | [...truncated...]  > hearth-mini@0.1.0 test > vitest run    RUN  v2.1.9 /Users/tijs/projects/local-model-bench/runner/ru |
 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | hearth_full | hearth_full-feature | [...truncated...]  > hearth-full@0.1.0 test > vitest run    RUN  v2.1.9 /Users/tijs/projects/local-model-bench/runner/ru |
 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | kiem_mini | kiem_mini-feature | [...truncated...]      Running unittests src/lib.rs (target/debug/deps/notekeep-49d36e61ba6dd38e)      Running unittests |
 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | kiem_mini | kiem_mini-testwrite | HARNESS ERROR: agent escaped the disposable run root and edited the benchmark checkout; source bytes were restored. == b |
