@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/2301 rows below predate 2026-08-21
+> **⚠ 138/2326 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -233,6 +233,7 @@ added explicitly to record that default rather than leave it invisible.
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | omlx | — | 0.7 | instruct | n/a | 2/2 | [08e51e50397d](configs/08e51e50397d.yaml) — *config since changed* | e155170f4c1d | 8 | 12% | 0 | 2.9 | 79.16 | 0 | — | 0 | 11.5 | MLX 4-bit | cold | off |
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | omlx | — | 0.7 | instruct | n/a | 1/2 | [08e51e50397d](configs/08e51e50397d.yaml) — *config since changed* | fc71ba2c66f8+dirty | 0 | n/a (all harness errors) | 0 | 13.1 | 0.80 | 0 | — | 0 | — | MLX 4-bit | cold | off |
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | vllm-mlx | — | 0.7 | instruct | n/a | 2/2 | [fe9f7a44a702](configs/fe9f7a44a702.yaml) — *config since changed* | c17e058823c1 | 8 | 75% | 4 | 2.9 | n/a (proxied — not real TTFT) | 0 | — | 0 | 7.2 | — | — | — |
+| mlx-community/Qwen3.8-27B-4bit | mei | — | 1.0 | thinking | n/a | 2/2 | [c7f10a958b1e](configs/c7f10a958b1e.yaml) | 7f3de21dba70 | 23 | 87% | 19 | 5.1 | 294.05 | 0 | 11.8 | 9 | 2.0 | MLX 4-bit affine g64 (mlx-community, qwen3_5 arch) | — | — |
 | mlx-community/Qwen3.8-27B-4bit | mei | — | 1.0 | thinking | n/a | 2/2 | [d23c67ad6d2d](configs/d23c67ad6d2d.yaml) — *config since changed* | 3496bdf4e3aa | 11 | 55% | 6 | 5.1 | 293.24 | 2 | 5.7 | 1 | 1.8 | MLX 4-bit affine g64 (mlx-community, qwen3_5 arch) | — | — |
 | mlx-community/Qwen3.8-27B-4bit | mlx | — | ? | ? | ? | 2/2 | [152424abaa13](configs/Qwen3.8-27B/mlx.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 100% | 0 | 3.1 | 198.83 | 0 | — | 0 | — | ? | ? | ? |
 | mlx-community/Qwen3.8-27B-4bit | mlx | — | 1.0 | thinking | n/a | 2/2 | [968652aede2d](configs/968652aede2d.yaml) — *config since changed* | 69e4b1fd937f | 3 | 67% | 2 | 3.6 | 198.67 | 1 | — | 0 | 1.6 | — | — | — |
@@ -355,20 +356,21 @@ most total coding+hermes_ops evidence, then recency.
 
 | rank | model | engine | quant | reasoning⁶ | config | usefulness gate | score | coding | speed | avg time (s) | avg turns |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| 1 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | thinking (medium) | f51c7e72e2ad | PASS (100%, 8) | 0.890 | 93% (15) | 30.0 tok/s | 193 | 16.8 |
-| 2 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | thinking | 98fbff8ca864 | PASS (75%, 8) | 0.873 | 87% (15) | 30.1 tok/s | 159 | 15.7 |
-| 3 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-I-Quality | llama.cpp | — | unspecified | 73c161a87535 | PASS (88%, 8) | 0.871 | 93% (15) | 28.9 tok/s | 200 | 14.2 |
-| 4 | poolside/Laguna-XS-2.1-GGUF:Q4_K_M | llama.cpp | — | thinking | 644ba3997136 | PASS (50%, 8) | 0.815 | 87% (15) | 34.8 tok/s | 177 | 25.3 |
-| 5 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | — | unspecified | 7b0652d1fb9e | PASS (100%, 8) | 0.781 | 80% (15) | 25.6 tok/s | 267 | 15.3 |
-| 6 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | unspecified | 22dac305d46e | PASS (75%, 16) | 0.773 | 93% (15) | 15.3 tok/s | 170 | 13.5 |
-| 7 | mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Quality | llama.cpp | — | unspecified | 49ec38e05e0c | PASS (88%, 8) | 0.768 | 87% (15) | 29.9 tok/s | 330 | 20.2 |
-| 8 | mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Compact | llama.cpp | — | unspecified | 0b31098f54f7 | PASS (75%, 8) | 0.765 | 73% (15) | 31.2 tok/s | 212 | 22.9 |
-| 9 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | thinking | a2d241742068 | PASS (75%, 8) | 0.716 | 87% (15) | 20.9 tok/s | 259 | 18.7 |
-| 10 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | — | instruct | 644415678c37 | PASS (75%, 8) | 0.676 | 87% (15) | 20.8 tok/s | 299 | 27.5 |
-| 11 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | thinking (medium) | 340ca3032e6c | PASS (88%, 8) | 0.578 | 87% (15) | 6.7 tok/s | 841 | 13.3 |
-| 12 | trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M | llama.cpp | — | thinking (medium) | 891242963db5 | PASS (100%, 8) | 0.552 | 80% (15) | 6.5 tok/s | 1129 | 15.4 |
-| 13 | orcarouter/Qwen3.8-27B-Uncensored-MLX (subdir 4-bit) | mei | — | thinking | 40fbffd03a95 | PASS (62%, 8) | 0.473 | 73% (15) | 6.6 tok/s | 1240 | 15.3 |
-| 14 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | n/a | ffa862c18cff | PASS (75%, 8) | 0.427 | 60% (15) | 7.7 tok/s | 1021 | 27.9 |
+| 1 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | thinking (medium) | f51c7e72e2ad | PASS (100%, 8) | 0.881 | 93% (15) | 30.0 tok/s | 193 | 16.8 |
+| 2 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | thinking | 98fbff8ca864 | PASS (75%, 8) | 0.864 | 87% (15) | 30.1 tok/s | 159 | 15.7 |
+| 3 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-I-Quality | llama.cpp | — | unspecified | 73c161a87535 | PASS (88%, 8) | 0.860 | 93% (15) | 28.9 tok/s | 200 | 14.2 |
+| 4 | poolside/Laguna-XS-2.1-GGUF:Q4_K_M | llama.cpp | — | thinking | 644ba3997136 | PASS (50%, 8) | 0.809 | 87% (15) | 34.8 tok/s | 177 | 25.3 |
+| 5 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | — | unspecified | 7b0652d1fb9e | PASS (100%, 8) | 0.771 | 80% (15) | 25.6 tok/s | 267 | 15.3 |
+| 6 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | unspecified | 22dac305d46e | PASS (75%, 16) | 0.762 | 93% (15) | 15.3 tok/s | 170 | 13.5 |
+| 7 | mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Quality | llama.cpp | — | unspecified | 49ec38e05e0c | PASS (88%, 8) | 0.761 | 87% (15) | 29.9 tok/s | 330 | 20.2 |
+| 8 | mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Compact | llama.cpp | — | unspecified | 0b31098f54f7 | PASS (75%, 8) | 0.759 | 73% (15) | 31.2 tok/s | 212 | 22.9 |
+| 9 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | thinking | a2d241742068 | PASS (75%, 8) | 0.708 | 87% (15) | 20.9 tok/s | 259 | 18.7 |
+| 10 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | — | instruct | 644415678c37 | PASS (75%, 8) | 0.671 | 87% (15) | 20.8 tok/s | 299 | 27.5 |
+| 11 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | thinking (medium) | 340ca3032e6c | PASS (88%, 8) | 0.567 | 87% (15) | 6.7 tok/s | 841 | 13.3 |
+| 12 | mlx-community/Qwen3.8-27B-4bit | mei | — | thinking | c7f10a958b1e | PASS (75%, 8) | 0.557 | 93% (15) | 5.1 tok/s | 1101 | 11.8 |
+| 13 | trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M | llama.cpp | — | thinking (medium) | 891242963db5 | PASS (100%, 8) | 0.543 | 80% (15) | 6.5 tok/s | 1129 | 15.4 |
+| 14 | orcarouter/Qwen3.8-27B-Uncensored-MLX (subdir 4-bit) | mei | — | thinking | 40fbffd03a95 | PASS (62%, 8) | 0.463 | 73% (15) | 6.6 tok/s | 1240 | 15.3 |
+| 15 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | n/a | ffa862c18cff | PASS (75%, 8) | 0.422 | 60% (15) | 7.7 tok/s | 1021 | 27.9 |
 
 ![Best overall composite score by model](score_chart.png)
 
@@ -713,6 +715,12 @@ confirmed-stable, just untested for flakiness.
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | omlx | 08e51e50397d | fc71ba2c66f8+dirty | sanity | 1/2 |
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | vllm-mlx | fe9f7a44a702 | c17e058823c1 | hermes_ops | 6/8 |
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | vllm-mlx | fe9f7a44a702 | c17e058823c1 | sanity | 2/2 |
+| mlx-community/Qwen3.8-27B-4bit | mei | c7f10a958b1e | 7f3de21dba70 | hearth_full | 3/3 |
+| mlx-community/Qwen3.8-27B-4bit | mei | c7f10a958b1e | 7f3de21dba70 | hearth_mini | 3/3 |
+| mlx-community/Qwen3.8-27B-4bit | mei | c7f10a958b1e | 7f3de21dba70 | hermes_ops | 6/8 |
+| mlx-community/Qwen3.8-27B-4bit | mei | c7f10a958b1e | 7f3de21dba70 | kiem_mini | 4/5 |
+| mlx-community/Qwen3.8-27B-4bit | mei | c7f10a958b1e | 7f3de21dba70 | kipclip_mini | 4/4 |
+| mlx-community/Qwen3.8-27B-4bit | mei | c7f10a958b1e | 7f3de21dba70 | sanity | 2/2 |
 | mlx-community/Qwen3.8-27B-4bit | mei | d23c67ad6d2d | 3496bdf4e3aa | hermes_ops | 4/8 |
 | mlx-community/Qwen3.8-27B-4bit | mei | d23c67ad6d2d | 3496bdf4e3aa | kiem_mini | 2/3 |
 | mlx-community/Qwen3.8-27B-4bit | mei | d23c67ad6d2d | 3496bdf4e3aa | sanity | 2/2 |
