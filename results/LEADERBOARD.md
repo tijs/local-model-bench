@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/2363 rows below predate 2026-08-21
+> **⚠ 138/2413 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -187,6 +187,8 @@ means no usable timestamp was recoverable from that group's rows.
 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | — | 0.2 | n/a | n/a | 2/2 | [b4a63fbb6a67](configs/b4a63fbb6a67.yaml) — *config since changed* | d0165994ca07 | 9 | 67% | 0 | 25.3 | 13.05 | 0 | — | 0 | 5.1 | oQ4-fp16 mixed precision | cold | off | 489 |
 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | — | 0.2 | n/a | n/a | 2/2 | [c1ed322cee8c](configs/c1ed322cee8c.yaml) — *config since changed* | 65bb6d23192e | 0 | n/a (all harness errors) | 0 | 92.7 | 0.99 | 0 | — | 0 | 5.1 | oQ4-fp16 mixed precision | hot | off | 2 |
 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | — | 0.2 | n/a | n/a | 2/2 | [c1ed322cee8c](configs/c1ed322cee8c.yaml) — *config since changed* | fc71ba2c66f8+dirty | 0 | n/a (all harness errors) | 0 | 105.5 | 1.57 | 0 | — | 0 | — | oQ4-fp16 mixed precision | hot | off | 4 |
+| Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | — | 0.6 | thinking | n/a | — | [3421f91401ab](configs/3421f91401ab.yaml) | 0869b8310378 | 21 | 95% | 2 | 9.9 | 63.27 | 0 | 8.1 | 14 | 1.1 | MLX 4-bit affine g64 (mlx-community; qwen3_5_moe conditional-generation arch), 8-bit router gates | — | — | 3718 |
+| Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | — | 0.6 | thinking | n/a | 2/2 | [3421f91401ab](configs/3421f91401ab.yaml) | 244380d4563e+dirty | 2 | 100% | 0 | 27.8 | 33.35 | 0 | — | 0 | 1.0 | MLX 4-bit affine g64 (mlx-community; qwen3_5_moe conditional-generation arch), 8-bit router gates | — | — | 146 |
 | anthropic/claude-haiku-4.5 | openrouter | — | None | unspecified | n/a | 2/2 | [6cc890a25129](configs/6cc890a25129.yaml) | 6474518120ce+dirty | 19 | 89% | 0 | 36.3 | 1.72 | 0 | 16.6 | 22 | — | — | — | — | 855 |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | gguf | — | ? | ? | ? | 2/2 | [3f3368f78d8d](configs/Muse-Glimmer-30B/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 67% | 0 | 7.7 | 58.80 | 0 | — | 0 | — | ? | ? | ? | 1199 |
 | bartowski/Muse-Glimmer-30B-GGUF:Q4_K_M | gguf | — | 1.0 | thinking | n/a | 2/2 | [413f324b943c](configs/413f324b943c.yaml) — *config since changed* | 3182238013a3 | 8 | 50% | 1 | 8.5 | 35.49 | 0 | — | 0 | 21.2 | — | — | — | 2525 |
@@ -234,7 +236,8 @@ means no usable timestamp was recoverable from that group's rows.
 | mlx-community/Laguna-XS-2.1-4bit | omlx | — | 1.0 | unspecified | n/a | 2/2 | [9f649cd3051f](configs/9f649cd3051f.yaml) — *config since changed* | 9f1a9e467900 | 3 | 67% | 1 | 18.7 | 44.10 | 1 | — | 0 | 3.6 | MLX 4-bit | cold | off | 1367 |
 | mlx-community/Laguna-XS-2.1-4bit | omlx | — | 1.0 | unspecified | n/a | 2/2 | [f1037eaa5995](configs/f1037eaa5995.yaml) — *config since changed* | 65bb6d23192e | 8 | 50% | 1 | 11.0 | 56.95 | 2 | — | 0 | 4.0 | MLX 4-bit | cold | off | 5998 |
 | mlx-community/Laguna-XS-2.1-4bit | omlx | — | 1.0 | unspecified | n/a | 2/2 | [f1037eaa5995](configs/f1037eaa5995.yaml) — *config since changed* | fc71ba2c66f8+dirty | 5 | 40% | 0 | 18.8 | 42.82 | 1 | — | 0 | — | MLX 4-bit | cold | off | 17129 |
-| mlx-community/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit | mei | — | 0.6 | thinking | n/a | 2/2 | [e7a6209b765d](configs/e7a6209b765d.yaml) | cd2ddc279af0 | 8 | 12% | 0 | 9.1 | 68.06 | 0 | — | 0 | 0.4 | MLX 4-bit affine g64 (nemotron_h; 4 safetensors shards) | — | — | 695 |
+| mlx-community/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit | mei | — | 0.6 | thinking | n/a | 2/2 | [d9be6d0097ea](configs/d9be6d0097ea.yaml) | 0869b8310378 | 23 | 22% | 0 | 35.7 | n/a (proxied — not real TTFT) | 0 | 11.3 | 26 | 0.7 | MLX 4-bit affine g64 (nemotron_h; 4 safetensors shards) | — | — | 5440 |
+| mlx-community/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit | mei | — | 0.6 | thinking | n/a | 2/2 | [e7a6209b765d](configs/e7a6209b765d.yaml) — *config since changed* | cd2ddc279af0 | 8 | 12% | 0 | 9.1 | 68.06 | 0 | — | 0 | 0.4 | MLX 4-bit affine g64 (nemotron_h; 4 safetensors shards) | — | — | 695 |
 | mlx-community/Qwen2.5-Coder-14B-Instruct-4bit | mlx | — | 0.7 | n/a | n/a | 1/2 | [c6d10ac83efc](configs/c6d10ac83efc.yaml) — *config since changed* | e155170f4c1d | 0 | n/a (all harness errors) | 0 | 10.9 | 0.76 | 0 | — | 0 | 10.0 | — | — | — | 2 |
 | mlx-community/Qwen2.5-Coder-14B-Instruct-4bit | vllm-mlx | — | 0.7 | n/a | n/a | 1/2 | [389d88115d2d](configs/389d88115d2d.yaml) — *config since changed* | 3bca29f0ff7c | 0 | n/a (all harness errors) | 0 | 11.0 | 0.75 | 0 | — | 0 | 8.3 | — | — | — | 2 |
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | mlx | — | 0.7 | instruct | n/a | 2/2 | [5e09e98f8c60](configs/5e09e98f8c60.yaml) — *config since changed* | e155170f4c1d | 9 | 67% | 0 | 12.9 | n/a (proxied — not real TTFT) | 0 | — | 0 | 9.7 | — | — | — | 415 |
@@ -385,6 +388,7 @@ most total coding+hermes_ops evidence, then recency.
 | 13 | trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M | llama.cpp | — | thinking (medium) | 891242963db5 | PASS (100%, 8) | 0.539 | 80% (15) | 6.5 tok/s | 22074 | 15.4 |
 | 14 | orcarouter/Qwen3.8-27B-Uncensored-MLX (subdir 4-bit) | mei | — | thinking | 40fbffd03a95 | PASS (62%, 8) | 0.458 | 73% (15) | 6.6 tok/s | 26902 | 15.3 |
 | 15 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | n/a | ffa862c18cff | PASS (75%, 8) | 0.426 | 60% (15) | 7.7 tok/s | 15872 | 27.9 |
+| 16 | mlx-community/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit | mei | — | thinking | d9be6d0097ea | FAIL (12%, 8) | — | 27% (15) | 35.7 tok/s | 5440 | 11.3 |
 
 ![Best overall composite score by model](score_chart.png)
 
@@ -597,6 +601,13 @@ confirmed-stable, just untested for flakiness.
 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | b4a63fbb6a67 | d0165994ca07 | sanity | 2/2 |
 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | c1ed322cee8c | 65bb6d23192e | sanity | 2/2 |
 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | c1ed322cee8c | fc71ba2c66f8+dirty | sanity | 2/2 |
+| Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | 3421f91401ab | 0869b8310378 | hearth_full | 3/3 |
+| Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | 3421f91401ab | 0869b8310378 | hearth_mini | 3/3 |
+| Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | 3421f91401ab | 0869b8310378 | hermes_ops | 6/6 |
+| Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | 3421f91401ab | 0869b8310378 | kiem_mini | 4/5 |
+| Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | 3421f91401ab | 0869b8310378 | kipclip_mini | 4/4 |
+| Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | 3421f91401ab | 244380d4563e+dirty | hermes_ops | 2/2 |
+| Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | 3421f91401ab | 244380d4563e+dirty | sanity | 2/2 |
 | anthropic/claude-haiku-4.5 | openrouter | 6cc890a25129 | 6474518120ce+dirty | hearth_mini | 3/3 |
 | anthropic/claude-haiku-4.5 | openrouter | 6cc890a25129 | 6474518120ce+dirty | hermes_ops | 8/8 |
 | anthropic/claude-haiku-4.5 | openrouter | 6cc890a25129 | 6474518120ce+dirty | kiem_mini | 3/5 |
@@ -716,6 +727,12 @@ confirmed-stable, just untested for flakiness.
 | mlx-community/Laguna-XS-2.1-4bit | omlx | f1037eaa5995 | fc71ba2c66f8+dirty | hermes_ops | 2/3 |
 | mlx-community/Laguna-XS-2.1-4bit | omlx | f1037eaa5995 | fc71ba2c66f8+dirty | kiem_mini | 0/2 |
 | mlx-community/Laguna-XS-2.1-4bit | omlx | f1037eaa5995 | fc71ba2c66f8+dirty | sanity | 2/2 |
+| mlx-community/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit | mei | d9be6d0097ea | 0869b8310378 | hearth_full | 1/3 |
+| mlx-community/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit | mei | d9be6d0097ea | 0869b8310378 | hearth_mini | 0/3 |
+| mlx-community/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit | mei | d9be6d0097ea | 0869b8310378 | hermes_ops | 1/8 |
+| mlx-community/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit | mei | d9be6d0097ea | 0869b8310378 | kiem_mini | 0/5 |
+| mlx-community/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit | mei | d9be6d0097ea | 0869b8310378 | kipclip_mini | 3/4 |
+| mlx-community/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit | mei | d9be6d0097ea | 0869b8310378 | sanity | 2/2 |
 | mlx-community/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit | mei | e7a6209b765d | cd2ddc279af0 | hermes_ops | 1/8 |
 | mlx-community/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit | mei | e7a6209b765d | cd2ddc279af0 | sanity | 2/2 |
 | mlx-community/Qwen2.5-Coder-14B-Instruct-4bit | mlx | c6d10ac83efc | e155170f4c1d | sanity | 1/2 |

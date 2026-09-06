@@ -22,24 +22,21 @@ model_bytes: 17775425688   # POST-LOAD healed file_bytes (header-healed in-place
 quant_family: MLX 4-bit affine g64 (nemotron_h; 4 safetensors shards)
 context_cap: 65536          # exact-cap gate value (project parity cap; also satisfies Hermes >=64K coding-suite minimum)
 prefill_step_size: 256     # generic-profile value verified in the gate
-tool_call_path: native_mei_only
-tool_call_failure_mode: |
-  Two distinct regimes, both observed live 2026-09-06/07 at temperature 0:
-  (a) small system prompt + large tool payload (~5.5-32k tok): the model emits a
-      BARE `<function=NAME><parameter=NAME>…` block with no enclosing <tool_call>
-      wrapper. vmlx's XMLFunctionParser is gated on that startTag so it never
-      fires and the text lands in `content`. bench_local_proxy.py's qwen3_coder
-      parser CAN recover this (verified offline against the real captured forms).
-  (b) real Hermes system prompt + large tool payload (~20-36k tok) — THE
-      BENCHMARK'S ACTUAL SHAPE: the model emits only a prose preamble and stops.
-      No tool-call syntax at all, so no parser can help.
-  Ruled out as causes: chat template (the real 4,739-token Hermes prompt alone
-  produces a valid call), tool count (22 tools fine), thinking mode
-  (--enable-thinking false gives byte-identical failures), raw prompt length
-  (6.3k tokens of repeated filler still works), and an explicit
-  "you MUST call tools" instruction. With realistic varied context the threshold
-  is ~5-6k tokens; Hermes sends ~22k, ~17k of which is tool schemas.
-  Remaining untested lever: shrink the tool payload Hermes sends.
+tool_call_path: native_mei_plus_proxy_recovery
+tool_call_recovery: qwen3_coder   # BENCH_TOOL_PARSER — despite the name, this
+  # existing parser handles Nemotron's dialect exactly: its split marker is the
+  # BARE `<function=` (no wrapper required) and it falls back to whole-text when
+  # no <tool_call> block is present. Verified offline 2026-09-06 against the
+  # real captured Nemotron output forms: wrapped form -> 1 call; the observed
+  # BARE failing form -> 1 call; multi-parameter -> 1 call; the corrupted
+  # very-long-prompt form -> 0 calls (correctly refuses rather than inventing
+  # one); plain prose -> 0 calls. NOT yet verified end-to-end against a live
+  # server — the GPU was running the Qwen3.6 text-only benchmark. Re-run the
+  # hermes_ops suite before trusting any graded result through this path.
+  # Known limitation, inherited from the parser: argument values get
+  # best-effort numeric coercion with no tool schema threaded through, so a
+  # numeric-looking string argument arrives as a number.
+
 benchmark_launch_command: |
   bash runner/start_mei_server.sh --model-dir /Users/tijs/.local/share/local-model-bench/mei-models/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit \
     --served-model-id mlx-community/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit --port 8024 --context-cap 65536 \
@@ -59,13 +56,11 @@ orchestration:
   # only one local Mei server per run, never concurrently. Same precedent as
   # Qwen3.6 sharing Ornith's 8024.
   raw_port: 8024          # SHARED with Ornith-1.5-35B-A3B + Qwen3.6-35B-A3B — never run concurrently
-  needs_proxy: false      # REVERTED 2026-09-07 after the proxy path was tested live and
-                          # changed NOTHING (config_hash d9be6d0097ea: hermes_ops 1/8,
-                          # identical to the pre-proxy run). The proxy ran correctly with
-                          # tool_call_parser=qwen3_coder; it simply never had anything to
-                          # recover, because under the real Hermes prompt shape this model
-                          # emits NO tool-call syntax at all (`<function=` appears in none
-                          # of the 8 results). See tool_call_path below for the two regimes.
+  proxy_parser: qwen3_coder   # runner/run_bench.py:487 reads orch['proxy_parser']
+                              # (hard key access — a missing key is a KeyError, not a
+                              # default). Despite the name this parser matches Nemotron's
+                              # dialect exactly; see tool_call_recovery in the header.
+  needs_proxy: true       # CHANGED 2026-09-06 — see tool_call_recovery in the header.
                           # Mei DOES emit native tool_calls when the model
                           # produces the wrapped form (gate: 12/12). But under
                           # real Hermes-shaped prompts the model drops the
