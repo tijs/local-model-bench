@@ -1,12 +1,67 @@
-# Current top picks — hand-curated snapshot
+# Current top picks — final post-fix snapshot
 
 **Hand-curated, not auto-regenerated** — unlike `LEADERBOARD.md` (rebuilt
 from `log.jsonl` after every run; never hand-edit it), this is a
-point-in-time reading of that data. Re-check against `LEADERBOARD.md` if
-it's been a while — last updated **2026-09-01**, after benchmark-v4's
-8-model rerun (see immediately below). Everything from "Benchmark v2, in
-one paragraph" onward is historical context from earlier rounds, kept for
-the reasoning behind past decisions, not the current picture.
+point-in-time reading of the saved benchmark rows. Last updated
+**2026-09-06**, after the four post-fix Mei legs completed. The final
+headline set is four model families × two engines: llama.cpp and Mei.
+Everything from the historical benchmark-v4 section onward is retained for
+prior decisions and provenance.
+
+## Final eight: post-fix local comparison
+
+Each headline entry has **25 graded rows**: 2 sanity, 8 `hermes_ops`, and
+15 coding tasks. The Gemma/Mei entry combines two explicitly pinned fragments
+with the same model/config (10 sanity+Hermes rows plus 15 coding rows). All
+eight have zero `harness_error` rows. The selected-eight score is a report
+score, normalized only across these eight entries: 45% combined quality, 25%
+decode speed, 20% recovered total runtime, 10% coding turns. Decode tok/s and
+TTFT are model-speed metrics; coding token counts and wall/runtime are
+end-to-end agent-task metrics.
+
+| Family | Engine / selected artifact | Sanity | Hermes Ops | Coding | Combined | Decode tok/s | TTFT (s) | Runtime | Sanity+Hermes tokens in/out | Coding tokens in/out | Score |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Ornith-1.5-35B | llama.cpp / Q4_K_M | 2/2 | 8/8 | 14/15 | **95.7%** | **30.0** | 7.0 | 0.97 h | 1,991,913 / 18,763 | 236,585 / 91,269 | **0.920** |
+| Ornith-1.5-35B | Mei / MLX 4-bit | 2/2 | 8/8 | 14/15 | **95.7%** | 20.8 | 39.1 | **0.82 h** | 1,051,258 / 8,890 | 206,471 / 56,449 | **0.899** |
+| Gemma 4 26B A4B | llama.cpp / APEX-I-Quality | 2/2 | 7/8 | 13/15 | **87.0%** | **29.9** | 10.7 | 1.50 h | 1,376,408 / 10,779 | 321,682 / 108,123 | **0.809** |
+| Gemma 4 26B A4B | Mei / MLX 4-bit | 2/2 | 6/8 | 10/15 | **69.6%** | 4.2 | 53.6 | 2.72 h | 429,756 / 1,374 | 357,740 / 97,174 | **0.472** |
+| Qwen3.8-27B base | llama.cpp / UD-Q5_K_M | 2/2 | 7/8 | 13/15 | **87.0%** | 6.7 | 46.6 | 4.62 h | 1,658,201 / 29,555 | 257,730 / 77,054 | **0.572** |
+| Qwen3.8-27B base | Mei / MLX 4-bit | 2/2 | 6/8 | 14/15 | **87.0%** | 5.1 | 294.0 | 6.23 h | 1,700,331 / 32,270 | 265,176 / 101,695 | **0.560** |
+| Qwen3.8-27B Uncensored | llama.cpp / Heretic Q5_K_M | 2/2 | 8/8 | 12/15 | **87.0%** | 6.5 | 49.9 | 6.13 h | 1,551,927 / 36,479 | 249,028 / 82,317 | **0.549** |
+| Qwen3.8-27B Uncensored | Mei / MLX 4-bit | 2/2 | 5/8 | 11/15 | **69.6%** | 6.6 | 304.5 | 7.47 h | 3,557,407 / 53,478 | 173,362 / 46,915 | **0.467** |
+
+### Outcome summary
+
+- **Best overall quality:** Ornith reaches 95.7% on both engines. llama.cpp has
+  the higher decode rate (30.0 vs 20.8 tok/s); Mei completes the recovered
+  benchmark interval sooner (0.82 vs 0.97 h).
+- **Gemma:** the llama.cpp APEX-I-Quality artifact is materially ahead of its
+  Mei counterpart on quality (87.0% vs 69.6%), decode speed (29.9 vs 4.2
+  tok/s), and recovered runtime (1.50 vs 2.72 h).
+- **Qwen base:** quality is tied at 87.0%; llama.cpp is faster on decode and
+  recovered runtime, while Mei has one more coding pass (14/15 vs 13/15).
+- **Qwen Uncensored:** llama.cpp has higher quality (87.0% vs 69.6%) and is
+  faster end-to-end; decode speed is effectively tied (6.5 vs 6.6 tok/s).
+- **Failure taxonomy:** 28 model/task failures across the selected rows: 12
+  task failures and 16 timeout/stall classifications; 0 malformed-tool and
+  0 harness errors. See `failure_taxonomy.png`.
+- **Not a universal engine win:** this final set supports a clear llama.cpp
+  recommendation for Gemma and Qwen, while Mei remains competitive on
+  Ornith quality and elapsed runtime.
+
+### Final eight charts
+
+![Selected-eight composite score](summary_score_chart.png)
+
+![Quality vs recovered runtime](quality_vs_runtime.png)
+
+![Mei vs llama.cpp deltas](engine_delta.png)
+
+![Suite pass-rate heatmap](suite_heatmap.png)
+
+![Recovered runtime breakdown](runtime_breakdown.png)
+
+![Failure taxonomy](failure_taxonomy.png)
 
 ## Benchmark-v4 (2026-09-01): the hermes_ops real-answer fix, and the current active lineup
 
