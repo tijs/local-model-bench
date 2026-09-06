@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/2276 rows below predate 2026-08-21
+> **⚠ 138/2301 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -255,6 +255,7 @@ added explicitly to record that default rather than leave it invisible.
 | openai/gpt-5.6-luna | openrouter | — | None | unspecified | n/a | 2/2 | [f1e3043189f3](configs/f1e3043189f3.yaml) | 1e67356823c2 | 9 | 100% | 0 | 35.5 | 4.80 | 0 | — | 0 | — | — | — | — |
 | openai/gpt-5.6-luna | openrouter | — | None | unspecified | n/a | — | [f1e3043189f3](configs/f1e3043189f3.yaml) | 20ce58c43993+dirty | 17 | 94% | 0 | 25.9 | 3.35 | 0 | 11.8 | 17 | — | — | — | — |
 | openai/gpt-5.6-luna | openrouter | — | None | unspecified | n/a | 2/2 | [f1e3043189f3](configs/f1e3043189f3.yaml) | 9d8c6a3619ec+dirty | 2 | 100% | 0 | 12.3 | 2.15 | 0 | — | 0 | — | — | — | — |
+| orcarouter/Qwen3.8-27B-Uncensored-MLX (subdir 4-bit) | mei | — | 1.0 | thinking | n/a | 2/2 | [40fbffd03a95](configs/40fbffd03a95.yaml) | 0e516aa414aa | 23 | 70% | 16 | 6.6 | 304.51 | 0 | 9.2 | 7 | 2.1 | MLX 4-bit affine g64 (orcarouter repack of heretic-org abliteration, qwen3_5 arch) | — | — |
 | orcarouter/Qwen3.8-27B-Uncensored-MLX (subdir 4-bit) | mei | — | 1.0 | thinking | n/a | 2/2 | [40fbffd03a95](configs/40fbffd03a95.yaml) | ab5fe7ef2281 | 0 | n/a (all harness errors) | 0 | 8.3 | 7.32 | 0 | — | 0 | 0.4 | MLX 4-bit affine g64 (orcarouter repack of heretic-org abliteration, qwen3_5 arch) | — | — |
 | orcarouter/Qwen3.8-27B-Uncensored-MLX (subdir 4-bit) | mei | — | 1.0 | thinking | n/a | — | [9a0bccfab07b](configs/9a0bccfab07b.yaml) — *config since changed* | 952f3df59606 | 20 | 65% | 13 | 5.7 | 379.91 | 1 | 10.7 | 12 | 2.3 | MLX 4-bit affine g64 (orcarouter repack of heretic-org abliteration, qwen3_5 arch) | — | — |
 | orcarouter/Qwen3.8-27B-Uncensored-MLX (subdir 4-bit) | mei | — | 1.0 | thinking | n/a | 2/2 | [9a0bccfab07b](configs/9a0bccfab07b.yaml) — *config since changed* | b293b2de057f | 3 | 33% | 1 | 5.8 | 218.79 | 0 | — | 0 | 2.0 | MLX 4-bit affine g64 (orcarouter repack of heretic-org abliteration, qwen3_5 arch) | — | — |
@@ -366,7 +367,8 @@ most total coding+hermes_ops evidence, then recency.
 | 10 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | — | instruct | 644415678c37 | PASS (75%, 8) | 0.676 | 87% (15) | 20.8 tok/s | 299 | 27.5 |
 | 11 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | thinking (medium) | 340ca3032e6c | PASS (88%, 8) | 0.578 | 87% (15) | 6.7 tok/s | 841 | 13.3 |
 | 12 | trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M | llama.cpp | — | thinking (medium) | 891242963db5 | PASS (100%, 8) | 0.552 | 80% (15) | 6.5 tok/s | 1129 | 15.4 |
-| 13 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | n/a | ffa862c18cff | PASS (75%, 8) | 0.427 | 60% (15) | 7.7 tok/s | 1021 | 27.9 |
+| 13 | orcarouter/Qwen3.8-27B-Uncensored-MLX (subdir 4-bit) | mei | — | thinking | 40fbffd03a95 | PASS (62%, 8) | 0.473 | 73% (15) | 6.6 tok/s | 1240 | 15.3 |
+| 14 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | n/a | ffa862c18cff | PASS (75%, 8) | 0.427 | 60% (15) | 7.7 tok/s | 1021 | 27.9 |
 
 ![Best overall composite score by model](score_chart.png)
 
@@ -783,6 +785,12 @@ confirmed-stable, just untested for flakiness.
 | openai/gpt-5.6-luna | openrouter | f1e3043189f3 | 20ce58c43993+dirty | kipclip_mini | 3/3 |
 | openai/gpt-5.6-luna | openrouter | f1e3043189f3 | 9d8c6a3619ec+dirty | hermes_ops | 2/2 |
 | openai/gpt-5.6-luna | openrouter | f1e3043189f3 | 9d8c6a3619ec+dirty | sanity | 2/2 |
+| orcarouter/Qwen3.8-27B-Uncensored-MLX (subdir 4-bit) | mei | 40fbffd03a95 | 0e516aa414aa | hearth_full | 2/3 |
+| orcarouter/Qwen3.8-27B-Uncensored-MLX (subdir 4-bit) | mei | 40fbffd03a95 | 0e516aa414aa | hearth_mini | 3/3 |
+| orcarouter/Qwen3.8-27B-Uncensored-MLX (subdir 4-bit) | mei | 40fbffd03a95 | 0e516aa414aa | hermes_ops | 5/8 |
+| orcarouter/Qwen3.8-27B-Uncensored-MLX (subdir 4-bit) | mei | 40fbffd03a95 | 0e516aa414aa | kiem_mini | 2/5 |
+| orcarouter/Qwen3.8-27B-Uncensored-MLX (subdir 4-bit) | mei | 40fbffd03a95 | 0e516aa414aa | kipclip_mini | 4/4 |
+| orcarouter/Qwen3.8-27B-Uncensored-MLX (subdir 4-bit) | mei | 40fbffd03a95 | 0e516aa414aa | sanity | 2/2 |
 | orcarouter/Qwen3.8-27B-Uncensored-MLX (subdir 4-bit) | mei | 40fbffd03a95 | ab5fe7ef2281 | sanity | 2/2 |
 | orcarouter/Qwen3.8-27B-Uncensored-MLX (subdir 4-bit) | mei | 9a0bccfab07b | 952f3df59606 | hearth_full | 3/3 |
 | orcarouter/Qwen3.8-27B-Uncensored-MLX (subdir 4-bit) | mei | 9a0bccfab07b | 952f3df59606 | hearth_mini | 3/3 |
