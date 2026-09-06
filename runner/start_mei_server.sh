@@ -31,6 +31,17 @@ Options:
                             (default: none -> in-memory paged tier only; the
                             qwen3_5_moe/Ornith hybrid requires this tier for
                             cross-turn reuse — cached_tokens stays 0 without it)
+  --optimization-profile PROFILE  Mei optimization profile: auto|generic|ornith
+                            (default: none -> not passed; Mei auto picks it.
+                            generic is the Nemotron gate operating point)
+  --memory-limit-bytes N    Explicit MLX allocator limit in bytes
+                            (default: none -> not passed; Mei uses its own
+                            default, ~1.5x the Metal recommended working set)
+  --cache-limit-bytes N     MLX buffer-pool cache limit in bytes
+                            (default: none -> not passed; Mei default 0 = use
+                            the default limit)
+  --compiled-decode BOOL    Graph-traced compiled decode (default: none -> not
+                            passed; Mei default false)
   --mei-repo PATH           Mei checkout (default: ~/projects/mei)
   --runtime-base PATH       Mei runtime root (default: ~/.local/share/local-model-bench/mei-runtime)
   --build-dir PATH          SwiftPM scratch/build dir (default: .../mei-build-pinned-91fed8be)
@@ -51,6 +62,10 @@ EMIT_REASONING="true"
 CACHE_REUSE="true"
 KV_BITS=""
 KV_CACHE_DIR=""
+OPTIMIZATION_PROFILE=""
+MEMORY_LIMIT_BYTES=""
+CACHE_LIMIT_BYTES=""
+COMPILED_DECODE=""
 MEI_REPO="$MEI_REPO_DEFAULT"
 RUNTIME_BASE="$RUNTIME_BASE_DEFAULT"
 BUILD_DIR="$BUILD_DIR_DEFAULT"
@@ -71,6 +86,10 @@ while [[ $# -gt 0 ]]; do
     --cache-reuse) CACHE_REUSE="${2:?missing value}"; shift 2 ;;
     --kv-bits) KV_BITS="${2:?missing value}"; shift 2 ;;
     --kv-cache-dir) KV_CACHE_DIR="${2:?missing value}"; shift 2 ;;
+    --optimization-profile) OPTIMIZATION_PROFILE="${2:?missing value}"; shift 2 ;;
+    --memory-limit-bytes) MEMORY_LIMIT_BYTES="${2:?missing value}"; shift 2 ;;
+    --cache-limit-bytes) CACHE_LIMIT_BYTES="${2:?missing value}"; shift 2 ;;
+    --compiled-decode) COMPILED_DECODE="${2:?missing value}"; shift 2 ;;
     --mei-repo) MEI_REPO="${2:?missing value}"; shift 2 ;;
     --runtime-base) RUNTIME_BASE="${2:?missing value}"; shift 2 ;;
     --build-dir) BUILD_DIR="${2:?missing value}"; shift 2 ;;
@@ -101,6 +120,32 @@ if (( ! DRY_RUN )) && /usr/sbin/lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2
   exit 1
 fi
 
+BIN="$BUILD_DIR/release/mei"
+
+# Build the argument vector BEFORE building, so --dry-run can print the exact
+# launch line (with every gate control) without compiling the Swift package or
+# starting a server. Only explicitly-provided values are forwarded — no default
+# overrides a current config's behavior.
+ARGS=(--model-dir "$MODEL_DIR" --served-model-id "$SERVED_MODEL_ID"
+  --host 127.0.0.1 --port "$PORT"
+  --context-cap "$CONTEXT_CAP" --max-tokens "$MAX_TOKENS"
+  --prefill-step-size "$PREFILL_STEP_SIZE"
+  --temperature "$TEMPERATURE" --top-p "$TOP_P" --top-k "$TOP_K"
+  --emit-reasoning "$EMIT_REASONING" --cache-reuse "$CACHE_REUSE")
+[[ -n "$KV_BITS" ]] && ARGS+=(--kv-bits "$KV_BITS")
+[[ -n "$KV_CACHE_DIR" ]] && ARGS+=(--kv-cache-dir "$KV_CACHE_DIR")
+[[ -n "$OPTIMIZATION_PROFILE" ]] && ARGS+=(--optimization-profile "$OPTIMIZATION_PROFILE")
+[[ -n "$MEMORY_LIMIT_BYTES" ]] && ARGS+=(--memory-limit-bytes "$MEMORY_LIMIT_BYTES")
+[[ -n "$CACHE_LIMIT_BYTES" ]] && ARGS+=(--cache-limit-bytes "$CACHE_LIMIT_BYTES")
+[[ -n "$COMPILED_DECODE" ]] && ARGS+=(--compiled-decode "$COMPILED_DECODE")
+
+printf 'mei isolated launch: '
+printf '%q ' "$BIN" "${ARGS[@]}"
+printf '\n'
+if (( DRY_RUN )); then
+  exit 0
+fi
+
 mkdir -p "$RUNTIME_BASE" "$RUNTIME_BASE/logs" "$BUILD_DIR"
 LOG_DIR="$RUNTIME_BASE/logs"
 PID_FILE="$RUNTIME_BASE/server.pid"
@@ -111,25 +156,8 @@ echo "mei: building (release, scratch: $BUILD_DIR) ..."
   echo "FATAL: swift build failed — see $LOG_DIR/build.log" >&2
   exit 1
 }
-BIN="$BUILD_DIR/release/mei"
 [[ -x "$BIN" ]] || { echo "FATAL: built binary missing at $BIN" >&2; exit 1; }
 bash "$MEI_REPO/scripts/prepare_metallib.sh" "$BUILD_DIR/release" || { echo "FATAL: missing Metal kernel library" >&2; exit 1; }
-
-ARGS=(--model-dir "$MODEL_DIR" --served-model-id "$SERVED_MODEL_ID"
-  --host 127.0.0.1 --port "$PORT"
-  --context-cap "$CONTEXT_CAP" --max-tokens "$MAX_TOKENS"
-  --prefill-step-size "$PREFILL_STEP_SIZE"
-  --temperature "$TEMPERATURE" --top-p "$TOP_P" --top-k "$TOP_K"
-  --emit-reasoning "$EMIT_REASONING" --cache-reuse "$CACHE_REUSE")
-[[ -n "$KV_BITS" ]] && ARGS+=(--kv-bits "$KV_BITS")
-[[ -n "$KV_CACHE_DIR" ]] && ARGS+=(--kv-cache-dir "$KV_CACHE_DIR")
-
-printf 'mei isolated launch: '
-printf '%q ' "$BIN" "${ARGS[@]}"
-printf '\n'
-if (( DRY_RUN )); then
-  exit 0
-fi
 
 "$BIN" "${ARGS[@]}" >> "$LOG_DIR/server.log" 2>&1 &
 SERVER_PID=$!
