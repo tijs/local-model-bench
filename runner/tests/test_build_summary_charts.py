@@ -359,6 +359,45 @@ class RendererWritesPngTests(_Base):
         self.assertIsNotNone(path)
         self.assertGreater(Path(path).stat().st_size, 1000)
 
+    def test_engine_delta_renderer_four_families_with_zero_delta_pair(self):
+        # Regression for the layout change: the legend lives at figure level in
+        # the reserved title band (fig.legend) and a ZERO pass delta (Mei and
+        # llama.cpp points coincide) is annotated ABOVE the point. Visual layout
+        # cannot be asserted from source, so this exercises the render path that
+        # covers both changes: >1 family horizontally-spaced rows, a coincident
+        # zero-delta row (upper-right region the legend previously overlapped),
+        # and a non-zero delta row. It must still write a nonempty PNG.
+        def _gs(model, engine, pass_=True):
+            return {"key": (model, engine, None, "h", "s"),
+                    "total_runtime_seconds": 3600.0,
+                    "n_hermes_ops": 1, "n_coding": 1,
+                    "n_hermes_ops_pass": 1 if pass_ else 0,
+                    "n_coding_pass": 1 if pass_ else 1}
+        # Zero-delta family: Mei and llama.cpp have IDENTICAL pass rates, so the
+        # two markers coincide and the annotate-above path is taken.
+        families = ["alpha", "beta", "gamma", "delta"]
+        pairs = []
+        for i, fam in enumerate(families):
+            zero = (i % 2 == 0)
+            pass_ = ([True, True] if zero else [True, False])
+            pairs.append({
+                "family": fam,
+                "mei_gs": _gs(f"m/{fam}", "mei", pass_=pass_[0]),
+                "llama_gs": _gs(f"m/{fam}", "llama.cpp", pass_=pass_[1]),
+                "mei_engine": "mei", "llama_engine": "llama.cpp",
+                "pass_delta": 0.0 if zero else 0.5,
+                "runtime_hours": -float(i + 1),
+                "score_delta": -0.010 if zero else 0.330,
+            })
+        path = sbc.render_engine_delta(pairs, self.out)
+        self.assertIsNotNone(path)
+        self.assertTrue(Path(path).exists())
+        self.assertGreater(Path(path).stat().st_size, 1000)
+        # Documented layout contract lives in render_engine_delta's docstring and
+        # this test's comment: legend is figure-level (reserved title band) and
+        # zero-delta rows annotate above the coincident point. Pixel layout is
+        # not asserted from source; the render path above covers both changes.
+
     def test_heatmap_renderer_writes_nonempty_png(self):
         matrix = [{"label": "g1", "row": {"sanity": 100.0, "hermes_ops": 66.7, "kiem_mini": None}}]
         path = sbc._render_suite_heatmap_matrix(matrix, self.out, ["sanity", "hermes_ops", "kiem_mini"])

@@ -737,7 +737,13 @@ def render_quality_vs_runtime(gs_list, output_dir, title="Quality vs recovered r
 # --------------------------------------------------------------------------- #
 def render_engine_delta(pairs, output_dir, title="Mei vs llama.cpp engine deltas (per family)"):
     """Dumbbell/slope chart: per family, mark Mei and llama.cpp values for
-    pass rate (left) and total runtime hours (right); annotate the delta."""
+    pass rate (left) and total runtime hours (right); annotate the delta.
+
+    Layout notes (regression target): the legend is placed at FIGURE level in
+    the reserved title band (top-right) via fig.legend(), NOT inside axl, so it
+    can never collide with the top plotted row's delta annotation. Zero-pass-rate
+    deltas (Mei and llama.cpp points coincide) are annotated above the point
+    instead of to its right so the label stays readable."""
     usable = [p for p in pairs if p["pass_delta"] is not None and
               (p["runtime_hours"] is not None or p["runtime_ratio"] is not None)]
     if not usable:
@@ -758,12 +764,20 @@ def render_engine_delta(pairs, output_dir, title="Mei vs llama.cpp engine deltas
         suffix = ""
         if p.get("score_delta") is not None:
             suffix = f"  (score {p['score_delta']:+.3f})"
+        # Zero pass delta: the two engine markers land on the same x, so push the
+        # annotation above the point instead of to its right where it would sit
+        # on/behind the coincident markers (and risk the legend).
+        zero_delta = abs(p["pass_delta"]) < 1e-9
         # left: pass rate dumbbell
         axl.plot([ll_pr, mi_pr], [yi, yi], color="#999999", linewidth=1.6, zorder=1)
         axl.scatter([ll_pr], [yi], s=70, color=colors.get(p["llama_engine"].split("-")[0], "#555555"), zorder=3, label=p["llama_engine"] if yi == 0 else None)
         axl.scatter([mi_pr], [yi], s=70, color=colors.get("mei"), zorder=3, label="mei" if yi == 0 else None)
-        axl.annotate(f"{p['pass_delta']:+.0f}pp{suffix}", (mi_pr, yi), textcoords="offset points",
-                     xytext=(6, 0), fontsize=7.5, va="center", color=COLOR_TEXT)
+        if zero_delta:
+            axl.annotate(f"{p['pass_delta']:+.0f}pp{suffix}", (mi_pr, yi), textcoords="offset points",
+                         xytext=(0, 7), ha="center", va="bottom", fontsize=7.5, color=COLOR_TEXT)
+        else:
+            axl.annotate(f"{p['pass_delta']:+.0f}pp{suffix}", (mi_pr, yi), textcoords="offset points",
+                         xytext=(6, 0), va="center", fontsize=7.5, color=COLOR_TEXT)
         # right: runtime hours dumbbell (or ratio text if hours missing)
         if mi_h is not None and ll_h is not None:
             axr.plot([ll_h, mi_h], [yi, yi], color="#999999", linewidth=1.6, zorder=1)
@@ -786,7 +800,12 @@ def render_engine_delta(pairs, output_dir, title="Mei vs llama.cpp engine deltas
     axl.grid(axis="x", color=COLOR_GRID, linewidth=0.6)
     axr.grid(axis="x", color=COLOR_GRID, linewidth=0.6)
     fig.suptitle(title, fontsize=12, fontweight="bold", x=0.0, ha="left", color=COLOR_TEXT)
-    axl.legend(loc="upper right", fontsize=8, frameon=False)
+    # Figure-level legend in the reserved title band (top-right), so it can never
+    # overlap the top row's plotted / annotated data (the prior axl.legend() did).
+    handles, labels = axl.get_legend_handles_labels()
+    fig.legend(handles, labels, loc="upper right", ncol=2, fontsize=8,
+               frameon=False, handlelength=1.2, columnspacing=1.0,
+               handletextpad=0.4)
     path = _save(fig, output_dir, "engine_delta.png")
     print(f"Wrote {path} ({len(usable)} families).")
     return path
