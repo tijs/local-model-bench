@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/2353 rows below predate 2026-08-21
+> **⚠ 138/2363 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -234,6 +234,7 @@ means no usable timestamp was recoverable from that group's rows.
 | mlx-community/Laguna-XS-2.1-4bit | omlx | — | 1.0 | unspecified | n/a | 2/2 | [9f649cd3051f](configs/9f649cd3051f.yaml) — *config since changed* | 9f1a9e467900 | 3 | 67% | 1 | 18.7 | 44.10 | 1 | — | 0 | 3.6 | MLX 4-bit | cold | off | 1367 |
 | mlx-community/Laguna-XS-2.1-4bit | omlx | — | 1.0 | unspecified | n/a | 2/2 | [f1037eaa5995](configs/f1037eaa5995.yaml) — *config since changed* | 65bb6d23192e | 8 | 50% | 1 | 11.0 | 56.95 | 2 | — | 0 | 4.0 | MLX 4-bit | cold | off | 5998 |
 | mlx-community/Laguna-XS-2.1-4bit | omlx | — | 1.0 | unspecified | n/a | 2/2 | [f1037eaa5995](configs/f1037eaa5995.yaml) — *config since changed* | fc71ba2c66f8+dirty | 5 | 40% | 0 | 18.8 | 42.82 | 1 | — | 0 | — | MLX 4-bit | cold | off | 17129 |
+| mlx-community/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit | mei | — | 0.6 | thinking | n/a | 2/2 | [e7a6209b765d](configs/e7a6209b765d.yaml) | cd2ddc279af0 | 8 | 12% | 0 | 9.1 | 68.06 | 0 | — | 0 | 0.4 | MLX 4-bit affine g64 (nemotron_h; 4 safetensors shards) | — | — | 695 |
 | mlx-community/Qwen2.5-Coder-14B-Instruct-4bit | mlx | — | 0.7 | n/a | n/a | 1/2 | [c6d10ac83efc](configs/c6d10ac83efc.yaml) — *config since changed* | e155170f4c1d | 0 | n/a (all harness errors) | 0 | 10.9 | 0.76 | 0 | — | 0 | 10.0 | — | — | — | 2 |
 | mlx-community/Qwen2.5-Coder-14B-Instruct-4bit | vllm-mlx | — | 0.7 | n/a | n/a | 1/2 | [389d88115d2d](configs/389d88115d2d.yaml) — *config since changed* | 3bca29f0ff7c | 0 | n/a (all harness errors) | 0 | 11.0 | 0.75 | 0 | — | 0 | 8.3 | — | — | — | 2 |
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | mlx | — | 0.7 | instruct | n/a | 2/2 | [5e09e98f8c60](configs/5e09e98f8c60.yaml) — *config since changed* | e155170f4c1d | 9 | 67% | 0 | 12.9 | n/a (proxied — not real TTFT) | 0 | — | 0 | 9.7 | — | — | — | 415 |
@@ -715,6 +716,8 @@ confirmed-stable, just untested for flakiness.
 | mlx-community/Laguna-XS-2.1-4bit | omlx | f1037eaa5995 | fc71ba2c66f8+dirty | hermes_ops | 2/3 |
 | mlx-community/Laguna-XS-2.1-4bit | omlx | f1037eaa5995 | fc71ba2c66f8+dirty | kiem_mini | 0/2 |
 | mlx-community/Laguna-XS-2.1-4bit | omlx | f1037eaa5995 | fc71ba2c66f8+dirty | sanity | 2/2 |
+| mlx-community/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit | mei | e7a6209b765d | cd2ddc279af0 | hermes_ops | 1/8 |
+| mlx-community/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit | mei | e7a6209b765d | cd2ddc279af0 | sanity | 2/2 |
 | mlx-community/Qwen2.5-Coder-14B-Instruct-4bit | mlx | c6d10ac83efc | e155170f4c1d | sanity | 1/2 |
 | mlx-community/Qwen2.5-Coder-14B-Instruct-4bit | vllm-mlx | 389d88115d2d | 3bca29f0ff7c | sanity | 1/2 |
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | mlx | 5e09e98f8c60 | e155170f4c1d | hermes_ops | 6/8 |
@@ -1146,3 +1149,4 @@ has to infer from a config missing coding rows.
 | mlx-community/Qwen3.8-27B-4bit | omlx | configs/Qwen3.8-27B/omlx.yaml | 0.01 | 0.00, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01 | 4.0 | 2026-08-25T07:28:30Z |
 | mlx-community/gemma-4-26b-a4b-it-4bit | mei | configs/Gemma-4-26B-A4B/mei.yaml | 2.00 | 0.67, 1.08, 2.10, 1.54, 0.80, 0.17, 2.21, 7.44 | 4.0 | 2026-09-04T14:56:21Z |
 | mlx-community/gemma-4-26b-a4b-it-4bit | mei | configs/Gemma-4-26B-A4B/mei.yaml | 2.01 | 0.68, 1.07, 2.12, 1.55, 0.80, 0.17, 2.25, 7.44 | 4.0 | 2026-09-05T10:20:48Z |
+| mlx-community/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit | mei | configs/NVIDIA-Nemotron-3.5-Lightning-30B-A3B/mei.yaml | 1.02 | 0.64, 0.31, 0.07, 0.27, 4.09, 0.27, 1.73, 0.78 | 4.0 | 2026-09-06T16:46:20Z |
