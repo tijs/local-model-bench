@@ -28,6 +28,59 @@ stock Qwen 3.6 is the sane route to vision.
 Nemotron-3.5-Lightning was discarded 2026-09-07 (see below). Gemma-4 (18/25) and
 Qwen3.8-Uncensored (20/27) remain on record but are not optimization targets.
 
+## 2026-09-07 evening: the three targets re-run on the 0.3.0 build + C1 — no regression, decode faster, quality flat
+
+All three active targets were re-run in one chain (`/tmp/bench_030.sh`, runner
+`d2d191e`) with **three things changed at once**: the Mei 0.3.0 build, the C1
+flag (`VMLX_ENABLE_UNSAFE_COMPILE=1`), and the runner now clearing the KV
+cache dir before each run so every gate row is cold. Single trial, 25 graded
+rows each, zero `harness_error` rows.
+
+| model | previous | **0.3.0 + C1** | sanity decode tok/s (basic, tool) | hermes_ops TTFT | coding wall | fails now |
+|---|---|---|---|---|---|---|
+| Ornith-1.5-35B-A3B (`cef5c7989663`) | 22/25 | **24/25** | 46.8, 28.6 → **51.9, 30.9** | 63.3 → 61.9 s | 49 → 59 min | kiem testwrite (1 mutant survived) |
+| Qwen3.6 text-only (`0e7c3d44eade`) | 24/25 | **23/25** | 59.1, 46.5 → **64.6, 50.7** | 63.3 → 61.3 s | 52 → **35 min** | kiem parse-note (Swift compile error), kiem testwrite |
+| Qwen3.6 stock (`cfb4a5d79008`) | 22/25 | **21/25** | 44.8, 35.5 → **53.2, 42.6** | 64.5 → 62.9 s | 92 → 104 min | hermes_ops multi-step-chain (40-turn read loop), kiem parse-note, kiem testwrite, hearth_full-feature (hidden test) |
+
+**Read this as "no regression, plausibly better, quality flat."** Every
+score moved by 1–2 tasks, which is inside the single-trial swing the text-only
+work already measured (bit-identical weights scored 24 vs 22). The two
+fails shared by all three (kiem testwrite: 2/3 mutants killed; kiem
+parse-note) are the suite's hard tasks, not build regressions. All four
+stock-Qwen misses were read before being accepted: the multi-step-chain miss
+is a genuine 40-turn `read_file`/`search_files` loop with one hallucinated
+tool (`kanban_show`), and hearth_full-feature is a real hidden-test failure
+(partial-sell arithmetic).
+
+**What did move for real is decode speed**: the fixed-prompt sanity rows are
++9–19% on every model, consistent with C1's controlled +9.0% (Ornith) and
++9.8% (text-only). hermes_ops TTFT is unchanged at ~61–63 s on all three —
+see the prefix-cache finding below.
+
+**Stock Qwen 3.6 is the slow one, again**: 104 min of coding wall against 35
+for text-only, with a 29-minute kipclip debug task and a 12-minute kiem
+testwrite. It takes the VLM load path (the compiled routed-MoE region is active
+there; that region measured −9.7% on Ornith), and it reasons longer. Nothing
+in this run argues for keeping stock ahead of text-only for text work.
+
+**Provenance caveat (found 2026-09-07 evening)**: the configs say "vmlx pin
+e37d1d59 (0.3.0)", but `runner/start_mei_server.sh` builds from
+`~/projects/mei` on `main`, whose `Package.swift` still pins `91fed8be`, and
+`mei-build-030/checkouts/vmlx-swift` is at `91fed8be`. So these rows were
+served by Mei `main` + vmlx `91fed8be`, not the 0.3.0 release pin. The runs
+are internally consistent; the comment is wrong. Fix queued (Kiem proj/mei
+note 1191043a).
+
+### The prefix cache is not being used — the biggest lever is unmeasured
+
+Every hermes_ops task sends a byte-identical 20k-token system+tools prefix
+(system prompt sha1 `8dcb4e9d`, 41 tools, ~70 KB of JSON), and every task
+pays ~61 s of cold prefill for it — in all three runs, despite the persistent
+`--kv-cache-dir`. The hybrid cache can only be restored at an anchored
+position, and the runner never passes Mei's existing (default-off)
+`--ssm-anchor-boundaries K` flag. In the coding suites that is ~60 s per task
+of the 35–104 min wall. Probe queued (`results-mei/C3-harness/anchor_probe.py`).
+
 ## 2026-09-07 update: text-only Qwen 3.6 is the new top pick; Nemotron discarded
 
 Two overnight full benchmark runs. Both are single-trial, 25 graded rows each
