@@ -80,6 +80,8 @@ import argparse
 import hashlib
 import json
 import os
+import pathlib
+import re
 import shutil
 import subprocess
 import sys
@@ -296,6 +298,49 @@ def assert_proxy_matches(proxy_port, expected_parser, expected_upstream):
     return False
 
 
+def clear_kv_cache_dir(cfg):
+    """Delete this config's persistent Mei KV/prefix cache before a run.
+
+    Mei's disk KV tier is a real and wanted speedup for normal use — a warm
+    prefix makes a growing agent transcript cheap. But `--kv-cache-dir` points
+    at a FIXED path in every Mei config, so it survives between benchmark runs,
+    and a second run of the same config is then served from the first run's
+    cache. That silently changes what the benchmark measures.
+
+    Measured 2026-09-07 on the Nemotron config: two runs, identical prompts and
+    byte-identical outputs, avg hermes_ops 1.02 tok/s (cold) vs 32.74 tok/s
+    (warm), TTFT 84.6s vs 1.8s. Because
+    `tokens_per_second = completion_tokens / wall_seconds` and that workload is
+    ~99% prefill, the metric moved 32x on cache state alone -- flipping the 4.0
+    viability speed gate from fail to pass.
+
+    So: keep the cache in Mei, clear it here. Every benchmark run starts cold,
+    which is the only state that is comparable across configs and across time.
+    """
+    text = (cfg.get("benchmark_launch_command") or "")
+    match = re.search(r"--kv-cache-dir\s+(\S+)", text)
+    if not match:
+        return
+    raw = match.group(1).strip().strip("\\").strip('"').strip("'")
+    path = pathlib.Path(os.path.expanduser(raw))
+    # Only ever delete inside the project's own runtime root -- never follow a
+    # config into an arbitrary path.
+    runtime_root = pathlib.Path(
+        os.path.expanduser("~/.local/share/local-model-bench")).resolve()
+    try:
+        resolved = path.resolve()
+        resolved.relative_to(runtime_root)
+    except (ValueError, OSError):
+        print(f"--- KV cache: refusing to clear {path} (outside "
+              f"{runtime_root}) ---")
+        return
+    if not resolved.exists():
+        print(f"--- KV cache: {resolved} absent, already cold ---")
+        return
+    print(f"--- clear KV cache for a cold, comparable run: {resolved} ---")
+    shutil.rmtree(resolved, ignore_errors=True)
+
+
 def server_command(cfg, alias=None):
     """benchmark_launch_command sometimes documents a follow-up proxy step
     inline (as literal shell text, not a shell comment) — that's for a
@@ -445,6 +490,8 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
         # otherwise-working config.
         print("\n--- reset bench hermes profile session/memory state ---")
         run(["bash", str(REPO / "runner" / "reset_bench_profile.sh")])
+
+        clear_kv_cache_dir(cfg)
 
         free_gb = shutil.disk_usage(REPO).free / (1024 ** 3)
         if free_gb < MIN_FREE_DISK_GB_BEFORE_LAUNCH:
