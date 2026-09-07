@@ -6,6 +6,28 @@ point-in-time reading of the saved benchmark rows. Last updated
 **2026-09-07**. Everything from "Final eight: post-fix local comparison"
 onward is retained for prior decisions and provenance.
 
+## Active optimization targets (2026-09-07)
+
+Three configurations, deliberately kept as three:
+
+| target | config | why it exists |
+|---|---|---|
+| **Qwen 3.6 (stock, with vision)** | `configs/Qwen3.6-35B-A3B/mei.yaml` | The benchmark does not exercise vision, but the real Hermes harness will happily take image requests. This is the option that can actually serve them. 22/25. |
+| **Qwen 3.6 text-only** | `configs/Qwen3.6-35B-A3B-textonly/mei.yaml` | Vision tower stripped: −0.83 GiB, ~1.3x faster short decode, LLM load path instead of VLM. Best benchmark score at 24/25. Text/coding work only. |
+| **Ornith 1.5 35B-A3B** | `configs/Ornith-1.5-35B-A3B/mei.yaml` | Second-best at 22/25. **Already text-only** — the checkpoint contains no `vision_tower` tensors and no `vision_config`, so there is nothing to strip; its 18.17 GiB matches the stripped Qwen 3.6 exactly. |
+
+Grafting Qwen 3.6's vision tower onto Ornith was considered and is **not
+recommended**: the shapes line up (same `qwen3_5_moe` family, hidden 2048) so
+the tensors would load, but the vision `merger` projects image features into
+*the text model's* embedding space, and that alignment is learned jointly.
+Ornith is a separate fine-tune whose text representations have drifted from the
+ones Qwen 3.6's merger was trained against, so the result would run and describe
+images confidently but wrongly. Untested — the prior is simply bad enough that
+stock Qwen 3.6 is the sane route to vision.
+
+Nemotron-3.5-Lightning was discarded 2026-09-07 (see below). Gemma-4 (18/25) and
+Qwen3.8-Uncensored (20/27) remain on record but are not optimization targets.
+
 ## 2026-09-07 update: text-only Qwen 3.6 is the new top pick; Nemotron discarded
 
 Two overnight full benchmark runs. Both are single-trial, 25 graded rows each
