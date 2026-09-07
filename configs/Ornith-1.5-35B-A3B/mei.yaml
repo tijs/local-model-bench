@@ -15,8 +15,23 @@ context_cap: 65536
 prefill_step_size: 512
 tool_call_path: native_mei_requires_live_probe
 
+  # C1 (2026-09-07): VMLX_ENABLE_UNSAFE_COMPILE=1 enables vmlx's shapeless
+  # micro-fusions (compiledSwiGLU/GeGLU/SigmoidGate + the Qwen35 helpers), which
+  # HardwareInfo.isCompiledDecodeSupported otherwise gates off.
+  # MEASURED, same binary both legs, round-robin ordering, warm-up, n=10, quiet
+  # machine: Ornith short decode 66.36 -> 72.32 tok/s (+9.0%, sd 0.55/0.53,
+  # non-overlapping), 30k 40.36 -> 41.45 (+2.7%); Qwen3.6 text-only 66.65 ->
+  # 73.21 (+9.8%), 30k 41.93 -> 43.38 (+3.5%).
+  # CORRECTNESS GATE PASSED: four 700-token greedy temp-0 generations
+  # token-for-token identical to control on both models, plus an identical
+  # native tool call. This is the gate that matters -- the flag's documented
+  # failure mode is SILENT numerical corruption, not a crash.
+  # Its default-off reason is Osaurus #1173 (decode corruption after switching
+  # models inside one process); Mei is one-model-per-server-process, so that is
+  # structurally unreachable here. Residual risk is the macOS Tahoe Metal JIT
+  # bug (MLX #3329/#3201/#3256). RE-VERIFY TOKEN EQUALITY AFTER ANY VMLX RE-PIN.
 benchmark_launch_command: |
-  env VMLX_FUSED_GATE_UP_CACHE_LIMIT_BYTES=0 \
+  env VMLX_ENABLE_UNSAFE_COMPILE=1 VMLX_FUSED_GATE_UP_CACHE_LIMIT_BYTES=0 \
   bash runner/start_mei_server.sh --model-dir /Users/tijs/.local/share/local-model-bench/mei-models/Ornith-1.5-35B-A3B-MLX-4bit-aligned \
     --served-model-id ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit --port 8024 --context-cap 65536 \
     --prefill-step-size 512 --max-tokens 32768 \
