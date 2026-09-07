@@ -3,10 +3,87 @@
 **Hand-curated, not auto-regenerated** — unlike `LEADERBOARD.md` (rebuilt
 from `log.jsonl` after every run; never hand-edit it), this is a
 point-in-time reading of the saved benchmark rows. Last updated
-**2026-09-06**, after the four post-fix Mei legs completed. The final
-headline set is four model families × two engines: llama.cpp and Mei.
-Everything from the historical benchmark-v4 section onward is retained for
-prior decisions and provenance.
+**2026-09-07**. Everything from "Final eight: post-fix local comparison"
+onward is retained for prior decisions and provenance.
+
+## 2026-09-07 update: text-only Qwen 3.6 is the new top pick; Nemotron discarded
+
+Two overnight full benchmark runs. Both are single-trial, 25 graded rows each
+(2 sanity, 8 `hermes_ops`, 15 coding), zero `harness_error` rows.
+
+| model | sanity | hermes_ops | coding | **total** |
+|---|---|---|---|---|
+| **Tostibrown/Qwen3.6-35B-A3B-4bit-textonly** (`3421f91401ab`) | 2/2 | **8/8** | 14/15 | **24/25** |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit (`dc3e7e62a965`) | 2/2 | 6/8 | 14/15 | 22/25 |
+| mlx-community/Qwen3.8-27B-4bit (`c7f10a958b1e`) | 2/2 | 6/8 | 14/15 | 22/25 |
+| mlx-community/Qwen3.6-35B-A3B-4bit (stock, `cea524483faf`) | 2/2 | 7/8 | 13/15 | 22/25 |
+| orcarouter/Qwen3.8-27B-Uncensored-MLX (`40fbffd03a95`) | 4/4 | 5/8 | 11/15 | 20/27 |
+| mlx-community/gemma-4-26b-a4b-it-4bit (`bc93f3cc55a1`) | 2/2 | 6/8 | 10/15 | 18/25 |
+| ~~NVIDIA-Nemotron-3.5-Lightning-30B-A3B~~ **DISCARDED** (`d9be6d0097ea`) | 2/2 | 1/8 | 4/15 | 7/25 |
+
+### What the text-only build is
+
+A Mei-produced derivative of `mlx-community/Qwen3.6-35B-A3B-4bit` with the
+vision tower removed: 333 `vision_tower` tensors (851.8 MiB) and the
+`vision_config` key stripped. **Every retained tensor is byte-identical to the
+source** (per-tensor sha256 verified at build time, re-verified on a 50-tensor
+random sample). Published at
+<https://huggingface.co/Tostibrown/Qwen3.6-35B-A3B-4bit-textonly>; config at
+`configs/Qwen3.6-35B-A3B-textonly/mei.yaml`.
+
+Measured against stock, both runs **cold** (hermes_ops TTFT 62–66 s on both
+sides, separate KV directories, each a first run):
+
+- **Memory**: 19.551 GB loaded vs 20.444 GB — **−0.83 GiB**, exactly the vision tower.
+- **Short decode**: 1.31–1.32x faster on the sanity rows (fixed prompt,
+  near-fixed output), consistent with the isolated 61.85 vs 49.95 tok/s
+  measurement. Removing `vision_config` also moves the bundle from vmlx's VLM
+  load path to the LLM path, which is where the speed difference comes from.
+- **Quality: unchanged.** The 24/25 vs 22/25 gap **is not a real difference** —
+  the text weights are bit-identical, so it cannot be. It is single-trial
+  variance, and a useful calibration of it: an 8-point swing at temperature 0.
+
+**Recommendation: make text-only Qwen 3.6 the primary Mei candidate.** Top
+score, lowest memory, fastest short decode, fully reproducible provenance.
+Keep the stock config for history; run the text-only one.
+
+### Nemotron-3.5-Lightning: discarded 2026-09-07
+
+Scored **7/25** (hermes_ops 1/8). **Speed is not why.** Its decode is ~68–70
+tok/s, the fastest in the Mei lineup. It fails because it does not emit tool
+calls when the prompt carries Hermes's ~22k-token tool payload — it narrates
+the intended call in prose and stops, so every task ends after one turn.
+
+Ruled out with live evidence: chat template (the real 4,739-token Hermes system
+prompt alone produces a valid call), tool count (22 tools fine), thinking mode
+(`--enable-thinking false` gives byte-identical failures), raw prompt length
+(6.3k tokens of repeated filler still works), and an explicit "you must call
+tools" instruction. With realistic varied context the threshold is ~5–6k tokens.
+Config marked `viable: non-viable`. Only untested lever: shrink the tool payload.
+
+### Harness defect found — the speed gate is not reproducible
+
+Nemotron was run twice against the **same persistent `--kv-cache-dir`**. Same
+prompts, byte-identical outputs, and:
+
+| run | avg hermes_ops tok/s | avg TTFT | 4.0 speed gate |
+|---|---|---|---|
+| first (cold KV cache) | **1.02** | 84.6 s | **failed** → coding skipped |
+| second (warm from run 1) | **32.74** | 1.8 s | **passed** → coding ran |
+
+`tokens_per_second = completion_tokens / wall_seconds` and this workload is
+~99% prefill, so the metric moves **32x on cache state alone**. Every Mei config
+uses a persistent KV dir, so this can affect any cross-run comparison.
+**It did not corrupt the table above** — both Qwen 3.6 runs were verified cold.
+Suggested fix: clear the KV dir before a gated run, or record cache state on the
+gate row so cold and warm are never compared.
+
+### Note on memory figures elsewhere in this file
+
+`mei_memory_active_bytes` / `peak` are **MLX allocator** numbers, not OS memory
+pressure. Measured 2026-09-07: a 19.5 GB mmap'd model shows only ~150 MB
+`phys_footprint` and ~1.1 GB RSS, because the weights are clean file-backed
+pages. Treat "peak 25.73 GB @ 65k"-style figures as allocator accounting.
 
 ## Final eight: post-fix local comparison
 
