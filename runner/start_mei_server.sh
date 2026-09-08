@@ -43,6 +43,9 @@ Options:
   --cache-limit-bytes N     MLX buffer-pool cache limit in bytes
                             (default: none -> not passed; Mei default 0 = use
                             the default limit)
+  --ssm-anchor-boundaries K Cross-conversation prefix reuse (Mei 0.4.0+;
+                            default off). K anchors at the first K role-turn
+                            boundaries.
   --compiled-decode BOOL    Graph-traced compiled decode (default: none -> not
                             passed; Mei default false)
   --mei-repo PATH           Mei checkout (default: ~/projects/mei)
@@ -71,6 +74,7 @@ OPTIMIZATION_PROFILE=""
 MEMORY_LIMIT_BYTES=""
 CACHE_LIMIT_BYTES=""
 COMPILED_DECODE=""
+SSM_ANCHOR_BOUNDARIES=""
 MEI_REPO="$MEI_REPO_DEFAULT"
 RUNTIME_BASE="$RUNTIME_BASE_DEFAULT"
 BUILD_DIR="$BUILD_DIR_DEFAULT"
@@ -97,6 +101,7 @@ while [[ $# -gt 0 ]]; do
     --memory-limit-bytes) MEMORY_LIMIT_BYTES="${2:?missing value}"; shift 2 ;;
     --cache-limit-bytes) CACHE_LIMIT_BYTES="${2:?missing value}"; shift 2 ;;
     --compiled-decode) COMPILED_DECODE="${2:?missing value}"; shift 2 ;;
+    --ssm-anchor-boundaries) SSM_ANCHOR_BOUNDARIES="${2:?missing value}"; shift 2 ;;
     --mei-repo) MEI_REPO="${2:?missing value}"; shift 2 ;;
     --runtime-base) RUNTIME_BASE="${2:?missing value}"; shift 2 ;;
     --build-dir) BUILD_DIR="${2:?missing value}"; shift 2 ;;
@@ -147,6 +152,10 @@ ARGS=(--model-dir "$MODEL_DIR" --served-model-id "$SERVED_MODEL_ID"
 [[ -n "$MEMORY_LIMIT_BYTES" ]] && ARGS+=(--memory-limit-bytes "$MEMORY_LIMIT_BYTES")
 [[ -n "$CACHE_LIMIT_BYTES" ]] && ARGS+=(--cache-limit-bytes "$CACHE_LIMIT_BYTES")
 [[ -n "$COMPILED_DECODE" ]] && ARGS+=(--compiled-decode "$COMPILED_DECODE")
+# Cross-conversation prefix reuse (Mei 0.4.0+, default off in the server).
+# Stores SSM anchors at the first K chat role-turn boundaries so the shared
+# system+tools prefix restores across conversations instead of cold-prefilling.
+[[ -n "$SSM_ANCHOR_BOUNDARIES" ]] && ARGS+=(--ssm-anchor-boundaries "$SSM_ANCHOR_BOUNDARIES")
 
 printf 'mei isolated launch: '
 printf '%q ' "$BIN" "${ARGS[@]}"
