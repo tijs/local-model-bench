@@ -486,6 +486,11 @@ def compute_group_stats(groups):
             "n_sanity": len(sanity_scored),
             "n_coding": len(coding_scored),
             "n_hermes_ops": len(hermes_ops_scored),
+            # DISTINCT tasks covered, not rows. A group that ran every task
+            # twice has twice the rows but identical coverage; the dedup in
+            # rank_groups() must not read repetition as richer evidence.
+            "n_coding_tasks": len({r.get("task_id") for r in coding_scored}),
+            "n_hermes_ops_tasks": len({r.get("task_id") for r in hermes_ops_scored}),
             "latest_timestamp": max((r.get("timestamp") or "" for r in group), default=""),
         })
     return group_stats
@@ -618,7 +623,20 @@ def rank_groups(group_stats):
             continue
         dedup_key = (model, inference_engine, quant)
         complete = _is_complete(gs)
-        evidence = gs["n_coding"] + gs["n_hermes_ops"]
+        # Evidence is COVERAGE (distinct tasks), not raw scored rows.
+        # Fixed 2026-09-08 after a real incident: Ornith on Mei had a
+        # 2026-09-04 fragment that ran the suite with doubled trials
+        # (16 hermes_ops + 15 coding rows = 31) at a 75% hermes_ops pass
+        # rate, and a clean single-trial 2026-09-07 run (8 + 15 = 23)
+        # scoring 24/25 with 8/8 hermes_ops. Counting rows, 31 > 23 won
+        # outright and recency was never consulted (it only breaks an
+        # EXACT tie), so the newer complete run was absent from "Best
+        # overall" entirely while still appearing correctly in the raw
+        # per-group and by-suite tables. Counting distinct tasks, both
+        # cover 23, the tie falls through to recency, and the current
+        # result wins. Repeating tasks is not more evidence about which
+        # tasks a model can do; covering more tasks is.
+        evidence = gs["n_coding_tasks"] + gs["n_hermes_ops_tasks"]
         current = best_fragment.get(dedup_key)
         if current is None:
             best_fragment[dedup_key] = gs
@@ -643,7 +661,8 @@ def rank_groups(group_stats):
             if complete:
                 best_fragment[dedup_key] = gs
             continue
-        current_evidence = current["n_coding"] + current["n_hermes_ops"]
+        current_evidence = (
+            current["n_coding_tasks"] + current["n_hermes_ops_tasks"])
         if evidence > current_evidence or (
             evidence == current_evidence
             and gs["latest_timestamp"] > current["latest_timestamp"]

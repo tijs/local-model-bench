@@ -874,6 +874,49 @@ class CompositeRankingTests(unittest.TestCase):
         self.assertEqual(len(matches), 1, f"expected exactly one row for 'm', got: {matches}")
         self.assertIn("100% (3)", matches[0])  # the newer, fully-passing fragment
 
+    def test_repeated_trials_do_not_outweigh_a_newer_clean_complete_run(self):
+        # Real incident, 2026-09-08 (Ornith 1.5 35B-A3B on Mei): a
+        # 2026-09-04 fragment had run the suite with DOUBLED trials --
+        # 16 hermes_ops + 15 coding scored rows = 31 "evidence" -- at a
+        # 75% hermes_ops pass rate. The clean single-trial 2026-09-07
+        # rerun (8 + 15 = 23) scored 24/25 with 8/8 hermes_ops. The dedup
+        # compared RAW ROW COUNTS, so 31 > 23 won outright; recency is
+        # only consulted on an EXACT tie, so it was never reached, and
+        # the current result vanished from "Best overall" while still
+        # appearing correctly in the per-group and by-suite tables.
+        # Repeating the same tasks is not more evidence about which tasks
+        # a model can do, so evidence now counts DISTINCT tasks: both
+        # fragments cover the same set, the tie falls through to recency,
+        # and the newer clean run wins.
+        doubled = self._complete_rows(
+            "m", hermes_ops_passes=[True, False], coding_passes=[True, True], tps=50.0,
+            config_hash="old", runner_sha="a-older", timestamp="2026-09-04T00:00:00Z",
+        ) + self._complete_rows(
+            "m", hermes_ops_passes=[True, False], coding_passes=[True, True], tps=50.0,
+            config_hash="old", runner_sha="a-older", timestamp="2026-09-04T01:00:00Z",
+        )
+        clean = self._complete_rows(
+            "m", hermes_ops_passes=[True, True], coding_passes=[True, True], tps=50.0,
+            config_hash="new", runner_sha="z-newer", timestamp="2026-09-07T00:00:00Z",
+        )
+        # The old fragment really does carry more scored ROWS ...
+        self.assertGreater(
+            len([r for r in doubled if r["suite"] != "sanity"]),
+            len([r for r in clean if r["suite"] != "sanity"]),
+        )
+        # ... but not more distinct TASKS.
+        self.assertEqual(
+            {r["task_id"] for r in doubled if r["suite"] != "sanity"},
+            {r["task_id"] for r in clean if r["suite"] != "sanity"},
+        )
+        self._write_log(doubled + clean)
+        bl.main()
+        text = (self.repo / "results" / "LEADERBOARD.md").read_text()
+        section = self._best_overall_section(text)
+        matches = [l for l in section.splitlines() if l.startswith("| ") and " m " in l]
+        self.assertEqual(len(matches), 1, f"expected exactly one row for 'm', got: {matches}")
+        self.assertIn("new", matches[0])  # the newer clean run, not the doubled-trial one
+
     def test_complete_but_thin_fragment_not_shadowed_by_incomplete_rich_one(self):
         # Real incident (openai/gpt-5.6-luna via OpenRouter, found
         # 2026-08-29): dedup-to-most-evidenced-fragment ran BEFORE the
