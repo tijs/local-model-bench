@@ -37,9 +37,16 @@ as the ongoing regression targets:
 
 | target | config | why it exists |
 |---|---|---|
-| **Qwen 3.6 (stock, with vision)** | `configs/Qwen3.6-35B-A3B/mei.yaml` | The benchmark does not exercise vision, but the real Hermes harness will happily take image requests. This is the option that can actually serve them. 22/25. |
-| **Qwen 3.6 text-only** | `configs/Qwen3.6-35B-A3B-textonly/mei.yaml` | Vision tower stripped: −0.83 GiB, ~1.3x faster short decode, LLM load path instead of VLM. Best benchmark score at 24/25. Text/coding work only. |
-| **Ornith 1.5 35B-A3B** | `configs/Ornith-1.5-35B-A3B/mei.yaml` | Second-best at 22/25. **Already text-only** — the checkpoint contains no `vision_tower` tensors and no `vision_config`, so there is nothing to strip; its 18.17 GiB matches the stripped Qwen 3.6 exactly. |
+| **Qwen 3.6 (stock, with vision)** | `configs/Qwen3.6-35B-A3B/mei.yaml` | The benchmark does not exercise vision, but the real Hermes harness will happily take image requests. This is the option that can actually serve them. Latest full run 21/25. |
+| **Qwen 3.6 text-only** | `configs/Qwen3.6-35B-A3B-textonly/mei.yaml` | Vision tower stripped: −0.83 GiB, ~1.3x faster short decode, LLM load path instead of VLM. Latest full run 23/25. Text/coding work only. |
+| **Ornith 1.5 35B-A3B** | `configs/Ornith-1.5-35B-A3B/mei.yaml` | Best of the three on the latest full run at 24/25. **Already text-only** — the checkpoint contains no `vision_tower` tensors and no `vision_config`, so there is nothing to strip; its 18.17 GiB matches the stripped Qwen 3.6 exactly. |
+
+Scores above are the 2026-09-07 full runs on the current configuration
+(25 graded rows each, zero harness errors): Ornith 24/25, Qwen 3.6
+text-only 23/25, Qwen 3.6 stock 21/25. All three moved by 1-2 tasks
+against the previous build, which is inside the single-trial variance the
+text-only work measured, so treat them as tied on quality and pick on
+speed and memory.
 
 Grafting Qwen 3.6's vision tower onto Ornith was considered and rejected:
 the shapes line up, but the vision merger was learned jointly against
