@@ -23,8 +23,11 @@ Usage: start_mei_server.sh --model-dir ROOT --served-model-id ID --port PORT \
 Options:
   --prefill-step-size N     Chunked prefill window (default: 512)
   --max-tokens N            Server-side generation cap (default: 32768)
-  --temperature F --top-p F --top-k N
+  --temperature F --top-p F --top-k N --min-p F
   --emit-reasoning BOOL     Expose reasoning_content (default: true)
+  --enable-thinking BOOL    Force template enable_thinking (default: none ->
+                            not passed; nil = template default, which for the
+                            staged Laguna-XS-2.1 chat_template.jinja is FALSE)
   --cache-reuse BOOL        In-process KV/prefix reuse (default: true)
   --kv-bits N               KV quantization bits (default: none)
   --kv-cache-dir DIR        On-disk KV cache dir for the prefix coordinator
@@ -58,7 +61,9 @@ MAX_TOKENS="32768"
 TEMPERATURE="0.6"
 TOP_P="0.95"
 TOP_K="20"
+MIN_P=""
 EMIT_REASONING="true"
+ENABLE_THINKING=""
 CACHE_REUSE="true"
 KV_BITS=""
 KV_CACHE_DIR=""
@@ -82,7 +87,9 @@ while [[ $# -gt 0 ]]; do
     --temperature) TEMPERATURE="${2:?missing value}"; shift 2 ;;
     --top-p) TOP_P="${2:?missing value}"; shift 2 ;;
     --top-k) TOP_K="${2:?missing value}"; shift 2 ;;
+    --min-p) MIN_P="${2:?missing value}"; shift 2 ;;
     --emit-reasoning) EMIT_REASONING="${2:?missing value}"; shift 2 ;;
+    --enable-thinking) ENABLE_THINKING="${2:?missing value}"; shift 2 ;;
     --cache-reuse) CACHE_REUSE="${2:?missing value}"; shift 2 ;;
     --kv-bits) KV_BITS="${2:?missing value}"; shift 2 ;;
     --kv-cache-dir) KV_CACHE_DIR="${2:?missing value}"; shift 2 ;;
@@ -132,6 +139,8 @@ ARGS=(--model-dir "$MODEL_DIR" --served-model-id "$SERVED_MODEL_ID"
   --prefill-step-size "$PREFILL_STEP_SIZE"
   --temperature "$TEMPERATURE" --top-p "$TOP_P" --top-k "$TOP_K"
   --emit-reasoning "$EMIT_REASONING" --cache-reuse "$CACHE_REUSE")
+[[ -n "$MIN_P" ]] && ARGS+=(--min-p "$MIN_P")
+[[ -n "$ENABLE_THINKING" ]] && ARGS+=(--enable-thinking "$ENABLE_THINKING")
 [[ -n "$KV_BITS" ]] && ARGS+=(--kv-bits "$KV_BITS")
 [[ -n "$KV_CACHE_DIR" ]] && ARGS+=(--kv-cache-dir "$KV_CACHE_DIR")
 [[ -n "$OPTIMIZATION_PROFILE" ]] && ARGS+=(--optimization-profile "$OPTIMIZATION_PROFILE")
