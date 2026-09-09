@@ -43,6 +43,10 @@ Options:
   --cache-limit-bytes N     MLX buffer-pool cache limit in bytes
                             (default: none -> not passed; Mei default 0 = use
                             the default limit)
+  --request-log PATH   Append one JSON line per generation run (Mei 0.4.1+):
+                       prompt/cached/completion tokens, prefill_ms,
+                       generate_ms, wall_ms. Decompose it with
+                       runner/analyze_request_log.py.
   --ssm-anchor-boundaries K Cross-conversation prefix reuse (Mei 0.4.0+;
                             default off). K anchors at the first K role-turn
                             boundaries.
@@ -75,6 +79,7 @@ MEMORY_LIMIT_BYTES=""
 CACHE_LIMIT_BYTES=""
 COMPILED_DECODE=""
 SSM_ANCHOR_BOUNDARIES=""
+REQUEST_LOG=""
 MEI_REPO="$MEI_REPO_DEFAULT"
 RUNTIME_BASE="$RUNTIME_BASE_DEFAULT"
 BUILD_DIR="$BUILD_DIR_DEFAULT"
@@ -102,6 +107,7 @@ while [[ $# -gt 0 ]]; do
     --cache-limit-bytes) CACHE_LIMIT_BYTES="${2:?missing value}"; shift 2 ;;
     --compiled-decode) COMPILED_DECODE="${2:?missing value}"; shift 2 ;;
     --ssm-anchor-boundaries) SSM_ANCHOR_BOUNDARIES="${2:?missing value}"; shift 2 ;;
+    --request-log) REQUEST_LOG="${2:?missing value}"; shift 2 ;;
     --mei-repo) MEI_REPO="${2:?missing value}"; shift 2 ;;
     --runtime-base) RUNTIME_BASE="${2:?missing value}"; shift 2 ;;
     --build-dir) BUILD_DIR="${2:?missing value}"; shift 2 ;;
@@ -156,6 +162,7 @@ ARGS=(--model-dir "$MODEL_DIR" --served-model-id "$SERVED_MODEL_ID"
 # Stores SSM anchors at the first K chat role-turn boundaries so the shared
 # system+tools prefix restores across conversations instead of cold-prefilling.
 [[ -n "$SSM_ANCHOR_BOUNDARIES" ]] && ARGS+=(--ssm-anchor-boundaries "$SSM_ANCHOR_BOUNDARIES")
+[[ -n "$REQUEST_LOG" ]] && ARGS+=(--request-log "$REQUEST_LOG")
 
 printf 'mei isolated launch: '
 printf '%q ' "$BIN" "${ARGS[@]}"
