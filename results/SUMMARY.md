@@ -18,9 +18,10 @@ turns 10%):
 | 1 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | thinking (medium) | PASS (100%, 8) | 0.866 | 93% (15) | 42.4 tok/s | 7.01s | 3504 | 16.8 |
 | 2 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-I-Quality | llama.cpp | unspecified | PASS (88%, 8) | 0.840 | 93% (15) | 39.5 tok/s | 7.16s | 3355 | 14.2 |
 | 3 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly **←** | mei | thinking | PASS (100%, 8) | 0.832 | 100% (15) | 57.9 tok/s | 43.44s | 5212 | 8.9 |
-| 4 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit **←** | mei | unspecified | PASS (88%, 8) | 0.818 | 93% (15) | 34.1 tok/s | 7.13s | 6378 | 14.1 |
-| 5 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | thinking | PASS (75%, 8) | 0.815 | 87% (15) | 43.4 tok/s | 7.05s | 2767 | 15.7 |
-| 6 | mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Quality | llama.cpp | unspecified | PASS (88%, 8) | 0.752 | 87% (15) | 42.9 tok/s | 10.67s | 5398 | 20.2 |
+| 4 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | thinking | PASS (75%, 8) | 0.815 | 87% (15) | 43.4 tok/s | 7.05s | 2767 | 15.7 |
+| 5 | mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Quality | llama.cpp | unspecified | PASS (88%, 8) | 0.752 | 87% (15) | 42.9 tok/s | 10.67s | 5398 | 20.2 |
+| 6 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | unspecified | PASS (100%, 8) | 0.729 | 80% (15) | 33.3 tok/s | 10.29s | 4419 | 15.3 |
+| 7 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit **←** | mei | unspecified | PASS (100%, 8) | 0.729 | 93% (15) | 42.9 tok/s | 43.42s | 4754 | 11.1 |
 | 8 | mlx-community/Qwen3.6-35B-A3B-4bit **←** | mei | thinking | PASS (88%, 8) | 0.722 | 87% (15) | 47.6 tok/s | 44.55s | 5712 | 9.5 |
 
 ![Best overall composite score by model](score_chart.png)
@@ -40,12 +41,17 @@ as the ongoing regression targets:
 |---|---|---|
 | **Qwen 3.6 (stock, with vision)** | `configs/Qwen3.6-35B-A3B/mei.yaml` | The benchmark does not exercise vision, but the real Hermes harness will happily take image requests. This is the option that can actually serve them. Latest full run **22/25**. |
 | **Qwen 3.6 text-only** | `configs/Qwen3.6-35B-A3B-textonly/mei.yaml` | Vision tower stripped: −0.83 GiB, ~1.3x faster short decode, LLM load path instead of VLM. Latest full run **25/25**, the only clean sweep any Mei config has produced. Text/coding work only. |
-| **Ornith 1.5 35B-A3B** | `configs/Ornith-1.5-35B-A3B/mei.yaml` | Latest full run **22/22 gradeable** (3 harness errors excluded, one a real sandbox escape the fixture guard caught). **Already text-only** — the checkpoint contains no `vision_tower` tensors and no `vision_config`, so there is nothing to strip; its 18.17 GiB matches the stripped Qwen 3.6 exactly. |
+| **Ornith 1.5 35B-A3B** | `configs/Ornith-1.5-35B-A3B/mei.yaml` | Latest full run **24/25**, zero harness errors. **Already text-only** — the checkpoint contains no `vision_tower` tensors and no `vision_config`, so there is nothing to strip; its 18.17 GiB matches the stripped Qwen 3.6 exactly. |
 
 Scores are the 2026-09-09 full runs on the RELEASED Mei 0.4.0 build with
-prefill step 1024: Qwen 3.6 text-only 25/25, Qwen 3.6 stock 22/25, Ornith
-22/22 gradeable. No model regressed against the 2026-09-07 baselines, and
-Ornith's coding wall dropped from 59 to 46 minutes.
+prefill step 1024: Qwen 3.6 text-only 25/25, Ornith 24/25, Qwen 3.6 stock
+22/25. No model regressed against the 2026-09-07 baselines.
+
+All three now sit within one task of each other on quality, and the three
+differ far more on the time axes than on correctness: text-only generates
+fastest (57.9 tok/s) but waits 43 s for its first token, while the llama.cpp
+Ornith build answers in 7 s at 42.4 tok/s. That gap is the single largest
+piece of headroom left, and it is invisible in the pass-rate column.
 
 Treat the quality ordering as a tie. The suite samples at temperature 0.6,
 and this project's own rule is that single-task swings are noise. Three
