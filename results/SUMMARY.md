@@ -17,10 +17,11 @@ turns 10%):
 |---|---|---|---|---|---:|---:|---:|---:|---:|---:|
 | 1 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | thinking (medium) | PASS (100%, 8) | 0.866 | 93% (15) | 42.4 tok/s | 7.01s | 3504 | 16.8 |
 | 2 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-I-Quality | llama.cpp | unspecified | PASS (88%, 8) | 0.840 | 93% (15) | 39.5 tok/s | 7.16s | 3355 | 14.2 |
-| 3 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | thinking | PASS (100%, 8) | 0.832 | 100% (15) | 57.9 tok/s | 43.44s | 5212 | 8.9 |
-| 4 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | unspecified | PASS (88%, 8) | 0.818 | 93% (15) | 34.1 tok/s | 7.13s | 6378 | 14.1 |
+| 3 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly **←** | mei | thinking | PASS (100%, 8) | 0.832 | 100% (15) | 57.9 tok/s | 43.44s | 5212 | 8.9 |
+| 4 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit **←** | mei | unspecified | PASS (88%, 8) | 0.818 | 93% (15) | 34.1 tok/s | 7.13s | 6378 | 14.1 |
 | 5 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | thinking | PASS (75%, 8) | 0.815 | 87% (15) | 43.4 tok/s | 7.05s | 2767 | 15.7 |
 | 6 | mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Quality | llama.cpp | unspecified | PASS (88%, 8) | 0.752 | 87% (15) | 42.9 tok/s | 10.67s | 5398 | 20.2 |
+| 8 | mlx-community/Qwen3.6-35B-A3B-4bit **←** | mei | thinking | PASS (88%, 8) | 0.722 | 87% (15) | 47.6 tok/s | 44.55s | 5712 | 9.5 |
 
 ![Best overall composite score by model](score_chart.png)
 
