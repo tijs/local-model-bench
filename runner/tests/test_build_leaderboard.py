@@ -434,20 +434,33 @@ class CompositeRankingTests(unittest.TestCase):
         row without hermes_turns/wall_seconds actually looks. `timestamp`,
         when given, is stamped on every row (default omitted, like a real
         row always has a timestamp but most dedup tests don't care which)."""
-        rows = [{
+        # The composite score's speed axis reads DECODE-ONLY throughput
+        # (completion_tokens / (wall_seconds - ttft_seconds)), not the
+        # `tokens_per_second` field, since 2026-09-09. Emit timings whose
+        # decode rate is exactly `tps` so every speed test below keeps
+        # meaning what it says; without this the axis silently reads 0.0 for
+        # every fixture group and the speed tests assert nothing.
+        _ttft, _ctok = 1.0, 100
+        _decode_wall = _ttft + _ctok / tps if tps else _ttft
+        def _timed(row):
+            row.update({"completion_tokens": _ctok, "ttft_seconds": _ttft,
+                        "wall_seconds": round(_decode_wall, 6), "ttft_measurable": True})
+            return row
+
+        rows = [_timed({
             "suite": "sanity", "task_id": "sanity-basic", "task_type": "sanity",
             "model": model, "inference_engine": inference_engine, "quant": quant,
             "config_path": None, "config_hash": config_hash, "runner_git_sha": runner_sha,
             "trial": 1, "pass": True, "grade_output": "PASS", "tokens_per_second": tps,
-        }]
+        })]
         for i, ok in enumerate(hermes_ops_passes):
-            rows.append({
+            rows.append(_timed({
                 "suite": "hermes_ops", "task_id": f"hermes_ops-task{i}", "task_type": "tool-selection",
                 "model": model, "inference_engine": inference_engine, "quant": quant,
                 "config_path": None, "config_hash": config_hash, "runner_git_sha": runner_sha,
                 "trial": 1, "pass": ok, "grade_output": "PASS" if ok else "FAIL",
                 "tokens_per_second": tps,
-            })
+            }))
         for i, ok in enumerate(coding_passes):
             row = {
                 "suite": "kiem_mini", "task_id": f"kiem_mini-task{i}", "task_type": "feature",

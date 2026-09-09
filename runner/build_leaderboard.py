@@ -119,7 +119,13 @@ CODING_TURNS_CEILING_FOR_TIMEOUT = 40
 # (2026-08-27) after seeing this: give pass MORE weight than speed, not
 # equal -- pass still "gets a lot of weight," but can no longer be fully
 # cancelled out by raw speed alone.
-CODING_SCORE_WEIGHTS = {"pass": 0.45, "speed": 0.25, "time": 0.20, "turns": 0.10}
+# 2026-09-09: the "time" axis (recovered total runtime) was REPLACED by "ttft".
+# Total runtime is an aggregate of decode speed, prefill and turn count, so
+# scoring it alongside those double-weights prefill. It is still DISPLAYED,
+# because a model can post a good total while looking slow on the component
+# numbers. "speed" also changed meaning: it is now decode-only throughput,
+# not completion_tokens/wall_seconds. See the avg tok/s note in the preamble.
+CODING_SCORE_WEIGHTS = {"pass": 0.45, "speed": 0.25, "ttft": 0.20, "turns": 0.10}
 
 
 def _fairness_fields(config_hash, config_path):
@@ -419,14 +425,48 @@ def compute_group_stats(groups):
         n = len(non_sanity_scored)
         n_pass = sum(1 for r in non_sanity_scored if r.get("pass"))
         pass_rate = f"{100 * n_pass / n:.0f}%" if n else "n/a (all harness errors)"
-        tps_values = [r["tokens_per_second"] for r in scored if r.get("tokens_per_second") is not None]
-        avg_tps_val = mean(tps_values) if tps_values else None
+        # DECODE-ONLY throughput: completion_tokens / (wall - ttft). The old
+        # number was completion_tokens / wall_seconds, which on a 20k-token
+        # prompt is mostly prefill — measured 2026-09-09, TTFT was 74-78% of
+        # wall on hermes_ops, and enabling prefix caching moved the recorded
+        # "tok/s" from 10.7 to 27.4 on the SAME model and build while real
+        # decode was unchanged. That metric was feeding the score's speed axis,
+        # so the leaderboard was ranking cache behaviour as model speed.
+        #
+        # Proxied configs are excluded outright: bench_local_proxy buffers the
+        # whole response into one SSE chunk, so their ttft equals total
+        # generation time and both derived numbers would be fiction.
+        proxied = any(r.get("ttft_measurable") is False for r in scored)
+        # Measurement-validity floor. A rate divided by a near-zero window is
+        # noise, not speed: the `sanity` rows have a MEDIAN decode window of
+        # 0.46 s (minimum 1 ms) and produced derived rates up to 283,000 tok/s,
+        # which swamped every average. `hermes_ops` rows have a 26.9 s median
+        # window and a 24 tok/s median rate, which matches independently
+        # measured decode. Require at least a second of generation and enough
+        # tokens for the rate to mean anything; rows below that contribute
+        # nothing rather than poisoning the mean.
+        MIN_DECODE_WINDOW_SECONDS = 1.0
+        MIN_DECODE_TOKENS = 16
+        decode_rows = [] if proxied else [
+            r for r in scored
+            if r.get("ttft_seconds") is not None
+            and r.get("wall_seconds") and r.get("completion_tokens")
+            and r["wall_seconds"] - r["ttft_seconds"] >= MIN_DECODE_WINDOW_SECONDS
+            and r["completion_tokens"] >= MIN_DECODE_TOKENS
+        ]
+        decode_values = [
+            r["completion_tokens"] / (r["wall_seconds"] - r["ttft_seconds"])
+            for r in decode_rows
+        ]
+        avg_tps_val = mean(decode_values) if decode_values else None
         avg_tps = f"{avg_tps_val:.1f}" if avg_tps_val is not None else "—"
-        if any(r.get("ttft_measurable") is False for r in scored):
+        if proxied:
             avg_ttft = "n/a (proxied — not real TTFT)"
+            avg_ttft_val = None
         else:
             ttft_values = [r["ttft_seconds"] for r in scored if r.get("ttft_seconds") is not None]
-            avg_ttft = f"{mean(ttft_values):.2f}" if ttft_values else "—"
+            avg_ttft_val = mean(ttft_values) if ttft_values else None
+            avg_ttft = f"{avg_ttft_val:.2f}" if avg_ttft_val is not None else "—"
         n_hallucinated = sum(1 for r in scored if r.get("grade_output", "").startswith("FAIL: model called tool"))
         turn_values = [r["hermes_turns"] for r in scored if r.get("hermes_turns") is not None]
         avg_turns = f"{mean(turn_values):.1f}" if turn_values else "—"
@@ -474,6 +514,7 @@ def compute_group_stats(groups):
                 f"{total_runtime_disp} |"
             ),
             "avg_tps_val": avg_tps_val,
+            "avg_ttft_val": avg_ttft_val,
             "reasoning_mode": reasoning_mode,
             "reasoning_effort": reasoning_effort,
             "coding_pass_rate": coding_pass_rate,
@@ -576,11 +617,16 @@ def rank_groups(group_stats):
               coding tasks) -- combined across BOTH suites, not coding
               alone (changed 2026-08-29, see _composite_coding_score's
               own comment for why)
-      speed = avg_tps / fastest group's avg_tps
-      time  = shortest (lowest) group's total_runtime_seconds / this
-              group's total_runtime_seconds (recovered TOTAL run runtime,
-              shorter is better, so INVERTED; see _group_total_runtime()
-              — switched from per-task avg_coding_wall 2026-09-06)
+      speed = avg decode tok/s / fastest group's avg decode tok/s
+              (DECODE ONLY: completion_tokens / (wall - ttft), not
+              completion_tokens / wall — changed 2026-09-09, see the
+              avg tok/s note in the preamble for why the old number was
+              measuring prefill and cache state rather than the model)
+      ttft  = fastest (lowest) group's avg TTFT / this group's avg TTFT
+              (lower is better, so INVERTED; replaced the recovered
+              total-runtime axis 2026-09-09 — total runtime is an
+              aggregate of the other three axes, so scoring it as well
+              double-weighted prefill. Still displayed, never scored.)
       turns = fewest-turns group's avg_coding_turns / this group's
               avg_coding_turns (fewer is better, so INVERTED)
     A group missing a denominator input (e.g. every coding row somehow
@@ -677,14 +723,21 @@ def rank_groups(group_stats):
     max_tps_for_score = max(
         (gs["avg_tps_val"] for gs in eligible_for_norm if gs["avg_tps_val"]), default=None,
     )
-    # "time" axis normalizes recovered TOTAL run runtime (see
-    # _group_total_runtime()), not per-task avg coding wall — the user
-    # wants the whole test run's elapsed time represented in final
-    # scoring, not just how long the coding tasks individually took
-    # (2026-09-06). Shorter total runtime is better, so the axis is
-    # inverted against the shortest (min) runtime seen.
-    min_runtime_for_score = min(
-        (gs["total_runtime_seconds"] for gs in eligible_for_norm if gs["total_runtime_seconds"]), default=None,
+    # TTFT axis (2026-09-09, replacing recovered total runtime). Lower is
+    # better, so it is inverted against the fastest first token seen. Total
+    # runtime is still COMPUTED and DISPLAYED — a model can post a good total
+    # while looking slow on the component numbers — but it is no longer scored:
+    # it is an aggregate of decode speed, prefill and turn count, all three of
+    # which are already axes, so scoring it double-weights prefill.
+    #
+    # TTFT is not merely a component of total time. It is what interactive use
+    # actually feels like: a model that starts answering in 2 s reads as
+    # responsive even when its total is no better than one that stalls for 60 s
+    # first. Groups whose TTFT is unmeasurable (proxied configs, where the
+    # proxy buffers the whole response into one chunk) score 0.0 here, matching
+    # the existing missing-denominator convention.
+    min_ttft_for_score = min(
+        (gs["avg_ttft_val"] for gs in eligible_for_norm if gs["avg_ttft_val"]), default=None,
     )
     min_turns_for_score = min(
         (gs["avg_coding_turns"] for gs in eligible_for_norm if gs["avg_coding_turns"]), default=None,
@@ -713,9 +766,9 @@ def rank_groups(group_stats):
             gs["avg_tps_val"] / max_tps_for_score
             if gs["avg_tps_val"] and max_tps_for_score else 0.0
         )
-        time_component = (
-            min_runtime_for_score / gs["total_runtime_seconds"]
-            if gs["total_runtime_seconds"] and min_runtime_for_score else 0.0
+        ttft_component = (
+            min_ttft_for_score / gs["avg_ttft_val"]
+            if gs["avg_ttft_val"] and min_ttft_for_score else 0.0
         )
         turns_component = (
             min_turns_for_score / gs["avg_coding_turns"]
@@ -724,7 +777,7 @@ def rank_groups(group_stats):
         return (
             CODING_SCORE_WEIGHTS["pass"] * pass_component
             + CODING_SCORE_WEIGHTS["speed"] * speed_component
-            + CODING_SCORE_WEIGHTS["time"] * time_component
+            + CODING_SCORE_WEIGHTS["ttft"] * ttft_component
             + CODING_SCORE_WEIGHTS["turns"] * turns_component
         )
 
@@ -810,16 +863,29 @@ def main():
         "flagged \"config since changed\" for rows predating that snapshot.",
         "`runner_git_sha` rows marked `+dirty` were graded by uncommitted code.",
         "",
-        "**`avg tok/s` caveat**:",
-        "this is `completion_tokens / wall_seconds` across the ENTIRE multi-turn",
-        "loop, including every prefill of the suite's system prompt — it's a",
-        "prefill-dominated-workload throughput number, not a pure decode rate, and",
-        "it's averaged across `sanity` (tiny prompt) and `hermes_ops` (large,",
-        "repeated system prompt) rows in one cell. Treat it as a rough signal,",
-        "not a precise generation-speed comparison; a real prefill/decode split",
-        "is a follow-up, not yet implemented. `avg TTFT` is blanked instead of",
-        "silently mislabeled for proxied configs (see below), but is still a",
-        "single combined average across suites where it IS real.",
+        "**`avg tok/s` is DECODE-ONLY** (changed 2026-09-09):",
+        "`completion_tokens / (wall_seconds - ttft_seconds)`, i.e. throughput once",
+        "generation has actually started. It used to be `completion_tokens /",
+        "wall_seconds`, which on this suite's large repeated system prompt is",
+        "mostly prefill: measured 2026-09-09, TTFT was 74-78% of wall on",
+        "`hermes_ops`, and turning on prefix caching moved the reported number",
+        "from 10.7 to 27.4 on the SAME model and build while real decode was",
+        "unchanged. That figure was feeding the composite score's speed axis, so",
+        "the ranking was partly measuring cache state rather than the model.",
+        "",
+        "`avg TTFT` is the other half and is now SCORED in its own right, not",
+        "just displayed — it is what interactive use feels like. Both are averaged",
+        "across `sanity` (tiny prompt) and `hermes_ops` (large prompt) rows, so",
+        "read them as a blend of two prompt shapes, and both are blanked for",
+        "proxied configs rather than silently mislabeled: `bench_local_proxy`",
+        "buffers the whole response into one chunk, making its TTFT equal to total",
+        "generation time. Rows predating TTFT capture are excluded from both.",
+        "",
+        "**Total runtime is displayed but NOT scored** (changed 2026-09-09): it is",
+        "an aggregate of decode speed, prefill and turn count, all three already",
+        "scored, so scoring it too double-weighted prefill. It stays in the table",
+        "because a model can post a good total while looking slow on the",
+        "component numbers.",
         "",
         "**¹ `temp (coding only)`**: the config's declared temperature is what the",
         "coding suite (`hermes chat`, driven by `run_fixture_suite.py`) actually",
@@ -930,7 +996,8 @@ def main():
         "no longer scores identically to a 100% one once both clear the gate above),"
     )
     lines.append(
-        f"speed ({CODING_SCORE_WEIGHTS['speed']:.0%}), total runtime ({CODING_SCORE_WEIGHTS['time']:.0%}),"
+        f"decode speed ({CODING_SCORE_WEIGHTS['speed']:.0%}), time to first token "
+        f"({CODING_SCORE_WEIGHTS['ttft']:.0%}),"
     )
     lines.append(
         f"and turns used ({CODING_SCORE_WEIGHTS['turns']:.0%}) — each normalized 0.0-1.0 against"
@@ -952,8 +1019,8 @@ def main():
             f"{FULL_CODING_TASKS}/{FULL_CODING_TASKS} coding) yet."
         )
     else:
-        lines.append("| rank | model | engine | quant | reasoning⁶ | config | usefulness gate | score | coding | speed | total runtime (s)⁷ | avg turns |")
-        lines.append("|---|---|---|---|---|---|---|---|---|---|---|---|")
+        lines.append("| rank | model | engine | quant | reasoning⁶ | config | usefulness gate | score | coding | decode speed | avg TTFT | total runtime (s)⁷ | avg turns |")
+        lines.append("|---|---|---|---|---|---|---|---|---|---|---|---|---|")
         for i, (gate_pass, score, gs) in enumerate(
             sorted(ranked, key=lambda t: (t[0], t[1]), reverse=True), start=1
         ):
@@ -965,6 +1032,8 @@ def main():
             score_disp = f"{score:.3f}" if gate_pass else "—"
             coding_disp = f"{100 * gs['coding_pass_rate']:.0f}% ({gs['n_coding']})"
             speed_disp = f"{gs['avg_tps_val']:.1f} tok/s" if gs["avg_tps_val"] is not None else "—"
+            ttft_disp = (
+                f"{gs['avg_ttft_val']:.2f}s" if gs.get("avg_ttft_val") is not None else "—")
             time_disp = _total_runtime_display(gs["total_runtime_seconds"])
             turns_disp = f"{gs['avg_coding_turns']:.1f}" if gs["avg_coding_turns"] is not None else "—"
             reasoning_disp = (
@@ -973,7 +1042,7 @@ def main():
             )
             lines.append(
                 f"| {i} | {model} | {inference_engine} | {quant or '—'} | {reasoning_disp} | {config_hash or '—'} | "
-                f"{gate_disp} | {score_disp} | {coding_disp} | {speed_disp} | {time_disp} | {turns_disp} |"
+                f"{gate_disp} | {score_disp} | {coding_disp} | {speed_disp} | {ttft_disp} | {time_disp} | {turns_disp} |"
             )
         lines.append("")
         # Regenerated by runner/plot_leaderboard.py (called right after this
