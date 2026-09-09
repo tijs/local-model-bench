@@ -47,11 +47,30 @@ Scores are the 2026-09-09 full runs on the RELEASED Mei 0.4.0 build with
 prefill step 1024: Qwen 3.6 text-only 25/25, Ornith 24/25, Qwen 3.6 stock
 22/25. No model regressed against the 2026-09-07 baselines.
 
-All three now sit within one task of each other on quality, and the three
-differ far more on the time axes than on correctness: text-only generates
-fastest (57.9 tok/s) but waits 43 s for its first token, while the llama.cpp
-Ornith build answers in 7 s at 42.4 tok/s. That gap is the single largest
-piece of headroom left, and it is invisible in the pass-rate column.
+All three sit within one task of each other on quality, so the interesting
+differences are on the time axes — and the largest one is not raw speed, it is
+a missing feature.
+
+**Mei has no cross-request prompt caching; llama.cpp does.** TTFT per
+`hermes_ops` task, in run order, same model family and the same 20k-token
+system+tools prefix:
+
+| task | Ornith GGUF / llama.cpp | Ornith MLX / Mei |
+|---|---:|---:|
+| 1st | 47.2 s | 53.8 s |
+| 2nd–8th | 2.3–3.6 s | 53.3–55.2 s |
+
+Cold prefill is comparable (Mei ~14% slower). Everything after that is llama.cpp
+reusing a cached prefix and Mei re-prefilling from scratch, every single time.
+The averaged `avg TTFT` column understates this for llama.cpp, because seven
+cheap requests pull its mean down to ~8 s; read the per-task shape, not the mean.
+
+This is the single largest piece of headroom left, and llama.cpp is the
+existence proof that it is reachable without sacrificing multi-turn behaviour.
+Mei 0.4.0 ships an opt-in attempt at it (`--ssm-anchor-boundaries`) that reaches
+0.17 s prefill on a restored prefix — better than llama.cpp — but regresses
+multi-turn coding wall time and is therefore off by default. That regression is
+an implementation defect, not an inherent trade-off.
 
 Treat the quality ordering as a tie. The suite samples at temperature 0.6,
 and this project's own rule is that single-task swings are noise. Three
