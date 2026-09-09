@@ -88,20 +88,17 @@ not optimization targets.
 
 ## Charts
 
-The following are from the 2026-09-06 "Final eight" post-fix comparison
-(archived in full in `HISTORY.md`):
+Regenerated 2026-09-09 from the current `log.jsonl` by
+`uv run --locked python runner/build_summary_charts.py` and
+`runner/plot_leaderboard.py`. Only charts that regenerate from live data appear
+here; see [`HISTORY.md`](HISTORY.md) for ones tied to superseded comparisons.
 
-![Selected-eight composite score](summary_score_chart.png)
+![Pass rate by suite](suite_heatmap.png)
 
-![Quality vs recovered runtime](quality_vs_runtime.png)
-
-![Mei vs llama.cpp deltas](engine_delta.png)
-
-![Suite pass-rate heatmap](suite_heatmap.png)
-
-![Recovered runtime breakdown](runtime_breakdown.png)
-
-![Failure taxonomy](failure_taxonomy.png)
+*Where each model actually fails. `kiem_mini` is the hardest suite across the
+whole field; Qwen 3.6 text-only is the only 100% row; Nemotron's collapse
+(12% hermes_ops, 0% coding) is visible at a glance. The `sanity` column is
+100% for every model and carries no information — it is a gate, not a signal.*
 
 ## Where the detail lives
 

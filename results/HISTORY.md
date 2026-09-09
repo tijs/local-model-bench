@@ -8,6 +8,28 @@ in their original words.
 
 ---
 
+## Archived charts
+
+These illustrate the 2026-09-06 "Final eight" comparison below and are kept with
+it. They are NOT on the summary page: two cannot be regenerated from current
+data at all, and the rest describe a model selection that has since changed.
+
+- `engine_delta.png` — Mei vs llama.cpp deltas. **Cannot be regenerated**:
+  `build_summary_charts.py` now skips it ("no family had both a pass-rate and
+  runtime delta"), because the paired families it compared are no longer both
+  in the eligible set.
+- `summary_score_chart.png` — the curated "selected eight" composite. Orphaned:
+  no current tool regenerates it, and `score_chart.png` supersedes it.
+- `failure_taxonomy.png` — three bars totalling every failure row in the log.
+  Regenerates, but aggregates across all models and all dates, so it says
+  nothing actionable about any single run.
+- `quality_vs_runtime.png`, `runtime_breakdown.png` — both regenerate and both
+  carry real signal (the dense-model time penalty is stark in the latter:
+  Qwen 3.8 variants at 6-7.5 h against Ornith at 1-1.8 h). Kept here rather
+  than on the summary because 18-row charts are reference material, not a
+  headline.
+
+
 ## 2026-09-07 evening: the three targets re-run on the 0.3.0 build + C1 — no regression, decode faster, quality flat
 
 All three active targets were re-run in one chain (`/tmp/bench_030.sh`, runner
