@@ -447,15 +447,39 @@ def compute_group_stats(groups):
         # nothing rather than poisoning the mean.
         MIN_DECODE_WINDOW_SECONDS = 1.0
         MIN_DECODE_TOKENS = 16
+
+        # Prefer the measured decode window (first streamed token to last,
+        # summed over turns) over `wall - ttft`.
+        #
+        # `wall - ttft` is not the decode window: it also contains everything
+        # the server does AFTER the final token. That was invisible while TTFT
+        # was ~54 s and the tail was a second or two, but prefix caching drops
+        # TTFT to ~2 s and the tail — a ~1 GB hybrid cache store — then
+        # dominates. Measured live 2026-09-09 on the same run: this formula
+        # reported 36.5 tok/s where the server measured 57.9, so the metric
+        # penalised the fastest configuration by 37% for being fast.
+        #
+        # `decode_window_seconds` is taken from the stream by run_prompt.py, so
+        # it is engine-neutral rather than a vendor-reported number only one
+        # backend can supply. Rows recorded before it existed fall back to the
+        # old formula, which is why the two must not be mixed inside a group —
+        # they are not, because a group is keyed on runner_git_sha.
+        def _decode_window(r):
+            w = r.get("decode_window_seconds")
+            if w:
+                return w
+            if r.get("ttft_seconds") is not None and r.get("wall_seconds"):
+                return r["wall_seconds"] - r["ttft_seconds"]
+            return None
+
         decode_rows = [] if proxied else [
             r for r in scored
-            if r.get("ttft_seconds") is not None
-            and r.get("wall_seconds") and r.get("completion_tokens")
-            and r["wall_seconds"] - r["ttft_seconds"] >= MIN_DECODE_WINDOW_SECONDS
+            if r.get("completion_tokens")
+            and (_decode_window(r) or 0) >= MIN_DECODE_WINDOW_SECONDS
             and r["completion_tokens"] >= MIN_DECODE_TOKENS
         ]
         decode_values = [
-            r["completion_tokens"] / (r["wall_seconds"] - r["ttft_seconds"])
+            r["completion_tokens"] / _decode_window(r)
             for r in decode_rows
         ]
         avg_tps_val = mean(decode_values) if decode_values else None

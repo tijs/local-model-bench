@@ -109,18 +109,27 @@ class UvPythonWorkflowTests(unittest.TestCase):
     def test_leaderboard_subprocess_uses_current_interpreter(self):
         with patch.object(run_bench, "run") as run:
             run_bench._leaderboard()
-        # _leaderboard() calls run() twice: build_leaderboard.py to
-        # regenerate the table, then plot_leaderboard.py (2026-08-27) to
-        # regenerate the chart embedded alongside it — both must use the
-        # current interpreter, not a bare "python" that might not be the
-        # project's uv-managed one.
-        self.assertEqual(
-            [c.args[0] for c in run.call_args_list],
-            [
-                [sys.executable, str(REPO / "runner" / "build_leaderboard.py")],
-                [sys.executable, str(REPO / "runner" / "plot_leaderboard.py")],
-            ],
-        )
+        # _leaderboard() regenerates the table with build_leaderboard.py, then
+        # the chart with plot_leaderboard.py (2026-08-27).
+        #
+        # The table MUST run on the current interpreter — never a bare "python"
+        # that might not be the project's uv-managed one.
+        #
+        # The chart is different (2026-09-09). It needs matplotlib, which the
+        # interpreter running run_bench.py does not necessarily have, and when
+        # it did not the step failed silently and left results/score_chart.png
+        # stale — for over two days, as it turned out. So it now asks uv for a
+        # correctly provisioned interpreter FIRST and falls back to our own.
+        # Assert that fallback order rather than a single command, or the
+        # regression this fixed comes straight back.
+        calls = [c.args[0] for c in run.call_args_list]
+        build = str(REPO / "runner" / "build_leaderboard.py")
+        plot = str(REPO / "runner" / "plot_leaderboard.py")
+        self.assertEqual(calls[0], [sys.executable, build])
+        self.assertEqual(calls[1][:3], ["uv", "run", "--quiet"])
+        self.assertEqual(calls[1][-1], plot)
+        # A mocked run() never reports success, so the fallback must also fire.
+        self.assertEqual(calls[-1], [sys.executable, plot])
 
 
 if __name__ == "__main__":

@@ -451,6 +451,13 @@ def main():
                 "completion_tokens": parsed.get("completion_tokens"),
                 "tokens_per_second": parsed.get("tokens_per_second"),
                 "ttft_seconds": parsed.get("ttft_seconds"),
+                # First token to last token, summed over turns. See
+                # run_prompt.py: `wall - ttft` also contains post-answer server
+                # work, which only became visible once prefix caching dropped
+                # TTFT from ~54 s to ~2 s and the derived rate read 36.5 tok/s
+                # against a server measuring 57.9. Measured from the stream, so
+                # every engine is treated the same. None on older rows.
+                "decode_window_seconds": parsed.get("decode_window_seconds"),
                 "wall_seconds": parsed.get("wall_seconds"),
                 # A correct answer that took many minutes isn't something
                 # a real interactive session would tolerate, even though

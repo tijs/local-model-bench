@@ -429,6 +429,15 @@ def call_backend_streaming(base_url, model, messages, tools, temperature, timeou
         mono_start = time.monotonic()
         total_deadline = mono_start + timeout
         ttft = None
+        # Time of the LAST streamed token, so the caller can measure the decode
+        # window as last_delta - ttft. `wall - ttft` is not that window: it also
+        # contains whatever the server does after the final token, which on Mei
+        # with prefix reuse is a ~1 GB cache store. That used to be a rounding
+        # error inside a 54 s TTFT; once caching drops TTFT to ~2 s it dominates,
+        # and the derived rate reported 36.5 tok/s for a server measuring 57.9.
+        # Measured from the stream, so it is engine-neutral -- any backend that
+        # streams deltas gets the same treatment.
+        last_delta = None
         content_parts = []
         tool_calls_acc = {}
         usage = {}
@@ -471,6 +480,7 @@ def call_backend_streaming(base_url, model, messages, tools, temperature, timeou
                 if delta.get("content") or delta.get("tool_calls"):
                     if ttft is None:
                         ttft = time.time() - start
+                    last_delta = time.time() - start
                 if delta.get("content"):
                     content_parts.append(delta["content"])
                 for tc_delta in delta.get("tool_calls") or []:
@@ -524,11 +534,16 @@ def call_backend_streaming(base_url, model, messages, tools, temperature, timeou
                 "completion_tokens": max(1, completion_chars // 4),
             }
 
+        decode_window = (
+            last_delta - ttft
+            if ttft is not None and last_delta is not None and last_delta > ttft
+            else None
+        )
         return {
             "choices": [{"message": message, "finish_reason": finish_reason}],
             "usage": usage,
             "usage_estimated": usage_estimated,
-        }, ttft
+        }, ttft, decode_window
 
     # Bounded no-response retry. A StreamStall from _attempt_once() has already
     # had its response socket torn down (the SSE generator's finally ran), so
@@ -630,13 +645,17 @@ def main():
     final_text = ""
     turns = 0
     ttft_seconds = None  # time-to-first-token of the FIRST API call in this run
+    # Summed decode windows across every turn: first token to last token, per
+    # turn. Divided into completion_tokens this gives a decode rate that
+    # excludes prefill AND whatever the server does after the final token.
+    decode_window_seconds = 0.0
     usage_estimated = False
     total_cost_usd = None  # only hosted/metered backends (e.g. OpenRouter)
     # report this in their usage object; stays None for local models
 
     try:
         for turns in range(1, args.max_turns + 1):
-            resp, turn_ttft = call_backend_streaming(
+            resp, turn_ttft, turn_decode_window = call_backend_streaming(
                 args.base_url, args.model, messages, tools, args.temperature, args.timeout,
                 args.max_tokens, api_key=api_key,
                 connect_timeout=args.connect_timeout,
@@ -647,6 +666,8 @@ def main():
             )
             if ttft_seconds is None:
                 ttft_seconds = turn_ttft
+            if turn_decode_window:
+                decode_window_seconds += turn_decode_window
             if resp.get("usage_estimated"):
                 usage_estimated = True
             usage = resp.get("usage", {})
@@ -783,6 +804,7 @@ def main():
         "wall_seconds": round(wall, 3),
         "tokens_per_second": round(completion_tokens / wall, 2) if wall > 0 else None,
         "ttft_seconds": round(ttft_seconds, 3) if ttft_seconds is not None else None,
+        "decode_window_seconds": round(decode_window_seconds, 3) if decode_window_seconds > 0 else None,
         "usage_estimated": usage_estimated,
         "total_cost_usd": total_cost_usd,
         "error": error,

@@ -287,7 +287,7 @@ class StreamLivenessTests(unittest.TestCase):
         script = [(0.25, f"data: {_chunk(content=c)}\n\n".encode()) for c in "hello!"]
         script.append((0.1, b"data: [DONE]\n\n"))
         with FakeSSEServer(script) as base_url:
-            resp, _ttft = _call(base_url)
+            resp, _ttft, _decode = _call(base_url)
         self.assertEqual(resp["choices"][0]["message"]["content"], "hello!")
 
     def test_heartbeat_only_stream_fails_in_first_progress(self):
@@ -349,7 +349,7 @@ class StreamLivenessTests(unittest.TestCase):
             (0.05, b"data: [DONE]\n\n"),
         ]
         with FakeSSEServer(script) as base_url:
-            resp, _ttft = _call(
+            resp, _ttft, _decode = _call(
                 base_url, connect_timeout=0.3, first_progress_timeout=5.0,
                 stream_idle_timeout=5.0, timeout=20.0,
             )
@@ -421,7 +421,7 @@ class NoResponseRetryTests(unittest.TestCase):
         ]
         server = FlakySSEServer(script, fail_first=1)
         with server as base_url:
-            resp, _ttft = self._single(
+            resp, _ttft, _decode = self._single(
                 base_url, connect_timeout=0.3, no_response_retries=1, retry_delay=0.05,
             )
         self.assertEqual(resp["choices"][0]["message"]["content"], "hello there")
