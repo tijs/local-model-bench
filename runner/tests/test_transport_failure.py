@@ -9,19 +9,32 @@ was then indistinguishable from the model getting the task wrong, and counted
 against its pass rate. The same would happen to any run whose server OOMs,
 crashes, or is restarted underneath it.
 """
-import importlib.util
-import sys
+import ast
 import unittest
 from pathlib import Path
 
 RUNNER = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(RUNNER))
-_spec = importlib.util.spec_from_file_location("rps", RUNNER / "run_prompt_suite.py")
-_rps = importlib.util.module_from_spec(_spec)
-try:
-    _spec.loader.exec_module(_rps)
-except SystemExit:
-    pass
+
+# Extract ONLY the classifier and its marker tuple, and exec them in a bare
+# namespace. Executing run_prompt_suite.py as a module works in isolation but
+# not alongside the other test modules, which change the working directory —
+# the import then exits early and the module ends up half-populated, so the
+# function under test silently disappears. Parsing out the two definitions has
+# no import side effects and cannot be perturbed by test ordering.
+_SOURCE = (RUNNER / "run_prompt_suite.py").read_text()
+_tree = ast.parse(_SOURCE)
+_wanted = {"_TRANSPORT_FAILURE_MARKERS", "_is_transport_failure"}
+_nodes = [
+    n for n in _tree.body
+    if (isinstance(n, ast.FunctionDef) and n.name in _wanted)
+    or (isinstance(n, ast.Assign)
+        and any(getattr(t, "id", None) in _wanted for t in n.targets))
+]
+assert len(_nodes) == 2, (
+    f"expected the marker tuple and the classifier in run_prompt_suite.py, found {len(_nodes)}")
+_ns: dict = {}
+exec(compile(ast.Module(body=_nodes, type_ignores=[]), "run_prompt_suite.py", "exec"), _ns)
+_is_transport_failure = _ns["_is_transport_failure"]
 
 
 class TransportFailureClassification(unittest.TestCase):
@@ -34,7 +47,7 @@ class TransportFailureClassification(unittest.TestCase):
             "Failed to establish a new connection: [Errno 61]",
         ):
             with self.subTest(text=text):
-                self.assertTrue(_rps._is_transport_failure(text))
+                self.assertTrue(_is_transport_failure(text))
 
     def test_an_http_status_means_the_server_answered(self):
         # The context-cap rejection is a REAL engine response and must stay a
@@ -45,7 +58,7 @@ class TransportFailureClassification(unittest.TestCase):
             "HTTP 503: model loading",
         ):
             with self.subTest(text=text):
-                self.assertFalse(_rps._is_transport_failure(text))
+                self.assertFalse(_is_transport_failure(text))
 
     def test_model_and_harness_failures_are_untouched(self):
         for text in (
@@ -56,7 +69,7 @@ class TransportFailureClassification(unittest.TestCase):
             "",
         ):
             with self.subTest(text=text):
-                self.assertFalse(_rps._is_transport_failure(text))
+                self.assertFalse(_is_transport_failure(text))
 
 
 if __name__ == "__main__":

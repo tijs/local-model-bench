@@ -482,10 +482,17 @@ def preserve_repository(root, state):
 
             # Restore every pre-existing file/link byte-for-byte. Recreating all
             # files is simpler and safer than trying to classify each mutation.
+            restored = []
             for rel, (kind, payload) in sorted(baseline.items(), key=lambda item: item[0].count("/")):
                 if rel == ".":
                     continue
                 path = root / rel
+                if kind == "file" and path.is_file():
+                    try:
+                        if path.read_bytes() != payload:
+                            restored.append(rel)
+                    except OSError:
+                        restored.append(rel)
                 if kind == "dir":
                     path.mkdir(parents=True, exist_ok=True)
                 elif kind == "link":
@@ -496,6 +503,18 @@ def preserve_repository(root, state):
                 else:
                     path.parent.mkdir(parents=True, exist_ok=True)
                     path.write_bytes(payload)
+            # Say WHAT was rewritten. This restore is byte-for-byte and silent,
+            # and it cannot tell an escaped agent's edit from an operator's:
+            # editing this repo while a coding task runs gets your work reverted
+            # with a fresh mtime and a clean `git diff`, which looks impossible
+            # until you read this function. Naming the paths turns an hour of
+            # confusion into one line, and makes a real sandbox escape far
+            # easier to diagnose. (Cost that hour on 2026-09-09.)
+            if restored:
+                shown = ", ".join(restored[:10]) + (
+                    f" (+{len(restored) - 10} more)" if len(restored) > 10 else "")
+                print(f"[fixture-guard] restored {len(restored)} modified file(s): {shown}",
+                      file=sys.stderr, flush=True)
 
 
 # Build-cache directories that must NEVER be copied into a run — discovered
