@@ -58,6 +58,14 @@ Nemotron-3.5-Lightning was discarded 2026-09-07 (see `HISTORY.md`).
 Gemma-4 (18/25) and Qwen3.8-Uncensored (20/27) remain on record but are
 not optimization targets.
 
+## Tested and discarded
+
+| model | why | record |
+|---|---|---|
+| **Laguna XS 2.1 MLX** | Its chat template cannot render a history containing an assistant tool_calls message, so every multi-turn task returned an empty response: hermes_ops 2/8, coding skipped by the usefulness gate. Not a capability limit — Ornith handles 19-message tool-call histories on the same build. Fixing it means patching the model provider's own template, which would put our numbers out of reach of anyone else. | Laguna GGUF via llama.cpp remains the model's record at 19/25. |
+| **Ternary-Bonsai-27B** | Used only as a dense probe to test whether the unsafe-compile flag helps dense models more than MoE. It does not (+5.3% vs +9%). Never had its agentic coding ability tested. | Not ranked. |
+| **NVIDIA-Nemotron-3.5-Lightning** | Does not emit tool calls under a large tool payload; a model capability limit at ~5–6k tokens of realistic tool content, not a parser bug. | 7/25. |
+
 ## Headline findings
 
 - **Model selection is closed**; the benchmark is now the regression gate
