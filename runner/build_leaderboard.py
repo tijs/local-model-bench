@@ -448,38 +448,45 @@ def compute_group_stats(groups):
         MIN_DECODE_WINDOW_SECONDS = 1.0
         MIN_DECODE_TOKENS = 16
 
-        # Prefer the measured decode window (first streamed token to last,
-        # summed over turns) over `wall - ttft`.
+        # `decode_window_seconds` is recorded but NOT yet scored. Read on.
         #
-        # `wall - ttft` is not the decode window: it also contains everything
-        # the server does AFTER the final token. That was invisible while TTFT
-        # was ~54 s and the tail was a second or two, but prefix caching drops
-        # TTFT to ~2 s and the tail — a ~1 GB hybrid cache store — then
-        # dominates. Measured live 2026-09-09 on the same run: this formula
-        # reported 36.5 tok/s where the server measured 57.9, so the metric
-        # penalised the fastest configuration by 37% for being fast.
+        # The formula below, `completion_tokens / (wall - ttft)`, is not a
+        # decode rate and never was. `wall` is the whole TASK — every turn of
+        # an agent loop plus the harness's own work between them — while `ttft`
+        # is only the FIRST turn's time to first token. Decomposed live on
+        # 2026-09-09, one 9-turn hermes_ops task: 17.4 s generating (a real
+        # 54.9 tok/s), 5.9 s prefilling later turns, and ~60 s of harness time
+        # running tools and grading. The formula charges decode for all of it
+        # and reported 11.5 tok/s.
         #
-        # `decode_window_seconds` is taken from the stream by run_prompt.py, so
-        # it is engine-neutral rather than a vendor-reported number only one
-        # backend can supply. Rows recorded before it existed fall back to the
-        # old formula, which is why the two must not be mixed inside a group —
-        # they are not, because a group is keyed on runner_git_sha.
-        def _decode_window(r):
-            w = r.get("decode_window_seconds")
-            if w:
-                return w
-            if r.get("ttft_seconds") is not None and r.get("wall_seconds"):
-                return r["wall_seconds"] - r["ttft_seconds"]
-            return None
-
+        # It only looked reasonable while TTFT dominated wall. Prefix caching
+        # drops TTFT from ~54 s to ~2 s, and then almost the entire task lands
+        # in the denominator.
+        #
+        # run_prompt.py now records `decode_window_seconds` — first streamed
+        # token to last, summed over turns — which is the real window and is
+        # measured identically for any backend that streams.
+        #
+        # SCORING STILL USES THE OLD FORMULA, deliberately. Only rows recorded
+        # after 2026-09-09 carry the new field, so switching now would give
+        # freshly re-run configs their true rate while every stored config kept
+        # a depressed one. That is not a small bias and it does not point in a
+        # neutral direction: the old formula charges each engine for its own
+        # harness time, so it penalises engines that take MORE turns — 16.8 per
+        # coding task for llama.cpp against 8.9 for Mei. Migrating one side
+        # first would flatter whichever side was re-run.
+        #
+        # Switch when the configs that actually compete for the top ranks have
+        # all been re-run, then delete this branch and the fallback with it.
         decode_rows = [] if proxied else [
             r for r in scored
-            if r.get("completion_tokens")
-            and (_decode_window(r) or 0) >= MIN_DECODE_WINDOW_SECONDS
+            if r.get("ttft_seconds") is not None
+            and r.get("wall_seconds") and r.get("completion_tokens")
+            and r["wall_seconds"] - r["ttft_seconds"] >= MIN_DECODE_WINDOW_SECONDS
             and r["completion_tokens"] >= MIN_DECODE_TOKENS
         ]
         decode_values = [
-            r["completion_tokens"] / _decode_window(r)
+            r["completion_tokens"] / (r["wall_seconds"] - r["ttft_seconds"])
             for r in decode_rows
         ]
         avg_tps_val = mean(decode_values) if decode_values else None
