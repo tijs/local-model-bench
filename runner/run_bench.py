@@ -700,9 +700,27 @@ def _leaderboard():
     # cleared the "all three axes present" eligibility check yet) --
     # losing the chart for one cycle is not worth aborting the leaderboard
     # rebuild that just succeeded.
-    result = run([sys.executable, str(REPO / "runner" / "plot_leaderboard.py")])
-    if result.returncode != 0:
-        print(f"plot_leaderboard.py exited {result.returncode} (non-fatal)")
+    # plot_leaderboard.py needs matplotlib, which the interpreter running THIS
+    # script does not necessarily have -- run_bench is routinely launched with a
+    # bare python3. That made the chart step fail silently-but-non-fatally on
+    # every single run: results/score_chart.png sat unchanged from 2026-09-06
+    # through 2026-09-08 while the ranking underneath it changed twice, and
+    # nobody noticed because the failure is by design not fatal. The repo's
+    # canonical environment is `uv sync --locked` (see runner/requirements.txt),
+    # so ask uv for the interpreter first and only fall back to our own.
+    plot_script = str(REPO / "runner" / "plot_leaderboard.py")
+    plot_cmds = [["uv", "run", "--quiet", "python3", plot_script], [sys.executable, plot_script]]
+    for cmd in plot_cmds:
+        try:
+            result = run(cmd)
+        except FileNotFoundError:
+            continue          # uv not installed on this machine
+        if result.returncode == 0:
+            break
+        print(f"plot_leaderboard.py via {cmd[0]} exited {result.returncode}")
+    else:
+        print("plot_leaderboard.py failed on every interpreter (non-fatal); "
+              "results/score_chart.png is now STALE")
 
 
 def sweep_stale_run_dirs(min_age_seconds=3600):
