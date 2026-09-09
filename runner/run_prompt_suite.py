@@ -94,34 +94,6 @@ def run_with_task_deadline(cmd, timeout, grace=TASK_TIMEOUT_GRACE_SECONDS, **pop
     return stdout or "", stderr or "", proc.returncode, True
 
 
-# Transport-level failure signatures: the request never reached a server, or the
-# connection died before any response. Infrastructure, not model behaviour, so
-# these must not be graded. An HTTP status (even 500) means a server DID answer
-# and is left alone.
-_TRANSPORT_FAILURE_MARKERS = (
-    "connection refused",
-    "connection reset by peer",
-    "remote end closed connection",
-    "remotedisconnected",
-    "connection aborted",
-    "failed to establish a new connection",
-    "name or service not known",
-    "nodename nor servname provided",
-)
-
-
-def _is_transport_failure(error_text):
-    """True when `error_text` shows the server was unreachable."""
-    if not error_text:
-        return False
-    text = str(error_text).lower()
-    if "http " in text and any(
-        f" {code}" in text for code in ("400", "401", "403", "404", "422", "500", "502", "503")
-    ):
-        return False
-    return any(marker in text for marker in _TRANSPORT_FAILURE_MARKERS)
-
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--suite", required=True)
@@ -358,34 +330,6 @@ def main():
                             f"TIMEOUT (model/engine): task exceeded its "
                             f"{task_timeout}s budget and its process group was "
                             f"terminated. Partial output: {partial_output_rel}"
-                        )
-                    elif _is_transport_failure(parsed.get("error")):
-                        # The inference server was UNREACHABLE — no HTTP response
-                        # ever arrived, so nothing was graded and the model never
-                        # got a chance to answer. run_prompt.py reports this as a
-                        # normal `error` string and still exits with parseable
-                        # JSON, so the JSONDecodeError check above cannot see it,
-                        # and the row landed as an ordinary graded FAIL,
-                        # indistinguishable from the model getting the task wrong.
-                        #
-                        # Found 2026-09-09 after a benchmark chain was killed
-                        # mid-run to repoint it at a different build: two
-                        # hermes_ops rows were recorded as model failures reading
-                        # `<urlopen error [Errno 61] Connection refused>` — the
-                        # exact "infrastructure crash" the comment above says
-                        # belongs in harness_error and out of the pass-rate maths.
-                        # The same happens to any run whose server OOMs, crashes,
-                        # or is restarted underneath it.
-                        #
-                        # Deliberately narrow: only transport-level failures where
-                        # no response arrived. An HTTP 4xx/5xx IS a real engine
-                        # response (the context-cap rejection, for one) and stays
-                        # a graded result.
-                        passed = False
-                        harness_crashed = True
-                        grade_output = (
-                            "HARNESS ERROR (server unreachable, not a graded model "
-                            f"result): {parsed.get('error')}"
                         )
                     elif harness_crashed:
                         passed = False
