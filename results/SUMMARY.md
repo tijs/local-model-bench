@@ -325,10 +325,30 @@ and conversation-agnostic: 8 large cold prefills against Mei's 16.
 
 Closing it is worth 1.65 s/turn of the 3.54 s/turn prefill, which would put
 not-generating at ~4.85 s/turn against llama.cpp's 4.30 — very nearly closing
-the objective. It needs longest-common-prefix matching (index stored entries at
-multiple prefix offsets) rather than one exact boundary hash; a cheaper partial
-step is to let the client pass the stable/volatile split, which Mei already
-accepts as `cacheStablePrefixTokenCounts` and which hermes already knows.
+the objective.
+
+**Longest-common-prefix matching cannot be the fix here**, despite being the
+obvious one. LCP reuse means serving a shorter prefix out of a longer stored
+state — find that the prompt shares N tokens with an entry of length M > N, then
+trim to N. That works for the 10 full-attention layers. For the 30 GatedDelta
+layers it is impossible in principle: a recurrent state at M cannot be rewound
+to N, because the recurrence is not invertible. `BaseKVCache.isTrimmable`
+defaults false and neither `ArraysCache` nor `MambaCache` overrides it
+(`KVCache.swift` 284/1631/1729); only the attention caches set it true. Indexing
+entries at multiple prefix offsets would find the match and then have no way to
+use it.
+
+The snapshot has to be *stored* at a boundary later prompts will share. Either
+the client passes the split — Mei already accepts `cacheStablePrefixTokenCounts`
+and hermes knows where its stable section ends — or, needing no client
+cooperation, the server keeps the previous prompt's tokens, computes the longest
+common prefix with each new one, and stores the post-answer snapshot at that
+length. The first pair of tasks still pays cold; every task after reuses,
+because the stable/volatile split is discovered rather than declared.
+
+How llama.cpp avoids this on the same architecture is **not** established — it
+faces the same non-invertibility. Only the outcome is measured: 8 large cold
+prefills against Mei's 16, median prefill 408 tokens.
 
 ## Where the detail lives
 
