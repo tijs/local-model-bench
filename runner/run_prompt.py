@@ -441,6 +441,7 @@ def call_backend_streaming(base_url, model, messages, tools, temperature, timeou
         content_parts = []
         tool_calls_acc = {}
         usage = {}
+        timings = None
         finish_reason = None
 
         # The connect budget covers TCP connect + request send + response
@@ -473,6 +474,16 @@ def call_backend_streaming(base_url, model, messages, tools, temperature, timeou
                 chunk = json.loads(data)
                 if chunk.get("usage"):
                     usage = chunk["usage"]
+                # llama-server reports its OWN prefill/decode split in a
+                # `timings` object (prompt_ms / predicted_ms). Capturing it is
+                # the only way to compare per-turn overhead against Mei
+                # like-for-like: Mei's split is server-measured via
+                # --request-log, while llama.cpp's has until now been DERIVED
+                # from the leaderboard decode column, which was shown to
+                # measure harness time. Backends that send no timings leave
+                # this None and every consumer stays unaffected.
+                if chunk.get("timings"):
+                    timings = chunk["timings"]
                 choices = chunk.get("choices") or []
                 if not choices:
                     continue
@@ -543,6 +554,7 @@ def call_backend_streaming(base_url, model, messages, tools, temperature, timeou
             "choices": [{"message": message, "finish_reason": finish_reason}],
             "usage": usage,
             "usage_estimated": usage_estimated,
+            "timings": timings,
         }, ttft, decode_window
 
     # Bounded no-response retry. A StreamStall from _attempt_once() has already
@@ -652,6 +664,12 @@ def main():
     usage_estimated = False
     total_cost_usd = None  # only hosted/metered backends (e.g. OpenRouter)
     # report this in their usage object; stays None for local models
+    # Backend-reported prefill/decode split, summed over the run's turns.
+    # Populated only by backends that send a `timings` object (llama-server);
+    # stays None elsewhere, so a mixed leaderboard never silently compares a
+    # measured value against an absent one.
+    backend_prefill_ms = None
+    backend_generate_ms = None
 
     try:
         for turns in range(1, args.max_turns + 1):
@@ -675,6 +693,11 @@ def main():
             completion_tokens += usage.get("completion_tokens", 0)
             if usage.get("cost") is not None:
                 total_cost_usd = (total_cost_usd or 0) + usage["cost"]
+            turn_timings = resp.get("timings") or {}
+            if turn_timings.get("prompt_ms") is not None:
+                backend_prefill_ms = (backend_prefill_ms or 0.0) + turn_timings["prompt_ms"]
+            if turn_timings.get("predicted_ms") is not None:
+                backend_generate_ms = (backend_generate_ms or 0.0) + turn_timings["predicted_ms"]
 
             choice = resp["choices"][0]
             msg = choice["message"]
@@ -805,6 +828,13 @@ def main():
         "tokens_per_second": round(completion_tokens / wall, 2) if wall > 0 else None,
         "ttft_seconds": round(ttft_seconds, 3) if ttft_seconds is not None else None,
         "decode_window_seconds": round(decode_window_seconds, 3) if decode_window_seconds > 0 else None,
+        # Backend-measured, not derived. None for backends that report no
+        # timings — never coerced to 0, so an absent measurement can never be
+        # mistaken for a fast one.
+        "backend_prefill_seconds": (
+            round(backend_prefill_ms / 1000.0, 3) if backend_prefill_ms is not None else None),
+        "backend_generate_seconds": (
+            round(backend_generate_ms / 1000.0, 3) if backend_generate_ms is not None else None),
         "usage_estimated": usage_estimated,
         "total_cost_usd": total_cost_usd,
         "error": error,
