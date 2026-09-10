@@ -73,7 +73,9 @@ multi-turn coding wall time and was therefore off by default, with a note here
 that the regression looked like an implementation defect rather than an
 inherent trade-off.
 
-**It was, and it is fixed** (2026-09-10, Mei branch `feat/request-log`). Mei
+**The performance half was, and it is fixed** (2026-09-10, Mei branch
+`feat/request-log`). The correctness half is not, and the feature stays
+default-off because of it — see the end of this section. Mei
 passed the fixed anchor list as both the stable-prefix list and the per-turn
 history list; vmlx takes the maximum of the latter as the boundary to store
 after an answer, so it froze at the anchor and every later turn re-prefilled a
@@ -92,6 +94,24 @@ generations cost Mei 14.5% of its total coding wall against llama.cpp's 0.7%,
 and both engines are now capped at 8,192 output tokens per request so a single
 degenerate turn cannot dominate a run. Do not read any single coding wall time
 as a stable figure until runs under that cap have accumulated.
+
+**Why it is still off by default.** Restoring the shared prefix written by a
+*different* conversation changes what the model generates, at greedy decoding.
+Reproduced in two requests: seed the anchor with a throwaway question, then
+send a real agent prompt, against a control that sends only the second request
+on a fresh cache. The first assistant turn differs. Instrumenting the cache
+showed the disk round-trip is faithful — all 162 persisted tensors identical —
+so this is not a serialization bug. Prefilling N tokens and then continuing is
+simply not equivalent to prefilling N+M in one pass for these recurrent layers,
+and a restore is exactly that. Divergence is *worst* at short re-prefilled
+tails, which is the shape an agent harness sends, and it propagates: a
+conversation that starts from a perturbed anchor writes boundaries carrying the
+perturbation, and later conversations inherit it.
+
+So the ~53 s saved on each new conversation is real, and so is the cost. Making
+it safe needs segmentation-invariant recurrent prefill, which is upstream
+kernel work rather than something the server can arrange. Kiem notes 87a5f6f7,
+71fea96e, 4ce197c1 and d2b4a2c9 carry the measurements.
 
 Treat the quality ordering as a tie. The suite samples at temperature 0.6,
 and this project's own rule is that single-task swings are noise. Three
