@@ -108,10 +108,34 @@ tails, which is the shape an agent harness sends, and it propagates: a
 conversation that starts from a perturbed anchor writes boundaries carrying the
 perturbation, and later conversations inherit it.
 
-So the ~53 s saved on each new conversation is real, and so is the cost. Making
-it safe needs segmentation-invariant recurrent prefill, which is upstream
-kernel work rather than something the server can arrange. Kiem notes 87a5f6f7,
-71fea96e, 4ce197c1 and d2b4a2c9 carry the measurements.
+So the ~53 s saved on each new conversation is real, and so is the cost.
+
+**It is not upstream work — it is in this project's own vmlx fork.** The
+recurrence is a hand-written Metal kernel embedded as a Swift source string in
+`Libraries/MLXLLM/Models/GatedDelta.swift`. It keeps the recurrent state in
+float32 registers across every timestep of one invocation and materialises it
+once at the end, so prefilling N tokens then continuing is not the same
+arithmetic as prefilling N+M in one pass — and a restore is exactly that. A
+strict kernel variant that rounds the state at every step already exists; both
+the language and vision paths simply select the fast one.
+
+**Forcing the strict variant produces this benchmark's best score, and still
+does not make the cache answer-stable.** With prefix reuse and strict rounding,
+Mei Ornith reaches a composite of 0.895 against llama.cpp's 0.811, leading on
+decode, first-token latency and total runtime, and tying on coding. It costs
+0.5% of decode and 1.9% of prefill. But a longer generation window shows
+restored output still diverging from cold — the same prompt gives 122 tokens
+cold and 128 restored, with different tool calls — so strict rounding delays
+divergence rather than preventing it. An earlier claim here that it was
+byte-exact was measured on an 80-token window and is retracted.
+
+Both things are true at once: prefix reuse gives the best number this
+benchmark has recorded, and it leaves answers dependent on cache state. For a
+harness whose job is regression detection the second disqualifies it as a
+default, because a regression and a cache hit become indistinguishable.
+
+Kiem notes 87a5f6f7, 71fea96e, 4ce197c1, d2b4a2c9, fc25caa0 and 3a27daec carry
+the measurements.
 
 Treat the quality ordering as a tie. The suite samples at temperature 0.6,
 and this project's own rule is that single-task swings are noise. Three
