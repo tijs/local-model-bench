@@ -291,6 +291,45 @@ helper functions looped on the same variable name as the caller. The tell was
 identical `prompt_tokens` across prompts of visibly different lengths. Sweep
 artifacts now record their own independent variable.
 
+## 2026-09-10 — why Mei's remaining prefill gap exists
+
+With both engines measured on one basis, Mei's prefill is 3.24 s/turn against
+llama.cpp's 2.23. The cause is cache coverage, not kernel speed — Mei
+re-prefills 26% more tokens per request (1,148 vs 911) while running only 5.5%
+slower (362 vs 383 tok/s).
+
+The extra tokens are concentrated in **16 cache misses — 11% of requests
+costing 46.7% of all prefill time**, one per coding task, ~5,700 tokens each.
+On a hit Mei re-prefills only 617 tokens.
+
+**Root cause, proven by probe rather than inferred.** Two conversations whose
+system prompts share a 20,369-token head and differ only in a ~25-token trailer
+carrying a `cwd` and a `session_id`:
+
+| leg | second request | result |
+|---|---|---|
+| identical system prompts | cached 20,374 | reused |
+| same head, per-task tail | cached 0 | **miss** |
+
+A single differing token in the prefix voids the whole shared head. That is
+exactly the coding-task shape: hermes assembles its system prompt as
+`stable + context + volatile` and puts `session_id` and `cwd` in the later
+sections, so every task — each in its own run directory, each a fresh session —
+diverges near the end of an otherwise identical prompt.
+
+Mei cannot detect this. It derives anchors by divergence across *message
+variants within one request*, which lands the boundary after the whole system
+message, and the stored entry is keyed on that prefix's exact content.
+llama.cpp pays nothing here because its slot selection is LCP-similarity based
+and conversation-agnostic: 8 large cold prefills against Mei's 16.
+
+Closing it is worth 1.65 s/turn of the 3.54 s/turn prefill, which would put
+not-generating at ~4.85 s/turn against llama.cpp's 4.30 — very nearly closing
+the objective. It needs longest-common-prefix matching (index stored entries at
+multiple prefix offsets) rather than one exact boundary hash; a cheaper partial
+step is to let the client pass the stable/volatile split, which Mei already
+accepts as `cacheStablePrefixTokenCounts` and which hermes already knows.
+
 ## Where the detail lives
 
 - [`results/HISTORY.md`](HISTORY.md) — every superseded finding, comparison,
