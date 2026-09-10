@@ -231,6 +231,43 @@ server.
 **TTFT on the 20.4k-token Hermes prompt**, n=3: cold 53.38 / 53.42 / 53.44 s
 against restored 0.80 / 0.79 / 0.80 s, versus llama.cpp's 7.0 s.
 
+**Correction — the per-turn overhead figures first published here were wrong.**
+An earlier version reported "not generating 43.3%, 4.32 s/turn" against the
+objective's "66% of coding-suite wall time". Not comparable: that came from
+`analyze_request_log.py` over the whole log (sanity + hermes_ops + coding) as
+shares of the log's span, and `hermes_ops` is single-turn with heavy generation
+and almost no tool execution, which inflates the generating share.
+
+Both engines re-measured on the same basis — coding suites only, server-measured,
+counting the **union of phase intervals** rather than summing per-request
+durations, because llama-server runs four slots and overlaps requests (21 of 263
+intervals overlap; summed durations exceed union busy time by 1.16×, which is
+what made an earlier attempt report prefill+generate greater than wall):
+
+| coding suites, per turn | Mei (capture) | llama.cpp Q4_K_M |
+|---|---|---|
+| prefill | 3.24 s | 2.23 s |
+| generate | 5.44 s | 9.43 s |
+| not generating | 6.50 s (54.5%) | 4.30 s (31.3%) |
+| wall | 11.94 s | 13.72 s |
+
+Mei finishes a turn faster overall (11.94 s vs 13.72 s) and generates less per
+turn, but still spends more of each turn not generating — 6.50 s against
+4.30 s. **The objective has narrowed but is not met:** the opening framing was
+66% and ~16 s/turn for Mei against ~25% and ~2.9 s for llama.cpp; measured, it
+is 54.5% / 6.50 s against 31.3% / 4.30 s. llama.cpp's own overhead is higher
+than the figure the objective quoted, because that figure derived from the
+leaderboard decode column, which measures harness time.
+
+Two measurement traps found on the way, both caught by coverage checks rather
+than by inspection. Attributing requests to `[timestamp, timestamp + wall]`
+windows covered only 58% of llama.cpp's timing entries and 70.7% of Mei's: the
+row `timestamp` is the run's **end**, not its start, and `[timestamp - wall,
+timestamp]` covers 99.6% and 98.6% respectively. And summing per-request
+durations double-counts wall time whenever a server processes requests
+concurrently. Always report coverage when attributing events to windows, and
+always state the denominator with a share.
+
 **This speedup is not new and the fix did not cause it.** Restore was always
 fast; rederivation was paid at *store* time, not restore time. What the pre-fix
 storing turn produced was a state that gave subtly different answers. The fix

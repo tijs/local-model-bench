@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/2888 rows below predate 2026-08-21
+> **⚠ 138/2913 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -304,6 +304,7 @@ means no usable timestamp was recoverable from that group's rows.
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | 0.6 | unspecified | n/a | — | [48d75180adbc](configs/48d75180adbc.yaml) — *config since changed* | 319b144e6b0b+dirty | 13 | 100% | 2 | 39.7 | 2.98 | 0 | 16.9 | 24 | 22.8 | — | — | — | 2641 |
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | 0.6 | unspecified | n/a | 2/2 | [48d75180adbc](configs/48d75180adbc.yaml) — *config since changed* | 6cc8b646db2e | 19 | 95% | 2 | 42.2 | 6.96 | 0 | 17.7 | 20 | 23.9 | — | — | — | 2876 |
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | 0.6 | unspecified | n/a | 2/2 | [48d75180adbc](configs/48d75180adbc.yaml) — *config since changed* | 9df216e99cd9 | 23 | 96% | 3 | 40.1 | 7.70 | 0 | 15.6 | 20 | 6.7 | — | — | — | 3207 |
+| ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | 0.6 | unspecified | n/a | 2/2 | [86f6177b6c31](configs/86f6177b6c31.yaml) | 06e4834d4bb8 | 23 | 91% | 1 | 39.7 | 7.01 | 0 | 11.0 | 26 | 23.4 | — | — | — | 2696 |
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | 0.6 | thinking | medium | 2/2 | [f51c7e72e2ad](configs/f51c7e72e2ad.yaml) | 0adb046c1c3e+dirty | 23 | 96% | 3 | 42.4 | 7.01 | 0 | 16.8 | 28 | 23.6 | — | — | — | 3504 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | 2/2 | [0a4370d3d909](configs/0a4370d3d909.yaml) | 6642492d4afd | 9 | 89% | 1 | 39.6 | 7.01 | 0 | 39.0 | 14 | 1.2 | MLX 4-bit (ornith-ai official) | — | — | 819 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | — | [0a4370d3d909](configs/0a4370d3d909.yaml) | 7678bd71d022 | 20 | 65% | 2 | 38.2 | 10.75 | 0 | 12.5 | 17 | 1.2 | MLX 4-bit (ornith-ai official) | — | — | 3281 |
@@ -412,12 +413,12 @@ most total coding+hermes_ops evidence, then recency.
 
 | rank | model | engine | quant | reasoning⁶ | config | usefulness gate | score | coding | decode speed | avg TTFT | total runtime (s)⁷ | avg turns |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 1 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | thinking (medium) | f51c7e72e2ad | PASS (100%, 8) | 0.862 | 93% (15) | 42.4 tok/s | 7.01s | 3504 | 16.8 |
-| 2 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | unspecified | d43b90262fa1 | PASS (88%, 8) | 0.859 | 80% (15) | 47.3 tok/s | 7.02s | 2025 | 9.8 |
+| 1 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | unspecified | d43b90262fa1 | PASS (88%, 8) | 0.860 | 80% (15) | 47.3 tok/s | 7.02s | 2025 | 9.8 |
+| 2 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | unspecified | 86f6177b6c31 | PASS (100%, 8) | 0.857 | 87% (15) | 39.7 tok/s | 7.01s | 2696 | 11.0 |
 | 3 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-I-Quality | llama.cpp | — | unspecified | 73c161a87535 | PASS (88%, 8) | 0.835 | 93% (15) | 39.5 tok/s | 7.16s | 3355 | 14.2 |
 | 4 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | — | thinking | d39c29f2d74b | PASS (100%, 8) | 0.813 | 93% (15) | 57.9 tok/s | 43.49s | 2976 | 8.2 |
-| 5 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | thinking | 98fbff8ca864 | PASS (75%, 8) | 0.810 | 87% (15) | 43.4 tok/s | 7.05s | 2767 | 15.7 |
-| 6 | mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Quality | llama.cpp | — | unspecified | 49ec38e05e0c | PASS (88%, 8) | 0.748 | 87% (15) | 42.9 tok/s | 10.67s | 5398 | 20.2 |
+| 5 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | thinking | 98fbff8ca864 | PASS (75%, 8) | 0.811 | 87% (15) | 43.4 tok/s | 7.05s | 2767 | 15.7 |
+| 6 | mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Quality | llama.cpp | — | unspecified | 49ec38e05e0c | PASS (88%, 8) | 0.749 | 87% (15) | 42.9 tok/s | 10.67s | 5398 | 20.2 |
 | 7 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | — | unspecified | 7b0652d1fb9e | PASS (100%, 8) | 0.725 | 80% (15) | 33.3 tok/s | 10.29s | 4419 | 15.3 |
 | 8 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | thinking | a2d241742068 | PASS (75%, 8) | 0.704 | 87% (15) | 31.9 tok/s | 9.34s | 4215 | 18.7 |
 | 9 | mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Compact | llama.cpp | — | unspecified | 0b31098f54f7 | PASS (75%, 8) | 0.700 | 73% (15) | 44.9 tok/s | 10.16s | 3447 | 22.9 |
@@ -956,6 +957,12 @@ confirmed-stable, just untested for flakiness.
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | 48d75180adbc | 9df216e99cd9 | kiem_mini | 4/5 |
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | 48d75180adbc | 9df216e99cd9 | kipclip_mini | 4/4 |
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | 48d75180adbc | 9df216e99cd9 | sanity | 2/2 |
+| ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | 86f6177b6c31 | 06e4834d4bb8 | hearth_full | 3/3 |
+| ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | 86f6177b6c31 | 06e4834d4bb8 | hearth_mini | 3/3 |
+| ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | 86f6177b6c31 | 06e4834d4bb8 | hermes_ops | 8/8 |
+| ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | 86f6177b6c31 | 06e4834d4bb8 | kiem_mini | 4/5 |
+| ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | 86f6177b6c31 | 06e4834d4bb8 | kipclip_mini | 3/4 |
+| ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | 86f6177b6c31 | 06e4834d4bb8 | sanity | 2/2 |
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | f51c7e72e2ad | 0adb046c1c3e+dirty | hearth_full | 3/3 |
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | f51c7e72e2ad | 0adb046c1c3e+dirty | hearth_mini | 3/3 |
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | f51c7e72e2ad | 0adb046c1c3e+dirty | hermes_ops | 8/8 |

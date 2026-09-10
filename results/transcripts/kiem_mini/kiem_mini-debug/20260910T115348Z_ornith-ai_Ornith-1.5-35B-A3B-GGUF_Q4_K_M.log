@@ -1,0 +1,25 @@
+$ hermes chat --profile bench --provider ornith-gguf -m ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M --max-turns 40
+
+--- stdout ---
+Fixed and verified.
+
+**The bug** (`Sources/NoteKit/NoteKit.swift`): the old implementation split on spaces and kept tokens with a leading `#`:
+```swift
+text.split(separator: " ").filter { $0.hasPrefix("#") }.map { ...dropFirst() }
+```
+`shopping list,#urgent.` splits into `["shopping", "list,#urgent."]` — the `#` isn't at the start, so it's dropped; and `(#ideas)` has the `#` mid-token. Both fail, and any trailing punctuation (`.`, `,`) would leak into otherwise-working tags.
+
+**The fix:** scan the whole string with a regex `#[\p{L}\p{N}_\-]+`, matching a `#` plus one or more tag characters regardless of what surrounds it. Surrounding punctuation (commas, parens, periods) is naturally ignored, and matches come back left-to-right, so order is preserved.
+
+**Verification** (compiled `NoteKit.swift` with `swiftc` and ran a harness — SwiftPM itself can't run here due to a sandbox restriction, not a code problem):
+- Existing tests still pass: `hello #world #swift` → `["world","swift"]`, `just plain text` → `[]`.
+- The two reported cases now work: `shopping list,#urgent.` → `["urgent"]`, `(#ideas)` → `["ideas"]`.
+- Order preserved and punctuation handled: `a #b c,d #e (#f)` → `["b","e","f"]`; `#one #two,#three` → `["one","two","three"]`; `go #urgent.` → `["urgent"]`.
+
+One behavioral note: tags now allow letters/digits/`_`/`-` and require at least one char after `#` (a lone `#` is no longer a tag). This is the intended behavior for the reported cases and doesn't affect the existing passing tests.
+
+
+--- stderr ---
+
+session_id: 20260910_135042_fc64ab
+
