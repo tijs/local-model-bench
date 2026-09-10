@@ -198,6 +198,62 @@ whole field; Qwen 3.6 text-only is the only 100% row; Nemotron's collapse
 (12% hermes_ops, 0% coding) is visible at a glance. The `sanity` column is
 100% for every model and carries no information — it is a gate, not a signal.*
 
+## 2026-09-10 — cross-conversation prefix reuse is now answer-stable
+
+The anchor restore that `--ssm-anchor-boundaries` relies on had never actually
+been measured. Every fidelity result behind it — including the one that led to
+adopting `VMLX_GDN_STRICT` — compared against a *rederived* anchor, because no
+code path had ever successfully stored a captured one. The prefill capture
+asked `boundarySplit` for a boundary that helper had already rebased, so it
+landed `promptCount - headCount` tokens short (5 on Ornith, this template's
+generation-prompt suffix), and `CacheCoordinator.storeAfterGeneration`
+correctly refused the store for the offset mismatch. That guard was right; the
+arithmetic feeding it was not.
+
+Fixed in vmlx `f98c0548`. With a genuinely captured anchor the **fast** kernel
+is answer-stable — no `VMLX_GDN_STRICT` needed:
+
+| prompt | cold | restored from anchor | verdict |
+|---|---|---|---|
+| 0 | 108 tok, `terminal` | 108 tok, `terminal` | identical |
+| 1 | 123 tok, `search_files` | 123 tok, `search_files` | identical |
+| 2 | 253 tok, `kanban_show`+`terminal` | 253 tok, same | identical |
+| 3 | 400 tok, `terminal` | 400 tok, `terminal` | identical |
+| 4 | 146 tok, `terminal` | 146 tok, `terminal` | identical |
+
+5/5 admissible, 5/5 identical in text, tool calls and completion tokens.
+Admissibility was enforced in the comparison script rather than by eye: every
+cold leg must report `cached_tokens` 0, every restored leg exactly 20,374 (the
+anchor, *not* a same-conversation strip boundary), and both legs must record
+the same prompt index. Each leg ran against a wiped KV directory and a fresh
+server.
+
+**TTFT on the 20.4k-token Hermes prompt**, n=3: cold 53.38 / 53.42 / 53.44 s
+against restored 0.80 / 0.79 / 0.80 s, versus llama.cpp's 7.0 s.
+
+**This speedup is not new and the fix did not cause it.** Restore was always
+fast; rederivation was paid at *store* time, not restore time. What the pre-fix
+storing turn produced was a state that gave subtly different answers. The fix
+changes fidelity and makes the store cheaper — it does not change restore
+speed. The TTFT figures show the size of the prize now that reuse is
+trustworthy, not a gain delivered by this commit.
+
+**Scope.** Five single-turn prompts on one model. This does not retire the
+standing multi-turn finding that cached output is *not* byte-identical to
+uncached in any configuration, including the shipped default (2/6 turns on a
+fixed-transcript replay). Whether to drop `VMLX_GDN_STRICT` is a product
+decision — it changes answers globally — and is left open; `mei-strict.yaml`'s
+rationale has been corrected in place so the config is no longer justified by a
+retracted finding.
+
+Two harness bugs were caught before they became findings, both recorded in
+Kiem: a restored leg that matched the same-conversation strip boundary instead
+of the anchor (proving nothing, since same-prompt restore never failed), and a
+five-prompt sweep that silently ran one prompt ten times because two shell
+helper functions looped on the same variable name as the caller. The tell was
+identical `prompt_tokens` across prompts of visibly different lengths. Sweep
+artifacts now record their own independent variable.
+
 ## Where the detail lives
 
 - [`results/HISTORY.md`](HISTORY.md) — every superseded finding, comparison,
