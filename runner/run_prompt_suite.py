@@ -460,6 +460,7 @@ def main():
                 "decode_window_seconds": parsed.get("decode_window_seconds"),
                 "backend_prefill_seconds": parsed.get("backend_prefill_seconds"),
                 "backend_generate_seconds": parsed.get("backend_generate_seconds"),
+                "backend_cached_tokens": parsed.get("backend_cached_tokens"),
                 "wall_seconds": parsed.get("wall_seconds"),
                 # A correct answer that took many minutes isn't something
                 # a real interactive session would tolerate, even though

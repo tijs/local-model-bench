@@ -670,6 +670,10 @@ def main():
     # measured value against an absent one.
     backend_prefill_ms = None
     backend_generate_ms = None
+    # llama-server also reports cache_n, the prompt tokens served from its
+    # cache. Comparable to Mei's cached_tokens, so the two engines' cache hit
+    # rates can be read off the same axis.
+    backend_cached_tokens = None
 
     try:
         for turns in range(1, args.max_turns + 1):
@@ -698,6 +702,8 @@ def main():
                 backend_prefill_ms = (backend_prefill_ms or 0.0) + turn_timings["prompt_ms"]
             if turn_timings.get("predicted_ms") is not None:
                 backend_generate_ms = (backend_generate_ms or 0.0) + turn_timings["predicted_ms"]
+            if turn_timings.get("cache_n") is not None:
+                backend_cached_tokens = (backend_cached_tokens or 0) + turn_timings["cache_n"]
 
             choice = resp["choices"][0]
             msg = choice["message"]
@@ -835,6 +841,7 @@ def main():
             round(backend_prefill_ms / 1000.0, 3) if backend_prefill_ms is not None else None),
         "backend_generate_seconds": (
             round(backend_generate_ms / 1000.0, 3) if backend_generate_ms is not None else None),
+        "backend_cached_tokens": backend_cached_tokens,
         "usage_estimated": usage_estimated,
         "total_cost_usd": total_cost_usd,
         "error": error,
