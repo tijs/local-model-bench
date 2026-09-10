@@ -350,6 +350,56 @@ How llama.cpp avoids this on the same architecture is **not** established — it
 faces the same non-invertibility. Only the outcome is measured: 8 large cold
 prefills against Mei's 16, median prefill 408 tokens.
 
+## 2026-09-11 — restoring a prefix makes the turn slower, not faster
+
+The cold-prefill fix works — 16 big cold prefills down to 2–3 across the coding
+suites, prefill 3.24 → 2.28–2.42 s/turn, level with llama.cpp's 2.23. But the
+per-turn overhead barely moved (6.50 → 5.79–5.87 s) and the *share* of wall
+spent not generating did not move at all (54.5% → 51.9%/55.0%). This is why.
+
+**Most of the saving is given back inside the same request.** In-request server
+gap — wall minus prefill minus generate — measured per request on the same
+basis:
+
+| | prefill | generate | gap |
+|---|---|---|---|
+| control | 3.17 s | 5.97 s | **0.28 s (3.0%)** |
+| adaptive t1 | 2.32 s | 5.75 s | **1.16 s (12.6%)** |
+| adaptive t2 | 2.15 s | 5.16 s | **1.39 s (15.9%)** |
+
+The gap is concentrated, not spread: median 0.27 s against the control's
+0.25 s, so 92% of requests are unchanged. The damage is 14 requests — one per
+coding task — at ~13.5 s each, totalling 189 s. The control has none above
+0.8 s.
+
+**Proven cause.** Those 14 are task openers that restore successfully, dropping
+prefill from ~13.3 s to ~2.9 s, and then pay for it. With the store-boundary
+trace taught to distinguish a captured snapshot from a replayed one:
+
+| store of the strip boundary | captured |
+|---|---|
+| cold request | **true** — free, prefill passed through it |
+| restoring request | **false** — re-derived |
+
+`cacheSnapshotForBoundary` replays the entire prefix through the model for any
+topology it cannot trim, *after the answer has already streamed to the client*.
+The perverse result is that restoring makes a turn slower (12.9 s) than not
+restoring (10.5 s).
+
+**Why the capture misses**, from logged values rather than inference — on a
+restoring request `promptTokenIds=4102 inputSize=1031 headCount=1026
+stable=[4087] inner=[]`. The stable boundaries are absolute prompt positions
+while `headCount` is the length of the slice this prefill will process; they
+coincide only when the cache started empty, so the strip boundary fails
+`$0 < headCount` and nothing is captured.
+
+A two-line fix is committed (vmlx `6c807ec6`) and **not yet verified** — filter
+against `alreadyInCache + headCount`, and start the absolute cursor `consumed`
+at `alreadyInCache`. An earlier attempt that rewrote the loop's whole index
+scheme broke reuse even on cold requests and was reverted. Worth ~0.9 s/turn if
+it holds, and it would apply to any restoring request, not only ones using the
+adaptive boundary.
+
 ## Where the detail lives
 
 - [`results/HISTORY.md`](HISTORY.md) — every superseded finding, comparison,
