@@ -65,12 +65,33 @@ reusing a cached prefix and Mei re-prefilling from scratch, every single time.
 The averaged `avg TTFT` column understates this for llama.cpp, because seven
 cheap requests pull its mean down to ~8 s; read the per-task shape, not the mean.
 
-This is the single largest piece of headroom left, and llama.cpp is the
+This was the single largest piece of headroom left, and llama.cpp was the
 existence proof that it is reachable without sacrificing multi-turn behaviour.
-Mei 0.4.0 ships an opt-in attempt at it (`--ssm-anchor-boundaries`) that reaches
-0.17 s prefill on a restored prefix — better than llama.cpp — but regresses
-multi-turn coding wall time and is therefore off by default. That regression is
-an implementation defect, not an inherent trade-off.
+Mei 0.4.0 shipped an opt-in attempt (`--ssm-anchor-boundaries`) that reached
+0.17 s prefill on a restored prefix — better than llama.cpp — but regressed
+multi-turn coding wall time and was therefore off by default, with a note here
+that the regression looked like an implementation defect rather than an
+inherent trade-off.
+
+**It was, and it is fixed** (2026-09-10, Mei branch `feat/request-log`). Mei
+passed the fixed anchor list as both the stable-prefix list and the per-turn
+history list; vmlx takes the maximum of the latter as the boundary to store
+after an answer, so it froze at the anchor and every later turn re-prefilled a
+growing tail. Two follow-ups then removed the chat-template renders the feature
+was paying for on every turn. Anchors now cost what running without them costs
+— 0.47–0.51 s per turn against 0.47–0.52 s — while still restoring the shared
+prefix. On `hermes_ops` that takes median TTFT from 53.8 s to 2.4 s and suite
+wall from 10.6 to 4.5 minutes, both better than llama.cpp's 2.9–3.3 s and
+6.0–9.4 minutes, with exactly one cold prefill in the whole suite.
+
+Two cautions on the coding-suite numbers from that work. A single run measured
+14/15 in 25.7 minutes at 11.6 s/turn, against llama.cpp's 14/15 in 44–48
+minutes at 11.4–11.8 — but the next run on the same build took 54.6 minutes,
+because one request generated 32,768 tokens and ran for 19 minutes. Runaway
+generations cost Mei 14.5% of its total coding wall against llama.cpp's 0.7%,
+and both engines are now capped at 8,192 output tokens per request so a single
+degenerate turn cannot dominate a run. Do not read any single coding wall time
+as a stable figure until runs under that cap have accumulated.
 
 Treat the quality ordering as a tie. The suite samples at temperature 0.6,
 and this project's own rule is that single-task swings are noise. Three
