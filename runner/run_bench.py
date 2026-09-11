@@ -341,6 +341,31 @@ def clear_kv_cache_dir(cfg):
     shutil.rmtree(resolved, ignore_errors=True)
 
 
+def with_seed(text, seed):
+    """Append `--seed N` to a Mei launch command, or refuse.
+
+    A previous adversarial review (finding CR3-2) caught a flag being blindly
+    string-appended to the END of a launch block whose last line was a trailing
+    shell COMMENT, so the flag landed inside the comment and was silently never
+    passed. Guard against exactly that rather than trusting the shape.
+    """
+    if seed is None:
+        return text
+    body = text.strip()
+    last = [ln for ln in body.splitlines() if ln.strip()][-1]
+    if last.lstrip().startswith("#"):
+        raise SystemExit(
+            "--seed refused: launch command ends with a shell comment, so an "
+            "appended flag would land inside it. Fix the config or add the "
+            "flag there explicitly.")
+    if last.rstrip().endswith("\\"):
+        raise SystemExit(
+            "--seed refused: launch command ends with a line continuation.")
+    if "--seed" in body:
+        raise SystemExit("--seed refused: launch command already sets --seed.")
+    return body + f" \\\n    --seed {seed}"
+
+
 def server_command(cfg, alias=None):
     """benchmark_launch_command sometimes documents a follow-up proxy step
     inline (as literal shell text, not a shell comment) — that's for a
@@ -433,7 +458,8 @@ def _record_speed_gate_failure(model, inference_engine, config_path, config_hash
         f.write(json.dumps(entry) + "\n")
 
 
-def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage="all"):
+def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage="all",
+                  seed=None):
     cfg = yaml.safe_load(config_path.read_text())
     orch = cfg.get("orchestration")
     if not orch:
@@ -505,6 +531,7 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
         print("\n--- launch candidate server ---")
         alias = f"bench-{config_hash}" if inference_engine.startswith("llama.cpp") else None
         cmd = server_command(cfg, alias=alias)
+        cmd = with_seed(cmd, seed)
         log_file = f"/tmp/bench_{config_path.parent.name}_{config_path.stem}_server.log"
         print(f"(backgrounded, log: {log_file})")
         # The file object is closed right after Popen() returns (adversarial
@@ -669,7 +696,8 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
     _leaderboard()
 
 
-def run_one(config_path: Path, trials: int = 1, coding_suites=None, stage="all"):
+def run_one(config_path: Path, trials: int = 1, coding_suites=None, stage="all",
+            seed=None):
     """Run one config and always tear down the isolated Mei process.
 
     The implementation has many deliberate fail-fast returns.  Keeping cleanup
@@ -680,7 +708,8 @@ def run_one(config_path: Path, trials: int = 1, coding_suites=None, stage="all")
     """
     try:
         return _run_one_impl(
-            config_path, trials=trials, coding_suites=coding_suites, stage=stage
+            config_path, trials=trials, coding_suites=coding_suites, stage=stage,
+            seed=seed,
         )
     finally:
         try:
@@ -746,6 +775,9 @@ def build_arg_parser():
     group = ap.add_mutually_exclusive_group(required=True)
     group.add_argument("--config", help="path to one configs/<model>/<backend>.yaml")
     group.add_argument("--all", action="store_true", help="run every configs/*/*.yaml in sequence")
+    ap.add_argument("--seed", type=int, default=None,
+                    help="sampling seed passed to the Mei server; vary across "
+                         "runs to sample trajectories instead of measuring one")
     ap.add_argument("--trials", type=int, default=1,
                      help="run each task N times per config (default 1) — see "
                           "run_fixture_suite.py's --trials help (adversarial review "
@@ -833,12 +865,12 @@ def main():
             print(f"\n\n########## [{i}/{len(configs)}] {config_path} ##########")
             run_one(
                 config_path, trials=args.trials, coding_suites=coding_suites,
-                stage=args.stage,
+                stage=args.stage, seed=args.seed,
             )
     else:
         run_one(
             Path(args.config), trials=args.trials, coding_suites=coding_suites,
-            stage=args.stage,
+            stage=args.stage, seed=args.seed,
         )
 
 
