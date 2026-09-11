@@ -400,6 +400,42 @@ scheme broke reuse even on cold requests and was reverted. Worth ~0.9 s/turn if
 it holds, and it would apply to any restoring request, not only ones using the
 adaptive boundary.
 
+## 2026-09-11 — the arbitrary boundary is what breaks the restore
+
+The two-line capture fix works: on a restoring request the strip boundary is
+captured rather than replayed (`captured=true` where it was `false`), and a task
+opener drops **12.90 s → 3.34 s** — finally faster than a cold opener at
+10.50 s. It applies to any restoring request, not only ones using the adaptive
+boundary.
+
+But restoring from the adaptive boundary **changes the answer**, and an A/B
+shows that is not the fix's doing:
+
+| build | cold | restored | |
+|---|---|---|---|
+| pre-fix `22dc57fb` | 115, `[search_files]` | 193, `[search_files, terminal]` | diverges |
+| with-fix `6c807ec6` | 115, `[search_files]` | 104, `[terminal]` | diverges |
+
+Cold is identical on both builds, and cold run twice on separate fresh servers
+gives 115/115 with the same tool call — generation is deterministic, so the
+divergence belongs to the restore, and it pre-dates the fix.
+
+**The cause is where the boundary sits.** A divergence-derived anchor at 20,374
+restored byte-exactly on 5 of 5 prompts. The adaptive boundary at 19,967 is an
+arbitrary offset produced by rounding a longest-common-prefix down to a multiple
+of 512. Structural position restores faithfully; arbitrary offset does not — and
+the quantization introduced to make store and probe coincide is exactly what put
+the boundary in an arbitrary place.
+
+Fix direction, untested: snap the discovered prefix down to the nearest
+*structural* boundary instead of a multiple of 512, keeping the stability
+quantization bought while landing where restores are known to be faithful.
+`SSMAnchorBoundaries.computeByDivergence` already produces such positions.
+
+Until then the adaptive boundary is **not adopted**, and the 3.34 s opener is
+not a net win — it buys a wrong answer. The capture fix alone is safe and is
+judged separately.
+
 ## Where the detail lives
 
 - [`results/HISTORY.md`](HISTORY.md) — every superseded finding, comparison,
