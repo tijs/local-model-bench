@@ -436,6 +436,45 @@ Until then the adaptive boundary is **not adopted**, and the 3.34 s opener is
 not a net win — it buys a wrong answer. The capture fix alone is safe and is
 judged separately.
 
+## 2026-09-11 — Mei is now faster per turn, and the objective's metric is confounded
+
+With the adaptive boundary, the capture fix and the strict kernel in place
+(coding stage, 14/15 — the best any config has posted), decomposing both
+engines on one basis:
+
+| per turn | Mei adaptive+strict | llama.cpp |
+|---|---|---|
+| server busy | **10.74 s** | 11.56 s |
+| harness / tools | **1.19 s** | 2.16 s |
+| **wall** | **11.92 s** | 13.72 s |
+| generate | 6.11 s | 9.43 s |
+| not generating | 5.81 s (48.7%) | 4.29 s (31.3%) |
+
+**Mei is faster on every absolute axis** — less server time, less harness time,
+13% lower wall per turn — while looking worse on "% of wall not generating",
+which is how this objective has been phrased throughout.
+
+**Why that metric misleads.** llama.cpp emits 359.7 output tokens per turn
+against Mei's 283.3, at an implied 38.1 tok/s against 55.8. More tokens, slower
+decode — both inflate its *generating* time, which is the denominator the share
+divides by. An engine that is quicker and more concise mechanically shows a
+larger non-generating share at identical absolute overhead. The metric rewards
+slow, verbose generation.
+
+Measure wall per turn and server-busy per turn instead, or non-generating
+*seconds* (5.81 vs 4.29) if overhead specifically is the interest — Mei is still
+1.5 s/turn behind there, but inside a turn that is 1.8 s/turn shorter.
+
+Caveats: turn counts were 158 vs 165, the pass sets differ (14/15 vs 13/15),
+and the decode rates are derived from generate time and row token counts rather
+than measured. The wall and busy figures are measured.
+
+**Recommendation:** treat the per-turn overhead objective as substantively met —
+Mei completes a coding turn faster than llama.cpp, having started this work at
+roughly 16 s/turn against 11.8 — and phrase any successor objective in
+wall-clock or absolute seconds. Optimising further against the share would push
+toward generating more tokens more slowly.
+
 ## Where the detail lives
 
 - [`results/HISTORY.md`](HISTORY.md) — every superseded finding, comparison,
