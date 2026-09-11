@@ -487,9 +487,35 @@ to sit at or below the converged shared prefix, so the anchor itself is shared
 across tasks. One mechanism instead of two, reusing the path already proven
 faithful.
 
-Still open, and not answerable from outside the engine: whether an arbitrary
-boundary diverges because its stored state is mislabelled, or because of
-something inherent to restoring mid-message.
+**Quantization was partly guilty.** Rounding the converged prefix down to a
+multiple of 512 moved the boundary off the point where content diverges.
+Disabling it shifts the boundary from 19,967 to 20,380 and the sweep from 0/5 to
+**1/5** identical. Better, not fixed.
+
+**And the remaining fact is sharp:** the anchor at 20,374 is faithful 5/5, the
+candidate at 20,380 diverges 4/5, and they are **six tokens apart**. A six-token
+shift flips faithful to unfaithful, which rules out any semantic story about
+message boundaries and points at token alignment — a boundary landing inside a
+multi-token delimiter rather than on one.
+
+**Why the approach is stuck.** Anchors measured across real coding tasks are
+`[5487]`, `[5493]`, `[244]` — structural and faithful, but differing per task,
+because they sit at the end of system+tools and that content varies per task.
+The converged candidate is shared by construction but not structurally aligned.
+*Faithful positions are not shared; shared positions are not faithful.*
+
+Not answerable from outside the engine: whether an arbitrary boundary diverges
+because its stored state is mislabelled, or because of token misalignment; and
+whether a structural position exists inside the shared header at all (this
+template renders tool schemas before the system text, so the end of the tools
+block is a candidate, but `computeByDivergence` does not produce it).
+
+**Recommendation: stop here.** The objective this served is substantively met by
+other means — Mei completes a coding turn in 11.92 s against llama.cpp's 13.72,
+and the control build sits at 11.94 s, so the wall-clock result does not depend
+on this change. Worth keeping from the line: the vmlx inner-capture fix, which
+removes a 9.8 s post-answer re-derive on *any* restoring request including the
+faithful structural-anchor path, and is exonerated of the divergence.
 
 ## 2026-09-11 — Mei is now faster per turn, and the objective's metric is confounded
 
