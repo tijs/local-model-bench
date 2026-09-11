@@ -602,6 +602,37 @@ cross-task restore happens and there is nothing to re-derive. That is the
 separate unsolved problem above, and it is why this fix did not move the coding
 numbers. The two findings are complementary, not competing.
 
+> **CORRECTION (2026-09-11).** The paragraph above is wrong as of 0.4.2, and it
+> was measured, not reasoned, this time. A one-variable A/B on the shipped build
+> — `mei-042-anchors.yaml` vs `mei-042-traced.yaml`, differing only by
+> `--ssm-anchor-boundaries 2`, both arms logging exactly 197 generation runs —
+> shows cross-conversation restore working on exactly these coding suites:
+>
+> | | no-anchors | anchors |
+> |---|---|---|
+> | cold >15k prefills | 8 (7.0 min) | 1 (0.9 min) |
+> | conversation starts | 4, all cold @ 52.6 s | 2, all restored @ 0.31 s |
+> | total prefill | 15.2 min | 9.3 min (−39%) |
+> | span | 37.6 min | 30.8 min (−18%) |
+> | Mei overhead/turn | 4.90 s | 3.11 s |
+>
+> The ~20k system+tools preamble is cold-prefilled **once** at 52.9 s, then
+> restores in 0.3–0.6 s against ~20,374 cached tokens, with zero
+> restore-invariant warnings. That brings Mei-side per-turn overhead to parity
+> with llama.cpp's ~2.9 s and closes the per-turn overhead objective.
+>
+> Why the original claim was wrong: it predates the prefix-capture fixes that
+> made the stored snapshot usable at all, so at the time there genuinely was
+> nothing to restore — the conclusion was right about the build it was measured
+> on and was carried forward past the fix that invalidated it.
+>
+> This is **not** a recommendation to enable anchors by default. They are not
+> output-neutral: 9 of the 10 token-recorded tasks generate different
+> `completion_tokens` under anchors, which the noise floor establishes as real
+> (those same 10 showed 0/10 differences between two runs of the same build).
+> Pass count moved 22/25 → 20/25. Settle that with seeded repeats before
+> flipping the default. Kiem `fb0f75ee`.
+
 Correctness is established separately: the anchor path is byte-exact 5/5 and
 stays exact with 422 tokens of tail, and an A/B exonerated this fix of the
 adaptive boundary's divergence (both builds diverge there identically). It is
