@@ -578,19 +578,23 @@ worked; the request then re-derived the strip boundary after the answer had
 already streamed, because a restoring prefill starts past that boundary and the
 capture filter compared an absolute position against a local head length.
 
-**Scoped precisely:** the cost hits once per *conversation*, not per turn. On a
-growing transcript, pre-fix: conv2 turn 1 = 53.82 s, turns 2–5 = ~2.0 s. With
-the fix, turn 1 = 2.02 s. Later turns restore the growing strip boundary, which
-prefill crosses normally, so they were always cheap.
+**Scoped by measurement, after a projection that was wrong.** The cost is paid
+once per stored *boundary* — not per turn, and not per conversation. Eight fresh
+conversations over one shared 20k system prompt:
 
-So it is worth **~51.8 s per new conversation** on a 20k shared prefix — and it
-never surfaced in steady-state numbers because everything after the first turn
-looked fine.
+| | conv 1 (cold) | conv 2 | conv 3–8 | total |
+|---|---|---|---|---|
+| pre-fix | 54.70 s | **53.43 s** | ~1.60 s each | **117.74 s** |
+| with-fix | 54.53 s | 1.68 s | ~1.53 s each | **65.41 s** |
 
-**Which workloads.** Any where consecutive conversations share a system prompt.
-`hermes_ops` is exactly that — 8 tasks over the same 20k system+tools prompt —
-so seven of eight would each pay ~52 s on their first turn, roughly 6 minutes of
-that suite. TTFT is a scored leaderboard axis at 20%, so this is not cosmetic.
+Only conversation 2 pays the re-derive; once it completes, the re-derived state
+is stored and every later conversation restores normally.
+
+**Real saving: 52.3 s once**, not the ~6 minutes projected from a
+single-conversation probe — an overstatement of roughly 7×. The benchmark clears
+the KV directory before each run, so it is paid once per run: ~44% of that
+micro-suite's wall, but ~2% of a 45-minute full run. It is a correctness-shaped
+cleanup with a modest one-time speedup, not a headline win.
 
 **Which it does not help:** the coding suites, where consecutive tasks share no
 anchor at all (hermes varies `cwd`/`session_id` inside the system prompt), so no
