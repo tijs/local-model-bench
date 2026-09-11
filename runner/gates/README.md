@@ -39,3 +39,27 @@ asserts it from the banner (`unsafe-compile 0`) rather than assuming it.
 legs are still in flight reads a partial artifact set and reports the smaller
 denominator as if it were the result — that is how one run was briefly recorded
 as "4/5 admissible" when the fifth leg simply had not finished yet.
+
+## What these gates cannot tell you
+
+Both gates generate **greedy** (`temperature: 0, top_k: 1`). That is the right
+choice for detecting corruption — it makes the comparison exact — but it means
+a passing gate does **not** imply the build is output-identical in benchmark
+conditions, which sample at `temp 0.6 / top_p 0.95 / top_k 20`.
+
+Greedy absorbs small numerical differences, because argmax rarely flips on a
+tiny logit change. Sampling amplifies them: one different draw early puts the
+agent on a different trajectory for the rest of the task.
+
+Observed on the 2026-09-11 upstream vmlx sync. Fidelity was 5/5 byte-identical
+and C1 equality passed, yet `hermes_ops-multi-step-chain` took a different path
+than the 0.4.2 reference. The suite is otherwise deterministic — that task ran
+three times across two builds with `completion_tokens=4505` *and*
+`prompt_tokens=346070` identical to the digit — so the divergence was real, not
+run-to-run noise.
+
+The consequence for judging a re-pin: a single task flipping is expected after
+any change that perturbs numerics, and says nothing on its own about quality.
+Judge a re-pin on the **aggregate pass count** against the reference config, not
+on per-task diffs, and keep in mind this task's own historical base rate is
+23/56 across mei configs.
