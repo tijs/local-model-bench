@@ -47,6 +47,9 @@ Options:
                        counts, and on research builds the chosen adaptive
                        stable boundary). Distinct from --request-log, which
                        writes the machine-readable JSONL.
+  --seed N             Default sampling seed (Mei research/request-seed+).
+                       Without it the seed is fixed, so one suite run is a
+                       single trajectory sample; vary it to get a distribution.
   --request-log PATH   Append one JSON line per generation run (Mei 0.4.1+):
                        prompt/cached/completion tokens, prefill_ms,
                        generate_ms, wall_ms. Decompose it with
@@ -85,6 +88,7 @@ COMPILED_DECODE=""
 SSM_ANCHOR_BOUNDARIES=""
 REQUEST_LOG=""
 LOG_REQUESTS=""
+SEED=""
 MEI_REPO="$MEI_REPO_DEFAULT"
 RUNTIME_BASE="$RUNTIME_BASE_DEFAULT"
 BUILD_DIR="$BUILD_DIR_DEFAULT"
@@ -114,6 +118,7 @@ while [[ $# -gt 0 ]]; do
     --ssm-anchor-boundaries) SSM_ANCHOR_BOUNDARIES="${2:?missing value}"; shift 2 ;;
     --request-log) REQUEST_LOG="${2:?missing value}"; shift 2 ;;
     --log-requests) LOG_REQUESTS="${2:?missing value}"; shift 2 ;;
+    --seed) SEED="${2:?missing value}"; shift 2 ;;
     --mei-repo) MEI_REPO="${2:?missing value}"; shift 2 ;;
     --runtime-base) RUNTIME_BASE="${2:?missing value}"; shift 2 ;;
     --build-dir) BUILD_DIR="${2:?missing value}"; shift 2 ;;
@@ -170,6 +175,11 @@ ARGS=(--model-dir "$MODEL_DIR" --served-model-id "$SERVED_MODEL_ID"
 [[ -n "$SSM_ANCHOR_BOUNDARIES" ]] && ARGS+=(--ssm-anchor-boundaries "$SSM_ANCHOR_BOUNDARIES")
 [[ -n "$REQUEST_LOG" ]] && ARGS+=(--request-log "$REQUEST_LOG")
 [[ -n "$LOG_REQUESTS" ]] && ARGS+=(--log-requests "$LOG_REQUESTS")
+# Sampling seed (Mei research/request-seed onward). Without it the seed is
+# fixed, so a whole suite is ONE trajectory sample and a re-pin comparison
+# cannot separate "this build is worse" from "this build drew worse". Vary it
+# across runs to get a distribution.
+[[ -n "$SEED" ]] && ARGS+=(--seed "$SEED")
 
 printf 'mei isolated launch: '
 printf '%q ' "$BIN" "${ARGS[@]}"
