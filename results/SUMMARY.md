@@ -469,8 +469,27 @@ other.
 What survives: the structural-anchor result (byte-exact 5/5) is untouched, and
 the vmlx inner-capture fix is independently valuable — it removes a 9.8 s
 post-answer re-derive on *any* restoring request and is proven not to cause the
-divergence. The untried direction is to snap the discovered prefix down to the
-nearest **structural** boundary rather than a multiple of 512.
+divergence. **Position, not tail length.** Holding the mechanism fixed at the structural
+anchor and varying only the tail: a 19-token tail and a **422-token** tail both
+restore byte-exactly (identical text, tool calls and completion counts). So a
+structural boundary is faithful even with more tail than the adaptive boundary
+had. The competing explanation — that long tails diverge — is rejected.
+
+**And the two mechanisms are fighting each other.** Restore selection prefers
+the longest matching boundary, so whenever the structural anchor matches it
+wins and the result is faithful; the adaptive boundary is only ever *used* when
+the anchor cannot match. In the coding suites the anchor never matches across
+tasks, because hermes varies `cwd` and `session_id` in the system-prompt tail
+and the anchor is derived from content that includes it.
+
+That suggests a cleaner fix than snapping: constrain the **anchor** derivation
+to sit at or below the converged shared prefix, so the anchor itself is shared
+across tasks. One mechanism instead of two, reusing the path already proven
+faithful.
+
+Still open, and not answerable from outside the engine: whether an arbitrary
+boundary diverges because its stored state is mislabelled, or because of
+something inherent to restoring mid-message.
 
 ## 2026-09-11 — Mei is now faster per turn, and the objective's metric is confounded
 
