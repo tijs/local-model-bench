@@ -51,3 +51,35 @@ Two cautions encoded in the comparator:
 
 `VMLX_GDN_STRICT=1` does **not** close the gap, so prefill segmentation in the
 gated-delta kernel is not the (whole) cause — see Kiem `be1b4ff3`.
+
+
+# Prefill chunk invariance
+
+```
+runner/probes/prefill_chunk_invariance.sh <artifact-dir>
+```
+
+Shows that `--prefill-step-size` alone changes greedy output, with no anchors,
+nothing cached and nothing restored. Same 43-token prompt, `temperature 0`,
+`top_k 1`, `--cache-reuse false`:
+
+| `--prefill-step-size` | chunks | completion tokens |
+|---|---|---|
+| 1024 | 43 | **15** |
+| 32 | 32 + 11 | **14** |
+| 16 | 16 + 16 + 11 | **14** |
+
+Deterministic: two independent server instances per setting, three requests
+each, no drift.
+
+This is the root cause behind the anchors divergence. Enabling
+`--ssm-anchor-boundaries` splits a 43-token prefill into 30 + 13 to capture a
+snapshot, which is the same class of change as moving the step size. Anchors
+aren't doing anything special — they trigger a general non-invariance in how
+this hybrid GatedDelta model consumes a chunked prefill. The control confirms
+it: with `--cache-reuse false` there is no capture, therefore no split, and
+anchors produce no divergence at all.
+
+**Compare tokens, not decoded text.** All three legs above decode to the
+identical string `ready`. A text-only comparison called 15 tokens and 14 tokens
+"IDENTICAL" and nearly buried the finding.

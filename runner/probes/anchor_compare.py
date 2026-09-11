@@ -29,7 +29,12 @@ def compare(kind, a, b, la, lb, note):
     if x is None or y is None:
         print(f"    {la} vs {lb}: MISSING artifact, not compared")
         return None
-    fields = ("content", "completion_tokens") if kind == "small" else ("content", "tool_calls")
+    # completion_tokens on BOTH stages, not just stage 0. Decoded text is a
+    # lossy view of the token sequence: a chunking test compared here produced
+    # the identical string "ready" from 15 tokens in one leg and 14 in another,
+    # and a text-only comparison called that "IDENTICAL". Compare the tokens.
+    fields = (("content", "completion_tokens") if kind == "small"
+              else ("content", "tool_calls", "completion_tokens"))
     n, xi, yi = first_diff(x, y, fields)
     if n is None:
         print(f"    {la} vs {lb}: IDENTICAL across {min(len(x), len(y))} — {note}")
