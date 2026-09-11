@@ -578,9 +578,25 @@ worked; the request then re-derived the strip boundary after the answer had
 already streamed, because a restoring prefill starts past that boundary and the
 capture filter compared an absolute position against a local head length.
 
-Conversation 3 is fast on both legs, which is why this never surfaced in
-steady-state numbers: it is a **first-restore** cost, and it recurs whenever a
-new boundary is written — for growing agent transcripts, often.
+**Scoped precisely:** the cost hits once per *conversation*, not per turn. On a
+growing transcript, pre-fix: conv2 turn 1 = 53.82 s, turns 2–5 = ~2.0 s. With
+the fix, turn 1 = 2.02 s. Later turns restore the growing strip boundary, which
+prefill crosses normally, so they were always cheap.
+
+So it is worth **~51.8 s per new conversation** on a 20k shared prefix — and it
+never surfaced in steady-state numbers because everything after the first turn
+looked fine.
+
+**Which workloads.** Any where consecutive conversations share a system prompt.
+`hermes_ops` is exactly that — 8 tasks over the same 20k system+tools prompt —
+so seven of eight would each pay ~52 s on their first turn, roughly 6 minutes of
+that suite. TTFT is a scored leaderboard axis at 20%, so this is not cosmetic.
+
+**Which it does not help:** the coding suites, where consecutive tasks share no
+anchor at all (hermes varies `cwd`/`session_id` inside the system prompt), so no
+cross-task restore happens and there is nothing to re-derive. That is the
+separate unsolved problem above, and it is why this fix did not move the coding
+numbers. The two findings are complementary, not competing.
 
 Correctness is established separately: the anchor path is byte-exact 5/5 and
 stays exact with 422 tokens of tail, and an A/B exonerated this fix of the
