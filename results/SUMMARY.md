@@ -616,6 +616,13 @@ numbers. The two findings are complementary, not competing.
 > | span | 37.6 min | 30.8 min (−18%) |
 > | Mei overhead/turn | 4.90 s | 3.11 s |
 >
+> The **−18% span is not robust** and should not be quoted alone: an
+> independent repeat had the anchors arm slower in wall (40.5 vs 35.8 min)
+> while its prefill fell exactly the same way, because that arm generated 69%
+> more output (93,654 vs 55,467 tokens). Wall tracks how much a trajectory
+> emits. The per-turn prefill and overhead figures are the ones that reproduce
+> across pairs (4.64 → 2.82 s, and 4.44 → 2.83 s on the repeat).
+>
 > The ~20k system+tools preamble is cold-prefilled **once** at 52.9 s, then
 > restores in 0.3–0.6 s against ~20,374 cached tokens, with zero
 > restore-invariant warnings. That brings Mei-side per-turn overhead to parity
