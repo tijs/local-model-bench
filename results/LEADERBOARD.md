@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/3101 rows below predate 2026-08-21
+> **⚠ 138/3126 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -320,6 +320,10 @@ means no usable timestamp was recoverable from that group's rows.
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | 2/2 | [2bf439065cef](configs/2bf439065cef.yaml) | 65daf9043916 | 23 | 96% | 1 | 42.7 | 43.63 | 0 | 11.6 | 25 | 1.2 | MLX 4-bit (ornith-ai official) | — | — | 2648 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | 2/2 | [3c10e74e125a](configs/3c10e74e125a.yaml) — *config since changed* | 0d0686e785c5 | 47 | 89% | 0 | 47.5 | 5.20 | 0 | 9.4 | 12 | 1.4 | MLX 4-bit (ornith-ai official) | — | — | 2923 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | 2/2 | [696fcfc1d14b](configs/696fcfc1d14b.yaml) | 6c648fddf456 | 23 | 91% | 1 | 42.6 | 43.67 | 0 | 9.1 | 13 | 1.2 | MLX 4-bit (ornith-ai official) | — | — | 2442 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | — | [71fb3e30d5e7](configs/71fb3e30d5e7.yaml) | 10a72fec16a2 | 7 | 86% | 0 | 45.7 | 53.99 | 0 | 12.0 | 2 | 1.2 | MLX 4-bit (ornith-ai official) | — | — | 626 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | — | [71fb3e30d5e7](configs/71fb3e30d5e7.yaml) | 95eeb7ba15e2+dirty | 13 | 69% | 0 | — | — | 0 | 7.8 | 7 | 1.1 | MLX 4-bit (ornith-ai official) | — | — | 1610 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | 2/2 | [71fb3e30d5e7](configs/71fb3e30d5e7.yaml) | b726a0879a90 | 1 | 100% | 0 | 63.8 | 19.02 | 0 | — | 0 | 0.7 | MLX 4-bit (ornith-ai official) | — | — | 60 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | — | [71fb3e30d5e7](configs/71fb3e30d5e7.yaml) | b726a0879a90+dirty | 1 | 100% | 0 | 38.7 | 53.93 | 0 | — | 0 | 1.2 | MLX 4-bit (ornith-ai official) | — | — | 59 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | 6/6 | [77d7ab43a6ee](configs/77d7ab43a6ee.yaml) — *config since changed* | 41307afcd611 | 7 | 29% | 0 | 39.9 | 9.01 | 0 | — | 0 | 1.3 | MLX 4-bit (ornith-ai official) | — | — | 745 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | 2/2 | [77d7ab43a6ee](configs/77d7ab43a6ee.yaml) — *config since changed* | 84e884b96aee | 23 | 96% | 2 | 39.6 | 39.13 | 0 | 12.3 | 19 | 1.2 | MLX 4-bit (ornith-ai official) | — | — | 2964 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | 2/2 | [865cf72cd70a](configs/865cf72cd70a.yaml) — *config since changed* | 210be56724fd | 4 | 100% | 0 | 39.0 | 37.29 | 0 | — | 0 | 1.2 | MLX 4-bit (ornith-ai official) | — | — | 289 |
@@ -1040,6 +1044,15 @@ confirmed-stable, just untested for flakiness.
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | 696fcfc1d14b | 6c648fddf456 | kiem_mini | 3/5 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | 696fcfc1d14b | 6c648fddf456 | kipclip_mini | 4/4 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | 696fcfc1d14b | 6c648fddf456 | sanity | 2/2 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | 71fb3e30d5e7 | 10a72fec16a2 | hermes_ops | 5/6 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | 71fb3e30d5e7 | 10a72fec16a2 | kiem_mini | 1/1 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | 71fb3e30d5e7 | 95eeb7ba15e2+dirty | hearth_full | 2/3 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | 71fb3e30d5e7 | 95eeb7ba15e2+dirty | hearth_mini | 3/3 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | 71fb3e30d5e7 | 95eeb7ba15e2+dirty | kiem_mini | 1/3 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | 71fb3e30d5e7 | 95eeb7ba15e2+dirty | kipclip_mini | 3/4 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | 71fb3e30d5e7 | b726a0879a90 | hermes_ops | 1/1 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | 71fb3e30d5e7 | b726a0879a90 | sanity | 2/2 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | 71fb3e30d5e7 | b726a0879a90+dirty | hermes_ops | 1/1 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | 77d7ab43a6ee | 41307afcd611 | hermes_ops | 2/7 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | 77d7ab43a6ee | 41307afcd611 | sanity | 6/6 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | 77d7ab43a6ee | 84e884b96aee | hearth_full | 3/3 |
@@ -1268,7 +1281,7 @@ confirmed-stable, just untested for flakiness.
 
 ## Harness errors (excluded from every table above)
 
-44 row(s) where the harness itself crashed (e.g. a network blip during `npm ci`, a malformed task spec) rather than the model producing a graded result — shown separately so they don't deflate pass rates or masquerade as model flakiness.
+45 row(s) where the harness itself crashed (e.g. a network blip during `npm ci`, a malformed task spec) rather than the model producing a graded result — shown separately so they don't deflate pass rates or masquerade as model flakiness.
 
 | model | engine | suite | task | grade_output (truncated) |
 |---|---|---|---|---|
@@ -1303,6 +1316,7 @@ confirmed-stable, just untested for flakiness.
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | kiem_mini | kiem_mini-parse-note | HARNESS ERROR: hermes could not start (unknown provider 'bench-mei'); no backend request was issued, task invalidated an |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | kiem_mini | kiem_mini-parse-note | [...truncated...] [1/7] Write sources [4/7] Write swift-version--58304C5D6DBC2206.txt [6/9] Compiling NoteKit NoteKit.sw |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | kiem_mini | kiem_mini-rename | HARNESS ERROR: hermes could not start (unknown provider 'bench-mei'); no backend request was issued, task invalidated an |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | kiem_mini | kiem_mini-rename | [...truncated...]     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.14s      Running unittests src/li |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | kiem_mini | kiem_mini-testwrite | HARNESS ERROR: hermes could not start (unknown provider 'bench-mei'); no backend request was issued, task invalidated an |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | kiem_mini | kiem_mini-testwrite | HARNESS ERROR: agent escaped the disposable run root and edited the benchmark checkout; source bytes were restored. == b |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | kipclip_mini | kipclip_mini-debug | HARNESS ERROR: hermes could not start (unknown provider 'bench-mei'); no backend request was issued, task invalidated an |
