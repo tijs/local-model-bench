@@ -1,0 +1,29 @@
+$ hermes chat --profile bench --provider bench-mei -m ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit --max-turns 40
+
+--- stdout ---
+## Summary
+
+**The bug** (`Sources/NoteKit/NoteKit.swift:4-8`): `extractTags(from:)` split the input on spaces and kept only tokens that *started* with `#`. Any tag not preceded by a space was invisible:
+- `"shopping list,#urgent."` → tokens are `["shopping", "list,#urgent."]`; neither starts with `#`, so `urgent` was dropped.
+- `"(#ideas)"` → token is `"(#ideas)"`; it starts with `(`, so `ideas` was dropped.
+
+**The fix:** replaced the space-split with a single pass over the string. A tag begins at `#` and runs until the next non-alphanumeric character, so tags glued to punctuation or wrapped in parens are captured (punctuation stripped), adjacent hashtags (`#a#b`) don't merge, and order is preserved.
+
+I also fixed two real compile errors the fix introduced (confirmed against this toolchain):
+- `Unicode.Scalar` has no `isLetter`/`isNumber` → now iterate `Character`.
+- `current += character` doesn't compile → now `current.append(character)`.
+
+**Tests added** (`NoteKitTests.swift`): `extractTagsGluedToPunctuation`, `extractTagsInsideParentheses`, `extractTagsPreservesOrder`.
+
+**Verification status:**
+- ✅ The two reported examples work, and all 11 edge cases (simple, none, order, adjacent, trailing, empty, CJK, leading, a mixed note) pass via a standalone driver compiled with `swiftc`.
+- ✅ `NoteKit.swift` parses and builds as a library.
+- ⚠️ The project's `swift test` **cannot run in this environment**: SwiftPM's manifest compile fails with `sandbox-exec: sandbox_apply: Operation not permitted` (an environment restriction, unrelated to the code). I worked around it by manually building/linking the test bundle against the Testing framework — it compiles and runs — but at runtime dyld can't resolve `@rpath/Testing.framework` (the framework's internal path has an extra `/Testing.framework/Versions/A` segment, so my rpath is one level too deep). That last runtime step needs a corrected `-Xlinker -rpath` (or `DYLD_FRAMEWORK_PATH`) — I hit the iteration limit before closing it out.
+
+Net result: the fix is correct and verified by logic; the only open item is finishing the manual test-bundle *run* against the real `@Test` suite, which is blocked by this sandbox/framework-pathing limitation rather than by the code itself.
+
+
+--- stderr ---
+
+session_id: 20260911_220458_346d8e
+
