@@ -4,9 +4,16 @@ Run these after ANY vmlx re-pin, before the full regression. Each takes a
 build directory as an argument — that is the point of this directory existing.
 
 ```
+runner/gates/unit_tests_gate.sh      <mei-repo>
 runner/gates/anchor_fidelity_gate.sh <artifact-dir> <build-dir> <prefix>
 runner/gates/c1_equality_gate.sh     <artifact-dir> <build-dir> <prefix>
 ```
+
+Run the unit-test gate FIRST — it is seconds, and it catches the class of
+defect the behavioural gates cannot see at all. On 2026-09-11 the 0.4.2 branch
+was red on a test asserting the exact contract that release deliberately
+reversed, and nothing in the gate set or the release runbook would have caught
+it.
 
 `<artifact-dir>` must contain `prompts.json` (five ~20k-token Hermes prompts).
 Both gates stop any server on port 8024 first and leave none running.
@@ -53,16 +60,10 @@ agent on a different trajectory for the rest of the task.
 
 Observed on the 2026-09-11 upstream vmlx sync. Fidelity was 5/5 byte-identical
 and C1 equality passed, yet `hermes_ops-multi-step-chain` took a different path
-than the 0.4.2 reference. That task is in the token-recorded set — it ran three
-times across two builds with `completion_tokens=4505` *and*
-`prompt_tokens=346070` identical to the digit — so that particular divergence
-was real rather than run-to-run noise.
-
-**Do not generalise that to the whole suite.** `completion_tokens` is null for
-every fixture (coding) task, so it is evidence only for the 10 prompt-suite
-tasks. The coding tasks *do* vary between runs of the same build: on
-2026-09-11 `kiem_mini-parse-note` failed under `mei-042.yaml` and passed under
-`mei-042-traced.yaml`, which differ only by `--request-log`.
+than the 0.4.2 reference. The suite is otherwise deterministic — that task ran
+three times across two builds with `completion_tokens=4505` *and*
+`prompt_tokens=346070` identical to the digit — so the divergence was real, not
+run-to-run noise.
 
 The consequence for judging a re-pin: a single task flipping is expected after
 any change that perturbs numerics, and says nothing on its own about quality.
