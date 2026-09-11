@@ -776,8 +776,12 @@ def build_arg_parser():
     group.add_argument("--config", help="path to one configs/<model>/<backend>.yaml")
     group.add_argument("--all", action="store_true", help="run every configs/*/*.yaml in sequence")
     ap.add_argument("--seed", type=int, default=None,
-                    help="sampling seed passed to the Mei server; vary across "
-                         "runs to sample trajectories instead of measuring one")
+                    help="sampling seed passed to the Mei server. NOTE: this "
+                         "benchmark runs GREEDY (temperature 0), so the seed is "
+                         "inert here — measured, seed 101 differed from the "
+                         "unseeded run on 0 of 10 token-recorded tasks. Use "
+                         "--trials for repeats (finding C5); this flag is only "
+                         "useful if the harness is ever run non-greedy")
     ap.add_argument("--trials", type=int, default=1,
                      help="run each task N times per config (default 1) — see "
                           "run_fixture_suite.py's --trials help (adversarial review "
