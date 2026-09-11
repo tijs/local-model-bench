@@ -561,6 +561,32 @@ roughly 16 s/turn against 11.8 — and phrase any successor objective in
 wall-clock or absolute seconds. Optimising further against the share would push
 toward generating more tokens more slowly.
 
+## 2026-09-11 — the one shippable win: first restore, 53.5 s → 1.7 s
+
+Measured on the path prefix reuse actually ships with — the structural anchor,
+with an identical system prompt across conversations so the anchor wins the
+restore. Same build otherwise, fresh KV per leg, client-measured wall:
+
+| | conv 1 (cold) | conv 2 (restore) | conv 3 (restore) |
+|---|---|---|---|
+| pre-fix `22dc57fb` | 54.63 s | **53.47 s** | 1.63 s |
+| with-fix `6c807ec6` | 54.59 s | **1.70 s** | 1.54 s |
+
+Pre-fix, the *first* restoring conversation cost 53.47 s — within 1.2 s of a
+full cold prefill — despite restoring 20,374 of 20,397 tokens. The restore
+worked; the request then re-derived the strip boundary after the answer had
+already streamed, because a restoring prefill starts past that boundary and the
+capture filter compared an absolute position against a local head length.
+
+Conversation 3 is fast on both legs, which is why this never surfaced in
+steady-state numbers: it is a **first-restore** cost, and it recurs whenever a
+new boundary is written — for growing agent transcripts, often.
+
+Correctness is established separately: the anchor path is byte-exact 5/5 and
+stays exact with 422 tokens of tail, and an A/B exonerated this fix of the
+adaptive boundary's divergence (both builds diverge there identically). It is
+independent of the adaptive stable boundary, which is **not** adoptable.
+
 ## Where the detail lives
 
 - [`results/HISTORY.md`](HISTORY.md) — every superseded finding, comparison,
