@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/3126 rows below predate 2026-08-21
+> **⚠ 138/3176 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -319,11 +319,14 @@ means no usable timestamp was recoverable from that group's rows.
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | 2/2 | [2bf439065cef](configs/2bf439065cef.yaml) | 2251d8b2c062 | 23 | 96% | 1 | 42.9 | 43.66 | 0 | 11.1 | 14 | 1.2 | MLX 4-bit (ornith-ai official) | — | — | 2966 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | 2/2 | [2bf439065cef](configs/2bf439065cef.yaml) | 65daf9043916 | 23 | 96% | 1 | 42.7 | 43.63 | 0 | 11.6 | 25 | 1.2 | MLX 4-bit (ornith-ai official) | — | — | 2648 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | 2/2 | [3c10e74e125a](configs/3c10e74e125a.yaml) — *config since changed* | 0d0686e785c5 | 47 | 89% | 0 | 47.5 | 5.20 | 0 | 9.4 | 12 | 1.4 | MLX 4-bit (ornith-ai official) | — | — | 2923 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | — | [56bc7dda056f](configs/56bc7dda056f.yaml) | 83cd9dbd8f7c+dirty | 3 | 67% | 0 | — | — | 0 | 9.3 | 4 | 0.9 | MLX 4-bit (ornith-ai official) | — | — | 433 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | — | [56bc7dda056f](configs/56bc7dda056f.yaml) | 9b9253cb8de0 | 19 | 95% | 0 | 43.1 | 54.09 | 0 | 8.0 | 9 | 1.2 | MLX 4-bit (ornith-ai official) | — | — | 1820 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | 2/2 | [56bc7dda056f](configs/56bc7dda056f.yaml) | f77c23ab5d75+dirty | 0 | n/a (all harness errors) | 0 | — | 1.44 | 0 | — | 0 | 0.4 | MLX 4-bit (ornith-ai official) | — | — | 4 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | 2/2 | [696fcfc1d14b](configs/696fcfc1d14b.yaml) | 6c648fddf456 | 23 | 91% | 1 | 42.6 | 43.67 | 0 | 9.1 | 13 | 1.2 | MLX 4-bit (ornith-ai official) | — | — | 2442 |
-| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | — | [71fb3e30d5e7](configs/71fb3e30d5e7.yaml) | 10a72fec16a2 | 7 | 86% | 0 | 45.7 | 53.99 | 0 | 12.0 | 2 | 1.2 | MLX 4-bit (ornith-ai official) | — | — | 626 |
-| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | — | [71fb3e30d5e7](configs/71fb3e30d5e7.yaml) | 95eeb7ba15e2+dirty | 13 | 69% | 0 | — | — | 0 | 7.8 | 7 | 1.1 | MLX 4-bit (ornith-ai official) | — | — | 1610 |
-| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | 2/2 | [71fb3e30d5e7](configs/71fb3e30d5e7.yaml) | b726a0879a90 | 1 | 100% | 0 | 63.8 | 19.02 | 0 | — | 0 | 0.7 | MLX 4-bit (ornith-ai official) | — | — | 60 |
-| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | — | [71fb3e30d5e7](configs/71fb3e30d5e7.yaml) | b726a0879a90+dirty | 1 | 100% | 0 | 38.7 | 53.93 | 0 | — | 0 | 1.2 | MLX 4-bit (ornith-ai official) | — | — | 59 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | — | [71fb3e30d5e7](configs/71fb3e30d5e7.yaml) — *config since changed* | 10a72fec16a2 | 7 | 86% | 0 | 45.7 | 53.99 | 0 | 12.0 | 2 | 1.2 | MLX 4-bit (ornith-ai official) | — | — | 626 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | — | [71fb3e30d5e7](configs/71fb3e30d5e7.yaml) — *config since changed* | 95eeb7ba15e2+dirty | 13 | 69% | 0 | — | — | 0 | 7.8 | 7 | 1.1 | MLX 4-bit (ornith-ai official) | — | — | 1610 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | 2/2 | [71fb3e30d5e7](configs/71fb3e30d5e7.yaml) — *config since changed* | b726a0879a90 | 1 | 100% | 0 | 63.8 | 19.02 | 0 | — | 0 | 0.7 | MLX 4-bit (ornith-ai official) | — | — | 60 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | — | [71fb3e30d5e7](configs/71fb3e30d5e7.yaml) — *config since changed* | b726a0879a90+dirty | 1 | 100% | 0 | 38.7 | 53.93 | 0 | — | 0 | 1.2 | MLX 4-bit (ornith-ai official) | — | — | 59 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | 6/6 | [77d7ab43a6ee](configs/77d7ab43a6ee.yaml) — *config since changed* | 41307afcd611 | 7 | 29% | 0 | 39.9 | 9.01 | 0 | — | 0 | 1.3 | MLX 4-bit (ornith-ai official) | — | — | 745 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | 2/2 | [77d7ab43a6ee](configs/77d7ab43a6ee.yaml) — *config since changed* | 84e884b96aee | 23 | 96% | 2 | 39.6 | 39.13 | 0 | 12.3 | 19 | 1.2 | MLX 4-bit (ornith-ai official) | — | — | 2964 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | 2/2 | [865cf72cd70a](configs/865cf72cd70a.yaml) — *config since changed* | 210be56724fd | 4 | 100% | 0 | 39.0 | 37.29 | 0 | — | 0 | 1.2 | MLX 4-bit (ornith-ai official) | — | — | 289 |
@@ -334,6 +337,7 @@ means no usable timestamp was recoverable from that group's rows.
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | 2/2 | [c5171b0bd6e9](configs/c5171b0bd6e9.yaml) — *config since changed* | 643f7007d269 | 23 | 91% | 2 | 39.7 | 7.02 | 0 | 11.1 | 18 | 1.3 | MLX 4-bit (ornith-ai official) | — | — | 3580 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | 2/2 | [c5171b0bd6e9](configs/c5171b0bd6e9.yaml) — *config since changed* | 89f2c911aa61 | 23 | 91% | 0 | 36.5 | 7.34 | 0 | 8.9 | 11 | 1.2 | MLX 4-bit (ornith-ai official) | — | — | 1861 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | — | [c5171b0bd6e9](configs/c5171b0bd6e9.yaml) — *config since changed* | ba5990e22812 | 5 | 100% | 0 | 42.1 | 12.80 | 0 | — | 0 | 1.2 | MLX 4-bit (ornith-ai official) | — | — | 623 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | 2/2 | [cc7bc81731c9](configs/cc7bc81731c9.yaml) | ab502d4cb6eb+dirty | 23 | 78% | 0 | 48.3 | 7.05 | 0 | 9.4 | 12 | 1.3 | MLX 4-bit (ornith-ai official) | — | — | 1849 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | 2/2 | [cef5c7989663](configs/cef5c7989663.yaml) — *config since changed* | d2d191e25579 | 23 | 96% | 1 | 43.6 | 49.79 | 0 | 8.5 | 9 | 1.2 | MLX 4-bit (ornith-ai official) | — | — | 4317 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | — | [d0530b35006e](configs/d0530b35006e.yaml) | 0fe7a8a4d0ec | 30 | 87% | 3 | — | — | 0 | 12.0 | 61 | 1.2 | MLX 4-bit (ornith-ai official) | — | — | 5187 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | — | [d43b90262fa1](configs/d43b90262fa1.yaml) | 5138805dc9cf | 14 | 93% | 0 | — | — | 0 | 8.2 | 6 | 1.1 | MLX 4-bit (ornith-ai official) | — | — | 1577 |
@@ -425,12 +429,12 @@ most total coding+hermes_ops evidence, then recency.
 | rank | model | engine | quant | reasoning⁶ | config | usefulness gate | score | coding | decode speed | avg TTFT | total runtime (s)⁷ | avg turns |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 1 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | unspecified | 86f6177b6c31 | PASS (100%, 8) | 0.857 | 87% (15) | 39.7 tok/s | 7.01s | 2696 | 11.0 |
-| 2 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-I-Quality | llama.cpp | — | unspecified | 73c161a87535 | PASS (88%, 8) | 0.835 | 93% (15) | 39.5 tok/s | 7.16s | 3355 | 14.2 |
-| 3 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | — | thinking | d39c29f2d74b | PASS (100%, 8) | 0.813 | 93% (15) | 57.9 tok/s | 43.49s | 2976 | 8.2 |
-| 4 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | thinking | 98fbff8ca864 | PASS (75%, 8) | 0.811 | 87% (15) | 43.4 tok/s | 7.05s | 2767 | 15.7 |
-| 5 | mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Quality | llama.cpp | — | unspecified | 49ec38e05e0c | PASS (88%, 8) | 0.749 | 87% (15) | 42.9 tok/s | 10.67s | 5398 | 20.2 |
-| 6 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | — | unspecified | 7b0652d1fb9e | PASS (100%, 8) | 0.725 | 80% (15) | 33.3 tok/s | 10.29s | 4419 | 15.3 |
-| 7 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | unspecified | 696fcfc1d14b | PASS (100%, 8) | 0.717 | 87% (15) | 42.6 tok/s | 43.67s | 2442 | 9.1 |
+| 2 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | unspecified | cc7bc81731c9 | PASS (88%, 8) | 0.847 | 73% (15) | 48.3 tok/s | 7.05s | 1849 | 9.4 |
+| 3 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-I-Quality | llama.cpp | — | unspecified | 73c161a87535 | PASS (88%, 8) | 0.835 | 93% (15) | 39.5 tok/s | 7.16s | 3355 | 14.2 |
+| 4 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | — | thinking | d39c29f2d74b | PASS (100%, 8) | 0.813 | 93% (15) | 57.9 tok/s | 43.49s | 2976 | 8.2 |
+| 5 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | thinking | 98fbff8ca864 | PASS (75%, 8) | 0.811 | 87% (15) | 43.4 tok/s | 7.05s | 2767 | 15.7 |
+| 6 | mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Quality | llama.cpp | — | unspecified | 49ec38e05e0c | PASS (88%, 8) | 0.749 | 87% (15) | 42.9 tok/s | 10.67s | 5398 | 20.2 |
+| 7 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | — | unspecified | 7b0652d1fb9e | PASS (100%, 8) | 0.725 | 80% (15) | 33.3 tok/s | 10.29s | 4419 | 15.3 |
 | 8 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | thinking | a2d241742068 | PASS (75%, 8) | 0.704 | 87% (15) | 31.9 tok/s | 9.34s | 4215 | 18.7 |
 | 9 | mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Compact | llama.cpp | — | unspecified | 0b31098f54f7 | PASS (75%, 8) | 0.700 | 73% (15) | 44.9 tok/s | 10.16s | 3447 | 22.9 |
 | 10 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | — | thinking | 924bf86be47f | PASS (88%, 8) | 0.698 | 80% (15) | 47.9 tok/s | 44.63s | 4002 | 9.3 |
@@ -1038,6 +1042,12 @@ confirmed-stable, just untested for flakiness.
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | 3c10e74e125a | 0d0686e785c5 | kiem_mini | 4/5 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | 3c10e74e125a | 0d0686e785c5 | kipclip_mini | 4/4 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | 3c10e74e125a | 0d0686e785c5 | sanity | 2/2 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | 56bc7dda056f | 83cd9dbd8f7c+dirty | hearth_full | 2/3 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | 56bc7dda056f | 9b9253cb8de0 | hearth_mini | 3/3 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | 56bc7dda056f | 9b9253cb8de0 | hermes_ops | 8/8 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | 56bc7dda056f | 9b9253cb8de0 | kiem_mini | 4/5 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | 56bc7dda056f | 9b9253cb8de0 | kipclip_mini | 3/3 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | 56bc7dda056f | f77c23ab5d75+dirty | sanity | 2/2 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | 696fcfc1d14b | 6c648fddf456 | hearth_full | 3/3 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | 696fcfc1d14b | 6c648fddf456 | hearth_mini | 3/3 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | 696fcfc1d14b | 6c648fddf456 | hermes_ops | 8/8 |
@@ -1091,6 +1101,12 @@ confirmed-stable, just untested for flakiness.
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | c5171b0bd6e9 | 89f2c911aa61 | kipclip_mini | 4/4 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | c5171b0bd6e9 | 89f2c911aa61 | sanity | 2/2 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | c5171b0bd6e9 | ba5990e22812 | hermes_ops | 5/5 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | cc7bc81731c9 | ab502d4cb6eb+dirty | hearth_full | 3/3 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | cc7bc81731c9 | ab502d4cb6eb+dirty | hearth_mini | 2/3 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | cc7bc81731c9 | ab502d4cb6eb+dirty | hermes_ops | 7/8 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | cc7bc81731c9 | ab502d4cb6eb+dirty | kiem_mini | 2/5 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | cc7bc81731c9 | ab502d4cb6eb+dirty | kipclip_mini | 4/4 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | cc7bc81731c9 | ab502d4cb6eb+dirty | sanity | 2/2 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | cef5c7989663 | d2d191e25579 | hearth_full | 3/3 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | cef5c7989663 | d2d191e25579 | hearth_mini | 3/3 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | cef5c7989663 | d2d191e25579 | hermes_ops | 8/8 |
@@ -1281,7 +1297,7 @@ confirmed-stable, just untested for flakiness.
 
 ## Harness errors (excluded from every table above)
 
-45 row(s) where the harness itself crashed (e.g. a network blip during `npm ci`, a malformed task spec) rather than the model producing a graded result — shown separately so they don't deflate pass rates or masquerade as model flakiness.
+46 row(s) where the harness itself crashed (e.g. a network blip during `npm ci`, a malformed task spec) rather than the model producing a graded result — shown separately so they don't deflate pass rates or masquerade as model flakiness.
 
 | model | engine | suite | task | grade_output (truncated) |
 |---|---|---|---|---|
@@ -1322,6 +1338,7 @@ confirmed-stable, just untested for flakiness.
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | kipclip_mini | kipclip_mini-debug | HARNESS ERROR: hermes could not start (unknown provider 'bench-mei'); no backend request was issued, task invalidated an |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | kipclip_mini | kipclip_mini-feature | HARNESS ERROR: hermes could not start (unknown provider 'bench-mei'); no backend request was issued, task invalidated an |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | kipclip_mini | kipclip_mini-merge | HARNESS ERROR: hermes could not start (unknown provider 'bench-mei'); no backend request was issued, task invalidated an |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | kipclip_mini | kipclip_mini-merge | [...truncated...] [0m[32mCheck[0m src/import_merge.ts [0m[32mCheck[0m src/tag_utils.ts [0m[32mCheck[0m src/type |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | kipclip_mini | kipclip_mini-testwrite | HARNESS ERROR: hermes could not start (unknown provider 'bench-mei'); no backend request was issued, task invalidated an |
 | scottlowry/Ornith-1.5-9B-oQ4e-fp16 | omlx | kiem_mini | kiem_mini-feature | HARNESS ERROR: child agent escaped the disposable workspace and modified the source fixture; result invalidated and sour |
 | trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M | llama.cpp | kiem_mini | kiem_mini-feature | [...truncated...]      Running unittests src/lib.rs (target/debug/deps/notekeep-49d36e61ba6dd38e)      Running unittests |

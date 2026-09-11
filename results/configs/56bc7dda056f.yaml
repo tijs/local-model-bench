@@ -1,43 +1,48 @@
-# RESULT (2026-09-11): HELD, NOT SHIPPED. 19/25 against the 0.4.2 reference's
-# 23/25 and 0.4.1's 24/25, same config shape, only the binary differing. Four
-# tasks regressed (hearth_full-feature, hermes_ops-multi-step-chain,
-# kiem_mini-rename, kipclip_mini-merge) and none recovered. The suite is
-# deterministic -- two mei-rc runs two hours apart matched on pass/fail AND
-# completion_tokens for all 25 tasks -- so this is an exact result, not a bad
-# draw, and re-running cannot average it away. It does measure "this build on
-# this suite" rather than "worse in expectation": a numerics shift reshuffles
-# every trajectory, and this harness exposes no seed to sample across. Kiem
-# 3b614f84. The gates passed (fidelity 5/5, C1 PASS) because both are greedy
-# and therefore blind to numerics shifts that only matter under sampling.
+# INSTRUMENTED twin of mei-042.yaml — identical serving configuration plus
+# --request-log, so runner/analyze_request_log.py can decompose per-turn time
+# on the build that would actually ship.
 #
-# UPSTREAM-SYNC regression gate. Same shipped-default shape as mei-042.yaml,
-# served from Mei sync/0.4.2-plus-upstream (ad243df), vmlx pin 23551729
-# (tijs/vmlx-swift sync/capture-plus-upstream).
+# Why: every --request-log capture so far (anchors, capture, adaptive,
+# adaptive-strict) predates the 0.4.2 fixes, so none measures the shipped path.
+# Those logs put Mei-side overhead (prefill + server gap) at 3.24 s/turn on the
+# capture path against llama.cpp's ~2.9 s — parity — but that has to be
+# re-taken here before the per-turn overhead objective can be closed.
+# Kiem 762037c3.
 #
-# What this branch is: the fork's prefix-capture work with 30 upstream commits
-# merged in (to 32c17d48). Upstream #456 does NOT supersede the fork's capture
-# fix -- it widens which topologies get the stripped-boundary store, whereas
-# ours makes the stored snapshot usable. Three conflicts were resolved by
-# taking upstream's cosmetic changes and keeping the fork's
-# `|| coordinator.requiresPagedBoundaryCompanion` predicate case.
+# BUILT-IN CHECK: --request-log only appends a JSON line per generation run and
+# cannot affect sampling, and this suite is deterministic (two mei-rc runs two
+# hours apart matched on pass/fail AND completion_tokens across all 25 tasks).
+# So this run MUST reproduce mei-042.yaml's 23/25 exactly, with the same two
+# failures (kiem_mini-parse-note, kiem_mini-testwrite). If it does not, the
+# determinism premise behind the sync HOLD decision (Kiem 3b614f84) is wrong
+# and that comparison has to be redone.
 #
-# CONFOUND, stated up front: this build differs from the 0.4.2 reference in TWO
-# ways, not one. Ten transitive pins bump alongside the vmlx sync
-# (async-http-client, swift-asn1, swift-certificates, swift-crypto,
-# swift-http-types, swift-log, nio-extras, nio-http2, nio-ssl, yyjson). All sit
-# off the MLX inference path so token fidelity is unaffected, but yyjson is on
-# request JSON parsing -- so a small wall-clock delta cannot be attributed to
-# the vmlx sync alone. Quality/tool-call rows are unaffected.
+# Separate KV dir from mei-042.yaml so the two runs cannot share cache state.
 #
-# HARNESS CORRECTION (2026-09-11): the first fidelity result reported for this
-# sync (5/5) was VOID -- the gate script hardcoded the mei-build-rc build dir
-# and re-tested the 0.4.2 reference binary. Confirmed via access times: the rc
-# binary executed mid-gate, the sync binary had never been run. The gates were
-# re-run with a parameterized harness that echoes the build path and
-# `mei --version` before the first leg. See Kiem a5acf1e8.
+# BEFORE RUNNING: start_mei_server.sh builds from the --mei-repo WORKING TREE,
+# so ~/projects/mei-rc must be checked out on research/0.4.2-outofbox-reuse
+# (vmlx pin 44461ffd). If it is left on sync/0.4.2-plus-upstream, this config
+# silently builds the SYNC code into mei-build-042 and the run measures the
+# wrong binary. Check with: git -C ~/projects/mei-rc branch --show-current
+
+# 0.4.2 CANDIDATE regression gate. Same shipped-default shape as mei-rc.yaml,
+# served from the 0.4.2 branch (research/0.4.2-outofbox-reuse, vmlx 44461ffd).
 #
-# Compare against mei-042.yaml rows (the 0.4.2 reference, vmlx 44461ffd),
-# mei-rc.yaml (0.4.1) and the 2026-09-07 baseline.
+# What changed since 0.4.1, both measured:
+#  - qwen3_5_moe joins diskKVRequiredModelTypes, so a bare `mei --model-dir X`
+#    gets a disposable disk KV tier and ordinary WITHIN-conversation reuse
+#    works. Bare, four turns: 246 s -> 66 s. probe_mei 13/13 on a bare server,
+#    where it previously needed --kv-cache-dir to reach 13/13. Kiem 6aafef0b.
+#  - feat/request-log merged, bringing the two anchor fixes absent from the
+#    release line (the stored boundary no longer freezes at the anchor; the
+#    advancing boundary costs one template render instead of ~4.4 s/turn) and
+#    --request-log itself. Gated behind a new vmlx warning that fires when a
+#    restore matches a stable boundary rather than its N-1 seed, which is the
+#    shape of the 1-in-8 failure that kept this out of 0.4.1. Kiem c79adbf4.
+#
+# Gates already passed on this branch: fidelity 5/5 admissible and 5/5
+# identical with the invariant silent; C1 token equality PASS.
+# Compare against mei-rc.yaml rows (0.4.1) and the 2026-09-07 baseline.
 
 model: ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit
 # Mei — the native Swift/MLX serving engine (see ~/projects/mei). This is the
@@ -47,8 +52,8 @@ model: ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit
 temperature: 0.6
 reasoning_mode: unspecified
 inference_engine: mei
-mei_commit: 2355172908d12f4b1f50dea13f3b30475cf3822f  # vmlx-swift pin (exact, Mei Package.resolved; sync/capture-plus-upstream = fork capture fixes + upstream to 32c17d48)
-mei_source_commit: ad243df2130c3f66dcf32cd1c4422fff994ccf3a  # Mei sync/0.4.2-plus-upstream (re-pin commit); see git log in ~/projects/mei-rc
+mei_commit: 91fed8be21319f92ce5220622c6dcde0b851bdae  # vmlx-swift pin (exact, Mei Package.resolved; updated 2026-09-04 from aeb5e21c which was the pre-fork pin)
+mei_source_commit: 67e897e2160d80be65d2e2c2ff15746d4130ad72  # Mei streaming multi-tool-call SSE-index fix (2026-09-05)
 source_revision: 19504d912fa8fc7622bf6b1de3db5d5d890b1f02
 model_bytes: 19508431001
 quant_family: MLX 4-bit (ornith-ai official)
@@ -114,9 +119,11 @@ benchmark_launch_command: |
   bash runner/start_mei_server.sh --model-dir /Users/tijs/.local/share/local-model-bench/mei-models/Ornith-1.5-35B-A3B-MLX-4bit-aligned \
     --served-model-id ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit --port 8024 --context-cap 65536 \
     --prefill-step-size 1024 --max-tokens 8192 \
-    --kv-cache-dir /Users/tijs/.local/share/local-model-bench/mei-runtime/kv-ornith-sync \
+    --kv-cache-dir /Users/tijs/.local/share/local-model-bench/mei-runtime/kv-ornith-042-traced \
     --temperature 0.6 --top-p 0.95 --top-k 20 --emit-reasoning true --cache-reuse true \
-    --build-dir /Users/tijs/.local/share/local-model-bench/mei-build-sync \
+    --request-log /Users/tijs/.local/share/local-model-bench/mei-runtime/logs/requests-ornith-042.jsonl \
+    --log-requests true \
+    --build-dir /Users/tijs/.local/share/local-model-bench/mei-build-042 \
     --mei-repo /Users/tijs/projects/mei-rc
 benchmark_endpoint: http://127.0.0.1:8024/v1
 
@@ -132,8 +139,8 @@ settings:
     value: "ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit@19504d912fa8fc7622bf6b1de3db5d5d890b1f02 (19508431001 bytes, 4 safetensors shards) staged at ~/.local/share/local-model-bench/mei-models/Ornith-1.5-35B-A3B-MLX-4bit"
     source: "Hugging Face model_info + local shard sizes; exact revision pinned 2026-08-29."
   - name: vmlx_swift_pin
-    value: "2355172908d12f4b1f50dea13f3b30475cf3822f (tijs/vmlx-swift sync/capture-plus-upstream: the fork's prefix-capture fixes with 30 upstream commits merged to 32c17d48)"
-    source: "~/projects/mei-rc/Package.resolved on sync/0.4.2-plus-upstream, checked 2026-09-11; branch pushed to origin."
+    value: "91fed8be21319f92ce5220622c6dcde0b851bdae (tijs/vmlx-swift fork revision in Mei Package.resolved; updated 2026-09-04 from the pre-fork aeb5e21c osaurus pin)"
+    source: "~/projects/mei/Package.resolved, checked 2026-09-04."
   - name: disk_kv_tier_required
     value: "qwen3_5_moe hybrid (30x MambaCache + 10x RotatingKVCache) cannot restore from the paged in-memory tier (cacheCannotUsePagedCoordinatorRestore=true, canUseRotatingCompanion=false -> paged store writes 0 blocks); without --kv-cache-dir every chat turn cold-prefills (cached_tokens=0; measured 2026-09-04 growing-turn 813 tokens, 1.97s prefill == cold). Disk tier restores the gen-suffix-stripped boundary: turn-2 cached_tokens ~786/824 with 38-token prefill (same mechanism as the Gemma 318a4e68 fix). Mei's needsDiskKVTier default intentionally EXCLUDES qwen3_5_moe (operator-controlled cache per ServerConfigParsingTests), so the launch command must pass --kv-cache-dir explicitly; Dir = runner passthrough added 2026-09-04."
     source: "Mei repo artifacts/ornith-35B-step64-lc-20260903T232957UTC.json (30k/80k cache_reuse hits on disk tier); live probe trace /tmp/ornith-repro 2026-09-04; vmlx CacheHelpers.swift."
@@ -170,4 +177,4 @@ known_gaps:
   - "KV quantization (--kv-bits) is ignored by the Qwen35 hybrid cache topology (RotatingKVCache/MambaCache) — the engine honors it as a no-op for this architecture; fp16 KV fits 64K context on this 32GB machine."
   - "Metal kernel library (mlx.metallib) is provisioned by scripts/prepare_metallib.sh: the local Xcode lacks the metallib archiver, so the adjacent-version Python mlx wheel metallib is used (vendored mlx v0.31.1-14 vs wheel 0.32.0)."
   - "Bench runtime build provenance (2026-09-04): the mei-build scratch dir resolves vmlx-swift from the LOCAL /Users/tijs/projects/vmlx-swift clone (HEAD 318a4e68 as of 2026-09-04, i.e. the pinned fork 91fed8be + 1 cache-fix commit), not the remote pin — verified via embedded source paths in the served binary. The pinned scratch build mei-build-pinned-91fed8be restores exact-revision servers. A bench build also rewrites ~/projects/mei/Package.resolved (drops the vmlx-swift remote entry); restore from git if it drifts."
-last_updated: 2026-09-11
+last_updated: 2026-09-04

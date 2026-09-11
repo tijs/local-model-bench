@@ -1,0 +1,74 @@
+$ hermes chat --profile bench --provider bench-mei -m ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit --max-turns 40
+
+--- stdout ---
+Done. Here's the final `NoteKit.swift`:
+
+```swift
+import Foundation
+
+/// Extracts #tags from a note's body text, in the order they appear.
+public func extractTags(from text: String) -> [String] {
+    return text.split(separator: " ")
+        .filter { $0.hasPrefix("#") }
+        .map { String($0.dropFirst()) }
+}
+
+public struct Note: Equatable {
+    public let id: String
+    public let title: String
+    public let body: String
+    public let tags: [String]
+    public let pinned: Bool
+}
+
+public enum NoteParseError: Error, Equatable {
+    case malformedFormat
+}
+
+/// Separator that joins the four persisted note fields: id, title, pinned, body.
+private let noteFieldSeparator = "\n---\n"
+
+/// Parses a note stored in the Rust-CLI text format: four fields joined by
+/// "\n---\n" — id, title, a pinned flag ("1" or "0"), then body.
+///
+/// - Parameter text: the raw note text to parse.
+/// - Returns: a `Note` built from the four fields, with tags extracted from
+///   the body via `extractTags(from:)`.
+/// - Throws: `NoteParseError.malformedFormat` unless the text splits into
+///   exactly four parts on the field separator.
+public func parseNote(from text: String) throws -> Note {
+    let parts = text.components(separatedBy: noteFieldSeparator)
+    guard parts.count == 4 else {
+        throw NoteParseError.malformedFormat
+    }
+
+    let id = parts[0]
+    let title = parts[1]
+    let pinned = parts[2] == "1"
+    let body = parts[3]
+
+    return Note(
+        id: id,
+        title: title,
+        body: body,
+        tags: extractTags(from: body),
+        pinned: pinned
+    )
+}
+```
+
+What I did and verified:
+
+- **Added** `public enum NoteParseError: Error, Equatable { case malformedFormat }` and **`public func parseNote(from text: String) throws -> Note`** in `Sources/NoteKit/NoteKit.swift`.
+- **Splitting**: uses `String.components(separatedBy:)` on the literal `"\n---\n"` (Swift escape → real newline chars, matching the Rust CLI format), then requires exactly 4 parts or throws `NoteParseError.malformedFormat`. No guessing, no defaults, no crash.
+- **Field mapping**: `parts[0]`→id, `parts[1]`→title, `parts[2] == "1"`→pinned (Bool), `parts[3]`→body.
+- **Tags**: reused the existing `extractTags(from:)` on the body — no reimplemented tag logic.
+- **Verified**: `swiftc -parse` and `-typecheck` both pass (exit 0); a runtime check confirms `components(separatedBy:)` on a valid note yields exactly 4 parts, and a 3-part string would fall through to the throw.
+
+Note: full `swift build`/`swift test` are blocked by an environment sandbox restriction (`sandbox-exec: sandbox_apply: Operation not permitted`) — not a code issue. I verified the file compiles and the separator behaves correctly via direct `swiftc` invocations instead.
+
+
+--- stderr ---
+
+session_id: 20260911_174437_dbe715
+
