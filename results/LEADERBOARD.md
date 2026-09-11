@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/2996 rows below predate 2026-08-21
+> **⚠ 138/3026 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -328,6 +328,7 @@ means no usable timestamp was recoverable from that group's rows.
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | 2/2 | [c5171b0bd6e9](configs/c5171b0bd6e9.yaml) — *config since changed* | 89f2c911aa61 | 23 | 91% | 0 | 36.5 | 7.34 | 0 | 8.9 | 11 | 1.2 | MLX 4-bit (ornith-ai official) | — | — | 1861 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | — | [c5171b0bd6e9](configs/c5171b0bd6e9.yaml) — *config since changed* | ba5990e22812 | 5 | 100% | 0 | 42.1 | 12.80 | 0 | — | 0 | 1.2 | MLX 4-bit (ornith-ai official) | — | — | 623 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | 2/2 | [cef5c7989663](configs/cef5c7989663.yaml) — *config since changed* | d2d191e25579 | 23 | 96% | 1 | 43.6 | 49.79 | 0 | 8.5 | 9 | 1.2 | MLX 4-bit (ornith-ai official) | — | — | 4317 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | — | [d0530b35006e](configs/d0530b35006e.yaml) | 0fe7a8a4d0ec | 30 | 87% | 3 | — | — | 0 | 12.0 | 61 | 1.2 | MLX 4-bit (ornith-ai official) | — | — | 5187 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | — | [d43b90262fa1](configs/d43b90262fa1.yaml) | 5138805dc9cf | 14 | 93% | 0 | — | — | 0 | 8.2 | 6 | 1.1 | MLX 4-bit (ornith-ai official) | — | — | 1577 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | 2/2 | [d43b90262fa1](configs/d43b90262fa1.yaml) | d9c09d65b771 | 23 | 83% | 0 | 47.3 | 7.02 | 0 | 9.8 | 15 | 1.3 | MLX 4-bit (ornith-ai official) | — | — | 2025 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | 2/2 | [dc3e7e62a965](configs/dc3e7e62a965.yaml) — *config since changed* | b293b2de057f | 23 | 87% | 1 | 41.9 | 50.92 | 2 | 8.2 | 11 | 1.3 | MLX 4-bit (ornith-ai official) | — | — | 3710 |
@@ -458,6 +459,8 @@ confirmed-stable, just untested for flakiness.
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | b276c4af3286 | hearth_mini | hearth_mini-testwrite | 2/3 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | b276c4af3286 | kiem_mini | kiem_mini-debug | 3/4 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | b276c4af3286 | kiem_mini | kiem_mini-parse-note | 3/4 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | d0530b35006e | kiem_mini | kiem_mini-rename | 1/2 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | d0530b35006e | kipclip_mini | kipclip_mini-merge | 1/2 |
 | trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M | llama.cpp | — | 891242963db5 | hermes_ops | hermes_ops-targeted-edit | 1/2 |
 
 ## By suite
@@ -1060,6 +1063,10 @@ confirmed-stable, just untested for flakiness.
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | cef5c7989663 | d2d191e25579 | kiem_mini | 4/5 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | cef5c7989663 | d2d191e25579 | kipclip_mini | 4/4 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | cef5c7989663 | d2d191e25579 | sanity | 2/2 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | d0530b35006e | 0fe7a8a4d0ec | hearth_full | 6/6 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | d0530b35006e | 0fe7a8a4d0ec | hearth_mini | 6/6 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | d0530b35006e | 0fe7a8a4d0ec | kiem_mini | 7/10 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | d0530b35006e | 0fe7a8a4d0ec | kipclip_mini | 7/8 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | d43b90262fa1 | 5138805dc9cf | hearth_full | 3/3 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | d43b90262fa1 | 5138805dc9cf | hearth_mini | 3/3 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | d43b90262fa1 | 5138805dc9cf | kiem_mini | 3/4 |
