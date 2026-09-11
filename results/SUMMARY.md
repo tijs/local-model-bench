@@ -436,6 +436,42 @@ Until then the adaptive boundary is **not adopted**, and the 3.34 s opener is
 not a net win — it buys a wrong answer. The capture fix alone is safe and is
 judged separately.
 
+## 2026-09-11 — RETRACTION: the adaptive boundary is not answer-stable
+
+An earlier entry recorded that `VMLX_GDN_STRICT` made the adaptive boundary's
+restore answer-stable. That rested on **one prompt**, and the match was luck.
+
+Proper sweep — five prompts, fresh server and fresh KV per leg (the candidate
+prefix lives in engine memory, so a genuine cold leg needs a restarted server),
+strict on both legs, admissibility enforced in code:
+
+| prompt | cached cold/restored | ctok cold/restored | |
+|---|---|---|---|
+| 0 | 0 / 19,967 | 113 / 178 | diverges |
+| 1 | 0 / 19,967 | 136 / 121 | diverges |
+| 2 | 0 / 19,967 | 178 / 138 | diverges |
+| 3 | 0 / 19,967 | 197 / 162 | diverges |
+| 4 | 0 / 19,967 | 228 / 248 | diverges |
+
+**5/5 admissible, 0/5 identical.** The adaptive boundary is not adoptable, with
+or without strict.
+
+A first sweep attempt nearly hid this: run on one server, the cold leg
+contaminated itself — after two prompts the candidate had converged and a
+boundary was stored, so later prompts showed `cached 19,967` on *both* legs and
+compared trivially equal.
+
+**The 14/15 suite result is not fidelity evidence.** A coding suite grades
+outcomes, not token equality; a different-but-valid trajectory still passes. It
+should not have been cited alongside an n=1 probe as if the two reinforced each
+other.
+
+What survives: the structural-anchor result (byte-exact 5/5) is untouched, and
+the vmlx inner-capture fix is independently valuable — it removes a 9.8 s
+post-answer re-derive on *any* restoring request and is proven not to cause the
+divergence. The untried direction is to snap the discovered prefix down to the
+nearest **structural** boundary rather than a multiple of 512.
+
 ## 2026-09-11 — Mei is now faster per turn, and the objective's metric is confounded
 
 With the adaptive boundary, the capture fix and the strict kernel in place
@@ -468,6 +504,11 @@ Measure wall per turn and server-busy per turn instead, or non-generating
 Caveats: turn counts were 158 vs 165, the pass sets differ (14/15 vs 13/15),
 and the decode rates are derived from generate time and row token counts rather
 than measured. The wall and busy figures are measured.
+
+These figures were measured on the adaptive+strict build, which the retraction
+above rules out for adoption — but the wall-per-turn conclusion does not depend
+on it: the control (`mei-capture`) sits at 11.94 s/turn against llama.cpp's
+13.72, essentially identical to adaptive+strict's 11.92.
 
 **Recommendation:** treat the per-turn overhead objective as substantively met —
 Mei completes a coding turn faster than llama.cpp, having started this work at
