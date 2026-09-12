@@ -4,6 +4,7 @@
 # nostore : anchors on, split+eval, NO store  -> which half causes it?
 SP="$1"; B=/Users/tijs/projects/mei-align/.build/release
 KV=/Users/tijs/.local/share/local-model-bench/mei-runtime/kv-nostore
+PROBES="$(cd "$(dirname "$0")" && pwd)"
 cd /Users/tijs/projects/local-model-bench
 stop(){ local w; pkill -f "release/me[i] --model-dir" 2>/dev/null
   for w in $(seq 1 30); do lsof -ti:8024 >/dev/null 2>&1 || break; /bin/sleep 1; done; }
@@ -20,7 +21,7 @@ leg(){ local label="$1" anchors="$2" nostore="$3" w extra=()
       > "$SP/ns-$label.log" 2>&1 &
   for w in $(seq 1 180); do grep -q "mei: listening" "$SP/ns-$label.log" 2>/dev/null && break; /bin/sleep 5; done
   grep -q "mei: listening" "$SP/ns-$label.log" || { echo "  SERVER FAIL $label"; return 1; }
-  uv run --locked python "$SP/small_one.py" "$label" "$SP/ns-$label.json"
+  uv run --locked python "$PROBES/small_one.py" "$label" "$SP/ns-$label.json"
   echo "    store-boundary lines: $(grep -c 'store-boundary' "$SP/ns-$label.log")  no-store fired: $(grep -c 'no-store' "$SP/ns-$label.log")"
   stop; }
 leg base    off 0

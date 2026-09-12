@@ -11,6 +11,7 @@
 # kernel rounds state every step, so segmentation should stop mattering.
 SP="$1"; B=/Users/tijs/.local/share/local-model-bench/mei-build-seed
 KV=/Users/tijs/.local/share/local-model-bench/mei-runtime/kv-divergence
+PROBES="$(cd "$(dirname "$0")" && pwd)"
 cd /Users/tijs/projects/local-model-bench
 echo "PROBE build=$B"; "$B/release/mei" --version
 stop(){ local w; pkill -f "release/me[i] --model-dir" 2>/dev/null
@@ -52,13 +53,13 @@ run_leg(){ local leg="$1" anchors="$2" strict="$3"
   # a prior 20k conversation — so nothing downstream isolated the flag. With
   # anchors off the seed simply stores no anchor.
   seed
-  uv run --locked python "$SP/small_reproducer.py" "$leg" "$SP/small2-$leg.json"
-  uv run --locked python "$SP/anchor_divergence.py" "$leg" "$SP/div2-$leg.json"; }
+  uv run --locked python "$PROBES/anchor_minimal_reproducer.py" "$leg" "$SP/small2-$leg.json"
+  uv run --locked python "$PROBES/anchor_agentic_replay.py" "$leg" "$SP/div2-$leg.json"; }
 run_leg anchorsA      on  0
 run_leg anchorsB      on  0
 run_leg noanchors     off 0
 run_leg anchorsStrict on  1
 run_leg noanchorsStrict off 1
 stop; rm -rf "$KV"
-uv run --locked python "$SP/anchor_divergence_cmp.py" "$SP" 2
+uv run --locked python "$PROBES/anchor_compare.py" "$SP" 2
 echo "DIVERGENCE PROBE DONE"
