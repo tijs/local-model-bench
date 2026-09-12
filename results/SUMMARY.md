@@ -819,3 +819,70 @@ approximate until a matched per-turn measurement exists for the llama.cpp lane.
   current, never hand-edited.
 - [`docs/`](../docs/) — `INFERENCE_ENGINES.md` and `OMLX_MODEL_MATRIX.md`
   for engine-level technical writeups.
+
+## 2026-09-12 — 0.5.0's engine is 0.4.2's, and two anchors A/Bs are void
+
+Three things, in order of how much they change what we believe.
+
+### The upstream vmlx sync costs a stable task, and 0.5.0 is not shipping it
+
+`hermes_ops-multi-step-chain` passes on vmlx `44461ffd` and fails on `23551729`.
+The failure is deterministic, not a draw: two runs on that pin — `mei-sync.yaml`
+on 09-11 and `mei-050-profile.yaml` on 09-12, different configs, different build
+and KV dirs — produced **byte-identical** `grade_output`, the same 15 tool calls
+in the same order, 174.8 s against 175.2 s.
+
+Scored against the 6-task Ornith floor that is stable tasks 18/19 → 17/19, and
+that task is not in the floor; it is one of the 10 token-recorded tasks that
+showed 0/10 flips across same-build repeats. **8 of those 10 generate
+differently under the sync.** Attribution is one variable: the config that first
+showed it pins Mei source `ad243df`, whose only change is the re-pin.
+
+Rolling back cost nothing. `44461ffd` is the tip of the prefix-capture work and
+a strict ancestor of the sync merge, so every cache fix `--ssm-anchor-boundaries`
+depends on is present; the 30 upstream commits are MTP, Flash, Spark2.5 and
+MiniCPM5 work no profiled model uses.
+
+### With that pin, 0.5.0 reproduces 0.4.2 exactly
+
+| | stable tasks | token-recorded differing |
+|---|---|---|
+| 0.5.0 on sync `23551729` | 17/19 (−1) | 8 of 10 |
+| 0.5.0 on shipping `44461ffd` | 18/19 (+0) | **0 of 10** |
+
+Every completion-token count identical, with prefill step, anchor count,
+generation cap and architecture handling all arriving from `--model-profile
+ornith-1.5-35b-a3b` rather than four flags. So naming the model is equivalent to
+the flag wall, established at the level of generated output.
+
+### Both Qwen3.6 anchors A/Bs are void — shared KV cache
+
+All four arms passed `--kv-cache-dir` twice. `start_mei_server.sh` takes the last
+value; `run_bench.py`'s cleaner took the first. So the runner deleted a
+directory the server never opened and printed a confident "cleared for a cold,
+comparable run" naming it. On disk the four per-arm dirs it kept clearing **did
+not exist**, while the two the server used held 9.9 GB across 40+ entries.
+
+Both arms of each A/B therefore shared one never-cleared cache. Anchor capture
+is gated on `ssmAnchorBoundaryCount > 0`; restoring a stored prefix is not, so a
+"no anchors" arm reading a directory the anchors arm populated is not a baseline.
+And the bias runs toward the reported result: two arms quietly closer than
+intended are two arms showing no task difference.
+
+**Ornith is unaffected** (single `--kv-cache-dir`), which is the uncomfortable
+part — Ornith is the model that showed anchors cost a task, and the two that
+showed no cost are exactly the two whose arms shared a cache. The per-model
+split may be an artifact. The prefill benefit (−52% / −53%) survived a bias
+working against it and probably holds; the quality half is being re-measured
+cold on the shipping pin before 0.5.0 tags.
+
+### Per-turn objective, Ornith, anchors off
+
+    prefill 4.03 + server gap 0.27 = 4.30 s/turn   (llama.cpp 2.62)
+    not generating: 43.2% of span   (objective was written at 66%)
+
+Eight requests cold-prefill the same ~20.4k preamble at a mean of 52.6 s — 43%
+of all prefill time, 1.74 s/turn spread over the run, against a 1.68 s/turn gap.
+The residual *is* those eight prefills. Anchors remove them and land 2.57 s/turn,
+at parity; on Ornith they cost one stable task, which is why its profile ships
+`anchors: 0`.
