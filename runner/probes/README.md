@@ -83,3 +83,37 @@ anchors produce no divergence at all.
 **Compare tokens, not decoded text.** All three legs above decode to the
 identical string `ready`. A text-only comparison called 15 tokens and 14 tokens
 "IDENTICAL" and nearly buried the finding.
+
+# Split vs copy
+
+```
+runner/probes/split_vs_copy_probe.sh <artifact-dir>
+```
+
+Needs a Mei built against a vmlx patched with `VMLX_NO_SNAPSHOT_STORE`, which
+keeps the real capture split and its `MLX.eval(cache)` but discards the
+snapshot. Three legs on the 43-token prompt, greedy:
+
+| leg | ctok |
+|---|---|
+| base — anchors off, no split | 15 |
+| anchors — split + eval + snapshot stored | 27 |
+| nostore — split + eval, snapshot **discarded** | **27** |
+
+Discarding the snapshot changes nothing, so the copy is innocent: the defect is
+the split and the resumption across it.
+
+Each leg prints its own `store-boundary` and `no-store` counts, and the verdict
+refuses to conclude anything if the anchors leg failed to reproduce the defect —
+otherwise "nostore matches base" could be read as a fix when the defect simply
+wasn't present.
+
+## Why this is not a cheap fix
+
+The recurrent state is fp32 throughout, so nothing is being rounded to bf16 at
+the boundary. A scan over N steps in one kernel invocation and two invocations
+over N1 + N2 steps use different blocking and therefore a different
+floating-point accumulation order; FP addition is not associative. Greedy
+decoding turns a last-bit difference into a different token whenever two
+candidates are close. `VMLX_GDN_STRICT` changes accumulation granularity but
+cannot make two blockings agree. See Kiem `d926806a`.
