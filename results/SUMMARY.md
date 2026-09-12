@@ -697,8 +697,15 @@ perturbation. The **failure mode** is what matters:
 | upstream sync | FAIL | 5,693 | wanders, still inspects code |
 | anchors | FAIL | 1,353 | **never calls `search_files`/`read_file`/`patch`** |
 
-On the restored path the model stops investigating, consistent with a 49% token
-collapse across the prompt suite.
+On the restored path the model stops investigating on that task.
+
+A caveat on a figure quoted earlier in this investigation: anchors do halve total
+completion tokens across the prompt suite (8,756 → 4,489), but that is
+**concentrated, not systematic**. Five of ten tasks get *longer* under anchors
+and one is unchanged; the total is driven by three shrinking — `multi-step-chain`
+(−3,152), `selection` (−855), `error-recovery` (−612). And `selection` drops 90%
+while still passing 3/3, so shorter is not automatically worse there. The one
+genuine capability failure is `multi-step-chain`.
 
 ### Root cause
 
