@@ -722,11 +722,41 @@ Reproducer: 43 tokens, one request, ~1 s per leg — `runner/probes/`.
 - **C. Make the recurrent kernels segmentation-invariant.** Highest value,
   highest cost, uncertain — the one attempt in-tree (`strict`) does not achieve it.
 
+### The objective's own metric, both sides measured
+
+| | not-generating share | prefill / request |
+|---|---|---|
+| llama.cpp | ~23% | 2.62 s |
+| Mei, anchors off | 52.7% | 4.64 s |
+| Mei, anchors on | 46.0% | 2.82 s |
+
+The llama.cpp figure validates the objective's stated ~25%. Mei has come down
+from ~66% to 52.7% on the shipped path and 46.0% with anchors — yet it is still
+about twice llama.cpp's *share* while being at *parity* on absolute per-request
+prefill.
+
+Those two readings disagree because **the share is confounded on both sides**:
+
+1. Mei decodes ~1.6× faster (57.4 vs 36.3 tok/s), so the same absolute overhead
+   is a larger fraction of a smaller denominator. Normalising Mei's generate
+   time to llama.cpp's decode rate moves its share from 46% to roughly 35%
+   without changing a millisecond of real overhead. **The share metric penalises
+   the faster decoder.**
+2. llama-server ran 4 slots with ~3% overlap, so `span − generate` is not cleanly
+   "not generating" for it — its prefill total (11.44 min) exceeds its
+   non-generating time (10.25 min), and the subtraction does not close.
+
+**Report per-request prefill and server gap, not share of wall.** The objective
+was framed on a metric that cannot settle it; the decomposition it prompted did.
+
 ### A caveat on the reference number
 
-The llama.cpp figure this is measured against (~2.9 s/turn of non-generating
-time) comes from **earlier analysis in this project, not from a like-for-like
-re-measurement with the instrumentation used above**. llama-server has no
+**RESOLVED 2026-09-12.** This has since been measured like-for-like:
+`runner/probes/parse_llama_timings.py` parses llama-server's per-request
+`prompt eval time` / `eval time`, giving 2.62 s prefill per request over 262
+requests — so Mei is 1.77× without anchors and 1.08× with them. The original
+caveat, kept for the record: the llama.cpp figure (~2.9 s/turn) came from
+**earlier analysis in this project, not from a like-for-like re-measurement**. llama-server has no
 `--request-log` equivalent; only 10 rows in `log.jsonl` carry its backend
 timings, and those are per-task sums rather than per-turn. Treat "parity" as
 approximate until a matched per-turn measurement exists for the llama.cpp lane.
