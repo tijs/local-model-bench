@@ -717,6 +717,14 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
     # runner/restore_local_backends.sh manually when you're done for the
     # day to bring back cocore/hermes's own local fallback.
     _leaderboard()
+    # Reached only when the run actually got as far as its suites. Every
+    # fail-fast path above returns None instead, so callers -- including
+    # unattended chains -- can tell a refusal from a completed run. This
+    # function used to return None either way, so `run_bench.py --config X`
+    # exited 0 after printing "FAILED: only 29.9GB free ... refusing to
+    # launch", and a four-config chain reported four successes in 24 seconds
+    # without starting a single server.
+    return True
 
 
 def run_one(config_path: Path, trials: int = 1, coding_suites=None, stage="all",
@@ -888,17 +896,24 @@ def main():
         # by optional orchestration.run_order (existing configs unchanged).
         configs = _discover_ordered_configs(REPO, inference_engine=args.inference_engine)
         print(f"Running {len(configs)} configs...")
+        failed = []
         for i, config_path in enumerate(configs, 1):
             print(f"\n\n########## [{i}/{len(configs)}] {config_path} ##########")
-            run_one(
+            if not run_one(
                 config_path, trials=args.trials, coding_suites=coding_suites,
                 stage=args.stage, seed=args.seed,
-            )
+            ):
+                failed.append(str(config_path))
+        if failed:
+            print(f"\n{len(failed)} of {len(configs)} configs did not run: "
+                  + ", ".join(failed))
+            sys.exit(1)
     else:
-        run_one(
+        if not run_one(
             Path(args.config), trials=args.trials, coding_suites=coding_suites,
             stage=args.stage, seed=args.seed,
-        )
+        ):
+            sys.exit(1)
 
 
 if __name__ == "__main__":
