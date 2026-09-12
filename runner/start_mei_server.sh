@@ -21,8 +21,10 @@ Usage: start_mei_server.sh --model-dir ROOT --served-model-id ID --port PORT \
   --context-cap TOKENS [options]
 
 Options:
-  --prefill-step-size N     Chunked prefill window (default: 512)
-  --max-tokens N            Server-side generation cap (default: 32768)
+  --prefill-step-size N     Chunked prefill window (default: unset -> Mei
+                            decides, from --model-profile or architecture)
+  --max-tokens N            Server-side generation cap (default: unset -> Mei
+                            decides, from --model-profile or its own default)
   --temperature F --top-p F --top-k N --min-p F
   --emit-reasoning BOOL     Expose reasoning_content (default: true)
   --enable-thinking BOOL    Force template enable_thinking (default: none ->
@@ -72,8 +74,8 @@ MODEL_DIR=""
 SERVED_MODEL_ID=""
 PORT=""
 CONTEXT_CAP=""
-PREFILL_STEP_SIZE="512"
-MAX_TOKENS="32768"
+PREFILL_STEP_SIZE=""
+MAX_TOKENS=""
 TEMPERATURE="0.6"
 TOP_P="0.95"
 TOP_K="20"
@@ -159,10 +161,20 @@ BIN="$BUILD_DIR/release/mei"
 # overrides a current config's behavior.
 ARGS=(--model-dir "$MODEL_DIR" --served-model-id "$SERVED_MODEL_ID"
   --host 127.0.0.1 --port "$PORT"
-  --context-cap "$CONTEXT_CAP" --max-tokens "$MAX_TOKENS"
-  --prefill-step-size "$PREFILL_STEP_SIZE"
+  --context-cap "$CONTEXT_CAP"
   --temperature "$TEMPERATURE" --top-p "$TOP_P" --top-k "$TOP_K"
   --emit-reasoning "$EMIT_REASONING" --cache-reuse "$CACHE_REUSE")
+# Forwarded ONLY when the config asks for them. These two used to carry
+# hardcoded defaults (512 / 32768) that were always forwarded, which made them
+# explicit flags from Mei's point of view — and an explicit flag beats
+# --model-profile. A config naming a model would therefore have silently got
+# 512/32768 instead of the profile's measured numbers, defeating the flag on
+# precisely the settings it exists to carry. Every config in this repo passes
+# both in its launch block, so leaving them unset here changes nothing for any
+# of them; it only stops the runner from overriding a profile it knows nothing
+# about. Mei resolves its own defaults when neither is given.
+[[ -n "$MAX_TOKENS" ]] && ARGS+=(--max-tokens "$MAX_TOKENS")
+[[ -n "$PREFILL_STEP_SIZE" ]] && ARGS+=(--prefill-step-size "$PREFILL_STEP_SIZE")
 [[ -n "$MIN_P" ]] && ARGS+=(--min-p "$MIN_P")
 [[ -n "$ENABLE_THINKING" ]] && ARGS+=(--enable-thinking "$ENABLE_THINKING")
 [[ -n "$KV_BITS" ]] && ARGS+=(--kv-bits "$KV_BITS")
