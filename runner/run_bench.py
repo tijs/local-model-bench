@@ -318,10 +318,33 @@ def clear_kv_cache_dir(cfg):
     which is the only state that is comparable across configs and across time.
     """
     text = (cfg.get("benchmark_launch_command") or "")
-    match = re.search(r"--kv-cache-dir\s+(\S+)", text)
-    if not match:
+    # EVERY occurrence, not the first. A launch command that passes
+    # --kv-cache-dir twice gives the server the LAST one (start_mei_server.sh
+    # parses argv in order and the last assignment wins), while re.search
+    # returns the FIRST. The four Qwen3.6 anchors A/B configs did exactly that,
+    # so this function cleared a directory the server never opened and printed
+    # a confident "cleared for a cold, comparable run" naming it. The dirs it
+    # named were never created at all; the ones actually in use reached 9.9 GB
+    # and 40+ entries, shared by BOTH arms of each A/B. Clearing all of them is
+    # correct whichever end of the list the server takes.
+    raws = re.findall(r"--kv-cache-dir\s+(\S+)", text)
+    if not raws:
         return
-    raw = match.group(1).strip().strip("\\").strip('"').strip("'")
+    cleaned = []
+    for raw in raws:
+        raw = raw.strip().strip("\\").strip('"').strip("'")
+        if raw not in cleaned:
+            cleaned.append(raw)
+    if len(cleaned) > 1:
+        print(f"--- WARNING: launch command sets --kv-cache-dir {len(cleaned)} "
+              f"times: {cleaned}. The server uses the LAST ({cleaned[-1]}); "
+              f"clearing all of them. Fix the config — two arms of an A/B that "
+              f"share a cache dir are not independent measurements. ---")
+    for raw in cleaned:
+        _clear_one_kv_dir(raw)
+
+
+def _clear_one_kv_dir(raw):
     path = pathlib.Path(os.path.expanduser(raw))
     # Only ever delete inside the project's own runtime root -- never follow a
     # config into an arbitrary path.
