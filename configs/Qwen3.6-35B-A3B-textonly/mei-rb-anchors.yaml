@@ -1,0 +1,206 @@
+# COLD RE-RUN of the anchors A/B on the SHIPPING engine (vmlx 44461ffd).
+#
+# The original A/B is void. Both its arms passed --kv-cache-dir twice; the
+# server takes the last value and run_bench.py's cleaner took the first, so the
+# runner deleted a directory the server never opened and each arm ran against a
+# shared, never-cleared cache. The per-arm dirs it claimed to clear did not
+# exist on disk; the shared one held 9.9 GB across 40+ entries. Neither arm was
+# cold and the arms were not independent of each other — and contamination
+# toward a common behaviour is exactly what produces the "zero task cost"
+# result that was reported. Fixed in ab2c5d2 plus a guard over all 30 configs.
+#
+# This arm therefore differs from its sibling in exactly one way: the anchor
+# count. Both name the model and take everything else from the profile, so
+# prefill step, generation cap and architecture handling cannot drift apart.
+# The noanchors arm overrides --ssm-anchor-boundaries 0 explicitly; the anchors
+# arm takes the profile's shipping value.
+#
+# Also on the rolled-back pin, because the sync (23551729) changes generation
+# on 8 of 10 token-recorded tasks and costs a stable task. Measuring a default
+# on an engine the release will not ship is how the vision default ended up
+# needing this re-run in the first place.
+#
+# ANCHORS A/B on the SECOND target model. The entire anchors investigation ran
+# on Ornith; Mei targets three models and its profile applies per model, so
+# enablement could in principle be per-model. This tests whether the divergence
+# and its cost reproduce on Qwen3.6 text-only, which shares the qwen3_5_moe
+# hybrid topology.
+#
+# Prompt suite only (--coding-suites none): the 10 token-recorded tasks are the
+# reliable channel — they showed 0/10 variation across same-config repeats on
+# Ornith — and they run in ~15 min rather than ~40.
+#
+# Served from the 0.4.2 build so it matches the Ornith measurements.
+# THIS ARM: anchors ON.
+
+model: Tostibrown/Qwen3.6-35B-A3B-4bit-textonly
+# TEXT-ONLY derivative of mlx-community/Qwen3.6-35B-A3B-4bit — the vision tower
+# (333 tensors, 851.8 MiB) and the `vision_config` key were removed by
+# tools/strip_vision_tower.py in the mei research worktree, 2026-09-06.
+# Published: https://huggingface.co/Tostibrown/Qwen3.6-35B-A3B-4bit-textonly
+#
+# WHY THIS EXISTS AS A SEPARATE CONFIG, not a replacement: removing
+# `vision_config` also changes which vmlx factory claims the bundle. A1
+# (results-mei/A1-diagnostic-20260906T165513Z) showed stock Qwen3.6 loads
+# through the VLM Qwen35MoE path, while Ornith is rejected by the VLM factory
+# for a missing preprocessor_config.json and falls through to the LLM path.
+# The strip removes that same sidecar, so this bundle takes the LLM path.
+#
+# MEASURED, not assumed (B1, results-mei/B1-qwen36-textonly-vs-stock-20260906T171156Z):
+# both bundles passed 3/3 acceptance, 3/3 short decode and 3/3 30k-context
+# repeats. Text-only short decode ~61.85 tok/s vs stock ~49.95 (+23.8%);
+# loaded active memory 19.551 GB vs 20.444 GB (-0.83 GiB, exactly the vision
+# tower). No post-load healer mutation on the text-only bundle.
+#
+# This config records SETUP ONLY. It carries no quality/benchmark numbers of
+# its own — this is its first full benchmark run.
+#
+# PORT NOTE: port 8024 is shared with configs/Ornith-1.5-35B-A3B/mei.yaml,
+# configs/Qwen3.6-35B-A3B/mei.yaml and the Nemotron mei config. NEVER run any
+# two of them concurrently.
+temperature: 0.6
+reasoning_mode: thinking   # emit-reasoning true (native reasoning_content); Qwen3.8 sibling convention
+inference_engine: mei
+mei_commit: 44461ffdf8dca836b624b2d0d268c800dedea05e  # shipping pin (0.4.2's engine)
+mei_source_commit: bd0a06dac978c6b375aec544b56c79c045ccc942  # mei-050 feat/0.5.0-dev after the pin rollback
+source_revision: 38740b847e4cb78f352aba30aa41c76e08e6eb46  # mlx-community/Qwen3.6-35B-A3B-4bit resolved HF commit; corrected provenance.json now records the same pinned revision + config_sha256 a822a9e8…
+model_bytes: 19509024480   # text-only: 18.17 GiB, 1757 tensors (matches Ornith exactly); 333 vision tensors / 851.8 MiB removed
+quant_family: MLX 4-bit affine g64 (mlx-community; qwen3_5_moe conditional-generation arch), 8-bit router gates
+context_cap: 65536
+prefill_step_size: 1024
+# 2026-09-09: raised 512 -> 1024 after a measured sweep + a 65k survival gate.
+# 512 was the long-context safeguard for hybrid GatedDelta models, not a speed
+# choice. On the real 20k Hermes prompt (measured on Ornith, same family):
+#   512 -> 340 tok/s prefill (TTFT 59.9 s); 1024 -> 389 (52.4 s); 2048 -> 419 (48.7 s)
+# 2048 REJECTED: 27.41 GB MLX peak at 65k vs a 26.8 GB recommended working set.
+# This model gated separately at 1024 (results-mei/prefill-65k-gate-qwen-*):
+# 65k fresh prefill and the cache-reuse extension both pass.
+tool_call_path: native_mei_requires_live_probe
+
+  # C1 (2026-09-07): VMLX_ENABLE_UNSAFE_COMPILE=1 enables vmlx's shapeless
+  # micro-fusions (compiledSwiGLU/GeGLU/SigmoidGate + the Qwen35 helpers), which
+  # HardwareInfo.isCompiledDecodeSupported otherwise gates off.
+  # MEASURED, same binary both legs, round-robin ordering, warm-up, n=10, quiet
+  # machine: Ornith short decode 66.36 -> 72.32 tok/s (+9.0%, sd 0.55/0.53,
+  # non-overlapping), 30k 40.36 -> 41.45 (+2.7%); Qwen3.6 text-only 66.65 ->
+  # 73.21 (+9.8%), 30k 41.93 -> 43.38 (+3.5%).
+  # CORRECTNESS GATE PASSED: four 700-token greedy temp-0 generations
+  # token-for-token identical to control on both models, plus an identical
+  # native tool call. This is the gate that matters -- the flag's documented
+  # failure mode is SILENT numerical corruption, not a crash.
+  # Its default-off reason is Osaurus #1173 (decode corruption after switching
+  # models inside one process); Mei is one-model-per-server-process, so that is
+  # structurally unreachable here. Residual risk is the macOS Tahoe Metal JIT
+  # bug (MLX #3329/#3201/#3256). RE-VERIFY TOKEN EQUALITY AFTER ANY VMLX RE-PIN.
+  # 2026-09-09: MOVED TO THE RELEASED 0.4.0 BUILD — --build-dir mei-build-040,
+  # --mei-repo ~/projects/mei-040 (Mei 0.4.0, vmlx 654eb455 = mei/0.4.0). This
+  # is what `brew install tijs/tap/mei` now ships, so the benchmark measures the
+  # released artifact instead of a local main-branch tree. Prefix reuse is
+  # present in this build but DEFAULT OFF and not enabled here.
+  # Superseded note, kept for the record:
+  # 2026-09-07: build-dir moved to mei-build-030. PROVENANCE CORRECTION
+  # (2026-09-08): this build dir is NOT the 0.3.0 release pin. start_mei_server.sh
+  # builds from --mei-repo, default ~/projects/mei, whose Package.swift pins vmlx
+  # 91fed8be; mei-build-030/checkouts/vmlx-swift is at 91fed8be. The 2026-09-07
+  # benchmark rows were therefore served by Mei main + vmlx 91fed8be, not by
+  # release/0.3.0 (vmlx e37d1d59 = fork main + 37 upstream commits). Those rows
+  # are internally consistent and remain the valid baseline for THIS
+  # configuration; only the earlier comment was wrong. To run the 0.3.0 pin
+  # instead, pass --mei-repo /Users/tijs/projects/mei-release, and re-verify C1
+  # token equality on that pin first. Release gate:
+  # probe_mei 12/12 on Ornith; C1 token-equality re-verified on this pin.
+# 2026-09-10 RUNAWAY BOUND: --max-tokens 32768 -> 8192.
+# One request in the 2026-09-09 23:40 run generated 32,768 tokens and hit the
+# cap after 1,156 s. That single request burned 19.3 of the 40.1 minutes of
+# generation in the WHOLE run, and the coding suite came in at 54.6 min against
+# 25.7 min for the run before it on the same build. It is the explanation for
+# the 2.8x run-to-run swing recorded in Kiem note 0071538b -- not thermals, not
+# page-cache eviction, not a systematic overhead.
+# Across all coding rows this costs Mei 14.5% of total wall (268 of 1856 min,
+# 26 outlier tasks) against llama.cpp's 0.7% (35 of 4925 min, 9 tasks).
+# 8192 cannot truncate legitimate work here: per request, p99 is 2,933 tokens
+# and the largest non-degenerate completion in that run was 4,674. Hermes's own
+# bench profile caps its turns at 4,096; this only bounds callers that send no
+# max_tokens at all. A degenerate turn still fails its task, so quality
+# measurement is unaffected -- only the wall-clock damage is bounded.
+benchmark_launch_command: |
+  env VMLX_ENABLE_UNSAFE_COMPILE=1 VMLX_FUSED_GATE_UP_CACHE_LIMIT_BYTES=0 \
+  bash runner/start_mei_server.sh --model-dir /Users/tijs/.local/share/local-model-bench/mei-models/Qwen3.6-35B-A3B-4bit-textonly \
+    --served-model-id Tostibrown/Qwen3.6-35B-A3B-4bit-textonly --port 8024 --context-cap 65536 \
+    --prefill-step-size 1024 --max-tokens 8192 \
+    --kv-cache-dir /Users/tijs/.local/share/local-model-bench/mei-runtime/kv-q36-anchors \
+    --cache-reuse true \
+    --request-log /Users/tijs/.local/share/local-model-bench/mei-runtime/logs/requests-q36-anchors.jsonl \
+    --log-requests true \
+    --ssm-anchor-boundaries 2 \
+    --temperature 0.6 --top-p 0.95 --top-k 20 --emit-reasoning true --cache-reuse true \
+    --build-dir /Users/tijs/.local/share/local-model-bench/mei-build-042 \
+    --mei-repo /Users/tijs/projects/mei-rc
+benchmark_endpoint: http://127.0.0.1:8024/v1
+
+orchestration:
+  raw_port: 8024          # SHARED with Ornith mei.yaml — never run concurrently
+  needs_proxy: false   # native tool_calls required; probe_mei.py gates this.
+  hermes_provider: bench-mei   # existing bench-profile provider wired to port 8024;
+                               # run_fixture_suite passes served_model_id explicitly
+                               # so it can drive this exploratory candidate without
+                               # modifying the provider's default model.
+  served_model_id: Tostibrown/Qwen3.6-35B-A3B-4bit-textonly
+  viable: full
+
+settings:
+  - name: artifact_identity
+    value: "Tostibrown/Qwen3.6-35B-A3B-4bit-textonly — TEXT-ONLY derivative of
+      mlx-community/Qwen3.6-35B-A3B-4bit @ 38740b847e4cb78f352aba30aa41c76e08e6eb46.
+      19,509,024,480 on-disk bytes / 1757 tensors (identical count to Ornith),
+      4 safetensors shards, config_sha256
+      ac8c9c4a36ce2205ada3cf938002166529403475f830e4366c818c18569f78b0, arch
+      Qwen3_5MoeForConditionalGeneration, model_type qwen3_5_moe. Produced by
+      tools/strip_vision_tower.py: 333 vision_tower tensors (851.8 MiB) and the
+      vision_config key removed; every retained tensor payload sha256-verified
+      bit-identical to source; 0 unaligned tensors, data segment 8-aligned.
+      Staged at ~/.local/share/local-model-bench/mei-models/Qwen3.6-35B-A3B-4bit-textonly.
+      Published: https://huggingface.co/Tostibrown/Qwen3.6-35B-A3B-4bit-textonly"
+    source: "mei-models/Qwen3.6-35B-A3B-4bit-textonly.provenance.json +
+      conversion-provenance.json in the published repo; B1 evidence at
+      results-mei/B1-qwen36-textonly-vs-stock-20260906T171156Z/."
+  - name: vmlx_swift_pin
+    value: "91fed8be21319f92ce5220622c6dcde0b851bdae (Mei Package.resolved, tijs/vmlx-swift fork)"
+    source: "~/projects/mei/Package.resolved."
+  - name: mei_source_pin
+    value: "67e897e2160d80be65d2e2c2ff15746d4130ad72 — Mei streaming multi-tool-call SSE-index fix (2026-09-05). This config pins the verified FIXED local build at ~/.local/share/local-model-bench/mei-build-030 (not an unverified remote build): --build-dir in benchmark_launch_command resolves exactly there."
+    source: "Verified fixed binary/build; mei-build-030/release/mei."
+  - name: quant_family
+    value: "MLX 4-bit affine, group 64, with 8-bit router gates (per quantization config: language_model.model.layers.N.mlp.gate / shared_expert_gate at bits 8); qwen3_5_moe conditional-generation architecture (40 layers, hybrid GatedDelta Mamba + rotating attention)"
+    source: "mei-models/Qwen3.6-35B-A3B-4bit.provenance.json (quant_bits 4, quant_group_size 64, quant_mode affine; full per-layer gate quantization map)."
+  - name: prefill_chunking
+    value: "GenerateParameters.prefillStepSize = 512 (start_mei_server.sh default; chunked-prefill long-context safeguard for the hybrid GatedDelta architecture, same convention as the Ornith Mei config)"
+    source: "Mei Engine makeParameters / vmlx-swift TokenIterator prefillStepSize; config still requires a bounded prefill-step sweep on the clean-GPU gate before full admission."
+  - name: fused_gate_up_cache_disabled
+    value: "REQUIRED env VMLX_FUSED_GATE_UP_CACHE_LIMIT_BYTES=0 in benchmark_launch_command — the SwitchGLU lazy fused gate+up concat cache (Libraries/MLXLMCommon/SwitchLayers.swift ensureFusedGateUp) engages on this MoE and retains large memory; launch command carries the env explicitly (same convention as Ornith/Qwen3.6 sibling research)."
+    source: "Mei repo artifacts (Ornith 35B fuse-gateup elimination 20260902); convention inherited from configs/Ornith-1.5-35B-A3B/mei.yaml."
+  - name: kv_cache
+    value: "fp16 KV with EXPLICIT disk-tier dir /Users/tijs/.local/share/local-model-bench/mei-runtime/kv-qwen36-textonly — qwen3_5_moe hybrid (MambaCache + RotatingKVCache) cannot restore from the paged in-memory tier (needsDiskKVTier excludes qwen3_5_moe), so without --kv-cache-dir every chat turn cold-prefills (cached_tokens=0). Disk tier restores the gen-suffix-stripped boundary; --kv-bits is a no-op for this hybrid topology."
+    source: "Mei runtime/cache behavior inherited from the Ornith disk-KV research (configs/Ornith-1.5-35B-A3B/mei.yaml settings.disk_kv_tier_required); launch command carries the explicit dir."
+  - name: context_and_generation_caps
+    value: "65536 prompt tokens (exact-cap gate); up to 32768 generated tokens"
+    source: "Mei ServerConfig contextCap/maxTokensDefault; probe_mei.py exact-token gate (verified live: exact 65536 boundary passed)."
+  - name: in_process_kv_reuse
+    value: "cache-reuse true — exact-extension token-prefix slot; usage.prompt_tokens_details.cached_tokens reports the reused prefix (verified live on the candidate's gate)"
+    source: "Mei Engine SlotDecision; probe_mei.py cache_repeat probes (12/12 pass, results-mei/<model>/)."
+  - name: native_tool_call_parser
+    value: "must pass both non-streaming and streaming add_numbers schema probes; no benchmark proxy/parser shim. Verified live on this candidate's gate (streaming + non-streaming native tool calls)."
+    source: "runner/probe_mei.py; candidate gate results (results-mei/<model>/)."
+  - name: benchmark_sampling
+    value: "temperature 0.6, top-p 0.95, top-k 20, emit-reasoning true, max 32768 tokens — matches the Ornith Mei convention (only the port/model-dir/KV-dir differ)"
+    source: "configs/Ornith-1.5-35B-A3B/mei.yaml + runner/start_mei_server.sh defaults."
+
+known_gaps:
+  - "EXPLORATORY CANDIDATE. The bounded gate passed (12/12 acceptance probes, native streaming + non-streaming tool calls, cache reuse, exact 65536 context boundary) — evidence is in results-mei/<model>/, NOT copied into this config or any benchmark log. A full benchmark run of this config is REQUIRED before the model can be admitted as a comparable Mei result."
+  - "Qwen3.6 is a conditional-generation / vision-language checkpoint (Qwen3_5MoeForConditionalGeneration, model_type qwen3_5_moe, image_token_id present). The gate exercised the TEXT/TOOL path only; image conditioning was NOT benchmarked. Report results with this scope caveat."
+  - "The source checkpoint/file total before first Mei load was 20402204271; SafetensorsStorageHealer added 457 header bytes in place without changing the 20401929952-byte tensor payload. The benchmarked on-disk copy and corrected provenance manifest now verify 20402204728 bytes."
+  - "Port 8024 is ALSO assigned to Ornith-1.5-35B-A3B mei.yaml. These configs must never run concurrently; a single local Mei server per run (enforced by unload_all.sh + the exact served_model_id identity gate)."
+  - "Live status and artifact paths are recorded in ~/.local/share/local-model-bench/results-mei/ after the acceptance gate; config existence alone is not proof of a completed benchmark."
+  - "Metal kernel library (mlx.metallib) is provisioned by scripts/prepare_metallib.sh: the local Xcode lacks the metallib archiver, so the adjacent-version Python mlx wheel metallib is used."
+  - "Bench runtime build provenance applies as recorded in the four active Mei configs: the mei-build-030 scratch dir is the verified fixed build used here; a future scratch build resolves vmlx-swift from the local vmlx-swift clone unless the pinned build dir is used."
+last_updated: 2026-09-06
