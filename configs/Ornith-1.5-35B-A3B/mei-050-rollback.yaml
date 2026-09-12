@@ -1,0 +1,106 @@
+# 0.5.0 ON THE ROLLED-BACK ENGINE — the test of a prediction, not a confirmation.
+#
+# mei-050-profile.yaml ran 0.5.0 on the upstream sync pin (vmlx 23551729) and
+# lost hermes_ops-multi-step-chain, a task outside this model's noise floor,
+# with a trajectory byte-identical to the sync A/B from the day before. This
+# config is the same 0.5.0 with the pin rolled back to 0.4.2's engine
+# (44461ffd), which is the capture-fix tip and a strict ancestor of the sync.
+#
+# Two predictions, both falsifiable by this run:
+#   1. hermes_ops-multi-step-chain returns to PASS. If it does not, the failure
+#      is not attributable to the pin and the analysis in Kiem 179001ab is wrong.
+#   2. Against mei-042.yaml, the 10 token-recorded tasks show ZERO generation
+#      differences. Same engine, same model, same four effective settings — the
+#      only remaining difference is that the settings arrive from
+#      --model-profile instead of from flags. Any difference here means the
+#      selection path is not the no-op the banner readback says it is.
+#
+# Prediction 2 is the regression test 0.5.0-7 was actually asking for. The
+# earlier arm could not make it: it changed the engine and the selection path
+# at the same time.
+#
+# 0.5.0 REGRESSION GATE: the same server settings, selected by NAME.
+#
+# This config exists to answer one question: does `--model-profile
+# ornith-1.5-35b-a3b` serve the model the same way the flag wall did? It is the
+# one-variable counterpart to mei-042.yaml — identical model dir, port, caps,
+# sampling and KV dir; the ONLY difference is that prefill step, anchor count
+# and the generation cap arrive from the named profile instead of from flags.
+#
+# Equivalence is established deterministically before the suite runs, because
+# config parsing is deterministic and a benchmark is an expensive way to read a
+# variable. `--model-profile ornith-1.5-35b-a3b` resolves to prefill 1024,
+# ssm-anchors 0, max-tokens 8192, optimization profile ornith — the same four
+# values mei-042.yaml passes by hand. The startup banner prints all of them, so
+# the suite's server log is the readback, not an assumption.
+#
+# Two defects were found getting here, both of which would have shipped in
+# 0.5.0 and neither of which a passing suite would have revealed:
+#
+#   1. The profile left prefillStepSize nil and inherited the ARCHITECTURE
+#      default of 512, while every Ornith number this project quotes was
+#      measured at 1024. Chunked prefill is not answer-invariant here, so that
+#      is an output change, not just a slower one. Mei 8c6f5d9.
+#   2. start_mei_server.sh forwarded hardcoded --prefill-step-size 512 and
+#      --max-tokens 32768 unconditionally, which are EXPLICIT flags to Mei and
+#      therefore beat the profile. A profile-only config would have been served
+#      at neither the profile's numbers nor the flag wall's. Fixed in 8f67c6c;
+#      this config is the first one that depends on that fix being right.
+#
+# Anchors are 0 here, which is the profile's measured choice for THIS model and
+# not a default: they cut prefill 4.64 -> 2.82 s/turn but cost
+# hermes_ops-multi-step-chain 0/3 across three run pairs on Ornith. Both
+# Qwen3.6 profiles ship anchors 2 for the same reason in reverse — measured,
+# per model. That per-model split is the entire point of naming the model.
+#
+# Compare against mei-042.yaml, not against a wall-clock target. The suite's
+# noise floor on this model is 6 of 25 tasks (runner/compare_runs.py
+# UNSTABLE_BY_MODEL), so read a delta on the 19 stable tasks and treat wall
+# time as uncomparable across trajectories of different length.
+model: ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit
+temperature: 0.6
+reasoning_mode: unspecified
+inference_engine: mei
+mei_commit: 44461ffdf8dca836b624b2d0d268c800dedea05e  # vmlx-swift pin rolled back to 0.4.2's engine (Mei 0b2fd62)
+mei_source_commit: 0b2fd6274363b16b79c29a2af88cda41f21e658f  # mei-050 feat/0.5.0-dev HEAD after the pin rollback; start_mei_server.sh builds the WORKING TREE
+source_revision: ddce5cd6e3d8bc720a5bac5a68c22f406f90403d  # Tostibrown/Ornith-1.5-35B-A3B-MLX-4bit-aligned
+model_bytes: 19508431001
+quant_family: MLX 4-bit (ornith-ai official, naturally-aligned repack)
+context_cap: 65536
+prefill_step_size: 1024   # from the profile, NOT from a flag
+tool_call_path: native_mei_requires_live_probe
+benchmark_launch_command: |
+  env VMLX_ENABLE_UNSAFE_COMPILE=1 VMLX_FUSED_GATE_UP_CACHE_LIMIT_BYTES=0 \
+  bash runner/start_mei_server.sh --model-dir /Users/tijs/.local/share/local-model-bench/mei-models/Ornith-1.5-35B-A3B-MLX-4bit-aligned \
+    --served-model-id ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit --port 8024 --context-cap 65536 \
+    --model-profile ornith-1.5-35b-a3b \
+    --kv-cache-dir /Users/tijs/.local/share/local-model-bench/mei-runtime/kv-ornith-050rb \
+    --temperature 0.6 --top-p 0.95 --top-k 20 --emit-reasoning true --cache-reuse true \
+    --request-log /Users/tijs/.local/share/local-model-bench/mei-runtime/logs/requests-ornith-050rb.jsonl \
+    --log-requests true \
+    --build-dir /Users/tijs/.local/share/local-model-bench/mei-build-050rb \
+    --mei-repo /Users/tijs/projects/mei-050
+benchmark_endpoint: http://127.0.0.1:8024/v1
+
+orchestration:
+  raw_port: 8024
+  needs_proxy: false   # native tool_calls required; probe_mei.py gates this.
+  hermes_provider: bench-mei
+  served_model_id: ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit
+  viable: full
+
+settings:
+  - name: settings_selection_path
+    value: "prefill step 1024, ssm-anchor-boundaries 0, max-tokens 8192 and the ornith optimization profile all arrive from --model-profile ornith-1.5-35b-a3b; no flag in the launch command sets any of them. This is the one variable under test."
+    source: "Mei Sources/MeiCore/ModelTuning.swift (ModelTuningRegistry.all); readback in the startup banner line 'mei: optimization profile ... prefill N ... ssm-anchors K'."
+  - name: baseline_for_comparison
+    value: "configs/Ornith-1.5-35B-A3B/mei-042.yaml — the shipped 0.4.2 flag-wall config with the same four effective values."
+    source: "Both launch blocks; runner/compare_runs.py with the Ornith 6-task noise floor."
+  - name: alignment_backing_store
+    value: "SERVED FROM the aligned repack, now published as Tostibrown/Ornith-1.5-35B-A3B-MLX-4bit-aligned @ ddce5cd6. The profile declares requiresAlignedWeights, so Mei warns at startup if the directory is not 8-byte aligned — a second readback that this run is on the artifact the settings were measured on."
+    source: "Mei Sources/MeiCore/ModelArtifactCheck.swift; tools/publish_aligned_repack.py."
+
+known_gaps:
+  - "This config tests the SELECTION PATH, not new server behaviour. If it matches mei-042.yaml within the noise floor, the claim supported is 'naming the model reproduces the flag wall' — not 'profiles are faster', which they are not meant to be on this model."
+  - "Port 8024 is shared with every other Ornith/Qwen3.6 Mei config; never run concurrently."
+last_updated: 2026-09-12
