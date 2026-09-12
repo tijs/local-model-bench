@@ -27,7 +27,8 @@ echo "UNIT TEST GATE repo=$REPO branch=$(git branch --show-current) head=$(git r
 # next to the test binary. It is a genuine test, just not a non-Metal one.
 SUITES=(ServerConfigParsingTests OpenAITypesTests ToolArgumentNormalizerTests
         SSMAnchorBoundariesTests CacheRestoreTrackerTests
-        RouterSSEToolCallIndexingTests)
+        RouterSSEToolCallIndexingTests
+        ModelPullTests ModelArtifactCheckTests)
 status=0
 for suite in "${SUITES[@]}"; do
   out=$(swift test --filter "$suite" 2>&1)

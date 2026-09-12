@@ -28,20 +28,48 @@ REPO = Path(__file__).resolve().parent.parent
 
 # Flipped under an IDENTICAL config in at least one measured repeat pair.
 # A pass/fail change on one of these is not evidence about a build.
-UNSTABLE = {
-    "kipclip_mini-merge",    # flipped in 3 of 3 same-config pairs
-    "hearth_full-feature",   # 2 of 3
-    "kiem_mini-parse-note",  # 2 of 3
-    "hearth_mini-feature",   # 1 of 3
-    # Added 2026-09-12. The first list came from two same-config pairs and was
-    # too optimistic: a third pair (step512 rep1 vs rep2, identical config and
-    # build) flipped BOTH of these, with wall times of 467 s and 637 s against
-    # ~90 s when they pass. Treating them as stable produced a spurious
-    # "step 512 costs 2 stable tasks" reading. A four-task list inferred from
-    # two pairs was always going to under-count; expect this to grow again.
-    "kiem_mini-debug",
-    "kiem_mini-rename",
+# Tasks that flip between runs of an IDENTICAL config. Measured per model:
+# applying one model's list to another assumes they fail in the same places,
+# and they do not. Ornith's floor is 3 of 25; Qwen3.6 vision's is 5 of 25 and
+# includes two hermes_ops tasks Ornith never varies on.
+UNSTABLE_BY_MODEL = {
+    "Ornith-1.5-35B-A3B": {
+        "kipclip_mini-merge",      # 2 of 2 pairs
+        "hearth_full-feature",     # 2 of 2
+        "kiem_mini-parse-note",    # 1 of 2
+        "hearth_mini-feature",     # 1 of 2
+        "kiem_mini-debug",         # added after a third pair
+        "kiem_mini-rename",        # added after a third pair
+    },
+    # Measured over three same-config coding runs: 5, 4 and 3 flips per pair.
+    # Each of these flipped in 2 of the 3 pairs. Only two of them
+    # (kipclip_mini-merge, kiem_mini-parse-note) are also unstable on Ornith,
+    # which is why one model's list must never be applied to another.
+    "Qwen3.6-35B-A3B": {
+        "hermes_ops-multi-step-chain",
+        "hermes_ops-persistent-failure",
+        "kiem_mini-feature",
+        "kiem_mini-parse-note",
+        "kipclip_mini-merge",
+        "kipclip_mini-testwrite",
+        # added after measuring the ANCHORS arm too: a set derived from one
+        # arm only under-counts, which made two pairs look like a -2 cost
+        "kiem_mini-debug",
+        "hearth_full-feature",
+    },
 }
+
+
+def unstable_for(config_path):
+    """The measured list for this model, or None if nobody measured one.
+
+    Matches the config's parent DIRECTORY exactly. A substring match silently
+    scored Qwen3.6-35B-A3B-textonly with the vision model's list, because one
+    name contains the other — the same class of error this per-model table
+    exists to prevent.
+    """
+    model = Path(config_path).parent.name
+    return UNSTABLE_BY_MODEL.get(model)
 
 
 def load_runs(suffix):
@@ -74,7 +102,12 @@ def main():
     a, b = ra[args.index_a], rb[args.index_b]
 
     common = sorted(set(a) & set(b))
-    stable = [t for t in common if t not in UNSTABLE]
+    unstable = unstable_for(args.config_a)
+    if unstable is None:
+        print("WARNING: no same-config noise floor has been measured for this "
+              "model, so every task is scored. A delta here may be noise.")
+        unstable = set()
+    stable = [t for t in common if t not in unstable]
     pa = sum(1 for t in stable if a[t]["pass"])
     pb = sum(1 for t in stable if b[t]["pass"])
 
@@ -99,8 +132,8 @@ def main():
         print("   (these tasks never varied across same-config repeats,")
         print("    so a difference here is attributable to the change under test)")
 
-    print(f"\nUNSTABLE, NOT SCORED ({len(UNSTABLE & set(common))}):")
-    for t in sorted(UNSTABLE & set(common)):
+    print(f"\nUNSTABLE, NOT SCORED ({len(unstable & set(common))}):")
+    for t in sorted(unstable & set(common)):
         print(f"   {t:30s} A={a[t]['pass']} B={b[t]['pass']}")
 
     print("\nWall time is deliberately not compared: it swung 31% (35.8 -> 46.9 min)")

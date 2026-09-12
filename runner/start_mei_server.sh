@@ -34,7 +34,9 @@ Options:
                             (default: none -> in-memory paged tier only; the
                             qwen3_5_moe/Ornith hybrid requires this tier for
                             cross-turn reuse — cached_tokens stays 0 without it)
-  --optimization-profile PROFILE  Mei optimization profile: auto|generic|ornith
+  --model-profile NAME   Mei model profile (Mei 0.5.0+): selects the measured
+                       settings for a supported model — architecture, prefill
+                       step, anchors and generation cap together.
                             (default: none -> not passed; Mei auto picks it.
                             generic is the Nemotron gate operating point)
   --memory-limit-bytes N    Explicit MLX allocator limit in bytes
@@ -81,7 +83,7 @@ ENABLE_THINKING=""
 CACHE_REUSE="true"
 KV_BITS=""
 KV_CACHE_DIR=""
-OPTIMIZATION_PROFILE=""
+MODEL_PROFILE=""
 MEMORY_LIMIT_BYTES=""
 CACHE_LIMIT_BYTES=""
 COMPILED_DECODE=""
@@ -111,7 +113,7 @@ while [[ $# -gt 0 ]]; do
     --cache-reuse) CACHE_REUSE="${2:?missing value}"; shift 2 ;;
     --kv-bits) KV_BITS="${2:?missing value}"; shift 2 ;;
     --kv-cache-dir) KV_CACHE_DIR="${2:?missing value}"; shift 2 ;;
-    --optimization-profile) OPTIMIZATION_PROFILE="${2:?missing value}"; shift 2 ;;
+    --model-profile) MODEL_PROFILE="${2:?missing value}"; shift 2 ;;
     --memory-limit-bytes) MEMORY_LIMIT_BYTES="${2:?missing value}"; shift 2 ;;
     --cache-limit-bytes) CACHE_LIMIT_BYTES="${2:?missing value}"; shift 2 ;;
     --compiled-decode) COMPILED_DECODE="${2:?missing value}"; shift 2 ;;
@@ -165,7 +167,7 @@ ARGS=(--model-dir "$MODEL_DIR" --served-model-id "$SERVED_MODEL_ID"
 [[ -n "$ENABLE_THINKING" ]] && ARGS+=(--enable-thinking "$ENABLE_THINKING")
 [[ -n "$KV_BITS" ]] && ARGS+=(--kv-bits "$KV_BITS")
 [[ -n "$KV_CACHE_DIR" ]] && ARGS+=(--kv-cache-dir "$KV_CACHE_DIR")
-[[ -n "$OPTIMIZATION_PROFILE" ]] && ARGS+=(--optimization-profile "$OPTIMIZATION_PROFILE")
+[[ -n "$MODEL_PROFILE" ]] && ARGS+=(--model-profile "$MODEL_PROFILE")
 [[ -n "$MEMORY_LIMIT_BYTES" ]] && ARGS+=(--memory-limit-bytes "$MEMORY_LIMIT_BYTES")
 [[ -n "$CACHE_LIMIT_BYTES" ]] && ARGS+=(--cache-limit-bytes "$CACHE_LIMIT_BYTES")
 [[ -n "$COMPILED_DECODE" ]] && ARGS+=(--compiled-decode "$COMPILED_DECODE")
