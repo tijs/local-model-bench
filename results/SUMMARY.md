@@ -735,6 +735,32 @@ the split point is the shared-prefix boundary and cannot be balanced.
 
 Reproducer: 43 tokens, one request, ~1 s per leg — `runner/probes/`.
 
+### Measured on all three models: the cost is per-model, the speedup is not
+
+The anchors question was settled by A/B on every target model, same protocol
+each time (three prompt-suite pairs, then a coding pair):
+
+| model | prefill/turn | cold >15k prefills | quality cost |
+|---|---|---|---|
+| Ornith 1.5 35B-A3B | 4.64 → 2.82 s (−39%) | 8 → 1 | **1 stable task**, 3/3 pairs |
+| Qwen3.6 35B-A3B text-only | 4.60 → 2.23 s (−52%) | 8 → 2 | **zero**, 4 comparisons |
+| Qwen3.6 35B-A3B vision | 3.81 → 1.79 s (−53%) | 8 → 1 | **zero**, 3 pairs |
+
+All three change generated output — that part is architectural, and expected
+given chunked prefill is not bit-reproducible on a GPU. But only Ornith pays a
+task for it, and the task it loses (`hermes_ops-multi-step-chain`) is the one
+that flips under any perturbation.
+
+So the answer is per-model, which is what `--model-profile` in Mei 0.5.0 exists
+to express: anchors on for both Qwen3.6 variants, off for Ornith.
+
+**A measurement trap worth repeating.** Comparing a single rep of the vision
+model showed prefill 1.36 s vs 1.43 s — no win at all — because that rep's
+no-anchors arm happened to contain no cold prefill. Aggregated over three reps
+it is 3.81 vs 1.79. Cold prefills are ~8 events in ~180 runs, so any single rep
+may contain none; a quantity driven by rare expensive events cannot be compared
+on one sample.
+
 ### The decision, which is a judgement call
 
 - **A. Ship anchors**, accepting −1/19 stable tasks for an 18–36% overhead cut.
