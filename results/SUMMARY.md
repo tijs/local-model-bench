@@ -645,6 +645,92 @@ stays exact with 422 tokens of tail, and an A/B exonerated this fix of the
 adaptive boundary's divergence (both builds diverge there identically). It is
 independent of the adaptive stable boundary, which is **not** adoptable.
 
+## Per-turn overhead: where it went, and what blocks the fix (2026-09-12)
+
+The objective was to close Mei's per-turn overhead gap against llama.cpp. It is
+closed **in mechanism** and blocked **in practice**, and the blocker is now
+root-caused.
+
+### The decomposition, on the build that would ship
+
+`runner/analyze_request_log.py` over an instrumented 0.4.2 run, 197 generation
+runs, 37.6 min span:
+
+| component | share | per turn |
+|---|---|---|
+| prefill | 40.5% | 4.64 s |
+| generate | 47.3% | 5.42 s |
+| server gap | 2.2% | 0.26 s |
+| harness between turns (not Mei) | 9.9% | 1.14 s |
+
+The server gap — the part that would indicate a bug — is already negligible.
+**Prefill is the entire story**, and it is concentrated: 8 cold prefills of >15k
+tokens account for 46% of all prefill time at 52.6 s each, i.e. 18.6% of the
+suite's wall in eight requests. They are cold reads of the ~20k system+tools
+preamble.
+
+### The fix exists and is switched off
+
+`--ssm-anchor-boundaries` restores that preamble. One-variable A/B, reproduced
+across two independent pairs:
+
+| | no-anchors | anchors |
+|---|---|---|
+| cold >15k prefills | 8 | 1 |
+| prefill/turn | 4.64 / 4.44 s | 2.82 / 2.83 s |
+| **Mei-side overhead/turn** | **4.90 s** | **3.11 s** |
+
+Do **not** quote wall time for this: two runs of an identical config came in at
+35.8 and 46.9 min, a 31% swing. Per-turn prefill reproduces to two significant
+figures; wall does not.
+
+### Why it is not enabled
+
+Anchors change what the model writes. Measured over three run pairs, the cost is
+exactly one stable task (`hermes_ops-multi-step-chain`) — but the count is the
+weak part of the evidence, because that task flips under *any* numerical
+perturbation. The **failure mode** is what matters:
+
+| build | result | tokens | behaviour |
+|---|---|---|---|
+| 0.4.2 | PASS | 4,505 | correct sequence |
+| upstream sync | FAIL | 5,693 | wanders, still inspects code |
+| anchors | FAIL | 1,353 | **never calls `search_files`/`read_file`/`patch`** |
+
+On the restored path the model stops investigating, consistent with a 49% token
+collapse across the prompt suite.
+
+### Root cause
+
+Enabling anchors splits the prefill to capture a snapshot. Five hypotheses were
+tested and rejected — general segmentation, `VMLX_GDN_STRICT`, grid alignment,
+chunk-sequence equivalence, and the snapshot copy (proven innocent: discarding
+the snapshot reproduces the anchors output exactly). What remains is that a scan
+over N steps in one kernel invocation and two scans over N1+N2 use different
+blocking and therefore a different floating-point accumulation order. FP addition
+is not associative; greedy decoding turns a last-bit difference into a different
+token. The recurrent state is fp32 throughout, so this is not a dtype-rounding
+bug — it is inherent to the kernels as written.
+
+Reproducer: 43 tokens, one request, ~1 s per leg — `runner/probes/`.
+
+### The decision, which is a judgement call
+
+- **A. Ship anchors**, accepting −1/19 stable tasks for an 18–36% overhead cut.
+  The cost is measured, bounded and reproducible.
+- **B. Keep anchors off.** The shipped path stays at 4.90 s/turn.
+- **C. Make the recurrent kernels segmentation-invariant.** Highest value,
+  highest cost, uncertain — the one attempt in-tree (`strict`) does not achieve it.
+
+### A caveat on the reference number
+
+The llama.cpp figure this is measured against (~2.9 s/turn of non-generating
+time) comes from **earlier analysis in this project, not from a like-for-like
+re-measurement with the instrumentation used above**. llama-server has no
+`--request-log` equivalent; only 10 rows in `log.jsonl` carry its backend
+timings, and those are per-task sums rather than per-turn. Treat "parity" as
+approximate until a matched per-turn measurement exists for the llama.cpp lane.
+
 ## Where the detail lives
 
 - [`results/HISTORY.md`](HISTORY.md) — every superseded finding, comparison,
