@@ -29,10 +29,18 @@ REPO = Path(__file__).resolve().parent.parent
 # Flipped under an IDENTICAL config in at least one measured repeat pair.
 # A pass/fail change on one of these is not evidence about a build.
 UNSTABLE = {
-    "kipclip_mini-merge",    # 2/2 pairs
-    "hearth_full-feature",   # 2/2 pairs
-    "kiem_mini-parse-note",  # 1/2 pairs
-    "hearth_mini-feature",   # 1/2 pairs
+    "kipclip_mini-merge",    # flipped in 3 of 3 same-config pairs
+    "hearth_full-feature",   # 2 of 3
+    "kiem_mini-parse-note",  # 2 of 3
+    "hearth_mini-feature",   # 1 of 3
+    # Added 2026-09-12. The first list came from two same-config pairs and was
+    # too optimistic: a third pair (step512 rep1 vs rep2, identical config and
+    # build) flipped BOTH of these, with wall times of 467 s and 637 s against
+    # ~90 s when they pass. Treating them as stable produced a spurious
+    # "step 512 costs 2 stable tasks" reading. A four-task list inferred from
+    # two pairs was always going to under-count; expect this to grow again.
+    "kiem_mini-debug",
+    "kiem_mini-rename",
 }
 
 
