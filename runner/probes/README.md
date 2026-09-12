@@ -117,3 +117,46 @@ floating-point accumulation order; FP addition is not associative. Greedy
 decoding turns a last-bit difference into a different token whenever two
 candidates are close. `VMLX_GDN_STRICT` changes accumulation granularity but
 cannot make two blockings agree. See Kiem `d926806a`.
+
+
+# Dense chunk invariance
+
+```
+runner/probes/dense_chunk_invariance.sh <artifact-dir>
+```
+
+Shows that chunked-prefill non-invariance is **general to transformers**, not
+something about the hybrid recurrent path. Runs on a dense, attention-only model
+(`qwen2`, 24 layers, no recurrent state), varying only `--prefill-step-size`:
+
+| step size | content hash |
+|---|---|
+| 1024 | `39fcc0e17a1d` |
+| 8 | `c0fb395f1d4b` |
+| 4 | `2d0b6e9d8f75` |
+
+Three chunk sizes, three different answers, each reproducible 2/2 within itself.
+Re-run from a clean checkout hours later, the hashes came back byte-identical.
+
+**It needs a model the repo does not ship.** Fetch it once:
+
+```
+uv run --locked python -c "from huggingface_hub import snapshot_download; \
+  snapshot_download('mlx-community/Qwen2.5-0.5B-Instruct-4bit', \
+  local_dir='$HOME/.local/share/local-model-bench/mei-models/Qwen2.5-0.5B-Instruct-4bit')"
+```
+
+~300 MB, under a minute. Any small dense MLX model works; the point is only that
+it has no recurrent layers.
+
+**Compare content, never token counts, here.** Every leg hits `max_tokens`, so
+`completion_tokens` is 300 in all of them and a count comparison reads as
+"identical". The script hashes the content for exactly this reason.
+
+## Why these probes exist at all
+
+The anchors divergence turned out **not** to be a Mei or vmlx bug. Any engine
+that chunks prefill on a GPU has this property — different chunk shapes give
+different matmul reduction orders and therefore different last bits, which greedy
+decoding turns into a different token. `--ssm-anchor-boundaries` simply changes
+the chunking. See Kiem `ce6dc824`.
