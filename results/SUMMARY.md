@@ -702,15 +702,29 @@ collapse across the prompt suite.
 
 ### Root cause
 
-Enabling anchors splits the prefill to capture a snapshot. Five hypotheses were
-tested and rejected — general segmentation, `VMLX_GDN_STRICT`, grid alignment,
-chunk-sequence equivalence, and the snapshot copy (proven innocent: discarding
-the snapshot reproduces the anchors output exactly). What remains is that a scan
-over N steps in one kernel invocation and two scans over N1+N2 use different
-blocking and therefore a different floating-point accumulation order. FP addition
-is not associative; greedy decoding turns a last-bit difference into a different
-token. The recurrent state is fp32 throughout, so this is not a dtype-rounding
-bug — it is inherent to the kernels as written.
+Enabling anchors splits the prefill to capture a snapshot. Hypotheses tested and
+rejected: `VMLX_GDN_STRICT`, grid alignment, chunk-sequence equivalence, and the
+snapshot copy (proven innocent — discarding the snapshot reproduces the anchors
+output exactly).
+
+**The cause is not specific to Mei, vmlx, or recurrent models.** A dense,
+attention-only model (qwen2, 24 layers, no recurrent state) shows the same
+effect: three prefill step sizes give three different outputs, each perfectly
+reproducible within itself. Chunked prefill on a GPU is not bit-reproducible
+across chunk sizes, almost certainly because attention matmul tiling changes the
+reduction order. Every engine that chunks prefill has this property.
+
+An earlier version of this section blamed floating-point non-associativity in
+the *recurrent* scan. That was wrong: the gated-delta kernel holds state in float
+registers and round-trips it through fp32 memory losslessly, its per-step
+arithmetic does not depend on sequence length, and the dense model reproduces the
+divergence with no recurrent layers at all.
+
+What still distinguishes anchors from an ordinary step-size change is how
+**asymmetric** the split is. Changing the step size keeps uniform chunks and
+costs +0 stable tasks; the anchor split at 20,375 on a 20,406-token prompt leaves
+a 31-token tail, a shape the regular grid never produces. That is structural —
+the split point is the shared-prefix boundary and cannot be balanced.
 
 Reproducer: 43 tokens, one request, ~1 s per leg — `runner/probes/`.
 
@@ -719,8 +733,11 @@ Reproducer: 43 tokens, one request, ~1 s per leg — `runner/probes/`.
 - **A. Ship anchors**, accepting −1/19 stable tasks for an 18–36% overhead cut.
   The cost is measured, bounded and reproducible.
 - **B. Keep anchors off.** The shipped path stays at 4.90 s/turn.
-- **C. Make the recurrent kernels segmentation-invariant.** Highest value,
-  highest cost, uncertain — the one attempt in-tree (`strict`) does not achieve it.
+- ~~**C. Make the recurrent kernels segmentation-invariant.**~~ **Ruled out.**
+  The divergence reproduces on a dense attention-only model, so fixing the
+  recurrent kernels would not address it. The real ask is shape-independent
+  deterministic matmul reductions across the attention stack — not a Mei or vmlx
+  project. **The choice is A or B.**
 
 ### The objective's own metric, both sides measured
 
