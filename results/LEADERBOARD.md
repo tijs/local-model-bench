@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/3398 rows below predate 2026-08-21
+> **⚠ 138/3442 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -205,7 +205,9 @@ means no usable timestamp was recoverable from that group's rows.
 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | — | 0.6 | thinking | n/a | 2/2 | [2e8b1d29956e](configs/2e8b1d29956e.yaml) — *config since changed* | 3e8f2dbb5101+dirty | 23 | 100% | 2 | 57.9 | 43.44 | 0 | 8.9 | 12 | 1.3 | MLX 4-bit affine g64 (mlx-community; qwen3_5_moe conditional-generation arch), 8-bit router gates | — | — | 5212 |
 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | — | 0.6 | thinking | n/a | — | [3421f91401ab](configs/3421f91401ab.yaml) — *config since changed* | 0869b8310378 | 21 | 95% | 2 | 44.0 | 63.27 | 0 | 8.1 | 14 | 1.1 | MLX 4-bit affine g64 (mlx-community; qwen3_5_moe conditional-generation arch), 8-bit router gates | — | — | 3718 |
 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | — | 0.6 | thinking | n/a | 2/2 | [3421f91401ab](configs/3421f91401ab.yaml) — *config since changed* | 244380d4563e+dirty | 2 | 100% | 0 | 81.5 | 33.35 | 0 | — | 0 | 1.0 | MLX 4-bit affine g64 (mlx-community; qwen3_5_moe conditional-generation arch), 8-bit router gates | — | — | 146 |
+| Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | — | 0.6 | thinking | n/a | 4/4 | [4eacff1c767c](configs/4eacff1c767c.yaml) | 6c00a8bde9cb | 18 | 94% | 0 | 56.4 | 2.13 | 0 | 12.5 | 3 | 1.4 | MLX 4-bit affine g64 (mlx-community; qwen3_5_moe conditional-generation arch), 8-bit router gates | — | — | 1347 |
 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | — | 0.6 | thinking | n/a | 2/2 | [4eacff1c767c](configs/4eacff1c767c.yaml) | 8cd7401034db | 9 | 89% | 0 | 55.9 | 7.30 | 0 | 9.0 | 1 | 1.3 | MLX 4-bit affine g64 (mlx-community; qwen3_5_moe conditional-generation arch), 8-bit router gates | — | — | 320 |
+| Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | — | 0.6 | thinking | n/a | 4/4 | [510c3d1a44eb](configs/510c3d1a44eb.yaml) | 6c00a8bde9cb | 18 | 100% | 0 | 57.2 | 2.13 | 0 | 11.0 | 2 | 1.3 | MLX 4-bit affine g64 (mlx-community; qwen3_5_moe conditional-generation arch), 8-bit router gates | — | — | 1399 |
 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | — | 0.6 | thinking | n/a | 2/2 | [510c3d1a44eb](configs/510c3d1a44eb.yaml) | 8cd7401034db | 9 | 89% | 0 | 58.0 | 43.49 | 0 | 16.0 | 5 | 1.2 | MLX 4-bit affine g64 (mlx-community; qwen3_5_moe conditional-generation arch), 8-bit router gates | — | — | 939 |
 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | — | 0.6 | thinking | n/a | 2/2 | [d39c29f2d74b](configs/d39c29f2d74b.yaml) | 19250cc2f87b | 23 | 96% | 2 | 57.9 | 43.49 | 0 | 8.2 | 5 | 1.2 | MLX 4-bit affine g64 (mlx-community; qwen3_5_moe conditional-generation arch), 8-bit router gates | — | — | 2976 |
 | anthropic/claude-haiku-4.5 | openrouter | — | None | unspecified | n/a | 2/2 | [6cc890a25129](configs/6cc890a25129.yaml) | 6474518120ce+dirty | 19 | 89% | 0 | 55.0 | 1.72 | 0 | 16.6 | 22 | — | — | — | — | 855 |
@@ -481,6 +483,7 @@ confirmed-stable, just untested for flakiness.
 
 | model | engine | quant | config | suite | task | pass/trials |
 |---|---|---|---|---|---|---|
+| Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | — | 4eacff1c767c | kiem_mini | kiem_mini-feature | 1/2 |
 | mlx-community/Qwen3.8-27B-4bit | mlx | — | f894953f1f80 | hermes_ops | hermes_ops-selection | 1/2 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 4a5ab6337f9f | kiem_mini | kiem_mini-debug | 1/2 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 4a5ab6337f9f | kiem_mini | kiem_mini-parse-note | 1/2 |
@@ -705,9 +708,15 @@ confirmed-stable, just untested for flakiness.
 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | 3421f91401ab | 0869b8310378 | kipclip_mini | 4/4 |
 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | 3421f91401ab | 244380d4563e+dirty | hermes_ops | 2/2 |
 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | 3421f91401ab | 244380d4563e+dirty | sanity | 2/2 |
+| Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | 4eacff1c767c | 6c00a8bde9cb | hermes_ops | 16/16 |
+| Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | 4eacff1c767c | 6c00a8bde9cb | kiem_mini | 1/2 |
+| Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | 4eacff1c767c | 6c00a8bde9cb | sanity | 4/4 |
 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | 4eacff1c767c | 8cd7401034db | hermes_ops | 8/8 |
 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | 4eacff1c767c | 8cd7401034db | kiem_mini | 0/1 |
 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | 4eacff1c767c | 8cd7401034db | sanity | 2/2 |
+| Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | 510c3d1a44eb | 6c00a8bde9cb | hermes_ops | 16/16 |
+| Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | 510c3d1a44eb | 6c00a8bde9cb | kiem_mini | 2/2 |
+| Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | 510c3d1a44eb | 6c00a8bde9cb | sanity | 4/4 |
 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | 510c3d1a44eb | 8cd7401034db | hermes_ops | 8/8 |
 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | 510c3d1a44eb | 8cd7401034db | kiem_mini | 0/1 |
 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | 510c3d1a44eb | 8cd7401034db | sanity | 2/2 |
