@@ -1034,6 +1034,27 @@ And "4-bit vs 4-bit" was never like-for-like: MLX affine g64 is 4.46 bpw against
 Q4_K_M's 4.96, and `_M` selectively promotes sensitive tensors (`attn_v`,
 `ffn_down`) to 6-bit — close to the inverse of what DWQ upgraded.
 
+**Closed 2026-09-13: bit placement was tested too, and it is not the lever
+either.** A mixed 4/6 build promoting `down_proj` and all attention — precisely
+the tensors Q4_K_M targets and the ones DWQ left at 4-bit — scores **1/13**
+against the shipped 4-bit's 1/10, at −13% decode.
+
+| scheme | build | `kiem_mini-testwrite` |
+|---|---|---|
+| MLX affine | uniform 4-bit | 1/10 |
+| MLX affine | mixed 4/8 (DWQ) | 0/3 |
+| MLX affine | mixed 4/6 (Q4_K_M's targets) | 1/13 |
+| MLX affine | uniform 8-bit (9B) | 0/3 |
+| **GGUF K-quant** | Q4_K_M (Ornith) | **2/6** |
+| **GGUF K-quant** | Q8_0 (9B) | **3/3** |
+
+Four MLX affine variants across 4, 4/6, 4/8 and 8 bits all sit at or below 10%;
+two GGUF K-quants reach 33% and 100%. Bit count, bit placement and model size
+are each eliminated by a direct experiment. The one untested arm is calibration
+— an AWQ build, the MLX analogue of an importance matrix — and the only Qwen3.6
+AWQ checkpoint is 24.2 GB against this machine's 24.1 GB MLX limit, so it needs
+more RAM rather than more time.
+
 So the differentiator is the algorithm, not the container and not the bit count:
 llama.cpp's K-quants use two-level block scales and are commonly built with
 importance-matrix calibration, where MLX affine is data-free round-to-nearest
