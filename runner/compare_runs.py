@@ -62,20 +62,22 @@ UNSTABLE_BY_MODEL = {
         "kiem_mini-feature",
         "kiem_mini-parse-note",
     },   # 3 tasks, union over both arms, 2 cold runs each
-    # NOT re-derived. Ornith's configs always used separate KV dirs, so this
-    # set is not known to be contaminated — but it was never measured from a
-    # same-config repeat either, and an earlier measurement put the suite-wide
-    # floor at 3 before this became 6. Re-measure before relying on it:
-    #   runner/gates/measure_noise_floor.py configs/Ornith-1.5-35B-A3B/<cfg>.yaml
-    # needs two complete runs of one config, which no Ornith config has yet.
+    # Measured from two cold runs of mei-050-rollback.yaml. Was 6, inferred
+    # from arm-internal flips; four of those six never flip when nothing
+    # changes. That mattered: rescoring the Ornith anchors A/B against this
+    # floor gives delta -3 rather than -2, because the inflated set was
+    # excluding kiem_mini-debug, a task anchors actually break. An inflated
+    # floor does not merely add noise tolerance — it hides regressions.
+    #
+    # CAVEAT: measured on the anchors-OFF arm only. Every other model's entry
+    # is a union across both arms; mei-042-anchors.yaml has just one complete
+    # run, so a second would be needed to match that methodology. Treat this as
+    # a lower bound on the floor, which makes any delta scored against it an
+    # upper bound on the cost.
     "Ornith-1.5-35B-A3B": {
-        "kipclip_mini-merge",
         "hearth_full-feature",
-        "kiem_mini-parse-note",
-        "hearth_mini-feature",
-        "kiem_mini-debug",
         "kiem_mini-rename",
-    },   # 6 tasks, UNVERIFIED — derived from arm-internal flips, not repeats
+    },   # 2 tasks, measured; one arm only — see caveat above
 }
 
 
