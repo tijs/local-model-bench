@@ -1026,7 +1026,16 @@ Three independent lines agree:
 | Ornith, same weights: GGUF Q4_K_M vs MLX 4-bit | 2/6 vs **0/40** |
 | Qwen3.5-9B, same weights: GGUF Q8_0 vs MLX 8-bit | 3/3 vs **0/3** |
 | Qwen3.6-35B, MLX mixed 4/8 affine (DWQ) | **0/3** |
-| every MLX model, all time | **4/69** |
+| every MLX uniform 4-bit model, all time (7-model scope, excl. mixed/8-bit legs) | **4/69** |
+
+Scope of the 4/69 aggregate: the seven config-declared *uniform 4-bit affine g64*
+Mei models, all time, `kiem_mini-testwrite` — it deliberately excludes the
+mixed-precision and 8-bit legs that are also MLX (DWQ mixed 4/8 **0/3**,
+EigenLabs mixed46 **1/13**, Qwen3.5-9B 8-bit **0/3**); tallying every Mei row
+of any quant gives 5/88. Every number above — including the 2/6, 0/40, 3/3 and
+0/3 cells — reproduces mechanically from `results/log.jsonl` via
+`uv run --locked python runner/quant_ledger_audit.py --check` (audit:
+`artifacts/quant-ledger-audit-20260913.md`).
 
 Adding bits *inside* the affine scheme changes nothing — DWQ raised embeddings,
 attention and the router to 8-bit and scored 0/3 while costing 17% of decode.
