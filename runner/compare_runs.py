@@ -72,10 +72,15 @@ def unstable_for(config_path):
     return UNSTABLE_BY_MODEL.get(model)
 
 
-def load_runs(suffix):
-    """Every complete 25-task run of one config, oldest first."""
+def load_runs(config_path):
+    """Every complete 25-task run of one config, oldest first.
+
+    Compares config_path EXACTLY. An endswith() match on a bare filename
+    collapses two models whose configs share a name.
+    """
     rows = [json.loads(l) for l in (REPO / "results" / "log.jsonl").open() if l.strip()]
-    rs = [r for r in rows if (r.get("config_path") or "").endswith(suffix)]
+    want = str(config_path)
+    rs = [r for r in rows if (r.get("config_path") or "") == want]
     rs.sort(key=lambda r: r["timestamp"])
     out, cur = [], None
     for r in rs:
@@ -95,7 +100,13 @@ def main():
     ap.add_argument("--index-b", type=int, default=-1)
     args = ap.parse_args()
 
-    ra, rb = load_runs(Path(args.config_a).name), load_runs(Path(args.config_b).name)
+    # Match the config's FULL path, not its basename. Passing
+    # Path(...).name meant "mei-rb-noanchors.yaml" resolved across BOTH
+    # Qwen3.6 models, so index -1 silently scored whichever of them ran last:
+    # asking for the vision A/B after the text-only one finished would have
+    # compared two text-only runs and labelled them vision. Same class of
+    # error as the substring match this file's unstable_for() already fixed.
+    ra, rb = load_runs(args.config_a), load_runs(args.config_b)
     for label, runs in ((args.config_a, ra), (args.config_b, rb)):
         if not runs:
             raise SystemExit(f"no complete 25-task run found for {label}")
