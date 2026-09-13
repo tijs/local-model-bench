@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/4014 rows below predate 2026-08-21
+> **⚠ 138/4029 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -126,6 +126,7 @@ means no usable timestamp was recoverable from that group's rows.
 | model | engine | quant | temp (coding only)¹ | reasoning | reasoning effort⁶ | sanity gate⁴ | config | runner | tasks | pass rate⁴ | slow passes² | avg tok/s | avg TTFT (s) | hallucinated tools⁵ | avg coding turns³ | coding tool errors³ | peak RSS (GB) | quant family | cache | MTP | total runtime (s)⁷ |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | AtomicChat/Laguna-XS-2.1-MLX-5bit | mei | — | 1.0 | thinking | n/a | 2/2 | [d65c8f880447](configs/d65c8f880447.yaml) — *config since changed* | 3e8f2dbb5101+dirty | 8 | 25% | 0 | 19.0 | 68.39 | 0 | — | 0 | 1.2 | MLX 5-bit affine g64 with 8-bit router gates (per staged config.json quantization/quantization_config) | — | — | 871 |
+| EigenLabs/Qwen3.6-35B-A3B-MLX-mixed-4bit | mei | — | 0.6 | thinking | n/a | — | [4f91b7aee214](configs/4f91b7aee214.yaml) | 377e1af4c7cf | 15 | 67% | 0 | — | — | 0 | 10.6 | 24 | 1.1 | MLX affine mixed — down/up/gate half at 6-bit, all attention 6-bit, embed 5-bit, group 64 | — | — | 2433 |
 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [6fa6f52fdc56](configs/6fa6f52fdc56.yaml) — *config since changed* | 5fc289161e34 | 8 | 75% | 0 | 43.9 | 7.05 | 0 | — | 0 | 23.1 | — | — | — | 342 |
 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [6fa6f52fdc56](configs/6fa6f52fdc56.yaml) — *config since changed* | 6bb085a043fe | 19 | 84% | 3 | 43.8 | 7.05 | 0 | 15.8 | 30 | 23.6 | — | — | — | 2272 |
 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | — | [6fa6f52fdc56](configs/6fa6f52fdc56.yaml) — *config since changed* | 8e7b1897f7e8+dirty | 11 | 91% | 1 | — | — | 0 | — | 0 | 23.8 | — | — | — | 2309 |
@@ -507,6 +508,9 @@ confirmed-stable, just untested for flakiness.
 
 | model | engine | quant | config | suite | task | pass/trials |
 |---|---|---|---|---|---|---|
+| EigenLabs/Qwen3.6-35B-A3B-MLX-mixed-4bit | mei | — | 4f91b7aee214 | kiem_mini | kiem_mini-debug | 2/3 |
+| EigenLabs/Qwen3.6-35B-A3B-MLX-mixed-4bit | mei | — | 4f91b7aee214 | kiem_mini | kiem_mini-parse-note | 1/3 |
+| EigenLabs/Qwen3.6-35B-A3B-MLX-mixed-4bit | mei | — | 4f91b7aee214 | kiem_mini | kiem_mini-testwrite | 1/3 |
 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | — | 4eacff1c767c | kiem_mini | kiem_mini-feature | 1/2 |
 | mlx-community/Qwen3.5-9B-8bit | mei | — | 2a1f92cdbc6a | kiem_mini | kiem_mini-feature | 2/3 |
 | mlx-community/Qwen3.5-9B-8bit | mei | — | 2a1f92cdbc6a | kiem_mini | kiem_mini-parse-note | 1/2 |
@@ -541,6 +545,7 @@ confirmed-stable, just untested for flakiness.
 |---|---|---|---|---|---|
 | AtomicChat/Laguna-XS-2.1-MLX-5bit | mei | d65c8f880447 | 3e8f2dbb5101+dirty | hermes_ops | 2/8 |
 | AtomicChat/Laguna-XS-2.1-MLX-5bit | mei | d65c8f880447 | 3e8f2dbb5101+dirty | sanity | 2/2 |
+| EigenLabs/Qwen3.6-35B-A3B-MLX-mixed-4bit | mei | 4f91b7aee214 | 377e1af4c7cf | kiem_mini | 10/15 |
 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | 6fa6f52fdc56 | 5fc289161e34 | hermes_ops | 6/8 |
 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | 6fa6f52fdc56 | 5fc289161e34 | sanity | 2/2 |
 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | 6fa6f52fdc56 | 6bb085a043fe | hearth_mini | 3/3 |
