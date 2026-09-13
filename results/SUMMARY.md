@@ -886,3 +886,69 @@ of all prefill time, 1.74 s/turn spread over the run, against a 1.68 s/turn gap.
 The residual *is* those eight prefills. Anchors remove them and land 2.57 s/turn,
 at parity; on Ornith they cost one stable task, which is why its profile ships
 `anchors: 0`.
+
+## 2026-09-13 — 0.5.0 shipped, and every noise floor was wrong
+
+### The anchors table, re-measured cold
+
+The 0.5.0 table was built on A/Bs whose two arms shared one never-cleared KV
+cache. Re-measured with per-arm cold caches, two independent pairs per model:
+
+| model | anchors | prefill/turn | cost | was claimed |
+|---|---|---|---|---|
+| Qwen3.6 text-only | **on** | 5.20 → 3.04 s (−42%) | none, all 25 tasks | −52%, zero |
+| Ornith 1.5 | off | 4.64 → 2.82 s (−39%) | 3 stable tasks | −39%, 1 task |
+| Qwen3.6 vision | off | 4.36 → 3.40 s (−22%) | 1 stable task, both pairs | −53%, zero |
+
+Contamination flattered the anchors arm more than the noanchors arm, so it
+overstated the benefit everywhere it reached. Vision's claimed −53% is −22%.
+
+Where anchors hurt they do not produce a worse answer — they stop the model
+calling tools. Vision's loss is deterministic: 272 completion tokens and a
+successful `patch` call without anchors, 2401 tokens and an *empty* tool-call
+list with them, identical across repeats in both arms.
+
+### Every noise floor was inflated, and that hid a real regression
+
+A floor is "tasks that flip between two runs of one config, nothing changed".
+The sets in use were inferred from arm-internal flips on contaminated runs:
+
+| model | assumed | measured | scored tasks |
+|---|---|---|---|
+| Qwen3.6 vision | 8 | 4 | 17 → 21 |
+| Ornith | 6 | 2 | 19 → 23 |
+| Qwen3.6 text-only | none | 3 | 25 → 22 |
+
+Rescoring Ornith's anchors A/B against its measured floor gives **−3, not −2**:
+`kiem_mini-debug` is a task anchors break that the inflated floor was excluding.
+An inflated floor does not add noise tolerance — it removes tasks from the
+comparison, and a regression inside it is invisible.
+
+Structural finding: across five measured configs, **every** flipping task is a
+fixture/coding task. Zero hermes_ops, zero sanity — matching the independent
+result that all 10 token-recorded tasks reproduce exactly across repeats. A
+hermes_ops delta of 1 is signal; a coding delta of 1–2 is not.
+
+`runner/gates/measure_noise_floor.py` now computes these and refuses to report a
+floor from fewer than two complete runs.
+
+### Per-turn overhead, shipped configurations
+
+| model | anchors | Mei-side overhead |
+|---|---|---|
+| Qwen3.6 text-only | 2 | 2.97 + 0.30 = **3.27 s/turn** |
+| Ornith | 0 | 4.30 + 0.29 = 4.59 s/turn |
+| Qwen3.6 vision | 0 | 4.40 + 0.29 = 4.69 s/turn |
+| llama.cpp Ornith Q4_K_M | — | 2.62 s/request |
+
+Server gap is 0.29–0.30 s on every model and both anchor settings: 6–7% of
+overhead. The rest is prefill. The objective was written at ~16 s/turn against
+~2.9 s; the gap is now 1.25–1.8×, and what remains on the two anchors-off models
+is a priced quality trade, not an unsolved engineering problem.
+
+### 0.5.0 does not ship the upstream vmlx sync
+
+It costs `hermes_ops-multi-step-chain` deterministically — two runs on that pin,
+different configs and days, produced byte-identical failing trajectories — and
+changes generation on 8 of 10 token-recorded tasks. Rolled back to `44461ffd`,
+which is the prefix-capture tip, so no cache fix was given up.
