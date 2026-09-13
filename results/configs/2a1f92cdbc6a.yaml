@@ -1,0 +1,64 @@
+# Qwen3.5-9B at uniform 8-bit — the small-model / more-bits experiment.
+#
+# Two questions at once.
+#
+# QUALITY. kiem_mini-testwrite is the task that separates engines here, and the
+# GGUF Q8_0 build of this exact model passes it 3/3 where every MLX 4-bit model
+# we run is 4/69. DWQ already ruled out "more bits inside the MLX affine scheme"
+# on the 35B: mixed 4/8 scored 0/3 and cost 17% of decode. This run tests small
+# model + uniform 8-bit, still MLX affine. If it also fails, the scheme is
+# implicated rather than the size or the bit count.
+#
+# MEMORY. This is the more interesting half for a user. Every model Mei ships
+# peaks near 24.5 GB on a 32 GB machine, leaving ~7.5 GB for everything else —
+# Mei effectively owns the machine. A 9B at 8-bit should peak near 13 GB and
+# leave ~19 GB, which is the difference between "the only thing running" and
+# "runs alongside an IDE, a browser and a test suite". Judge this as a trade:
+# quality given up per GB handed back, not against a pass threshold.
+#
+# DECODE IS THE RISK, and it is not obviously a win. This model is DENSE
+# (qwen3_5, no expert keys, 32 layers), so it activates all 9B parameters per
+# token where the 35B-A3B MoE activates 3B, and 8-bit weights move twice the
+# bytes per parameter of 4-bit. Smaller does not imply faster. DWQ is the
+# cautionary case: same file size, 17% slower, because per-token traffic rose.
+#
+# It also ships WITH a vision tower (vision_config present). We measured that
+# costing ~18% of decode on pure text for the 35B, so a stripped build would be
+# the production form — worth doing only if the quality holds up.
+#
+# No --model-profile: no profile exists for this model and nobody has measured
+# one. Mei falls back to architecture defaults and says so at startup. That is
+# the honest setup for a first look, not a tuned one.
+model: mlx-community/Qwen3.5-9B-8bit
+temperature: 0.6
+reasoning_mode: thinking
+inference_engine: mei
+mei_commit: 44461ffdf8dca836b624b2d0d268c800dedea05e  # shipping pin (0.4.2's engine)
+quant_family: MLX affine uniform 8-bit, group 64, no per-layer overrides
+context_cap: 65536
+tool_call_path: native_mei_requires_live_probe
+benchmark_launch_command: |
+  env VMLX_ENABLE_UNSAFE_COMPILE=1 VMLX_FUSED_GATE_UP_CACHE_LIMIT_BYTES=0 \
+  bash runner/start_mei_server.sh --model-dir /Users/tijs/.local/share/local-model-bench/mei-models/Qwen3.5-9B-8bit \
+    --served-model-id mlx-community/Qwen3.5-9B-8bit --port 8024 --context-cap 65536 \
+    --max-tokens 8192 \
+    --kv-cache-dir /Users/tijs/.local/share/local-model-bench/mei-runtime/kv-9b \
+    --request-log /Users/tijs/.local/share/local-model-bench/mei-runtime/logs/requests-9b.jsonl \
+    --log-requests true \
+    --temperature 0.6 --top-p 0.95 --top-k 20 --emit-reasoning true --cache-reuse true \
+    --build-dir /Users/tijs/.local/share/local-model-bench/mei-build-050rel \
+    --mei-repo /Users/tijs/projects/mei-bisect
+benchmark_endpoint: http://127.0.0.1:8024/v1
+
+orchestration:
+  raw_port: 8024
+  needs_proxy: false
+  hermes_provider: bench-mei
+  served_model_id: mlx-community/Qwen3.5-9B-8bit
+  viable: full
+
+known_gaps:
+  - "EXPERIMENT. No measured profile, architecture defaults only. Nothing here is a validated setting."
+  - "Ships with a vision tower; a text-only strip would be the production form if this pans out."
+  - "Port 8024 is shared with every other Mei config; never run concurrently."
+last_updated: 2026-09-13

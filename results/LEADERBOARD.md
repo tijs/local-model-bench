@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/3983 rows below predate 2026-08-21
+> **⚠ 138/3999 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -289,6 +289,7 @@ means no usable timestamp was recoverable from that group's rows.
 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | — | 0.6 | thinking | n/a | 2/2 | [d35863fa1b50](configs/d35863fa1b50.yaml) | 258148c2d48a | 23 | 87% | 0 | 50.8 | 8.49 | 0 | 7.9 | 9 | 1.2 | MLX 4-bit affine g64 (mlx-community; qwen3_5_moe conditional-generation arch), 8-bit router gates | — | — | 2638 |
 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | — | 0.6 | thinking | n/a | 2/2 | [e2770ac7d2c4](configs/e2770ac7d2c4.yaml) — *config since changed* | 3e8f2dbb5101+dirty | 23 | 87% | 2 | 47.6 | 44.55 | 0 | 9.5 | 14 | 1.2 | MLX 4-bit affine g64 (mlx-community; qwen3_5_moe conditional-generation arch), 8-bit router gates | — | — | 5712 |
 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | — | 0.6 | thinking | n/a | 2/2 | [e9d6db1b6675](configs/e9d6db1b6675.yaml) — *config since changed* | 39dae7a6ea44 | 0 | n/a (all harness errors) | 0 | 123.7 | 5.87 | 0 | — | 0 | 0.3 | MLX 4-bit affine g64 (mlx-community; qwen3_5_moe conditional-generation arch), 8-bit router gates | — | — | 14 |
+| mlx-community/Qwen3.6-35B-A3B-4bit-DWQ | mei | — | 0.6 | thinking | n/a | — | [b6b5824d3567](configs/b6b5824d3567.yaml) | 1c8ea189fdb2 | 15 | 73% | 1 | — | — | 0 | 9.7 | 30 | 8.8 | MLX DWQ mixed — experts 4-bit, embeddings/attention/router 8-bit, group 64 affine | — | — | 3380 |
 | mlx-community/Qwen3.8-27B-4bit | mei | — | 1.0 | thinking | n/a | 2/2 | [c7f10a958b1e](configs/c7f10a958b1e.yaml) | 7f3de21dba70 | 23 | 87% | 19 | 14.6 | 294.05 | 0 | 11.8 | 9 | 2.0 | MLX 4-bit affine g64 (mlx-community, qwen3_5 arch) | — | — | 22412 |
 | mlx-community/Qwen3.8-27B-4bit | mei | — | 1.0 | thinking | n/a | 2/2 | [d23c67ad6d2d](configs/d23c67ad6d2d.yaml) — *config since changed* | 3496bdf4e3aa | 11 | 55% | 6 | 15.0 | 293.24 | 2 | 5.7 | 1 | 1.8 | MLX 4-bit affine g64 (mlx-community, qwen3_5 arch) | — | — | 7441 |
 | mlx-community/Qwen3.8-27B-4bit | mlx | — | ? | ? | ? | 2/2 | [152424abaa13](configs/Qwen3.8-27B/mlx.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 100% | 0 | 4.9 | 198.83 | 0 | — | 0 | — | ? | ? | ? | 4851 |
@@ -325,6 +326,7 @@ means no usable timestamp was recoverable from that group's rows.
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | 0.6 | unspecified | n/a | 2/2 | [48d75180adbc](configs/48d75180adbc.yaml) — *config since changed* | 9df216e99cd9 | 23 | 96% | 3 | 40.1 | 7.70 | 0 | 15.6 | 20 | 6.7 | — | — | — | 3207 |
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | 0.6 | unspecified | n/a | 2/2 | [86f6177b6c31](configs/86f6177b6c31.yaml) | 06e4834d4bb8 | 23 | 91% | 1 | 39.7 | 7.01 | 0 | 11.0 | 26 | 23.4 | — | — | — | 2696 |
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | 0.6 | thinking | medium | 2/2 | [f51c7e72e2ad](configs/f51c7e72e2ad.yaml) | 0adb046c1c3e+dirty | 23 | 96% | 3 | 42.4 | 7.01 | 0 | 16.8 | 28 | 23.6 | — | — | — | 3504 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | — | — | — | — | — | f5e260cd9925 | 1 | 100% | 0 | 42.5 | 54.48 | 0 | — | 0 | — | — | — | — | 161 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | 2/2 | [0a4370d3d909](configs/0a4370d3d909.yaml) — *config since changed* | 6642492d4afd | 9 | 89% | 1 | 39.6 | 7.01 | 0 | 39.0 | 14 | 1.2 | MLX 4-bit (ornith-ai official) | — | — | 819 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | — | [0a4370d3d909](configs/0a4370d3d909.yaml) — *config since changed* | 7678bd71d022 | 20 | 65% | 2 | 38.2 | 10.75 | 0 | 12.5 | 17 | 1.2 | MLX 4-bit (ornith-ai official) | — | — | 3281 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | — | [0a4370d3d909](configs/0a4370d3d909.yaml) — *config since changed* | 8f1c03e85311 | 5 | 100% | 0 | 44.9 | 12.47 | 0 | — | 0 | 1.3 | MLX 4-bit (ornith-ai official) | — | — | 589 |
@@ -514,6 +516,7 @@ confirmed-stable, just untested for flakiness.
 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | — | a23687499989 | kiem_mini | kiem_mini-parse-note | 1/3 |
 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | — | a23687499989 | kipclip_mini | kipclip_mini-merge | 2/3 |
 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | — | a23687499989 | kipclip_mini | kipclip_mini-testwrite | 2/3 |
+| mlx-community/Qwen3.6-35B-A3B-4bit-DWQ | mei | — | b6b5824d3567 | kiem_mini | kiem_mini-parse-note | 2/3 |
 | mlx-community/Qwen3.8-27B-4bit | mlx | — | f894953f1f80 | hermes_ops | hermes_ops-selection | 1/2 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 4a5ab6337f9f | kiem_mini | kiem_mini-debug | 1/2 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 4a5ab6337f9f | kiem_mini | kiem_mini-parse-note | 1/2 |
@@ -1002,6 +1005,7 @@ confirmed-stable, just untested for flakiness.
 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | e2770ac7d2c4 | 3e8f2dbb5101+dirty | kipclip_mini | 4/4 |
 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | e2770ac7d2c4 | 3e8f2dbb5101+dirty | sanity | 2/2 |
 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | e9d6db1b6675 | 39dae7a6ea44 | sanity | 2/2 |
+| mlx-community/Qwen3.6-35B-A3B-4bit-DWQ | mei | b6b5824d3567 | 1c8ea189fdb2 | kiem_mini | 11/15 |
 | mlx-community/Qwen3.8-27B-4bit | mei | c7f10a958b1e | 7f3de21dba70 | hearth_full | 3/3 |
 | mlx-community/Qwen3.8-27B-4bit | mei | c7f10a958b1e | 7f3de21dba70 | hearth_mini | 3/3 |
 | mlx-community/Qwen3.8-27B-4bit | mei | c7f10a958b1e | 7f3de21dba70 | hermes_ops | 6/8 |
@@ -1135,6 +1139,7 @@ confirmed-stable, just untested for flakiness.
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | f51c7e72e2ad | 0adb046c1c3e+dirty | kiem_mini | 4/5 |
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | f51c7e72e2ad | 0adb046c1c3e+dirty | kipclip_mini | 4/4 |
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | f51c7e72e2ad | 0adb046c1c3e+dirty | sanity | 2/2 |
+| ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | f5e260cd9925 | hermes_ops | 1/1 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | 0a4370d3d909 | 6642492d4afd | hermes_ops | 7/8 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | 0a4370d3d909 | 6642492d4afd | kiem_mini | 1/1 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | 0a4370d3d909 | 6642492d4afd | sanity | 2/2 |
