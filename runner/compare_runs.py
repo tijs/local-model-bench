@@ -33,30 +33,49 @@ REPO = Path(__file__).resolve().parent.parent
 # and they do not. Ornith's floor is 3 of 25; Qwen3.6 vision's is 5 of 25 and
 # includes two hermes_ops tasks Ornith never varies on.
 UNSTABLE_BY_MODEL = {
-    "Ornith-1.5-35B-A3B": {
-        "kipclip_mini-merge",      # 2 of 2 pairs
-        "hearth_full-feature",     # 2 of 2
-        "kiem_mini-parse-note",    # 1 of 2
-        "hearth_mini-feature",     # 1 of 2
-        "kiem_mini-debug",         # added after a third pair
-        "kiem_mini-rename",        # added after a third pair
-    },
-    # Measured over three same-config coding runs: 5, 4 and 3 flips per pair.
-    # Each of these flipped in 2 of the 3 pairs. Only two of them
-    # (kipclip_mini-merge, kiem_mini-parse-note) are also unstable on Ornith,
-    # which is why one model's list must never be applied to another.
+    # MEASURED from repeats of the SAME config on cold, per-arm KV caches
+    # (runner/gates/measure_noise_floor.py). A floor is "tasks that flip when
+    # nothing changed"; anything else is not a floor.
+    #
+    # The previous sets were derived from runs whose two arms shared one
+    # never-cleared cache, and they were wrong in BOTH directions at once. For
+    # Qwen3.6 vision the old set had 8 tasks: four of them
+    # (hermes_ops-multi-step-chain, hermes_ops-persistent-failure,
+    # kiem_mini-debug, kipclip_mini-merge) never flip and were being excluded
+    # from scoring, which HIDES regressions; and it omitted kiem_mini-rename,
+    # which does flip, which MANUFACTURES them. A floor built on contaminated
+    # data is not merely too wide or too narrow — it is uncorrelated.
+    #
+    # Every task below is a fixture/coding task. Across four measured configs,
+    # zero hermes_ops or sanity tasks ever flipped, matching the independent
+    # finding that all 10 token-recorded tasks reproduce exactly across
+    # repeats. So a hermes_ops delta of 1 is signal; a coding delta of 1-2 is
+    # not.
     "Qwen3.6-35B-A3B": {
-        "hermes_ops-multi-step-chain",
-        "hermes_ops-persistent-failure",
+        "hearth_full-feature",
         "kiem_mini-feature",
         "kiem_mini-parse-note",
-        "kipclip_mini-merge",
-        "kipclip_mini-testwrite",
-        # added after measuring the ANCHORS arm too: a set derived from one
-        # arm only under-counts, which made two pairs look like a -2 cost
+        "kiem_mini-rename",
+    },   # 4 tasks, union over both arms, 2 cold runs each
+    "Qwen3.6-35B-A3B-textonly": {
         "kiem_mini-debug",
+        "kiem_mini-feature",
+        "kiem_mini-parse-note",
+    },   # 3 tasks, union over both arms, 2 cold runs each
+    # NOT re-derived. Ornith's configs always used separate KV dirs, so this
+    # set is not known to be contaminated — but it was never measured from a
+    # same-config repeat either, and an earlier measurement put the suite-wide
+    # floor at 3 before this became 6. Re-measure before relying on it:
+    #   runner/gates/measure_noise_floor.py configs/Ornith-1.5-35B-A3B/<cfg>.yaml
+    # needs two complete runs of one config, which no Ornith config has yet.
+    "Ornith-1.5-35B-A3B": {
+        "kipclip_mini-merge",
         "hearth_full-feature",
-    },
+        "kiem_mini-parse-note",
+        "hearth_mini-feature",
+        "kiem_mini-debug",
+        "kiem_mini-rename",
+    },   # 6 tasks, UNVERIFIED — derived from arm-internal flips, not repeats
 }
 
 
