@@ -1,0 +1,65 @@
+# Mixed 4/6 quant — the "right tensors" test, after DWQ tested the wrong ones.
+#
+# EigenLabs/Qwen3.6-35B-A3B-MLX-mixed-4bit. Its per-tensor allocation:
+#
+#     down_proj   40 @ 4-bit, 40 @ 6-bit     <- DWQ left ALL of these at 4-bit
+#     up_proj     40 @ 4-bit, 40 @ 6-bit
+#     gate_proj   40 @ 4-bit, 40 @ 6-bit
+#     q/k/v/o     all 10 @ 6-bit
+#     embed       5-bit
+#
+# Why this and not more bits generally. GGUF Q4_K_M's rule is to promote
+# `attn_v` and `ffn_down` to Q6_K and leave the rest at Q4_K, and it passes
+# kiem_mini-testwrite 2/6 on Ornith where MLX 4-bit affine is 0/40. DWQ raised
+# embeddings, attention and the router to 8-bit while leaving every expert
+# projection — including down_proj, which IS ffn_down on an MoE — at 4-bit, and
+# scored 0/3 while costing 17% of decode. This build promotes down_proj and all
+# attention, which is the allocation Q4_K_M actually uses.
+#
+# So this isolates TARGET from QUANTITY: same scheme (MLX affine, data-free),
+# similar bit budget (20.0 GB against the shipped 19.5), different allocation.
+#
+# What it does NOT test: calibration. Q4_K_M builds are commonly quantised with
+# an importance matrix; MLX affine is data-free round-to-nearest either way. The
+# AWQ build (igorvibes UD-Q4-K-XL-AWQ, activation-aware) is the arm that would
+# test that, and at 24.2 GB it exceeds this machine's 24.1 GB MLX memory limit.
+#
+# A pass here means bit PLACEMENT was the issue and MLX can match Q4_K_M.
+# A failure alongside DWQ's points at the scheme/calibration rather than
+# placement, and closes the quantisation line on this hardware.
+#
+# Already text-only (no vision_config), so no strip step.
+model: EigenLabs/Qwen3.6-35B-A3B-MLX-mixed-4bit
+temperature: 0.6
+reasoning_mode: thinking
+inference_engine: mei
+mei_commit: 44461ffdf8dca836b624b2d0d268c800dedea05e  # shipping pin (0.4.2's engine)
+quant_family: MLX affine mixed — down/up/gate half at 6-bit, all attention 6-bit, embed 5-bit, group 64
+context_cap: 65536
+prefill_step_size: 1024
+tool_call_path: native_mei_requires_live_probe
+benchmark_launch_command: |
+  env VMLX_ENABLE_UNSAFE_COMPILE=1 VMLX_FUSED_GATE_UP_CACHE_LIMIT_BYTES=0 \
+  bash runner/start_mei_server.sh --model-dir /Users/tijs/.local/share/local-model-bench/mei-models/Qwen3.6-35B-A3B-mixed46 \
+    --served-model-id EigenLabs/Qwen3.6-35B-A3B-MLX-mixed-4bit --port 8024 --context-cap 65536 \
+    --model-profile qwen3.6-35b-a3b-text \
+    --kv-cache-dir /Users/tijs/.local/share/local-model-bench/mei-runtime/kv-mixed46 \
+    --request-log /Users/tijs/.local/share/local-model-bench/mei-runtime/logs/requests-mixed46.jsonl \
+    --log-requests true \
+    --temperature 0.6 --top-p 0.95 --top-k 20 --emit-reasoning true --cache-reuse true \
+    --build-dir /Users/tijs/.local/share/local-model-bench/mei-build-050rel \
+    --mei-repo /Users/tijs/projects/mei-bisect
+benchmark_endpoint: http://127.0.0.1:8024/v1
+
+orchestration:
+  raw_port: 8024
+  needs_proxy: false
+  hermes_provider: bench-mei
+  served_model_id: EigenLabs/Qwen3.6-35B-A3B-MLX-mixed-4bit
+  viable: full
+
+known_gaps:
+  - "EXPERIMENT. Settings borrowed from qwen3.6-35b-a3b-text, whose numbers were measured on the plain 4-bit build; that is an assumption this run tests, not a fact."
+  - "Tests bit PLACEMENT only. Calibration (importance matrix / AWQ) is untested — that arm does not fit this machine's 24.1 GB MLX limit."
+  - "Port 8024 is shared with every other Mei config; never run concurrently."
+last_updated: 2026-09-13
