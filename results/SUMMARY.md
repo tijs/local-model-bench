@@ -1002,11 +1002,43 @@ cross-conversation anchors are free.
 | TTFT, warm turn | ~1.3 s | 2.9–3.3 s |
 | peak memory | 24.0 GB (MLX allocator) | 22.8 GB (process RSS) |
 
-**llama.cpp wins on task completion, and that is the quantisation, not the
-engine.** On the same weights, MLX 4-bit scores 91/108 on `hermes_ops` against
-GGUF Q4_K_M's 47/48, the entire gap is two adversarial-mock tasks, and a
-different MLX engine (vllm-mlx) fails the same two. The lever is a better MLX
-quant, not more server work.
+**llama.cpp wins on task completion, and it is the quantisation ALGORITHM —
+proven on identical weights (2026-09-13).**
+
+The cleanest test: Qwen3.5-9B, same base model, same bit budget, only the
+quantiser differs.
+
+| | `kiem_mini-testwrite` |
+|---|---|
+| GGUF Q8_0 (8.5 bpw) | **3/3 pass** |
+| MLX affine 8-bit g64 (8.5 bpw) | **0/3 fail** |
+
+Both MLX failures are the shape every MLX model produces here: mutants 1 and 2
+killed, mutant 3 survives — the case a test catches only if it checks ordering
+*within* each group, not just between groups. Effort is comparable (MLX trial 2
+ran 28 turns and 6506 tokens against GGUF's 22–29 turns and 6198–12622), so the
+MLX build does the same work and writes a weaker test.
+
+Three independent lines agree:
+
+| | result |
+|---|---|
+| Ornith, same weights: GGUF Q4_K_M vs MLX 4-bit | 2/6 vs **0/40** |
+| Qwen3.5-9B, same weights: GGUF Q8_0 vs MLX 8-bit | 3/3 vs **0/3** |
+| Qwen3.6-35B, MLX mixed 4/8 affine (DWQ) | **0/3** |
+| every MLX model, all time | **4/69** |
+
+Adding bits *inside* the affine scheme changes nothing — DWQ raised embeddings,
+attention and the router to 8-bit and scored 0/3 while costing 17% of decode.
+And "4-bit vs 4-bit" was never like-for-like: MLX affine g64 is 4.46 bpw against
+Q4_K_M's 4.96, and `_M` selectively promotes sensitive tensors (`attn_v`,
+`ffn_down`) to 6-bit — close to the inverse of what DWQ upgraded.
+
+So the differentiator is the algorithm, not the container and not the bit count:
+llama.cpp's K-quants use two-level block scales and are commonly built with
+importance-matrix calibration, where MLX affine is data-free round-to-nearest
+per group. **This is an upstream MLX question. No amount of Mei work reaches
+it** — the 0/40 across four engine generations is the proof.
 
 **Mei wins on warm-turn latency, which is most of what an agent does.** Once a
 conversation is going, Mei answers in about a second where llama.cpp takes
