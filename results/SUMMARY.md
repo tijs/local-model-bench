@@ -952,3 +952,67 @@ It costs `hermes_ops-multi-step-chain` deterministically — two runs on that pi
 different configs and days, produced byte-identical failing trajectories — and
 changes generation on 8 of 10 token-recorded tasks. Rolled back to `44461ffd`,
 which is the prefix-capture tip, so no cache fix was given up.
+
+## Choosing an engine and model: the numbers a user actually feels
+
+All figures below are measured, not derived from the leaderboard's `avg tok/s`
+column, which is confounded by harness time between turns for every engine.
+Decode rate, TTFT and peak memory come from Mei's own `--request-log`; task
+counts come from two cold runs of each shipped configuration.
+
+### Which Mei model
+
+| model | images | TTFT, turn 2+ | TTFT, first turn | decode | peak memory | tasks passed |
+|---|---|---|---|---|---|---|
+| Qwen3.6 35B-A3B text-only | no | **1.05 s** | 52 s | **58.3 tok/s** | 24.5 GB | 24, 22 of 25 |
+| Ornith 1.5 35B-A3B | no | 1.28 s | 53 s | 57.1 tok/s | 24.0 GB | 22, 22 of 25 |
+| Qwen3.6 35B-A3B vision | **yes** | 1.07 s | 53 s | 47.7 tok/s | 24.7 GB | 23, 21 of 25 |
+
+**Memory does not distinguish them**: all three are 4-bit MoE checkpoints of
+about 19 GB on disk that peak near 24 GB in use, so all three want a 32 GB
+machine and none of them fits a 16 GB one. Choose on images and speed.
+
+**The vision build costs ~18% decode even on pure text** (47.7 against 58.3
+tok/s) for the same architecture and quantisation. If you do not need image
+input, taking the text-only build is the single largest free win available.
+
+**Every model pays ~52 s on the first turn of a conversation** — that is the
+~20k-token system+tools preamble being read for the first time. After that,
+turns cost about a second. The text-only build is also the only one that avoids
+paying it again in the *next* conversation, because it is the only model where
+cross-conversation anchors are free.
+
+### Mei against llama.cpp, same model family
+
+| | Mei 0.5.0 (Ornith MLX 4-bit) | llama.cpp (Ornith GGUF Q4_K_M) |
+|---|---|---|
+| tasks passed (25) | 22, 22 | 24, 24, 23 |
+| suite wall time | 37–55 min | 44–53 min |
+| TTFT, first turn on a 20k prefix | 53.8 s | 47.2 s |
+| TTFT, warm turn | ~1.3 s | 2.9–3.3 s |
+| peak memory | 24.0 GB (MLX allocator) | 22.8 GB (process RSS) |
+
+**llama.cpp wins on task completion, and that is the quantisation, not the
+engine.** On the same weights, MLX 4-bit scores 91/108 on `hermes_ops` against
+GGUF Q4_K_M's 47/48, the entire gap is two adversarial-mock tasks, and a
+different MLX engine (vllm-mlx) fails the same two. The lever is a better MLX
+quant, not more server work.
+
+**Mei wins on warm-turn latency, which is most of what an agent does.** Once a
+conversation is going, Mei answers in about a second where llama.cpp takes
+three. Wall-time totals are close and not robust — an identical Mei config
+varied 31% between two runs — so treat the wall column as "comparable", not as
+a win either way.
+
+**Caveat on memory:** the two numbers are not measured the same way. MLX
+allocates through Metal and those buffers never appear in process RSS, so Mei's
+figure is the MLX allocator peak and llama.cpp's is RSS. They are the right
+number for each engine but only roughly comparable to each other.
+
+### Short version
+
+Want images: `qwen3.6-35b-a3b`. Otherwise `qwen3.6-35b-a3b-text` — fastest
+decode, lowest latency, and the only model that keeps its prefix across
+conversations. Want the best task completion on this suite and do not mind
+3-second turns: llama.cpp with the GGUF build still edges it, for quantisation
+reasons Mei cannot fix from the server side.
