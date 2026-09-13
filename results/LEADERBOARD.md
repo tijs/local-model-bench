@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/3999 rows below predate 2026-08-21
+> **⚠ 138/4014 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -273,6 +273,8 @@ means no usable timestamp was recoverable from that group's rows.
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | omlx | — | 0.7 | instruct | n/a | 2/2 | [08e51e50397d](configs/08e51e50397d.yaml) — *config since changed* | e155170f4c1d | 8 | 12% | 0 | 22.4 | 79.16 | 0 | — | 0 | 11.5 | MLX 4-bit | cold | off | 2795 |
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | omlx | — | 0.7 | instruct | n/a | 1/2 | [08e51e50397d](configs/08e51e50397d.yaml) — *config since changed* | fc71ba2c66f8+dirty | 0 | n/a (all harness errors) | 0 | — | 0.80 | 0 | — | 0 | — | MLX 4-bit | cold | off | 2 |
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | vllm-mlx | — | 0.7 | instruct | n/a | 2/2 | [fe9f7a44a702](configs/fe9f7a44a702.yaml) — *config since changed* | c17e058823c1 | 8 | 75% | 4 | — | n/a (proxied — not real TTFT) | 0 | — | 0 | 7.2 | — | — | — | 3289 |
+| mlx-community/Qwen3.5-9B-8bit | mei | — | 0.6 | thinking | n/a | — | [2a1f92cdbc6a](configs/2a1f92cdbc6a.yaml) | 483e0addf15f | 4 | 25% | 1 | — | — | 0 | 18.5 | 18 | 15.0 | MLX affine uniform 8-bit, group 64, no per-layer overrides | — | — | 4136 |
+| mlx-community/Qwen3.5-9B-8bit | mei | — | 0.6 | thinking | n/a | — | [2a1f92cdbc6a](configs/2a1f92cdbc6a.yaml) | b8ca4016c0cf | 11 | 36% | 4 | — | — | 0 | 32.1 | 88 | 15.4 | MLX affine uniform 8-bit, group 64, no per-layer overrides | — | — | 12713 |
 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | — | 0.6 | thinking | n/a | — | [277258e7326f](configs/277258e7326f.yaml) | 0cb59d6a039f | 21 | 81% | 0 | 38.3 | 54.61 | 0 | 7.9 | 10 | 1.2 | MLX 4-bit affine g64 (mlx-community; qwen3_5_moe conditional-generation arch), 8-bit router gates | — | — | 3147 |
 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | — | 0.6 | thinking | n/a | 2/2 | [277258e7326f](configs/277258e7326f.yaml) | 258148c2d48a | 25 | 92% | 2 | 46.5 | 46.17 | 0 | 9.2 | 13 | 1.2 | MLX 4-bit affine g64 (mlx-community; qwen3_5_moe conditional-generation arch), 8-bit router gates | — | — | 11806 |
 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | — | 0.6 | thinking | n/a | 2/2 | [277258e7326f](configs/277258e7326f.yaml) | 5d47a2bff59d | 0 | n/a (all harness errors) | 0 | 126.6 | 5.49 | 0 | — | 0 | 0.4 | MLX 4-bit affine g64 (mlx-community; qwen3_5_moe conditional-generation arch), 8-bit router gates | — | — | 13 |
@@ -506,6 +508,9 @@ confirmed-stable, just untested for flakiness.
 | model | engine | quant | config | suite | task | pass/trials |
 |---|---|---|---|---|---|---|
 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | — | 4eacff1c767c | kiem_mini | kiem_mini-feature | 1/2 |
+| mlx-community/Qwen3.5-9B-8bit | mei | — | 2a1f92cdbc6a | kiem_mini | kiem_mini-feature | 2/3 |
+| mlx-community/Qwen3.5-9B-8bit | mei | — | 2a1f92cdbc6a | kiem_mini | kiem_mini-parse-note | 1/2 |
+| mlx-community/Qwen3.5-9B-8bit | mei | — | 2a1f92cdbc6a | kiem_mini | kiem_mini-rename | 1/3 |
 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | — | 632e9c29f2c5 | kiem_mini | kiem_mini-feature | 1/2 |
 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | — | 632e9c29f2c5 | kipclip_mini | kipclip_mini-merge | 2/3 |
 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | — | 632e9c29f2c5 | kipclip_mini | kipclip_mini-testwrite | 1/2 |
@@ -935,6 +940,8 @@ confirmed-stable, just untested for flakiness.
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | omlx | 08e51e50397d | fc71ba2c66f8+dirty | sanity | 1/2 |
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | vllm-mlx | fe9f7a44a702 | c17e058823c1 | hermes_ops | 6/8 |
 | mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit | vllm-mlx | fe9f7a44a702 | c17e058823c1 | sanity | 2/2 |
+| mlx-community/Qwen3.5-9B-8bit | mei | 2a1f92cdbc6a | 483e0addf15f | kiem_mini | 1/4 |
+| mlx-community/Qwen3.5-9B-8bit | mei | 2a1f92cdbc6a | b8ca4016c0cf | kiem_mini | 4/11 |
 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | 277258e7326f | 0cb59d6a039f | hearth_full | 2/3 |
 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | 277258e7326f | 0cb59d6a039f | hearth_mini | 3/3 |
 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | 277258e7326f | 0cb59d6a039f | hermes_ops | 5/6 |
