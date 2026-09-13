@@ -2,12 +2,15 @@
 --dry-run non-destructiveness.
 
 Context (2026-09-06): the NVIDIA-Nemotron-3.5-Lightning-30B-A3B gate ran with
---optimization-profile generic --memory-limit-bytes 30000000000
+--model-profile generic --memory-limit-bytes 30000000000
 --cache-limit-bytes 0 --compiled-decode false, but the wrapper previously
 forwarded only model/port/context/sampling/KV flags and silently dropped those
-four. This test pins that: the wrapper now forwards each when explicitly
-provided, stays backward-compatible when they are absent, and --dry-run prints
-the full launch line WITHOUT compiling the Swift package or launching a server.
+four. Mei 0.5.0 renamed the gate's --optimization-profile flag to
+--model-profile; the wrapper (2026-09-12) now forwards --model-profile and
+rejects the removed legacy name. This test pins that: the wrapper forwards each
+gate control when explicitly provided, stays backward-compatible when they are
+absent, rejects the pre-0.5.0 flag name, and --dry-run prints the full launch
+line WITHOUT compiling the Swift package or launching a server.
 
 Run: uv run --locked python -m unittest discover -s runner/tests -v
 """
@@ -21,7 +24,7 @@ START_MEI = REPO / "runner" / "start_mei_server.sh"
 
 # Flat argv tokens so they can be concatenated with the base args.
 GATE_CONTROLS_FLAT = [
-    "--optimization-profile", "generic",
+    "--model-profile", "generic",
     "--memory-limit-bytes", "30000000000",
     "--cache-limit-bytes", "0",
     "--compiled-decode", "false",
@@ -29,7 +32,7 @@ GATE_CONTROLS_FLAT = [
 
 # (flag, expected value) pairs used for the assertIn coverage check.
 GATE_CONTROLS_PAIRS = [
-    ("--optimization-profile", "generic"),
+    ("--model-profile", "generic"),
     ("--memory-limit-bytes", "30000000000"),
     ("--cache-limit-bytes", "0"),
     ("--compiled-decode", "false"),
@@ -93,6 +96,15 @@ class StartMeiServerForwardingTests(unittest.TestCase):
         self.assertNotIn("swift build", (res.stdout + res.stderr).lower())
         self.assertFalse(base.joinpath("kv").exists())
         self.assertFalse(base.joinpath("build").exists())
+
+    def test_legacy_optimization_profile_flag_is_rejected(self):
+        # Mei 0.5.0 renamed --optimization-profile to --model-profile; the
+        # wrapper must not silently accept the removed name, or a config
+        # written against the old flag would launch with NO profile at all.
+        _, res = _dry_run(["--optimization-profile", "generic"])
+        self.assertEqual(res.returncode, 2, res.stdout + res.stderr)
+        self.assertIn("unknown option: --optimization-profile", res.stderr)
+        self.assertNotIn("--model-profile", res.stdout)
 
     def test_defaults_do_not_forward_gate_controls(self):
         # Backward compatibility: without the flags, none of the gate controls
