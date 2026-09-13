@@ -962,11 +962,21 @@ counts come from two cold runs of each shipped configuration.
 
 ### Which Mei model
 
-| model | images | TTFT, turn 2+ | TTFT, first turn | decode | peak memory | tasks passed |
-|---|---|---|---|---|---|---|
-| Qwen3.6 35B-A3B text-only | no | **1.05 s** | 52 s | **58.3 tok/s** | 24.5 GB | 24, 22 of 25 |
-| Ornith 1.5 35B-A3B | no | 1.28 s | 53 s | 57.1 tok/s | 24.0 GB | 22, 22 of 25 |
-| Qwen3.6 35B-A3B vision | **yes** | 1.07 s | 53 s | 47.7 tok/s | 24.7 GB | 23, 21 of 25 |
+| model | images | TTFT, turn 2+ | TTFT, first turn | decode | turns/task | peak memory | tasks passed |
+|---|---|---|---|---|---|---|---|
+| **Qwen3.6 35B-A3B text-only** | no | **1.05 s** | 52 s | **58.3 tok/s** | **8.9** | 24.5 GB | 24, 22 of 25 |
+| Qwen3.6 35B-A3B vision | **yes** | 1.07 s | 53 s | 47.7 tok/s | 9.5 | 24.7 GB | 23, 21 of 25 |
+| Ornith 1.5 35B-A3B | no | 1.28 s | 53 s | 57.1 tok/s | 11.1 | 24.0 GB | 22, 22 of 25 |
+
+**Ornith is no longer the pick and has not been since 2026-09-07**, when this
+summary first called text-only the new top pick. It loses or ties on every axis
+a user experiences — composite 0.729 against 0.832, coding 93% against 100%,
+1.28 s TTFT against 1.05, 11.1 turns per task against 8.9 — and it is the one
+model where cross-conversation prefix reuse costs quality, so it ships with that
+off. Its only win is 0.5 GB of peak memory, which is noise. It stays supported
+because it is the most heavily exercised model here and a different model family
+from the two Qwen builds, which are reasons to keep testing it, not reasons for
+a user to run it.
 
 **Memory does not distinguish them**: all three are 4-bit MoE checkpoints of
 about 19 GB on disk that peak near 24 GB in use, so all three want a 32 GB
