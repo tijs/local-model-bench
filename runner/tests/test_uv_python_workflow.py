@@ -120,14 +120,22 @@ class UvPythonWorkflowTests(unittest.TestCase):
         # it did not the step failed silently and left results/score_chart.png
         # stale — for over two days, as it turned out. So it now asks uv for a
         # correctly provisioned interpreter FIRST and falls back to our own.
-        # Assert that fallback order rather than a single command, or the
+        # The uv attempt must be pinned to this repository's project and locked
+        # lockfile (--project --locked): `uv run` otherwise discovers the
+        # project from the caller's working directory, so an unrelated caller
+        # cwd can resolve to an environment without matplotlib (reproduced
+        # 2026-09-14: exit 1, ModuleNotFoundError, from a temp dir).
+        # Assert the exact pinned invocation and the fallback order, or the
         # regression this fixed comes straight back.
         calls = [c.args[0] for c in run.call_args_list]
         build = str(REPO / "runner" / "build_leaderboard.py")
         plot = str(REPO / "runner" / "plot_leaderboard.py")
         self.assertEqual(calls[0], [sys.executable, build])
-        self.assertEqual(calls[1][:3], ["uv", "run", "--quiet"])
-        self.assertEqual(calls[1][-1], plot)
+        self.assertEqual(
+            calls[1],
+            ["uv", "run", "--quiet", "--project", str(REPO), "--locked",
+             "python3", plot],
+        )
         # A mocked run() never reports success, so the fallback must also fire.
         self.assertEqual(calls[-1], [sys.executable, plot])
 

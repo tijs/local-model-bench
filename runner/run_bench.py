@@ -768,8 +768,15 @@ def _leaderboard():
     # nobody noticed because the failure is by design not fatal. The repo's
     # canonical environment is `uv sync --locked` (see runner/requirements.txt),
     # so ask uv for the interpreter first and only fall back to our own.
+    # Pin the project and the lockfile explicitly: `uv run` otherwise discovers
+    # the project from the caller's working directory, which -- when the chart
+    # step runs from elsewhere -- can resolve to an unrelated project (or none)
+    # whose environment lacks matplotlib.
     plot_script = str(REPO / "runner" / "plot_leaderboard.py")
-    plot_cmds = [["uv", "run", "--quiet", "python3", plot_script], [sys.executable, plot_script]]
+    plot_cmds = [
+        ["uv", "run", "--quiet", "--project", str(REPO), "--locked", "python3", plot_script],
+        [sys.executable, plot_script],
+    ]
     for cmd in plot_cmds:
         try:
             result = run(cmd)
