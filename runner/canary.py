@@ -55,10 +55,28 @@ benchmark gate for that task.
 Logprobs are an OPTIONAL observable: pass --logprobs [N] to add
 `logprobs: true, top_logprobs: N` to every request. If the backend returns
 token-level logprobs, the record carries top-token data and per-position
-top-1/top-2 margins for positions with numeric data. If it does not (missing
-field, null, or non-numeric values), the record carries an explicit
-`unsupported`/`unavailable` status with a reason — margins are NEVER
-fabricated or defaulted.
+top-1/top-2 margins for positions with numeric data. Both wire shapes of
+top_logprobs are handled: OpenAI-style LIST-shaped
+(`[{"token": "42", "logprob": -0.1, "bytes": [...]}, ...]`) and dict-shaped
+(`{"42": -0.1}` or its `{"token": {"logprob": f}}` variant). If the backend
+returns nothing usable (missing field, null, or non-numeric values), the
+record carries an explicit `unsupported`/`unavailable` status with a reason —
+margins are NEVER fabricated, coerced, or defaulted.
+
+Reasoning is recorded, never graded: when a backend exposes thinking text
+(message `reasoning_content` / `reasoning`), the last (graded) exchange's
+reasoning is stored SEPARATELY as `reasoning_content` plus its own
+`reasoning_content_sha256`, so thinking-mode runs are auditable and can be
+diffed across quantisations WITHOUT changing what grade_prompt sees (final_text
+stays the visible answer only). Same policy as logprobs: the last exchange's
+reasoning only; intermediate tool-call turns are not the graded observable.
+
+Timeout semantics: --timeout is a socket read/inactivity timeout (urllib's
+own semantics), NOT a hard total per-request deadline — the canary makes no
+total-deadline claim it does not implement. It defaults to 1800s to match the
+pinned llama-server's 30-minute request cap, so a long thinking-mode exchange
+with the 26K hermes_ops system prompt is not cut off client-side while the
+server would still have accepted it.
 
 Tool tasks replay run_prompt.py's agent loop (--max-turns, default 6 —
 deliberately run_prompt.py's CLI default, NOT hermes_ops's 40; see
@@ -72,9 +90,15 @@ continuation) are a single exchange; a tool call there is undeclared by
 definition and graded accordingly.
 
 Failures (HTTP error, malformed JSON body, connection refused, mid-request
-disconnect, timeout) are recorded per task-trial as explicit `error` rows with
-an error_kind, and the run keeps going so the remaining surface is still
-measured. The artifact is written append-only to a temp file and atomically
+disconnect, timeout, or an UNVERIFIED endpoint identity) are recorded per
+task-trial as explicit `error` rows with an error_kind, and the run keeps
+going so the remaining surface is still measured. Endpoint identity is
+verified (GET /v1/models) BEFORE any request: if the endpoint's served model
+ids cannot be fetched, or the requested model is not among them, every
+task/trial for that endpoint becomes an explicit `error_kind: "identity"`
+row with stable prompt hashes and NO model request is sent — an unverified
+request would defeat the canary's whole purpose. The artifact is written
+append-only to a temp file and atomically
 renamed into place on completion — a crash mid-run still leaves the partial
 artifact (as .tmp.<pid>) intact and valid JSONL.
 
@@ -87,7 +111,7 @@ Usage:
   uv run --locked python runner/canary.py --hash-suite
   uv run --locked python runner/canary.py \
       --endpoint http://127.0.0.1:8024/v1 --model mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit \
-      --trials 3 --max-tokens 1024 --output artifacts/canary-qwen36-optiq.jsonl
+      --trials 3 --max-tokens 8192 --output artifacts/canary-qwen36-optiq.jsonl
   uv run --locked python runner/canary.py \
       --endpoint mlx-community/Qwen3.6-35B-A3B-4bit@http://127.0.0.1:8024/v1 \
       --endpoint EigenLabs/Qwen3.6-35B-A3B-MLX-mixed-4bit@http://127.0.0.1:8025/v1 \
@@ -101,7 +125,9 @@ Artifact format (JSONL):
    "trial": N, "prompt_sha256": ..., "outcome": "passed"|"failed"|"error",
    "passed": bool|null, "error": str|null, "error_kind": str|null,
    "grading": "full"|"canary_response_only",
-   "final_text": ..., "final_text_sha256": ..., "tool_calls": [...], "tool_calls_sha256": ...,
+   "final_text": ..., "final_text_sha256": ...,
+   "reasoning_content": ...|null, "reasoning_content_sha256": ...|null,
+   "tool_calls": [...], "tool_calls_sha256": ...,
    "finish_reason": ..., "usage": {...}, "elapsed_seconds": ...,
    "logprobs": {...}|null, "check_reason": ...}
   {"kind": "summary", "tasks_total": N, "passed": N, "failed": N, "errors": N,
@@ -149,8 +175,19 @@ SUITE_ORDER: list[tuple[str, str]] = [
 ]
 
 DEFAULT_TOP_LOGPROBS = 5
-DEFAULT_MAX_TOKENS = 512
-DEFAULT_TIMEOUT = 300.0
+# The repo's established safe defensive completion cap (see every config's
+# "RUNAWAY BOUND: --max-tokens 32768 -> 8192" convention: 8192 cannot truncate
+# legitimate work, p99 is 2933 tokens). The previous 512 was far too low for
+# thinking-mode Qwen3.6, whose reasoning trace alone exceeds it, and turned
+# normal answers into truncation noise.
+DEFAULT_MAX_TOKENS = 8192
+# urllib's timeout is a socket READ/INACTIVITY timeout, NOT a hard total
+# per-request deadline (a true total deadline would need its own wall-clock
+# timer and is deliberately NOT implemented — see request_json). 1800s matches
+# the pinned llama-server's own 30-minute request cap: a thinking-mode exchange
+# carrying the 26K hermes_ops system prompt must never be killed client-side
+# while the server would still have accepted the request.
+DEFAULT_TIMEOUT = 1800.0
 
 # Response-sanity checks for the two fixture tasks (see module docstring).
 _FIXTURE_TASK_CANARY_CHECKS: dict[str, dict[str, Any]] = {
@@ -256,6 +293,32 @@ def tool_calls_sha256(tool_calls: list[dict[str, Any]]) -> str:
     return sha256_hex(canonical_json(canonical))
 
 
+def _to_text(content: Any) -> str:
+    """Normalise ANY message content value to a string, never dropping data.
+
+    OpenAI-compatible backends may deliver `content` as a list of content
+    parts ([{"type": "text", "text": ...}, ...]) or, in exotic cases, as a
+    dict. The canary's graded observable and every hash are ALWAYS strings:
+    text parts are joined verbatim, non-text parts are serialized canonically
+    (so the digest still changes when they change), None/empty become "".
+    """
+    if isinstance(content, str):
+        return content
+    if content is None:
+        return ""
+    if isinstance(content, list):
+        parts: list[str] = []
+        for part in content:
+            if isinstance(part, str):
+                parts.append(part)
+            elif isinstance(part, dict) and isinstance(part.get("text"), str):
+                parts.append(part["text"])
+            else:
+                parts.append(canonical_json(part))
+        return "".join(parts)
+    return canonical_json(content)
+
+
 # ---------------------------------------------------------------------------
 # Request building / prompt hash
 # ---------------------------------------------------------------------------
@@ -307,11 +370,29 @@ def prompt_sha256(request: dict[str, Any]) -> str:
 # Logprobs extraction
 # ---------------------------------------------------------------------------
 
+def _iter_top_candidates(top: Any):
+    """Yield (token, candidate) from top_logprobs in EITHER wire shape:
+
+    - OpenAI-style list-shaped: [{"token": "42", "logprob": -0.1, "bytes": [...]}, ...]
+    - dict-shaped: {"42": -0.1} or its {"42": {"logprob": -0.1, ...}} variant
+      (llama.cpp / older OpenAI responses)
+    """
+    if isinstance(top, list):
+        for entry in top:
+            if not isinstance(entry, dict):
+                continue
+            yield entry.get("token"), entry
+    elif isinstance(top, dict):
+        for token, candidate in top.items():
+            yield token, candidate
+
+
 def extract_logprobs(choice: dict[str, Any]) -> dict[str, Any]:
     """Extract top-token data + adjacent top-1/top-2 margins from a response
-    choice. Never fabricates: missing/null fields yield status
-    'unsupported'/'unavailable' with a reason; non-numeric values are counted
-    and skipped, never coerced into a margin."""
+    choice. Handles BOTH top_logprobs wire shapes (list-shaped and
+    dict-shaped — see _iter_top_candidates). Never fabricates: missing/null
+    fields yield status 'unsupported'/'unavailable' with a reason; non-numeric
+    values are counted and skipped, never coerced into a margin."""
     lp = choice.get("logprobs") if isinstance(choice, dict) else None
     if lp is None:
         return {"status": "unsupported", "reason": "choices[0].logprobs is absent or null"}
@@ -332,11 +413,12 @@ def extract_logprobs(choice: dict[str, Any]) -> dict[str, Any]:
         if not isinstance(entry, dict):
             continue
         top = entry.get("top_logprobs")
-        if not isinstance(top, dict) or not top:
+        top_entries = list(_iter_top_candidates(top))
+        if not top_entries:
             no_top_data += 1
             continue
         numeric: list[float] = []
-        for candidate in top.values():
+        for _token, candidate in top_entries:
             value = candidate.get("logprob") if isinstance(candidate, dict) else candidate
             if value is None:
                 non_numeric += 1
@@ -403,6 +485,12 @@ def extract_logprobs(choice: dict[str, Any]) -> dict[str, Any]:
 
 def request_json(url: str, payload: dict[str, Any], timeout: float) -> tuple[dict[str, Any], float]:
     """POST *payload* to *url*, returning (parsed dict, elapsed seconds).
+
+    *timeout* is urllib's socket READ/INACTIVITY timeout — the maximum a
+    single socket read may stall with no bytes. It is NOT a hard total
+    per-request deadline (a server that trickles bytes can exceed it
+    wall-clock; a true total deadline is deliberately not implemented and is
+    never claimed).
 
     Every failure mode is raised as RequestError with an explicit kind so the
     record can say what actually happened: http error payload, malformed body,
@@ -598,6 +686,58 @@ class AtomicJsonlWriter:
             pass
 
 
+def build_identity_error_record(
+    loaded_task: LoadedTask,
+    base_url: str,
+    model: str,
+    served_ids: list[str] | None,
+    max_tokens: int,
+    trial: int,
+    identity_error: str,
+    logprobs_requested: bool = False,
+    top_logprobs: int | None = None,
+) -> dict[str, Any]:
+    """One task/trial factored as an explicit `error_kind: "identity"` row.
+
+    Identity is the canary's guard: if the endpoint's served model ids cannot
+    be fetched (GET /v1/models failed) or the requested model is not among
+    them, NO model request is sent for any task/trial on that endpoint — an
+    unverified request byte would defeat the comparison. The prompt hash is
+    still computed with the same builder healthy rows use (stable and
+    comparable across runs), elapsed is 0, and every identity row counts as an
+    error in the summary, which drives the non-zero exit status.
+    """
+    request = build_request(
+        loaded_task.task, model, max_tokens,
+        logprobs=logprobs_requested, top_logprobs=top_logprobs,
+    )
+    return {
+        "kind": "trial",
+        "task_id": loaded_task.id,
+        "task_title": loaded_task.title,
+        "grading": loaded_task.grading,
+        "endpoint": {"base_url": base_url, "model": model, "served_ids": served_ids},
+        "trial": trial,
+        "prompt_sha256": prompt_sha256(request),
+        "outcome": "error",
+        "passed": False,
+        "error": identity_error,
+        "error_kind": "identity",
+        "check_reason": None,
+        "turns": None,
+        "final_text": None,
+        "final_text_sha256": None,
+        "reasoning_content": None,
+        "reasoning_content_sha256": None,
+        "tool_calls": None,
+        "tool_calls_sha256": None,
+        "finish_reason": None,
+        "usage": None,
+        "elapsed_seconds": 0.0,
+        "logprobs": None,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Task execution
 # ---------------------------------------------------------------------------
@@ -692,9 +832,11 @@ def run_task_once(
     are a single exchange: a tool call there is by definition undeclared and
     graded accordingly.
 
-    *http_post* is injectable for no-network tests. Logprobs are recorded for
-    the LAST (graded) exchange only; intermediate tool-call turns are not the
-    graded observable.
+    *http_post* is injectable for no-network tests. Logprobs and reasoning
+    (thinking) text are recorded for the LAST (graded) exchange only;
+    intermediate tool-call turns are not the graded observable. Reasoning goes
+    to `reasoning_content`/`reasoning_content_sha256` and NEVER feeds
+    final_text or grade_prompt.
     """
     request = build_request(
         loaded_task.task, model, max_tokens,
@@ -713,6 +855,8 @@ def run_task_once(
         "turns": 1,
         "final_text": None,
         "final_text_sha256": None,
+        "reasoning_content": None,
+        "reasoning_content_sha256": None,
         "tool_calls": None,
         "tool_calls_sha256": None,
         "finish_reason": None,
@@ -730,6 +874,7 @@ def run_task_once(
     started = time.monotonic()
     all_tool_calls: list[dict[str, Any]] = []
     final_text = ""
+    reasoning_text = ""
     finish_reason = None
     last_choice: dict[str, Any] = {}
     usage: dict[str, Any] = {}
@@ -752,9 +897,16 @@ def run_task_once(
             last_choice = choices[0]
             finish_reason = last_choice.get("finish_reason")
             message = last_choice.get("message") or {}
-            content = message.get("content") or ""
+            content = _to_text(message.get("content") or "")
             if content:
                 final_text = content
+            # Thinking text is recorded SEPARATELY (auditable, diffable across
+            # quantisations) and NEVER feeds the graded final_text.
+            reasoning = _to_text(
+                message.get("reasoning_content") or message.get("reasoning") or ""
+            )
+            if reasoning:
+                reasoning_text = reasoning
             tool_calls = message.get("tool_calls") or []
             if tool_calls:
                 all_tool_calls.extend(_parse_tool_args(tool_calls))
@@ -805,6 +957,8 @@ def run_task_once(
         "turns": turns_used,
         "final_text": final_text,
         "final_text_sha256": sha256_hex(final_text) if final_text else None,
+        "reasoning_content": reasoning_text or None,
+        "reasoning_content_sha256": sha256_hex(reasoning_text) if reasoning_text else None,
     })
     if all_tool_calls:
         record["tool_calls"] = canonical_tool_calls([
@@ -931,7 +1085,10 @@ def main(argv: list[str] | None = None) -> int:
                         help="optional: request logprobs + top_logprobs N (default 5); "
                              "0 requests logprobs without top_logprobs")
     parser.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT,
-                        help=f"per-request total timeout in seconds (default {DEFAULT_TIMEOUT:g})")
+                        help="socket read/inactivity timeout in seconds — NOT a hard "
+                             "total per-request deadline "
+                             f"(default {DEFAULT_TIMEOUT:g}, matching the pinned "
+                             "llama-server's 30-minute request cap)")
     parser.add_argument("--max-turns", type=int, default=DEFAULT_CANARY_MAX_TURNS,
                         help="tool-loop turn budget for mocked tool tasks "
                              f"(default {DEFAULT_CANARY_MAX_TURNS}, deliberately "
@@ -1019,22 +1176,31 @@ def main(argv: list[str] | None = None) -> int:
 
             for trial in range(1, args.trials + 1):
                 for loaded in suite:
-                    record = run_task_once(
-                        loaded, base_url, model, args.max_tokens,
-                        logprobs_requested=args.logprobs is not None,
-                        top_logprobs=args.logprobs if args.logprobs else None,
-                        timeout=args.timeout,
-                        max_turns=args.max_turns,
-                    )
-                    record["kind"] = "trial"
-                    record["endpoint"] = {
-                        "base_url": base_url,
-                        "model": model,
-                        "served_ids": served_ids,
-                    }
-                    record["trial"] = trial
                     if identity_error:
-                        record["identity_check"] = identity_error
+                        # Unverified endpoint identity (fetch failed, or the
+                        # requested model is not served): emit explicit
+                        # identity error rows WITHOUT any model request.
+                        record = build_identity_error_record(
+                            loaded, base_url, model, served_ids,
+                            args.max_tokens, trial, identity_error,
+                            logprobs_requested=args.logprobs is not None,
+                            top_logprobs=args.logprobs if args.logprobs else None,
+                        )
+                    else:
+                        record = run_task_once(
+                            loaded, base_url, model, args.max_tokens,
+                            logprobs_requested=args.logprobs is not None,
+                            top_logprobs=args.logprobs if args.logprobs else None,
+                            timeout=args.timeout,
+                            max_turns=args.max_turns,
+                        )
+                        record["kind"] = "trial"
+                        record["endpoint"] = {
+                            "base_url": base_url,
+                            "model": model,
+                            "served_ids": served_ids,
+                        }
+                        record["trial"] = trial
                     writer.write_row(record)
                     rows_by_key.setdefault((loaded.id, base_url), []).append(record)
                     if record["outcome"] == "passed":

@@ -9,6 +9,8 @@ writer are all exercised with in-memory data and temp files only. The suite
 loader reads committed repo files (tasks/*.yaml, fixtures/hermes_ops/*) — no
 network.
 """
+import contextlib
+import io
 import json
 import os
 import sys
@@ -559,6 +561,276 @@ class ToolLoopTests(unittest.TestCase):
         self.assertEqual(record["outcome"], "error")
         self.assertEqual(record["error_kind"], "max_turns")
         self.assertIn("max_turns", record["error"])
+
+
+class IdentityMismatchTests(unittest.TestCase):
+    """Endpoint identity is a guard: an unverified or mismatched endpoint must
+    produce explicit error_kind 'identity' rows and NO model requests."""
+
+    def _run_main(self, argv):
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            code = canary.main(argv)
+        return code, stderr.getvalue()
+
+    def test_mismatched_served_ids_emit_identity_rows_without_requests(self):
+        original_fetch, original_run = canary.fetch_served_ids, canary.run_task_once
+        calls = []
+        try:
+            canary.fetch_served_ids = lambda base_url: [
+                "mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit"
+            ]
+
+            def spy_run(*args, **kwargs):
+                calls.append(args)
+                return original_run(*args, **kwargs)
+
+            canary.run_task_once = spy_run
+            with tempfile.TemporaryDirectory() as tmp:
+                out = Path(tmp) / "canary.jsonl"
+                code, _ = self._run_main([
+                    "--endpoint", "WRONG-MODEL@http://127.0.0.1:1/v1",
+                    "--trials", "1", "--max-tokens", "64", "--output", str(out),
+                ])
+                rows = [json.loads(line) for line in out.read_text().splitlines()]
+        finally:
+            canary.fetch_served_ids, canary.run_task_once = original_fetch, original_run
+
+        self.assertEqual(code, 1)  # identity rows count as errors -> non-zero exit
+        self.assertEqual(calls, [])  # NO model request was sent
+        trials = [r for r in rows if r["kind"] == "trial"]
+        self.assertEqual(len(trials), 6)  # every fixed-suite task, intact
+        for r in trials:
+            self.assertEqual(r["outcome"], "error")
+            self.assertEqual(r["error_kind"], "identity")
+            self.assertIsNone(r["final_text"])
+            self.assertIsNone(r["usage"])
+            self.assertEqual(r["elapsed_seconds"], 0.0)
+            self.assertIsNotNone(r["prompt_sha256"])  # stable hashes preserved
+            self.assertNotIn("identity_check", r)  # no half-attached flag
+        summary = rows[-1]
+        self.assertEqual(summary["kind"], "summary")
+        self.assertEqual(summary["errors"], 6)
+        self.assertEqual(summary["passed"], 0)
+        self.assertEqual(summary["failed"], 0)
+        self.assertTrue(summary["completed"])
+
+    def test_identity_check_failure_is_also_an_identity_error(self):
+        from canary import RequestError
+
+        original_fetch, original_run = canary.fetch_served_ids, canary.run_task_once
+        calls = []
+        try:
+            def failed_fetch(base_url):
+                raise RequestError("connect", "connection refused")
+
+            canary.fetch_served_ids = failed_fetch
+            canary.run_task_once = lambda *a, **k: calls.append(a) or {}
+            with tempfile.TemporaryDirectory() as tmp:
+                out = Path(tmp) / "canary.jsonl"
+                code, _ = self._run_main([
+                    "--endpoint", "m@http://127.0.0.1:1/v1",
+                    "--trials", "2", "--max-tokens", "64", "--output", str(out),
+                ])
+                rows = [json.loads(line) for line in out.read_text().splitlines()]
+        finally:
+            canary.fetch_served_ids, canary.run_task_once = original_fetch, original_run
+
+        self.assertEqual(code, 1)
+        self.assertEqual(calls, [])  # unverifiable identity -> no requests
+        trials = [r for r in rows if r["kind"] == "trial"]
+        self.assertEqual(len(trials), 12)  # 6 tasks x 2 trials
+        for r in trials:
+            self.assertEqual(r["error_kind"], "identity")
+            self.assertIn("identity check failed", r["error"])
+
+    def test_verified_identity_sends_requests_and_is_not_tagged_identity(self):
+        # Healthy path: matching served id -> run_task_once runs, rows pass,
+        # no identity rows, exit 0.
+        original_fetch, original_run = canary.fetch_served_ids, canary.run_task_once
+        calls = []
+        try:
+            canary.fetch_served_ids = lambda base_url: ["good-model"]
+
+            def canned_run(*args, **kwargs):
+                calls.append(args)
+                return {
+                    "outcome": "passed", "check_reason": "ok", "error": None,
+                    "final_text": "42", "final_text_sha256": "h",
+                    "tool_calls_sha256": None,
+                }
+
+            canary.run_task_once = canned_run
+            with tempfile.TemporaryDirectory() as tmp:
+                out = Path(tmp) / "canary.jsonl"
+                code, _ = self._run_main([
+                    "--endpoint", "good-model@http://127.0.0.1:1/v1",
+                    "--trials", "1", "--max-tokens", "64", "--output", str(out),
+                ])
+                rows = [json.loads(line) for line in out.read_text().splitlines()]
+        finally:
+            canary.fetch_served_ids, canary.run_task_once = original_fetch, original_run
+
+        self.assertEqual(code, 0)
+        self.assertEqual(len(calls), 6)  # all six tasks were actually run
+        trials = [r for r in rows if r["kind"] == "trial"]
+        self.assertTrue(all(r["outcome"] == "passed" for r in trials))
+        self.assertTrue(all("error_kind" not in r for r in trials))
+        self.assertEqual(rows[-1]["passed"], 6)
+
+
+class ReasoningContentRecordingTests(unittest.TestCase):
+    def _run_with_message(self, message):
+        def fake_post(url, payload, timeout):
+            return {
+                "choices": [{"message": message, "finish_reason": "stop"}],
+                "usage": {"prompt_tokens": 10, "completion_tokens": 3, "total_tokens": 13},
+            }, 0.05
+
+        task = canary.LoadedTask(
+            id="sanity-basic", title="t", task=_task(), grading="full"
+        )
+        return canary.run_task_once(
+            task, "http://127.0.0.1:1/v1", "m", 512,
+            logprobs_requested=False, top_logprobs=None, timeout=10,
+            http_post=fake_post,
+        )
+
+    def test_reasoning_content_recorded_separately_and_never_graded(self):
+        record = self._run_with_message({
+            "role": "assistant",
+            "reasoning_content": "Let me add 15 and 27 step by step: 10+20=30, 5+7=12, 30+12=42.",
+            "content": "42",
+        })
+        self.assertEqual(record["outcome"], "passed")  # grading unchanged
+        self.assertEqual(record["final_text"], "42")
+        self.assertEqual(
+            record["reasoning_content"],
+            "Let me add 15 and 27 step by step: 10+20=30, 5+7=12, 30+12=42.",
+        )
+        self.assertEqual(
+            record["reasoning_content_sha256"],
+            canary.sha256_hex(record["reasoning_content"]),
+        )
+        self.assertNotEqual(
+            record["reasoning_content_sha256"], record["final_text_sha256"]
+        )
+
+    def test_reasoning_alias_key_is_also_captured(self):
+        record = self._run_with_message({
+            "role": "assistant", "reasoning": "thinking...", "content": "42",
+        })
+        self.assertEqual(record["reasoning_content"], "thinking...")
+        self.assertEqual(record["final_text"], "42")
+
+    def test_absent_reasoning_is_null_not_fabricated(self):
+        record = self._run_with_message({"role": "assistant", "content": "42"})
+        self.assertIsNone(record["reasoning_content"])
+        self.assertIsNone(record["reasoning_content_sha256"])
+
+    def test_final_text_guard_collapses_content_parts_to_text(self):
+        # OpenAI-style content parts: hashes always operate on the joined text.
+        record = self._run_with_message({
+            "role": "assistant",
+            "content": [{"type": "text", "text": "4"}, {"type": "text", "text": "2"}],
+        })
+        self.assertEqual(record["final_text"], "42")
+        self.assertEqual(record["outcome"], "passed")
+        self.assertEqual(
+            record["final_text_sha256"], canary.sha256_hex("42")
+        )
+
+    def test_final_text_guard_handles_dict_content_without_crashing(self):
+        record = self._run_with_message({
+            "role": "assistant", "content": {"type": "text", "text": "42"},
+        })
+        self.assertEqual(record["final_text"], '{"text":"42","type":"text"}')
+        self.assertEqual(
+            record["final_text_sha256"],
+            canary.sha256_hex(record["final_text"]),
+        )
+
+
+class ListShapedLogprobsTests(unittest.TestCase):
+    """OpenAI-style list-shaped top_logprobs must extract identically to the
+    dict-shaped form (see LogprobExtractionTests.test_flat_top_logprobs_margins
+    for the same numbers in dict form)."""
+
+    def test_list_shaped_top_logprobs_margins(self):
+        choice = {"logprobs": {"content": [
+            {
+                "token": "42",
+                "logprob": -0.1,
+                "top_logprobs": [
+                    {"token": "42", "logprob": -0.1, "bytes": [52, 50]},
+                    {"token": "43", "logprob": -1.4, "bytes": [52, 51]},
+                    {"token": "", "logprob": -2.0, "bytes": []},
+                ],
+            },
+            {
+                "token": "\n",
+                "logprob": -0.05,
+                "top_logprobs": [
+                    {"token": "\n", "logprob": -0.05, "bytes": [10]},
+                    {"token": "42", "logprob": -1.1, "bytes": [52, 50]},
+                ],
+            },
+        ]}}
+        record = canary.extract_logprobs(choice)
+        self.assertEqual(record["status"], "present")
+        self.assertEqual(record["positions"], 2)
+        self.assertEqual(record["margins"]["count"], 2)
+        self.assertAlmostEqual(record["margins"]["min"], 1.05, places=6)
+        self.assertAlmostEqual(record["margins"]["max"], 1.3, places=6)
+        self.assertAlmostEqual(record["margins"]["mean"], 1.175, places=6)
+        # Top-1 token captured per position from the list entries.
+        first = next(p for p in record["top_token_sample"] if p["token"] == "42")
+        self.assertAlmostEqual(first["top1_logprob"], -0.1, places=6)
+        self.assertAlmostEqual(first["margin_top1_minus_top2"], 1.3, places=6)
+
+    def test_list_shaped_with_non_numeric_entries_is_unavailable_not_fabricated(self):
+        choice = {"logprobs": {"content": [
+            {"token": "x", "logprob": None, "top_logprobs": [
+                {"token": "x", "logprob": None},
+                {"token": "y", "logprob": "NaN"},
+            ]},
+        ]}}
+        record = canary.extract_logprobs(choice)
+        self.assertEqual(record["status"], "unavailable")
+        self.assertEqual(record["non_numeric_top_values"], 2)
+        self.assertIsNone(record["margins"])
+
+    def test_empty_list_top_logprobs_is_unavailable(self):
+        choice = {"logprobs": {"content": [
+            {"token": "a", "logprob": -0.1, "top_logprobs": []},
+        ]}}
+        record = canary.extract_logprobs(choice)
+        self.assertEqual(record["status"], "unavailable")
+        self.assertIn("no usable top_logprobs", record["reason"])
+        self.assertEqual(record["entries_without_top_data"], 1)
+
+
+class DefaultsAndTimeoutWordingTests(unittest.TestCase):
+    def test_default_max_tokens_is_the_repo_safe_cap(self):
+        self.assertEqual(canary.DEFAULT_MAX_TOKENS, 8192)
+
+    def test_default_timeout_matches_server_cap(self):
+        self.assertEqual(canary.DEFAULT_TIMEOUT, 1800.0)
+
+    def test_help_shows_new_defaults_and_read_timeout_semantics(self):
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            with self.assertRaises(SystemExit) as cm:
+                canary.main(["--help"])
+        self.assertEqual(cm.exception.code, 0)
+        text = buf.getvalue()
+        self.assertIn("8192", text)
+        self.assertIn("1800", text)
+        self.assertIn("read/inactivity", text)
+        # urllib's timeout is NOT a hard total deadline; the docs must never
+        # claim one that is not implemented.
+        self.assertNotIn("total timeout", text)
+        self.assertNotIn("per-request total", text)
 
 
 if __name__ == "__main__":
