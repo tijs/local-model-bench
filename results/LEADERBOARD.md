@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/4049 rows below predate 2026-08-21
+> **⚠ 138/4064 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -295,6 +295,7 @@ means no usable timestamp was recoverable from that group's rows.
 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | — | 0.6 | thinking | n/a | 2/2 | [e2770ac7d2c4](configs/e2770ac7d2c4.yaml) — *config since changed* | 3e8f2dbb5101+dirty | 23 | 87% | 2 | 47.6 | 44.55 | 0 | 9.5 | 14 | 1.2 | MLX 4-bit affine g64 (mlx-community; qwen3_5_moe conditional-generation arch), 8-bit router gates | — | — | 5712 |
 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | — | 0.6 | thinking | n/a | 2/2 | [e9d6db1b6675](configs/e9d6db1b6675.yaml) — *config since changed* | 39dae7a6ea44 | 0 | n/a (all harness errors) | 0 | 123.7 | 5.87 | 0 | — | 0 | 0.3 | MLX 4-bit affine g64 (mlx-community; qwen3_5_moe conditional-generation arch), 8-bit router gates | — | — | 14 |
 | mlx-community/Qwen3.6-35B-A3B-4bit-DWQ | mei | — | 0.6 | thinking | n/a | — | [b6b5824d3567](configs/b6b5824d3567.yaml) — *config since changed* | 1c8ea189fdb2 | 15 | 73% | 1 | — | — | 0 | 9.7 | 30 | 8.8 | MLX DWQ mixed — experts 4-bit, embeddings/attention/router 8-bit, group 64 affine | — | — | 3380 |
+| mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit | mei | — | 0.6 | thinking | n/a | — | [31a7f0b6a256](configs/31a7f0b6a256.yaml) | b5b7f49bcb62 | 15 | 93% | 1 | — | — | 0 | 7.3 | 6 | 7.5 | OptiQ mixed precision — optiq_mixed_precision, group 64 affine; per-layer 8-bit high-bit / 4-bit low-bit (optiq_metadata.json: 392 high-bit + 118 low-bit entries, target 4.5 bpw, achieved 4.506152583685804; reference uniform_4bit) | — | — | 3054 |
 | mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit | mei | — | 0.6 | thinking | n/a | — | [31a7f0b6a256](configs/31a7f0b6a256.yaml) | f713b29fc5c7 | 5 | 60% | 1 | — | — | 0 | 9.0 | 9 | 8.7 | OptiQ mixed precision — optiq_mixed_precision, group 64 affine; per-layer 8-bit high-bit / 4-bit low-bit (optiq_metadata.json: 392 high-bit + 118 low-bit entries, target 4.5 bpw, achieved 4.506152583685804; reference uniform_4bit) | — | — | 1485 |
 | mlx-community/Qwen3.8-27B-4bit | mei | — | 1.0 | thinking | n/a | 2/2 | [c7f10a958b1e](configs/c7f10a958b1e.yaml) | 7f3de21dba70 | 23 | 87% | 19 | 14.6 | 294.05 | 0 | 11.8 | 9 | 2.0 | MLX 4-bit affine g64 (mlx-community, qwen3_5 arch) | — | — | 22412 |
 | mlx-community/Qwen3.8-27B-4bit | mei | — | 1.0 | thinking | n/a | 2/2 | [d23c67ad6d2d](configs/d23c67ad6d2d.yaml) — *config since changed* | 3496bdf4e3aa | 11 | 55% | 6 | 15.0 | 293.24 | 2 | 5.7 | 1 | 1.8 | MLX 4-bit affine g64 (mlx-community, qwen3_5 arch) | — | — | 7441 |
@@ -1023,6 +1024,10 @@ confirmed-stable, just untested for flakiness.
 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | e2770ac7d2c4 | 3e8f2dbb5101+dirty | sanity | 2/2 |
 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | e9d6db1b6675 | 39dae7a6ea44 | sanity | 2/2 |
 | mlx-community/Qwen3.6-35B-A3B-4bit-DWQ | mei | b6b5824d3567 | 1c8ea189fdb2 | kiem_mini | 11/15 |
+| mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit | mei | 31a7f0b6a256 | b5b7f49bcb62 | hearth_full | 3/3 |
+| mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit | mei | 31a7f0b6a256 | b5b7f49bcb62 | hearth_mini | 3/3 |
+| mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit | mei | 31a7f0b6a256 | b5b7f49bcb62 | kiem_mini | 4/5 |
+| mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit | mei | 31a7f0b6a256 | b5b7f49bcb62 | kipclip_mini | 4/4 |
 | mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit | mei | 31a7f0b6a256 | f713b29fc5c7 | kiem_mini | 3/5 |
 | mlx-community/Qwen3.8-27B-4bit | mei | c7f10a958b1e | 7f3de21dba70 | hearth_full | 3/3 |
 | mlx-community/Qwen3.8-27B-4bit | mei | c7f10a958b1e | 7f3de21dba70 | hearth_mini | 3/3 |

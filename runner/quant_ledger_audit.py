@@ -74,9 +74,10 @@ def scope_rows(rows: list[dict], members: set[str], engine: str = "mei") -> list
 
 
 # ---------------------------------------------------------------------------
-# Frozen scope definitions, 2026-09-14 (post-OptiQ run; commit ac72c83 log.jsonl).
-# The 2026-09-14 OptiQ kiem_mini run appended 5 rows (one of them
-# kiem_mini-testwrite, a fail) and deliberately re-pinned all_mei 5/88 -> 5/89.
+# Frozen scope definitions, 2026-09-14 (post-OptiQ full-coding run; runner SHA
+# b5b7f49bcb62, 15 rows). The earlier OptiQ kiem_mini run (runner SHA f713b29fc5c7,
+# 5 rows) re-pinned all_mei 5/88 -> 5/89; the full-coding run appended one more
+# kiem_mini-testwrite row (a fail), deliberately re-pinning all_mei 5/89 -> 5/90.
 # The OptiQ-4bit quant is NOT a uniform-4-bit affine g64 member, so
 # mlx_uniform_4bit stays 4/69.
 #
@@ -112,7 +113,7 @@ PINNED_GROUPS = {
 # Aggregate pins: (passes, total).
 PINNED_AGGREGATES = {
     "mlx_uniform_4bit": (4, 69),   # qualifies the SUMMARY.md "4/69" aggregate
-    "all_mei": (5, 89),            # every Mei row, any quant, all time (2026-09-14 OptiQ +1 row)
+    "all_mei": (5, 90),            # every Mei row, any quant, all time (2026-09-14 OptiQ full-coding +1 row)
 }
 
 
