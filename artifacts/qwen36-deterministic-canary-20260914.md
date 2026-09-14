@@ -20,7 +20,7 @@ response carrying the fixture identifiers, not the real benchmark gate.
 
 | leg | artifact (in `artifacts/qwen36-deterministic-canary/`) | runner_git_sha (run header) | cap | window (UTC) | rows | passed | failed | errors |
 |---|---|---|---|---|---|---|---|---|
-| llama.cpp official GGUF Q4_K_M | `qwen36-matched-llama-canary-8192-20260914.jsonl` | `2a5e70108202` | 8192 | 10:39:53–10:48:09Z | 12 | 12 | 0 | 0 |
+| llama.cpp official GGUF Q4_K_M | `qwen36-matched-llama-canary-8192-20260914.jsonl` | `085886557e10` | 8192 | 11:37:03–11:46:05Z | 12 | 12 | 0 | 0 |
 | llama.cpp diagnostic (pre-fix, 4096 cap) | `qwen36-matched-llama-canary-20260914.jsonl` | `3118f18eccc9` | 4096 | 10:31:37–10:39:24Z | 12 | 10 | 0 | 2 |
 | stock MLX (`mlx-community/...-4bit`) | `qwen36-matched-stock-canary-8192-20260914.jsonl` | `1447a232cb6f` | 8192 | 10:56:56–11:09:41Z | 12 | 12 | 0 | 0 |
 | text-only MLX (`Tostibrown/...-4bit-textonly`) | `qwen36-matched-textonly-canary-8192-20260914.jsonl` | `1447a232cb6f` | 8192 | 11:11:17–11:21:45Z | 12 | 12 | 0 | 0 |
@@ -32,6 +32,14 @@ diagnostic's two errors are both `kiem_mini-testwrite` trials,
 `error_kind: "truncated"` (`finish_reason: length` at exactly 4096 completion
 tokens) — the cap that motivated the 8192 corrected runs; the 8192 llama leg
 then passed that task.
+
+Correction note: the 8192 llama archive initially held the pre-fix run
+(`2a5e70108202`, logprobs unavailable, no reasoning) and has been replaced by
+the fixed-SHA run (`085886557e10`, same filename, both kept distinct in git
+history). Greedy outputs are unchanged — identical per-task
+`final_text_sha256` and `tool_calls_sha256` between the two runs — so the
+per-task comparison table below is unaffected; only the logprobs/reasoning
+recording differs.
 
 ## Per-task comparison (no ranking)
 
@@ -60,22 +68,26 @@ every file.
 
 ## Observables
 
-- **llama.cpp logprobs: unavailable.** llama-server returned logprob content
-  positions but no per-position top_logprobs data, so the canary recorded
-  `status: "unavailable"` with the reason (`no usable top_logprobs numbers…`);
-  margins were never fabricated or coerced.
+- **llama.cpp logprobs: present.** All 12 rows of the corrected llama-8192 leg
+  record `status: "present"` with numeric top-token and margin data (21,054
+  positions across the leg; `entries_without_top_data: 0`,
+  `non_numeric_top_values: 0`; per-row `margins` count/min/mean/max from
+  `margin_top1_minus_top2` logprobs). The initially archived pre-fix run
+  (`2a5e70108202`) recorded `status: "unavailable"` — llama-server returned
+  positions but no per-position top_logprobs numbers — and is superseded by
+  this fixed-SHA run (`085886557e10`).
 - **Mei logprobs: unsupported.** All three MLX legs record
   `status: "unsupported"` — `choices[0].logprobs` absent/null. Consistent with
   the established Mei API limitation (Mei exposes no logprobs;
   `references/mei-token-parity-harness.md`).
-- **Reasoning hashes: present on all 12 rows of each corrected MLX leg**
-  (`reasoning_content` + `reasoning_content_sha256`, courtesy of the 1447a23
-  reasoning recording and `--emit-reasoning true`). The llama legs ran on
-  predecessor commits (`3118f18eccc9`, `2a5e70108202`) whose canary did not
-  record reasoning, so no llama thinking trace is archived; the graded
-  observable (`final_text`) is unaffected. llama-server also logged that its
-  chat template "supports preserving reasoning" only via the unset
-  `--reasoning-preserve` flag — an explicit asymmetry, not a defect.
+- **Reasoning hashes: present on all 12 rows of every corrected 8192 leg** —
+  llama.cpp included (`reasoning_content` + `reasoning_content_sha256`,
+  courtesy of the 1447a23 reasoning recording; the corrected llama leg runs on
+  the fixed canary at HEAD `0858865`, with `runner/canary.py` byte-identical
+  to the `1447a23` source). Only the 4096-cap diagnostic llama leg
+  (`3118f18eccc9`) predates reasoning recording, so that one file carries no
+  thinking trace; the graded observable (`final_text`) is unaffected there and
+  everywhere.
 
 ## Launch settings (verbatim from per-run server logs) and model paths (from JSONL run headers)
 
@@ -99,11 +111,13 @@ every file.
 
 ## Integrity
 
-Archived copies are byte-identical to the `/tmp` originals (`cmp` verified).
+Archived copies are byte-identical to the `/tmp` originals (`cmp` verified);
+the llama-8192 copy corresponds to
+`/tmp/qwen36-matched-llama-canary-fixed-8192-20260914.jsonl`.
 sha256 of the archived files:
 
 ```
-0010cd019165625d7816469f3dd7c28e08307b16057ba62e46300f564cfdf316  qwen36-matched-llama-canary-8192-20260914.jsonl
+48595cc0a1bdf03908267d25be77398b14c3f4511997453dbc579bc4a51b8c0e  qwen36-matched-llama-canary-8192-20260914.jsonl
 d87b9a4c80079db4a7e0c110eb78fdee66e622247a0b0e02bf7a5125188a1cd1  qwen36-matched-llama-canary-20260914.jsonl
 87e93a432b6f4befa0479a77436089ff895c634cea9d799b08ae58a7d8ee6b74  qwen36-matched-stock-canary-8192-20260914.jsonl
 fadcc615ad96f6967d0f238548c0569df32d7cea08952c4698c541c6fa5ebdd4  qwen36-matched-textonly-canary-8192-20260914.jsonl
@@ -113,5 +127,12 @@ fc98bed0341e6760660fd4acb7f5d9e6effe96753c4e200af16eb2cbf381db51  qwen36-matched
 ## Boundary
 
 No `results/log.jsonl` row, `LEADERBOARD.md` change, config edit, or runner
-source change belongs to the canary or this archive; HEAD stays `1447a23`.
-This commit adds only the six artifact paths below.
+source change belongs to the canary or this archive. The archive lives at
+HEAD `0858865`; `runner/canary.py` is byte-identical between the
+canary-source commit `1447a23` and the archive commit `0858865`
+(`git diff --quiet 1447a23..0858865 -- runner/canary.py`), so the corrected
+llama-8192 run (header SHA `085886557e10`) executed exactly the same canary
+code that produced the three MLX legs. This correction commit replaces only
+the stale pre-fix llama-8192 raw file (initial archive `2a5e70108202`,
+logprobs unavailable) with the fixed-SHA run and updates this summary; the
+six-task, two-trial scope and the no-ranking frame are unchanged.
