@@ -7,10 +7,14 @@ Context (2026-09-06): the NVIDIA-Nemotron-3.5-Lightning-30B-A3B gate ran with
 forwarded only model/port/context/sampling/KV flags and silently dropped those
 four. Mei 0.5.0 renamed the gate's --optimization-profile flag to
 --model-profile; the wrapper (2026-09-12) now forwards --model-profile and
-rejects the removed legacy name. This test pins that: the wrapper forwards each
-gate control when explicitly provided, stays backward-compatible when they are
-absent, rejects the pre-0.5.0 flag name, and --dry-run prints the full launch
-line WITHOUT compiling the Swift package or launching a server.
+rejects the removed legacy name. The Qwen3.6 OptiQ gate (2026-09-14) pinned
+the hidden Mei 0.5.0+ load-path override --load-mmap false (5/5 unaligned
+shards: the default mmap path realigned ~16.6 GiB of temporary copies and
+OOM'd the GPU allocator); the wrapper now forwards it when explicit. This test
+pins that: the wrapper forwards each gate control when explicitly provided,
+stays backward-compatible when they are absent, rejects the pre-0.5.0 flag
+name, and --dry-run prints the full launch line WITHOUT compiling the Swift
+package or launching a server.
 
 Run: uv run --locked python -m unittest discover -s runner/tests -v
 """
@@ -36,6 +40,18 @@ GATE_CONTROLS_PAIRS = [
     ("--memory-limit-bytes", "30000000000"),
     ("--cache-limit-bytes", "0"),
     ("--compiled-decode", "false"),
+]
+
+# Mei 0.5.0+ safetensors load-path override — accepted by the binary though
+# hidden from its --help. Pinned `false` by the Qwen3.6 OptiQ gate (5/5
+# unaligned shards; the default mmap path realigned ~16.6 GiB of temporary
+# copies and OOM'd the GPU allocator) and forwarded only when explicit so
+# every older config keeps Mei's own default.
+LOAD_MMAP_FLAT = [
+    "--load-mmap", "false",
+]
+LOAD_MMAP_PAIRS = [
+    ("--load-mmap", "false"),
 ]
 
 BASE_ARGS = [
@@ -88,6 +104,17 @@ class StartMeiServerForwardingTests(unittest.TestCase):
             self.assertIn(flag, res.stdout)
             self.assertIn(val, res.stdout)
 
+    def test_dry_run_forwards_load_mmap_when_explicit(self):
+        # --load-mmap is a hidden Mei 0.5.0+ load-path override: it must reach
+        # the launch line verbatim when a config pins it (the OptiQ gate's
+        # `false`), and never appear otherwise.
+        _, res = _dry_run(LOAD_MMAP_FLAT)
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertIn("mei isolated launch:", res.stdout)
+        for flag, val in LOAD_MMAP_PAIRS:
+            self.assertIn(flag, res.stdout)
+            self.assertIn(val, res.stdout)
+
     def test_dry_run_does_not_build_or_touch_runtime(self):
         base, res = _dry_run(GATE_CONTROLS_FLAT)
         self.assertEqual(res.returncode, 0, res.stderr)
@@ -108,10 +135,11 @@ class StartMeiServerForwardingTests(unittest.TestCase):
 
     def test_defaults_do_not_forward_gate_controls(self):
         # Backward compatibility: without the flags, none of the gate controls
-        # appear in the launch line, so existing configs are unaffected.
+        # (nor the --load-mmap load-path override) appear in the launch line,
+        # so existing configs are unaffected.
         _, res = _dry_run([])
         self.assertEqual(res.returncode, 0, res.stderr)
-        for flag, _ in GATE_CONTROLS_PAIRS:
+        for flag, _ in GATE_CONTROLS_PAIRS + LOAD_MMAP_PAIRS:
             self.assertNotIn(flag, res.stdout)
 
 

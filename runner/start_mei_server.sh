@@ -63,6 +63,12 @@ Options:
                             boundaries.
   --compiled-decode BOOL    Graph-traced compiled decode (default: none -> not
                             passed; Mei default false)
+  --load-mmap BOOL          Safetensors load-path override (default: none ->
+                            not passed; Mei decides). false materializes the
+                            weights into RAM instead of mmap'ing the shards —
+                            the Qwen3.6 OptiQ gate needed it (5/5 unaligned
+                            shards; the default mmap path realigned ~16.6 GiB
+                            of temporary copies and OOM'd the GPU allocator)
   --mei-repo PATH           Mei checkout (default: ~/projects/mei)
   --runtime-base PATH       Mei runtime root (default: ~/.local/share/local-model-bench/mei-runtime)
   --build-dir PATH          SwiftPM scratch/build dir (default: .../mei-build-pinned-91fed8be)
@@ -89,6 +95,7 @@ MODEL_PROFILE=""
 MEMORY_LIMIT_BYTES=""
 CACHE_LIMIT_BYTES=""
 COMPILED_DECODE=""
+LOAD_MMAP=""
 SSM_ANCHOR_BOUNDARIES=""
 REQUEST_LOG=""
 LOG_REQUESTS=""
@@ -119,6 +126,7 @@ while [[ $# -gt 0 ]]; do
     --memory-limit-bytes) MEMORY_LIMIT_BYTES="${2:?missing value}"; shift 2 ;;
     --cache-limit-bytes) CACHE_LIMIT_BYTES="${2:?missing value}"; shift 2 ;;
     --compiled-decode) COMPILED_DECODE="${2:?missing value}"; shift 2 ;;
+    --load-mmap) LOAD_MMAP="${2:?missing value}"; shift 2 ;;
     --ssm-anchor-boundaries) SSM_ANCHOR_BOUNDARIES="${2:?missing value}"; shift 2 ;;
     --request-log) REQUEST_LOG="${2:?missing value}"; shift 2 ;;
     --log-requests) LOG_REQUESTS="${2:?missing value}"; shift 2 ;;
@@ -183,6 +191,12 @@ ARGS=(--model-dir "$MODEL_DIR" --served-model-id "$SERVED_MODEL_ID"
 [[ -n "$MEMORY_LIMIT_BYTES" ]] && ARGS+=(--memory-limit-bytes "$MEMORY_LIMIT_BYTES")
 [[ -n "$CACHE_LIMIT_BYTES" ]] && ARGS+=(--cache-limit-bytes "$CACHE_LIMIT_BYTES")
 [[ -n "$COMPILED_DECODE" ]] && ARGS+=(--compiled-decode "$COMPILED_DECODE")
+# Safetensors load-path override (accepted by the Mei 0.5.0 binary though not
+# listed in its --help). Forwarded ONLY when the config asks for it. The OptiQ
+# Qwen3.6 bundle is 5/5-unaligned: the default mmap path realigned ~16.6 GiB
+# of temporary copies into RAM at load and exhausted the GPU allocator, so its
+# gate pinned false (with MLX_SAFETENSORS_MMAP=0 as the env-level backstop).
+[[ -n "$LOAD_MMAP" ]] && ARGS+=(--load-mmap "$LOAD_MMAP")
 # Cross-conversation prefix reuse (Mei 0.4.0+, default off in the server).
 # Stores SSM anchors at the first K chat role-turn boundaries so the shared
 # system+tools prefix restores across conversations instead of cold-prefilling.
