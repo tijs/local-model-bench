@@ -25,9 +25,25 @@ matplotlib.use("Agg")  # headless — no display available in this harness
 import matplotlib.pyplot as plt
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from build_leaderboard import compute_group_stats, _row_inference_engine  # noqa: E402
+from build_leaderboard import (  # noqa: E402
+    CODING_SCORE_WEIGHTS,
+    GATE_HERMES_OPS_THRESHOLD,
+    compute_group_stats,
+    _row_inference_engine,
+)
 
 REPO = Path(__file__).resolve().parent.parent
+
+
+def _score_axis_label():
+    """Axis label derived from build_leaderboard's CURRENT scoring weights so
+    the chart can never silently document a formula that differs from the one
+    actually scored (2026-09-09 incident: the label still said 'time 20%' after
+    the scored 'time' axis was replaced by 'ttft'). Iterating the weights dict
+    itself means a future axis rename/rewrite propagates here automatically.
+    """
+    terms = " + ".join(f"{axis} {weight:.0%}" for axis, weight in CODING_SCORE_WEIGHTS.items())
+    return f"Composite score\n({terms}, gate-passers only)"
 
 # Colorblind-safe status pair (not a categorical palette — every bar already
 # carries its own model-identity label via the y-axis, so color here encodes
@@ -121,7 +137,7 @@ def render_chart(entries, output_path, title="Best overall — composite score b
         )
 
     ax.set_xlim(0, 1.0)
-    ax.set_xlabel("Composite score\n(pass 45% + speed 25% + time 20% + turns 10%, gate-passers only)", fontsize=9, color=COLOR_TEXT)
+    ax.set_xlabel(_score_axis_label(), fontsize=9, color=COLOR_TEXT)
     ax.set_title(title, fontsize=12, color=COLOR_TEXT, pad=14, loc="left", fontweight="bold")
     ax.tick_params(axis="y", labelsize=8.5, colors=COLOR_TEXT)
     ax.tick_params(axis="x", labelsize=8, colors=COLOR_TEXT)
@@ -132,7 +148,8 @@ def render_chart(entries, output_path, title="Best overall — composite score b
     ax.spines["bottom"].set_color(COLOR_GRID)
 
     legend_handles = [
-        plt.Rectangle((0, 0), 1, 1, color=COLOR_GATE_PASS, label="Usefulness gate: PASS (hermes_ops ≥ 50%)"),
+        plt.Rectangle((0, 0), 1, 1, color=COLOR_GATE_PASS,
+                      label=f"Usefulness gate: PASS (hermes_ops ≥ {GATE_HERMES_OPS_THRESHOLD:.0%})"),
         plt.Rectangle((0, 0), 1, 1, color=COLOR_GATE_FAIL, label="Usefulness gate: FAIL (ranked below all gate-passers)"),
     ]
     ax.legend(handles=legend_handles, loc="lower right", fontsize=8, frameon=False)
