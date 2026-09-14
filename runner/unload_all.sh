@@ -1,28 +1,23 @@
 #!/usr/bin/env bash
-# Properly stop every local model backend before loading a benchmark
-# candidate — validated live 2026-08-19. Two INDEPENDENT supervisors were
-# found keeping vllm_mlx.server alive on port 8012, and both must be stopped
-# the right way (not pkill, which just gets fought and respawned):
+# Properly stop the benchmark-owned local backends before loading a
+# benchmark candidate. Two jobs: (1) stop the Hermes local fallback
+# LaunchAgent — ai.hermes.mara-mlx, the fitness profile's local-model
+# fallback that binds a benchmark port — if present, and (2) free every
+# port this benchmark's configs bind.
 #
-#   1. cocore's own daemon (`cocore agent serve`, launchd job
-#      dev.cocore.provider) — stop via `cocore agent models set ""`, which
-#      also updates cocore's public network provider record so the advisor
-#      stops routing requests here. This ALSO fully unloads the LaunchAgent
-#      (more than just "bouncing" it, despite the tool's own description),
-#      so a leftover orphan process needs an explicit kill after.
-#   2. hermes's OWN separate LaunchAgent for the fitness profile's local
-#      fallback (ai.hermes.mara-mlx) — stop via `launchctl bootout`, the
-#      correct way to unload a LaunchAgent (not pkill, which just races
-#      launchd's KeepAlive and loses).
+# CoCore is INTENTIONALLY OFF while benchmark experiments continue: this
+# script must NOT invoke `cocore`, must NOT mutate its LaunchAgent plist
+# (dev.cocore.provider), must NOT boot or restart it, and must NOT claim
+# it will be restored. It also does not restore mara-mlx itself —
+# runner/restore_local_backends.sh is the counterpart for that, and it is
+# manual/user-invoked only: no benchmark run invokes it automatically.
 #
-# Deliberately does NOT touch the hermes gateway itself, or the fitness
-# profile's mara_local_proxy.py (harmless when idle with no backend) — only
-# the model-serving engines.
-#
-# IMPORTANT: cocore's serving is visible on the cocore.dev network (paired
-# ATProto identity). Running this takes the machine offline as a compute
-# provider there for as long as the benchmark run lasts. See restore_all.sh
-# to bring everything back after.
+# History (validated live 2026-08-19): pre-2026-09-14 versions of this
+# script ALSO unloaded cocore's own daemon (`cocore agent models set ""`,
+# launchd job dev.cocore.provider), and restore_local_backends.sh reloaded
+# LFM2.5-2.6B + re-bootstrapped that LaunchAgent. That unload/restore
+# cycle is RETIRED — CoCore stays off while experiments continue; the git
+# history and AGENTS.md keep the full record.
 #
 # Process termination is PORT-DERIVED, not name-derived (improvement plan,
 # M4). `pkill -9 -f "llama-server"` matches on a command-line substring
@@ -88,18 +83,16 @@ if [ "${BENCH_UNLOAD_DEFINE_ONLY:-0}" = "1" ]; then
   return 0 2>/dev/null || exit 0
 fi
 
-echo "--- Stopping cocore (also takes this machine offline on cocore.dev for the duration) ---"
-cocore agent models set "" 2>&1 | grep -v "pinned process signing identity" || true
-sleep 3
-
-echo "--- Stopping hermes's independent mara-mlx LaunchAgent (fitness profile's local fallback) ---"
+echo "--- Stopping hermes's mara-mlx LaunchAgent (fitness profile's local fallback) ---"
 # gui/$(id -u), not a hardcoded gui/501 (3rd adversarial review, low
-# finding, same spirit as M8's fix for the hardcoded cocore python path):
-# 501 happens to be this machine's uid, but nothing computed it — a
-# hardcoded launchctl domain target is exactly the kind of
+# finding): 501 happens to be this machine's uid, but nothing computed it —
+# a hardcoded launchctl domain target is exactly the kind of
 # machine-specific fragility M8 fixed elsewhere.
 launchctl bootout "gui/$(id -u)/ai.hermes.mara-mlx" 2>/dev/null || true
 sleep 1
+# CoCore is NOT touched here: it is intentionally off and this script
+# never invokes cocore, mutates its plist, or boots/restarts it. There is
+# no automatic restore — see restore_local_backends.sh (manual only).
 
 echo "--- Freeing this benchmark's configured ports ---"
 # The problem the old code solved (and must keep solving): a stale process

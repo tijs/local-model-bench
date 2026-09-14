@@ -1,17 +1,16 @@
 #!/usr/bin/env bash
-# Restores both local backends that unload_all.sh stops, after a benchmark
-# session is done. Run this when you're finished testing, not automatically —
-# cocore's model reload takes real RAM+time, and you don't want it fighting
-# a benchmark run for the same resources.
+# Restores the Hermes local fallback that unload_all.sh stops, after a
+# benchmark session is done: the ai.hermes.mara-mlx LaunchAgent (the
+# fitness profile's local-model fallback). MANUAL, user-invoked only —
+# no benchmark run invokes this script automatically.
+#
+# CoCore remains INTENTIONALLY OFF: this script does NOT start or mutate
+# CoCore, does not invoke `cocore`, and does not bootstrap its LaunchAgent.
+# Bringing CoCore back is an explicit manual user decision outside this
+# benchmark, never an automatic step. (Pre-2026-09-14 versions reloaded
+# LFM2.5-2.6B and re-bootstrapped the cocore agent; that contract is
+# retired — see AGENTS.md and the git history.)
 set -uo pipefail
-
-echo "--- Restoring cocore (LFM2.5-2.6B, resumes cocore.dev network serving) ---"
-cocore agent models set "LiquidAI/LFM2.5-2.6B-MLX-bf16" 2>&1 | grep -v "pinned process signing identity" || true
-sleep 2
-# The models-set bounce fully unloads the LaunchAgent rather than reloading
-# it cleanly (observed live 2026-08-19) — re-bootstrap explicitly.
-launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/dev.cocore.provider.plist 2>&1 || true
-sleep 2
 
 echo "--- Restoring hermes's mara-mlx LaunchAgent (fitness profile's local fallback) ---"
 # gui/$(id -u), not a hardcoded gui/501 — same fix as unload_all.sh (3rd
@@ -20,5 +19,10 @@ launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/ai.hermes.mara-mlx.pli
 
 sleep 3
 echo "--- Verifying ---"
-cocore agent active 2>&1 | tail -1
-ps aux | grep -E "vllm_mlx.server|cocore_inference_server" | grep -v grep || echo "  (no model processes running — something didn't restart, check manually)"
+if launchctl print "gui/$(id -u)/ai.hermes.mara-mlx" >/dev/null 2>&1; then
+  echo "  ai.hermes.mara-mlx is loaded."
+else
+  echo "  ai.hermes.mara-mlx is NOT loaded — check the plist / launchd manually."
+fi
+echo "  CoCore remains intentionally off (not started, not restored)."
+ps aux | grep -E "vllm_mlx.server|llama-server" | grep -v grep || echo "  (no benchmark model processes running)"

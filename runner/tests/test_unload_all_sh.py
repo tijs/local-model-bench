@@ -12,6 +12,13 @@ known backend.
 These drive the real script, and never kill anything: the destructive
 paths are exercised only against a listener this test started itself.
 
+Also asserts the 2026-09-14 no-CoCore contract: CoCore is intentionally
+off while benchmark experiments continue, so neither unload_all.sh nor
+restore_local_backends.sh may invoke `cocore`, mutate its LaunchAgent
+plist, boot/restart it, or claim it will be restored — both scripts only
+manage the benchmark-owned Hermes fallback (ai.hermes.mara-mlx) and the
+benchmark's ports.
+
 Run: uv run --locked python -m unittest discover -s runner/tests -v
 """
 import os
@@ -30,6 +37,7 @@ import run_fixture_suite as rfs
 
 REPO = rfs.REPO
 UNLOAD_ALL_SH = REPO / "runner" / "unload_all.sh"
+RESTORE_LOCAL_BACKENDS_SH = REPO / "runner" / "restore_local_backends.sh"
 
 
 def _list_ports():
@@ -90,6 +98,47 @@ class NoBroadPatternKillByDefaultTests(unittest.TestCase):
         text = UNLOAD_ALL_SH.read_text()
         self.assertIn("BACKEND_CMD_PATTERN", text)
         self.assertIn("is not a known benchmark backend, leaving it alone", text)
+
+
+class NoCoCoreContractTests(unittest.TestCase):
+    """2026-09-14 contract: CoCore is intentionally OFF. Neither script may
+    invoke the cocore CLI, mutate its LaunchAgent plist, boot/restart it,
+    or claim it will be restored; they may only manage the benchmark-owned
+    Hermes fallback and the benchmark's ports."""
+
+    def test_unload_script_never_invokes_cocore(self):
+        code = _code_lines(UNLOAD_ALL_SH.read_text())
+        for needle in ("cocore agent", "cocore serve", "cocore models",
+                       "models set", "dev.cocore.provider", "launchctl bootstrap"):
+            self.assertNotIn(needle, code)
+        # No executable line may start a cocore CLI invocation.
+        self.assertNotRegex(code, r"(^|\n)\s*cocore\s+")
+        text = UNLOAD_ALL_SH.read_text()
+        # No stale reference to a nonexistent restore script, and no claim
+        # that anything will bring CoCore back.
+        self.assertNotIn("restore_all.sh", text)
+        self.assertNotIn("bring everything back", text)
+
+    def test_unload_script_still_manages_fallback_and_ports(self):
+        code = _code_lines(UNLOAD_ALL_SH.read_text())
+        self.assertIn("ai.hermes.mara-mlx", code)   # benchmark-owned fallback
+        self.assertIn("launchctl bootout", code)    # stop, never restart
+        self.assertIn("stop_port", code)            # port cleanup preserved
+        self.assertIn("BENCH_UNLOAD_FORCE", code)
+
+    def test_restore_script_never_starts_cocore(self):
+        text = RESTORE_LOCAL_BACKENDS_SH.read_text()
+        code = _code_lines(text)
+        self.assertNotIn("cocore", code)
+        self.assertNotIn("dev.cocore.provider", text)
+        self.assertNotIn("models set", code)
+        # ...but it must keep the manual, clearly-user-invoked Hermes
+        # fallback bootstrap AND say CoCore stays off / never automatic.
+        self.assertIn("ai.hermes.mara-mlx", code)
+        self.assertIn("launchctl bootstrap", code)
+        self.assertIn("intentionally off", text.lower())
+        self.assertIn("user-invoked", text.lower())
+        self.assertIn("automatically", text.lower())
 
 
 class StopPortBehaviourTests(unittest.TestCase):
