@@ -50,7 +50,7 @@ distinct Qwen3.6 model strings, with row counts:
 | 316 | `Tostibrown/Qwen3.6-35B-A3B-4bit-textonly` (text-only MLX) |
 | 96 | `HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M` (llama.cpp GGUF) |
 | 25 | `EigenLabs/Qwen3.6-35B-A3B-MLX-mixed-4bit` (mixed46) |
-| 21 | `unsloth/Qwen3.6-35B-A3B-GGUF:UD-Q4_K_XL` (official GGUF) |
+| 21 | `unsloth/Qwen3.6-35B-A3B-GGUF:UD-Q4_K_XL` (community GGUF) |
 | 20 | `mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit` (OptiQ) |
 | 15 | `mlx-community/Qwen3.6-35B-A3B-4bit-DWQ` (DWQ) |
 | 5 | `ggml-org/Qwen3.6-35B-A3B-GGUF:Q4_K_M` (official GGUF) |
@@ -66,7 +66,7 @@ parsed from every Qwen3.6 row — key legs:
 | mixed46 mei `4f91b7aee214` | `4f91b7aee214` | `377e1af4c7cf` | 15 | kiem_mini:15 | 5 | 0 |
 | mixed46 mei `4f91b7aee214` | `4f91b7aee214` | `152872acb630` | 10 | kiem_mini:10 | 10 | 0 |
 | DWQ mei `b6b5824d3567` | `b6b5824d3567` | `1c8ea189fdb2` | 15 | kiem_mini:15 | 4 | 0 |
-| official GGUF llama.cpp `436d6d25d30c` | `436d6d25d30c` | `8d4f1f85f106` | 21 | sanity:2, hermes_ops:8, kiem_mini:5, hearth_mini:3, kipclip_mini:3 (no hearth_full — pre-v3 suite) | 3 | 0 |
+| community GGUF llama.cpp `436d6d25d30c` | `436d6d25d30c` | `8d4f1f85f106` | 21 | sanity:2, hermes_ops:8, kiem_mini:5, hearth_mini:3, kipclip_mini:3 (no hearth_full — pre-v3 suite) | 3 | 0 |
 | official GGUF llama.cpp `6824b87f5e21` | `6824b87f5e21` | `19aee89cd756` | 5 | kiem_mini:5 | 3 | **2** |
 | stock MLX mei `277258e7326f` | `277258e7326f` | `258148c2d48a` | 25 | sanity:2, hermes_ops:8, kiem_mini:5, hearth_mini:3, kipclip_mini:4, hearth_full:3 | 2 | 0 |
 | stock MLX mei `d35863fa1b50` | `d35863fa1b50` | `258148c2d48a` | 25 | full | 3 | 0 |
@@ -186,10 +186,11 @@ All paths under `artifacts/` unless noted. Gates and canaries are
   **mixed46 is unranked** and the gate appended no rows. Note: the mixed46
   config's launcher still pins `VMLX_ENABLE_UNSAFE_COMPILE=1` — the gate ran
   the safe set; reconcile before any future coding run.
-- **Official GGUF bounded control has visible failures** — the two official
-  GGUF fragments in `results/log.jsonl` (§2): `unsloth …UD-Q4_K_XL` 21-row leg
-  (3 fails; also kipclip_mini 3/4 and no hearth_full — pre-v3 suite row), and
-  `ggml-org …Q4_K_M` 5-row `kiem_mini` leg with **3 fails including 2
+- **Official ggml-org control has visible failures** — the two GGUF fragments
+  in `results/log.jsonl` (§2) are distinct: the **community**
+  `unsloth …UD-Q4_K_XL` 21-row leg (3 fails; also kipclip_mini 3/4 and no
+  hearth_full — pre-v3 suite row), and the **official** `ggml-org …Q4_K_M`
+  5-row `kiem_mini` control leg with **3 fails including 2
   `harness_error: true`** at runner `19aee89cd756` (2026-09-13). The canary
   12/12 does not contradict this and does not rank the control either.
 - Methodology/direction context: `qwen36-scheme-aware-*` (2026-09-14/15)
@@ -202,7 +203,7 @@ All paths under `artifacts/` unless noted. Gates and canaries are
 - **`results/LEADERBOARD.md`**: OptiQ appears ONLY in the all-groups
   (unranked/partial historical) table — `mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit
   | mei | 31a7f0b6a256 | b5b7f49bcb62 | 15 | 93% | 1 fail` and
-  `… | f713b29fc5c7 | 5 | 60% | 1 fail`, plus the per-suite detail rows
+  `… | f713b29fc5c7 | 5 | 60% | 2 fail`, plus the per-suite detail rows
   (kiem_mini 4/5 at `b5b7f49bcb62`, 3/5 at `f713b29fc5c7`; hearth/kipclip 3/3,
   4/4). It is **not** in “Best overall” (eligibility there: sanity + FULL
   hermes_ops (8) + FULL coding (15), `benchmark-v2`-or-later runner SHA, and
@@ -303,8 +304,9 @@ GETs and small metadata files only — **no weight payload downloaded**.
   (README.md 10,300 B; `axquant_runtime.json` 1,676 B; `mtplx_runtime.json`
   888 B; `axquant_mtp_sidecar_manifest.json` 1,066 B) have sha256/size
   **exactly matching the manifest's per-file entries**
-  (`fe13ca9d…`, `66288788…`, `9f8e8c16…`, `0cd1522d…`). Weight payloads were
-  not downloaded; the four downloaded files are the only local copies.
+  (`fe13ca9d…`, `66288788…`, `9f8e8c16…`, `0cd1522d…`). These four files were
+  spot-checked against the public manifest; no weight payload was downloaded
+  (other repo metadata was read via the Hub API, not fetched to disk).
 
 ## 7. Disk / local-cache gate (Measured)
 
