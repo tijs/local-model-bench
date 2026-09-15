@@ -413,8 +413,12 @@ no push). When launched, the acceptance gate must satisfy all of:
 
 ## 10. Checks performed this tick
 
-- `git status --short --branch` clean before and after; HEAD
-  `21a03ff12493299c6c4e58dca0a9dc24a55553d4` unchanged throughout.
+- `git status --short --branch` clean at the read-only audit checkpoint:
+  HEAD `21a03ff12493299c6c4e58dca0a9dc24a55553d4` before report creation.
+  The report was subsequently committed as
+  `bb293dbefbb4f89eda2463d44af5d748afc9b2fd` and corrected as
+  `d6f8c5d3e69ffabdbd18f9d4492993a569593453`, with only this artifact
+  changed.
 - Read-only evidence: `results/log.jsonl` parsed (4064/916/counts/groups —
   script pattern in `/tmp/qw_*.py`, nothing written to the repo); task YAML
   counts; `run_bench.py --help`; config SHA-256 + `cmp`; snapshot blob sizes;
