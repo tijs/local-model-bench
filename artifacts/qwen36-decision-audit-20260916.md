@@ -13,14 +13,16 @@ audit's judgment.
 Audit date: 2026-09-16 (CEST / UTC+02:00). Repository:
 `/Users/tijs/projects/local-model-bench` (only repo touched).
 
-## 1. Checkout state (Measured)
+## 1. Checkout state at audit baseline (Measured)
 
-- HEAD `27ffe2c142a39753075849bdd30bac1ba339a37a`
+- **Audit baseline**: HEAD `27ffe2c142a39753075849bdd30bac1ba339a37a`
   (`configs/Qwen3.6-35B-A3B-OptiQ: add fresh-KV acceptance leg config (planning/setup only)`),
   clean `main`, **ahead 32** of origin (`git status --porcelain=v1 -b` = `## main...origin/main [ahead 32]`,
-  clean before and after all work this tick). The 0915 audit closed at ahead 28;
-  the four new commits are the audit fixes `bb293db`/`d6f8c5d`/`f3e76b5` and the
-  acceptance config `27ffe2c`. `git fsck` clean.
+  working tree clean before and after the audit checks this tick). The 0915
+  audit closed at ahead 28; the four new commits are the audit fixes
+  `bb293db`/`d6f8c5d`/`f3e76b5` and the acceptance config `27ffe2c`. `git fsck`
+  clean. Report-only commits made later (this artifact's own commits) are
+  reconciled in the final section (§13).
 - No benchmark process and **no listener on port 8024** at audit time
   (read-only `lsof`/`pgrep`; re-checked after all checks ran).
 
@@ -219,7 +221,8 @@ quotes 22.1 GB is describing only the root blobs, not the complete artifact.
 
 ## 11. Checks performed this tick
 
-- `git status --porcelain=v1 -b` clean at start and end: HEAD
+- `git status --porcelain=v1 -b` clean at start and end of the audit checks —
+  **audit-baseline state** (see §1): HEAD
   `27ffe2c142a39753075849bdd30bac1ba339a37a`, `main`, ahead 32; `git fsck` clean.
 - Read-only: AGENTS.md; 0915 audit; `configs/Qwen3.6-35B-A3B-OptiQ/acceptance.yaml`
   (+ `shasum -a 256`); `runner/start_mei_server.sh`; snapshot `stat -L` sums and
@@ -249,3 +252,22 @@ audit):
 
 No Kiem change was made by the audit worker; the reconciliation above is the
 parent's post-audit action only.
+
+## 13. Post-artifact repository reconciliation
+
+Every **Measured** result in this artifact was verified at the audit baseline
+in §1 (HEAD `27ffe2c142a39753075849bdd30bac1ba339a37a`, clean `main`, ahead
+32). After the audit checks, that baseline was followed only by report-only
+commits, each scoped to this artifact:
+
+- `e077117f47f95b52824036bec73130dd022930d0` — artifact creation.
+- `8f78bb4c5c0c47aae2b8350fdbd9f3ca56f822d6` — temporal Kiem clarification.
+
+At the time of this reconciliation the working tree was clean at
+`8f78bb4c5c0c47aae2b8350fdbd9f3ca56f822d6` and `main` was **ahead 34** of
+origin. The acceptance config remains its own separate commit, `27ffe2c` — the
+audit-baseline HEAD — unchanged by these report-only commits.
+
+These report-only commits do not alter this audit's results, config, or
+process conclusions: no measured result, no config, and no process conclusion
+changes; they exist only to record and clarify this artifact.
