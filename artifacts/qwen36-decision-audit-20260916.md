@@ -3,10 +3,12 @@
 Continuation (NOT a replacement) of `artifacts/qwen36-decision-audit-20260915.md`;
 that artifact stays authoritative for everything it measured. This tick is ONE
 durable, CPU-only follow-up: no model run, no download, no install, no cache
-deletion, no results/ or selection-manifest change, no Kiem change, no sibling
-repo touched, no push. Everything marked **Measured** was verified live in this
-tick; **Public metadata** is Hub-API/card or prior-tick recorded data; **Decision**
-is this audit's judgment.
+deletion, no results/ or selection-manifest change, no Kiem change during the
+audit worker's report-writing phase (the parent performed a separate, verified
+post-audit Kiem reconciliation — see §12), no sibling repo touched, no push.
+Everything marked **Measured** was verified live in this tick; **Public
+metadata** is Hub-API/card or prior-tick recorded data; **Decision** is this
+audit's judgment.
 
 Audit date: 2026-09-16 (CEST / UTC+02:00). Repository:
 `/Users/tijs/projects/local-model-bench` (only repo touched).
@@ -225,7 +227,25 @@ quotes 22.1 GB is describing only the root blobs, not the complete artifact.
   (metadata only — `results/log.jsonl` content not read).
 - Commands: focused chart unittest (42 OK), full runner unittest (332 OK),
   two bash wrapper `--dry-run` reproductions (full acceptance set and bare).
-- Files created: **this artifact only**
+- Files created: **this repository artifact only** by the audit worker
   (`artifacts/qwen36-decision-audit-20260916.md`). Nothing in `runner/`,
   `configs/`, `tasks/`, `checks/`, `fixtures/`, `results/`,
-  `results/qwen36-mei-selection.json`, or any sibling repo was modified.
+  `results/qwen36-mei-selection.json`, or any sibling repo was modified. Kiem
+  was reconciled separately by the parent after verification (§12).
+
+## 12. Post-audit Kiem reconciliation
+
+After the audit worker verified this artifact, the parent separately reconciled
+Kiem plan `7f5c67e7-b564-4df3-8209-14f7443b56e2` (verified independent of this
+audit):
+
+- Re-read the plan after verifying the artifact.
+- Clarified the checked item as **setup-only / deferred** (plan line 99 now
+  reads setup complete/deferred).
+- Added the explicit **open fresh-KV OptiQ acceptance gate** as a new open
+  acceptance todo (public todo index **15**).
+- Read back the final plan/todos: open acceptance todo index **15**, final plan
+  version `f4c00e0f2af813fd8ce1831212e410401bf546c6da4e63f8c994026a7578031b`.
+
+No Kiem change was made by the audit worker; the reconciliation above is the
+parent's post-audit action only.
