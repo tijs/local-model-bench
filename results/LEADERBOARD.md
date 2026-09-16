@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/4064 rows below predate 2026-08-21
+> **⚠ 138/4120 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -195,6 +195,9 @@ means no usable timestamp was recoverable from that group's rows.
 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | omlx | — | 0.2 | n/a | n/a | 2/2 | [f3b91883da61](configs/f3b91883da61.yaml) — *config since changed* | e155170f4c1d | 8 | 75% | 0 | 23.2 | 13.26 | 0 | — | 0 | 12.2 | BF16 | cold | off | 596 |
 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | omlx | — | 0.2 | n/a | n/a | 2/2 | [f3b91883da61](configs/f3b91883da61.yaml) — *config since changed* | fc71ba2c66f8+dirty | 3 | 100% | 0 | 9.4 | 10.51 | 0 | — | 0 | — | BF16 | cold | off | 232 |
 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | vllm-mlx | — | 0.2 | n/a | n/a | 2/2 | [9693319bc3a1](configs/9693319bc3a1.yaml) — *config since changed* | 798e2f07f493 | 9 | 67% | 0 | — | n/a (proxied — not real TTFT) | 0 | — | 0 | 9.5 | — | — | — | 504 |
+| ManniX-ITA/Qwen3.6-27B-A3B-Coder-MTP-GGUF:CD-IQ4_K_M | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [02c0f591926b](configs/02c0f591926b.yaml) — *config since changed* | 91c123cb02a0 | 11 | 82% | 1 | 40.6 | 7.95 | 0 | 15.0 | 6 | 19.2 | GGUF Q4_K_M (ManniX-ITA community CD-IQ4_K_M k-quant, single-file, 16.7 GB) | — | — | 1384 |
+| ManniX-ITA/Qwen3.6-27B-A3B-Coder-MTP-GGUF:CD-IQ4_K_M | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [71b86463d35f](configs/71b86463d35f.yaml) — *config since changed* | a018d59cefab | 16 | 75% | 1 | 40.6 | 7.95 | 0 | 8.8 | 11 | 20.3 | GGUF Q4_K_M (ManniX-ITA community CD-IQ4_K_M k-quant, single-file, 16.7 GB) | — | — | 5654 |
+| ManniX-ITA/Qwen3.6-27B-A3B-Coder-MTP-GGUF:CD-IQ4_K_M | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [f4e4206eab5c](configs/f4e4206eab5c.yaml) | 711e537c4dc4 | 23 | 83% | 2 | 40.6 | 7.95 | 0 | 6.5 | 9 | 21.4 | GGUF Q4_K_M (ManniX-ITA community CD-IQ4_K_M k-quant, single-file, 16.7 GB) | — | — | 4826 |
 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | — | 0.2 | n/a | n/a | 2/2 | [00fc47aef271](configs/00fc47aef271.yaml) — *config since changed* | 65bb6d23192e | 8 | 75% | 0 | 15.0 | 13.02 | 0 | — | 0 | 5.1 | oQ4-fp16 mixed precision | cold | off | 375 |
 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | — | 0.2 | n/a | n/a | 4/4 | [00fc47aef271](configs/00fc47aef271.yaml) — *config since changed* | fc71ba2c66f8+dirty | 9 | 44% | 0 | 9.8 | 9.97 | 0 | — | 0 | — | oQ4-fp16 mixed precision | cold | off | 22061 |
 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | — | 0.2 | n/a | n/a | 2/2 | [8c159510d3a5](configs/8c159510d3a5.yaml) — *config since changed* | 65bb6d23192e | 0 | n/a (all harness errors) | 0 | — | 1.05 | 0 | — | 0 | 5.1 | oQ4-fp16 mixed precision | ssd | off | 2 |
@@ -475,24 +478,25 @@ most total coding+hermes_ops evidence, then recency.
 
 | rank | model | engine | quant | reasoning⁶ | config | usefulness gate | score | coding | decode speed | avg TTFT | total runtime (s)⁷ | avg turns |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 1 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | — | thinking | 271c7ee694e8 | PASS (100%, 8) | 0.926 | 80% (15) | 56.0 tok/s | 7.30s | 2731 | 8.5 |
-| 2 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | unspecified | 86f6177b6c31 | PASS (100%, 8) | 0.860 | 87% (15) | 39.7 tok/s | 7.01s | 2696 | 11.0 |
-| 3 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-I-Quality | llama.cpp | — | unspecified | 73c161a87535 | PASS (88%, 8) | 0.839 | 93% (15) | 39.5 tok/s | 7.16s | 3355 | 14.2 |
-| 4 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | — | thinking | d35863fa1b50 | PASS (75%, 8) | 0.829 | 80% (15) | 50.2 tok/s | 8.49s | 2763 | 9.1 |
-| 5 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | thinking | 98fbff8ca864 | PASS (75%, 8) | 0.815 | 87% (15) | 43.4 tok/s | 7.05s | 2767 | 15.7 |
-| 6 | mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Quality | llama.cpp | — | unspecified | 49ec38e05e0c | PASS (88%, 8) | 0.753 | 87% (15) | 42.9 tok/s | 10.67s | 5398 | 20.2 |
-| 7 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | — | unspecified | 7b0652d1fb9e | PASS (100%, 8) | 0.728 | 80% (15) | 33.3 tok/s | 10.29s | 4419 | 15.3 |
-| 8 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | unspecified | 2737ce74ab39 | PASS (100%, 8) | 0.714 | 80% (15) | 42.6 tok/s | 43.47s | 2290 | 7.9 |
-| 9 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | thinking | a2d241742068 | PASS (75%, 8) | 0.707 | 87% (15) | 31.9 tok/s | 9.34s | 4215 | 18.7 |
-| 10 | mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Compact | llama.cpp | — | unspecified | 0b31098f54f7 | PASS (75%, 8) | 0.706 | 73% (15) | 44.9 tok/s | 10.16s | 3447 | 22.9 |
-| 11 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | — | instruct | 644415678c37 | PASS (75%, 8) | 0.665 | 87% (15) | 26.1 tok/s | 9.50s | 5045 | 27.5 |
-| 12 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | thinking (medium) | 340ca3032e6c | PASS (88%, 8) | 0.533 | 87% (15) | 11.6 tok/s | 46.59s | 16645 | 13.3 |
-| 13 | mlx-community/Qwen3.8-27B-4bit | mei | — | thinking | c7f10a958b1e | PASS (75%, 8) | 0.528 | 93% (15) | 14.6 tok/s | 294.05s | 22412 | 11.8 |
-| 14 | trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M | llama.cpp | — | thinking (medium) | 891242963db5 | PASS (100%, 8) | 0.520 | 80% (15) | 11.1 tok/s | 49.89s | 22074 | 15.4 |
-| 15 | orcarouter/Qwen3.8-27B-Uncensored-MLX (subdir 4-bit) | mei | — | thinking | 40fbffd03a95 | PASS (62%, 8) | 0.456 | 73% (15) | 19.3 tok/s | 304.51s | 26902 | 15.3 |
-| 16 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | n/a | ffa862c18cff | PASS (75%, 8) | 0.417 | 60% (15) | 10.0 tok/s | 28.10s | 15872 | 27.9 |
-| 17 | poolside/Laguna-XS-2.1-GGUF:Q4_K_M | llama.cpp | — | thinking | 644ba3997136 | PASS (50%, 8) | 0.364 | 87% (15) | — | — | 2840 | 25.3 |
-| 18 | mlx-community/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit | mei | — | thinking | d9be6d0097ea | FAIL (12%, 8) | — | 27% (15) | — | — | 5440 | 11.3 |
+| 1 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | — | thinking | 271c7ee694e8 | PASS (100%, 8) | 0.909 | 80% (15) | 56.0 tok/s | 7.30s | 2731 | 8.5 |
+| 2 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | unspecified | 86f6177b6c31 | PASS (100%, 8) | 0.847 | 87% (15) | 39.7 tok/s | 7.01s | 2696 | 11.0 |
+| 3 | ManniX-ITA/Qwen3.6-27B-A3B-Coder-MTP-GGUF:CD-IQ4_K_M | llama.cpp | — | thinking | f4e4206eab5c | PASS (88%, 8) | 0.829 | 80% (15) | 40.6 tok/s | 7.95s | 4826 | 6.5 |
+| 4 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-I-Quality | llama.cpp | — | unspecified | 73c161a87535 | PASS (88%, 8) | 0.828 | 93% (15) | 39.5 tok/s | 7.16s | 3355 | 14.2 |
+| 5 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | — | thinking | d35863fa1b50 | PASS (75%, 8) | 0.812 | 80% (15) | 50.2 tok/s | 8.49s | 2763 | 9.1 |
+| 6 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | thinking | 98fbff8ca864 | PASS (75%, 8) | 0.806 | 87% (15) | 43.4 tok/s | 7.05s | 2767 | 15.7 |
+| 7 | mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Quality | llama.cpp | — | unspecified | 49ec38e05e0c | PASS (88%, 8) | 0.746 | 87% (15) | 42.9 tok/s | 10.67s | 5398 | 20.2 |
+| 8 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | — | unspecified | 7b0652d1fb9e | PASS (100%, 8) | 0.718 | 80% (15) | 33.3 tok/s | 10.29s | 4419 | 15.3 |
+| 9 | mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Compact | llama.cpp | — | unspecified | 0b31098f54f7 | PASS (75%, 8) | 0.699 | 73% (15) | 44.9 tok/s | 10.16s | 3447 | 22.9 |
+| 10 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | thinking | a2d241742068 | PASS (75%, 8) | 0.699 | 87% (15) | 31.9 tok/s | 9.34s | 4215 | 18.7 |
+| 11 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | unspecified | 2737ce74ab39 | PASS (100%, 8) | 0.695 | 80% (15) | 42.6 tok/s | 43.47s | 2290 | 7.9 |
+| 12 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | — | instruct | 644415678c37 | PASS (75%, 8) | 0.659 | 87% (15) | 26.1 tok/s | 9.50s | 5045 | 27.5 |
+| 13 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | thinking (medium) | 340ca3032e6c | PASS (88%, 8) | 0.522 | 87% (15) | 11.6 tok/s | 46.59s | 16645 | 13.3 |
+| 14 | mlx-community/Qwen3.8-27B-4bit | mei | — | thinking | c7f10a958b1e | PASS (75%, 8) | 0.516 | 93% (15) | 14.6 tok/s | 294.05s | 22412 | 11.8 |
+| 15 | trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M | llama.cpp | — | thinking (medium) | 891242963db5 | PASS (100%, 8) | 0.511 | 80% (15) | 11.1 tok/s | 49.89s | 22074 | 15.4 |
+| 16 | orcarouter/Qwen3.8-27B-Uncensored-MLX (subdir 4-bit) | mei | — | thinking | 40fbffd03a95 | PASS (62%, 8) | 0.446 | 73% (15) | 19.3 tok/s | 304.51s | 26902 | 15.3 |
+| 17 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | n/a | ffa862c18cff | PASS (75%, 8) | 0.411 | 60% (15) | 10.0 tok/s | 28.10s | 15872 | 27.9 |
+| 18 | poolside/Laguna-XS-2.1-GGUF:Q4_K_M | llama.cpp | — | thinking | 644ba3997136 | PASS (50%, 8) | 0.358 | 87% (15) | — | — | 2840 | 25.3 |
+| 19 | mlx-community/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit | mei | — | thinking | d9be6d0097ea | FAIL (12%, 8) | — | 27% (15) | — | — | 5440 | 11.3 |
 
 ![Best overall composite score by model](score_chart.png)
 
@@ -724,6 +728,19 @@ confirmed-stable, just untested for flakiness.
 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | vllm-mlx | 9693319bc3a1 | 798e2f07f493 | hermes_ops | 6/8 |
 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | vllm-mlx | 9693319bc3a1 | 798e2f07f493 | kiem_mini | 0/1 |
 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | vllm-mlx | 9693319bc3a1 | 798e2f07f493 | sanity | 2/2 |
+| ManniX-ITA/Qwen3.6-27B-A3B-Coder-MTP-GGUF:CD-IQ4_K_M | llama.cpp | 02c0f591926b | 91c123cb02a0 | hermes_ops | 7/8 |
+| ManniX-ITA/Qwen3.6-27B-A3B-Coder-MTP-GGUF:CD-IQ4_K_M | llama.cpp | 02c0f591926b | 91c123cb02a0 | kiem_mini | 2/3 |
+| ManniX-ITA/Qwen3.6-27B-A3B-Coder-MTP-GGUF:CD-IQ4_K_M | llama.cpp | 02c0f591926b | 91c123cb02a0 | sanity | 2/2 |
+| ManniX-ITA/Qwen3.6-27B-A3B-Coder-MTP-GGUF:CD-IQ4_K_M | llama.cpp | 71b86463d35f | a018d59cefab | hearth_mini | 3/3 |
+| ManniX-ITA/Qwen3.6-27B-A3B-Coder-MTP-GGUF:CD-IQ4_K_M | llama.cpp | 71b86463d35f | a018d59cefab | hermes_ops | 7/8 |
+| ManniX-ITA/Qwen3.6-27B-A3B-Coder-MTP-GGUF:CD-IQ4_K_M | llama.cpp | 71b86463d35f | a018d59cefab | kiem_mini | 2/5 |
+| ManniX-ITA/Qwen3.6-27B-A3B-Coder-MTP-GGUF:CD-IQ4_K_M | llama.cpp | 71b86463d35f | a018d59cefab | sanity | 2/2 |
+| ManniX-ITA/Qwen3.6-27B-A3B-Coder-MTP-GGUF:CD-IQ4_K_M | llama.cpp | f4e4206eab5c | 711e537c4dc4 | hearth_full | 2/3 |
+| ManniX-ITA/Qwen3.6-27B-A3B-Coder-MTP-GGUF:CD-IQ4_K_M | llama.cpp | f4e4206eab5c | 711e537c4dc4 | hearth_mini | 3/3 |
+| ManniX-ITA/Qwen3.6-27B-A3B-Coder-MTP-GGUF:CD-IQ4_K_M | llama.cpp | f4e4206eab5c | 711e537c4dc4 | hermes_ops | 7/8 |
+| ManniX-ITA/Qwen3.6-27B-A3B-Coder-MTP-GGUF:CD-IQ4_K_M | llama.cpp | f4e4206eab5c | 711e537c4dc4 | kiem_mini | 3/5 |
+| ManniX-ITA/Qwen3.6-27B-A3B-Coder-MTP-GGUF:CD-IQ4_K_M | llama.cpp | f4e4206eab5c | 711e537c4dc4 | kipclip_mini | 4/4 |
+| ManniX-ITA/Qwen3.6-27B-A3B-Coder-MTP-GGUF:CD-IQ4_K_M | llama.cpp | f4e4206eab5c | 711e537c4dc4 | sanity | 2/2 |
 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | 00fc47aef271 | 65bb6d23192e | hermes_ops | 6/8 |
 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | 00fc47aef271 | 65bb6d23192e | sanity | 2/2 |
 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | 00fc47aef271 | fc71ba2c66f8+dirty | hermes_ops | 4/6 |
