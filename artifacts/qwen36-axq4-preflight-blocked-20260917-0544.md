@@ -1,0 +1,126 @@
+# Qwen3.6 track — AXQ 4-bit preflight, BLOCKED, 2026-09-17 05:44 CEST
+
+Fresh CPU-only preflight for the authorized AX-Qwen3.6 AXQ 4-bit gate.
+**No model, probe, server, benchmark, wrapper, or build ran; no weights were
+downloaded or staged; no tooling was installed; no cache was deleted; no
+`/Users/tijs/projects/mei` was touched; no Kiem mutation was made; no
+`results/log.jsonl`, `LEADERBOARD`, config, runner, task, check, or fixture
+content changed; no process was stopped or restarted; CoCore was untouched; no
+public action or secret use occurred.** This artifact is the only intended
+repository write for this blocked tick.
+
+Source labels: **Measured** = verified live in this tick by read-only local
+checks; **Carried** = immutable plan/evidence restated from prior verified
+records and the parent orchestrator's independent read-only preflight;
+**Decision** = this preflight's judgment.
+
+## 1. Checkout and automation state (Measured, Kiem Carried)
+
+- Pre-write HEAD is `ebc9532948308ebba338116e3c6b7afdb67db23f`
+  (`artifacts: record AXQ 4-bit preflight blocker 2026-09-17 04:40`), branch
+  `main`, with `git rev-list --left-right --count origin/main...HEAD` =
+  `0 55` (ahead 55 / behind 0 of `origin/main`). The tree was clean
+  (`git status --porcelain` empty) before this artifact.
+- Kiem plan `7f5c67e7-b564-4df3-8209-14f7443b56e2` was read read-only
+  (Carried: the `kiem` CLI is not present in this worker environment, so the
+  plan/todo state is restated from the parent orchestrator's read-only
+  preflight, which made no Kiem mutation). Plan todos **19 (AXQ 4-bit)** and
+  **20 (AXQ 6-bit)** remain open. The authorized queue is unchanged:
+  **AXQ 4-bit -> AXQ 6-bit -> gated Gravity**.
+
+## 2. Disk and memory gate (parent preflight Measured; writer re-sample Measured)
+
+Fresh `statvfs` sample from the parent orchestrator's preflight at 05:44 CEST
+on the volume hosting this repo, `mei-models`, and the HF hub cache:
+**54,335,713,280 bytes free = 50.604076 GiB**. The pinned AXQ 4-bit package
+size is **23,120,765,421 B** (Carried). Writer re-sample seconds later:
+**54,334,857,216 B = 50.603279 GiB** (drift 856,064 B from the preflight
+sample; verdict invariant).
+
+| Gate | Threshold / calculation | Result | Verdict |
+|---|---:|---:|---|
+| Pre-staging | 51.5 GiB = 55,297,703,936 B | short by 961,990,656 B = 0.895924 GiB | **FAIL** |
+| After full 4-bit staging | 54,335,713,280 − 23,120,765,421 = 31,214,947,859 B = 29.0711856065 GiB | 997,306,861 B = 0.9288143935 GiB below the 30 GiB launch gate | **FAIL** |
+| Post-staging floor | 20 GiB = 21,474,836,480 B | +9,740,111,379 B = 9.0711856065 GiB | PASS alone |
+
+Both the 51.5 GiB pre-staging gate and the runner's 30 GiB launch gate are
+unmet, so **staging or downloading today is not justified**; the 20 GiB
+post-staging floor passes but is not the binding constraint today.
+
+Memory is not the blocker: `sysctl hw.memsize` (Measured) is
+**34,359,738,368 B (32 GiB)**; the parent preflight reports **91% system-wide
+free** (Carried). Writer live `vm_stat` re-sample: 16,384-byte pages,
+1,203,765 free pages = 19,722,485,760 B (57.4% of 32 GiB), with free +
+inactive + speculative = 1,560,200 pages = 25,562,316,800 B (74.4% of 32 GiB).
+Sample-to-sample page counts vary, but every reading leaves ample headroom;
+memory does not gate AXQ 4-bit.
+
+## 3. Candidate presence (Measured)
+
+- No AXQ/AutomatosX match exists under `configs/`.
+- No AXQ/AutomatosX model or staging directory exists under
+  `/Users/tijs/.local/share/local-model-bench/mei-models` (only the standard
+  MLX 4-bit/mixed/ternary 2-bit candidates and provenance files) or
+  `~/.cache/huggingface/hub` (only EigenLabs, ManniX-ITA GGUF, and
+  mlx-community 4-bit/DWQ snapshots).
+- Therefore there is no existing-cache acceptance path. Mei/AXQ compatibility
+  remains unproven; no runtime probe is justified without the staged
+  candidate.
+
+## 4. Processes and ports (Measured)
+
+- No `run_bench.py`, probe, Mei server, llama-server, MLX-LM, vLLM, oMLX, or
+  CoCore process was found (precise pattern scan; inspection-command
+  self-matches and `grep` itself excluded).
+- No listener exists on benchmark-family ports 8012, 8016, 8017, 8018, 8020,
+  8024, 8025, 8026, 8027, 8080, 8082, 8090, or 11434. Existing listeners are
+  system/tooling processes (rapportd :49152, ControlCenter :5000/:7000, deno
+  :8765, python3 :8766/:9119); none is a model or benchmark workload and none
+  was stopped, started, or altered.
+
+## 5. Append-only evidence (Measured, unchanged)
+
+- `results/log.jsonl`: **4,591,611 B**, **4,120 nonblank rows**, SHA-256
+  `e25da61d7ef02eeb84b8aaeb8fcf242c89323284d7b2f257abebedfbeefe20ae`, mtime
+  `2026-09-16T21:30:48.523892` CEST. The last row remains the completed ManniX
+  leg (`f4e4206eab5c`, `hearth_full-testwrite`).
+- `results/LEADERBOARD.md`: SHA-256
+  `54998b73df523f1b69f97fe3b637892d021aee2a8e813832d51c2308e803e0df`.
+- No result rows, config snapshot, leaderboard output, or benchmark artifact
+  was generated by this blocked tick.
+
+## 6. Decision (Decision)
+
+- **AXQ 4-bit remains blocked.** Free disk is 50.604076 GiB, below the 51.5
+  GiB pre-staging requirement (shortfall 961,990,656 B = 0.895924 GiB);
+  staging the 23,120,765,421-byte package would leave 31,214,947,859 B =
+  29.0711856065 GiB, 997,306,861 B = 0.9288143935 GiB below the runner's 30
+  GiB launch gate. Memory is sufficient and is not the blocker.
+- Do not download, stage, configure, probe, or benchmark AXQ 4-bit. Do not
+  proceed to AXQ 6-bit or Gravity until the disk gates pass.
+- No benchmark or model action occurred this tick; this is a report-only
+  repository change.
+- No test suite is needed: no source or harness path (`configs/`, `runner/`,
+  `tasks/`, `checks/`, `fixtures/`, Kiem) changed. Per the tick contract,
+  `git diff --check` was run, status and staged name were verified, commit
+  stat was reviewed, and the post-commit tree was confirmed clean.
+
+### Next gate (unchanged, unlaunched)
+
+Run the AXQ 4-bit Mei 25-row acceptance only after a fresh single-writer audit
+proves at least 51.5 GiB free before staging, at least 30 GiB at launch, at
+least 20 GiB after staging, and sufficient memory. Use the pinned identity
+`AutomatosX/AX-Qwen3.6-35B-A3B-MLX-AXQ-4bit-MTP` at revision
+`d880b11584ae6ee1e18a1e86f082a8397cf2ce24`, a committed reproducible Mei config
+on port 8024, safe decode (`VMLX_ENABLE_UNSAFE_COMPILE=0`, no unsafe compiled
+decode), and the 25-row shape **2 + 8 + 5 + 3 + 4 + 3**. Preserve the config
+snapshot, append-only rows, transcripts, prompt results, archived server log,
+runner SHA, provenance, failure classification, teardown, and free-port proof.
+
+## 7. Side-effect statement (Measured)
+
+Only this artifact was created. It is the only untracked path, `git diff
+--check` is clean, and the commit touches exactly this file. No results
+change, Kiem write, Mei checkout write, cache deletion, weight download,
+process termination, CoCore action, GitHub activity, push, or credential use
+occurred.
