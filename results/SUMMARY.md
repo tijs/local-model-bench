@@ -1031,11 +1031,12 @@ Three independent lines agree:
 Scope of the 4/69 aggregate: the seven config-declared *uniform 4-bit affine g64*
 Mei models, all time, `kiem_mini-testwrite` — it deliberately excludes the
 mixed-precision and 8-bit legs that are also MLX (DWQ mixed 4/8 **0/3**,
-EigenLabs mixed46 **1/13**, Qwen3.5-9B 8-bit **0/3**); tallying every Mei row
-of any quant gives 5/88. Every number above — including the 2/6, 0/40, 3/3 and
-0/3 cells — reproduces mechanically from `results/log.jsonl` via
-`uv run --locked python runner/quant_ledger_audit.py --check` (audit:
-`artifacts/quant-ledger-audit-20260913.md`).
+EigenLabs mixed46 **1/13**, AXQ mixed 16/8/4 AXQuant **0/1**, Qwen3.5-9B 8-bit
+**0/3**); tallying every Mei row of any quant gives 5/91. Every number above —
+including the 2/6, 0/40, 3/3 and 0/3 cells — reproduces mechanically from
+`results/log.jsonl` via `uv run --locked python runner/quant_ledger_audit.py --check`
+(audit: `artifacts/quant-ledger-audit-20260913.md`; latest ledger change:
+`artifacts/qwen36-axq4-full-coding-20260917.md`).
 
 Adding bits *inside* the affine scheme changes nothing — DWQ raised embeddings,
 attention and the router to 8-bit and scored 0/3 while costing 17% of decode.

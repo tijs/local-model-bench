@@ -77,15 +77,18 @@ def scope_rows(rows: list[dict], members: set[str], engine: str = "mei") -> list
 # Frozen scope definitions, 2026-09-14 (post-OptiQ full-coding run; runner SHA
 # b5b7f49bcb62, 15 rows). The earlier OptiQ kiem_mini run (runner SHA f713b29fc5c7,
 # 5 rows) re-pinned all_mei 5/88 -> 5/89; the full-coding run appended one more
-# kiem_mini-testwrite row (a fail), deliberately re-pinning all_mei 5/89 -> 5/90.
-# The OptiQ-4bit quant is NOT a uniform-4-bit affine g64 member, so
-# mlx_uniform_4bit stays 4/69.
+# kiem_mini-testwrite row (a fail), deliberately re-pinning all_mei 5/89 -> 5/90;
+# the AXQ 4-bit Mei full-coding run (2026-09-17, runner SHA 48e4bbe5c88c, commit
+# 49b248d) appended one more kiem_mini-testwrite row (a fail), re-pinning all_mei
+# 5/90 -> 5/91. The OptiQ-4bit and AXQ-4bit quants are NOT uniform-4-bit affine
+# g64 members (both mixed precision), so mlx_uniform_4bit stays 4/69.
 #
 # MLX_UNIFORM_4BIT is the exact membership behind SUMMARY.md's "every MLX
 # model, all time = 4/69": every config-declared *uniform 4-bit affine g64*
 # Mei model. Mixed-precision legs are deliberately excluded even though they
-# are also MLX/Mei: DWQ (mixed 4/8, 0/3), EigenLabs mixed46 (mixed 4/6, 1/13)
-# and Qwen3.5-9B-8bit (uniform 8-bit, 0/3). The label "every MLX model"
+# are also MLX/Mei: DWQ (mixed 4/8, 0/3), EigenLabs mixed46 (mixed 4/6, 1/13),
+# AXQ (mixed 16/8/4 AXQuant text-path, 0/1) and Qwen3.5-9B-8bit (uniform 8-bit,
+# 0/3). The label "every MLX model"
 # without that qualifier overstates the scope, which is what this audit pins.
 # ---------------------------------------------------------------------------
 MLX_UNIFORM_4BIT = {
@@ -113,7 +116,7 @@ PINNED_GROUPS = {
 # Aggregate pins: (passes, total).
 PINNED_AGGREGATES = {
     "mlx_uniform_4bit": (4, 69),   # qualifies the SUMMARY.md "4/69" aggregate
-    "all_mei": (5, 90),            # every Mei row, any quant, all time (2026-09-14 OptiQ full-coding +1 row)
+    "all_mei": (5, 91),            # every Mei row, any quant, all time (2026-09-17 AXQ 4-bit full-coding +1 row)
 }
 
 
