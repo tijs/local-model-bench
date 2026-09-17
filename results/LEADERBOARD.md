@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/4120 rows below predate 2026-08-21
+> **⚠ 138/4145 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -126,6 +126,7 @@ means no usable timestamp was recoverable from that group's rows.
 | model | engine | quant | temp (coding only)¹ | reasoning | reasoning effort⁶ | sanity gate⁴ | config | runner | tasks | pass rate⁴ | slow passes² | avg tok/s | avg TTFT (s) | hallucinated tools⁵ | avg coding turns³ | coding tool errors³ | peak RSS (GB) | quant family | cache | MTP | total runtime (s)⁷ |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | AtomicChat/Laguna-XS-2.1-MLX-5bit | mei | — | 1.0 | thinking | n/a | 2/2 | [d65c8f880447](configs/d65c8f880447.yaml) — *config since changed* | 3e8f2dbb5101+dirty | 8 | 25% | 0 | 19.0 | 68.39 | 0 | — | 0 | 1.2 | MLX 5-bit affine g64 with 8-bit router gates (per staged config.json quantization/quantization_config) | — | — | 871 |
+| AutomatosX/AX-Qwen3.6-35B-A3B-MLX-AXQ-4bit-MTP | mei | — | 0.6 | thinking | n/a | 2/2 | [984425a7e143](configs/984425a7e143.yaml) | 48e4bbe5c88c | 23 | 83% | 1 | 44.8 | 52.94 | 1 | 8.4 | 5 | 4.7 | AXQuant AXQ v1.2.0 (AutomatosX) text-path quantization of Qwen3.6-35B-A3B: config.json quantization default bits 4 / group_size 32 / mode affine with a 1045-entry per-module assignment map (16-bit bf16 574 entries — vision tower + protected norms; 8-bit affine 81 — embeddings/protected; 4-bit affine 390), preferred group 32; effective bpw 5.14 (manifest), nominal 4.66; vision.safetensors preserved BF16 (VLM quality not claimed by the packager); MTP sidecar mtp.safetensors (draft 1, MLX-LM support 'runtime-dependent'). | — | — | 4427 |
 | EigenLabs/Qwen3.6-35B-A3B-MLX-mixed-4bit | mei | — | 0.6 | thinking | n/a | — | [4f91b7aee214](configs/4f91b7aee214.yaml) — *config since changed* | 152872acb630 | 10 | 0% | 0 | — | — | 0 | 8.8 | 13 | 1.0 | MLX affine mixed — down/up/gate half at 6-bit, all attention 6-bit, embed 5-bit, group 64 | — | — | 2043 |
 | EigenLabs/Qwen3.6-35B-A3B-MLX-mixed-4bit | mei | — | 0.6 | thinking | n/a | — | [4f91b7aee214](configs/4f91b7aee214.yaml) — *config since changed* | 377e1af4c7cf | 15 | 67% | 0 | — | — | 0 | 10.6 | 24 | 1.1 | MLX affine mixed — down/up/gate half at 6-bit, all attention 6-bit, embed 5-bit, group 64 | — | — | 2433 |
 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [6fa6f52fdc56](configs/6fa6f52fdc56.yaml) — *config since changed* | 5fc289161e34 | 8 | 75% | 0 | 43.9 | 7.05 | 0 | — | 0 | 23.1 | — | — | — | 342 |
@@ -489,14 +490,15 @@ most total coding+hermes_ops evidence, then recency.
 | 9 | mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Compact | llama.cpp | — | unspecified | 0b31098f54f7 | PASS (75%, 8) | 0.699 | 73% (15) | 44.9 tok/s | 10.16s | 3447 | 22.9 |
 | 10 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | thinking | a2d241742068 | PASS (75%, 8) | 0.699 | 87% (15) | 31.9 tok/s | 9.34s | 4215 | 18.7 |
 | 11 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | unspecified | 2737ce74ab39 | PASS (100%, 8) | 0.695 | 80% (15) | 42.6 tok/s | 43.47s | 2290 | 7.9 |
-| 12 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | — | instruct | 644415678c37 | PASS (75%, 8) | 0.659 | 87% (15) | 26.1 tok/s | 9.50s | 5045 | 27.5 |
-| 13 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | thinking (medium) | 340ca3032e6c | PASS (88%, 8) | 0.522 | 87% (15) | 11.6 tok/s | 46.59s | 16645 | 13.3 |
-| 14 | mlx-community/Qwen3.8-27B-4bit | mei | — | thinking | c7f10a958b1e | PASS (75%, 8) | 0.516 | 93% (15) | 14.6 tok/s | 294.05s | 22412 | 11.8 |
-| 15 | trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M | llama.cpp | — | thinking (medium) | 891242963db5 | PASS (100%, 8) | 0.511 | 80% (15) | 11.1 tok/s | 49.89s | 22074 | 15.4 |
-| 16 | orcarouter/Qwen3.8-27B-Uncensored-MLX (subdir 4-bit) | mei | — | thinking | 40fbffd03a95 | PASS (62%, 8) | 0.446 | 73% (15) | 19.3 tok/s | 304.51s | 26902 | 15.3 |
-| 17 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | n/a | ffa862c18cff | PASS (75%, 8) | 0.411 | 60% (15) | 10.0 tok/s | 28.10s | 15872 | 27.9 |
-| 18 | poolside/Laguna-XS-2.1-GGUF:Q4_K_M | llama.cpp | — | thinking | 644ba3997136 | PASS (50%, 8) | 0.358 | 87% (15) | — | — | 2840 | 25.3 |
-| 19 | mlx-community/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit | mei | — | thinking | d9be6d0097ea | FAIL (12%, 8) | — | 27% (15) | — | — | 5440 | 11.3 |
+| 12 | AutomatosX/AX-Qwen3.6-35B-A3B-MLX-AXQ-4bit-MTP | mei | — | thinking | 984425a7e143 | PASS (88%, 8) | 0.675 | 80% (15) | 44.8 tok/s | 52.94s | 4427 | 8.4 |
+| 13 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | — | instruct | 644415678c37 | PASS (75%, 8) | 0.659 | 87% (15) | 26.1 tok/s | 9.50s | 5045 | 27.5 |
+| 14 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | thinking (medium) | 340ca3032e6c | PASS (88%, 8) | 0.522 | 87% (15) | 11.6 tok/s | 46.59s | 16645 | 13.3 |
+| 15 | mlx-community/Qwen3.8-27B-4bit | mei | — | thinking | c7f10a958b1e | PASS (75%, 8) | 0.516 | 93% (15) | 14.6 tok/s | 294.05s | 22412 | 11.8 |
+| 16 | trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M | llama.cpp | — | thinking (medium) | 891242963db5 | PASS (100%, 8) | 0.511 | 80% (15) | 11.1 tok/s | 49.89s | 22074 | 15.4 |
+| 17 | orcarouter/Qwen3.8-27B-Uncensored-MLX (subdir 4-bit) | mei | — | thinking | 40fbffd03a95 | PASS (62%, 8) | 0.446 | 73% (15) | 19.3 tok/s | 304.51s | 26902 | 15.3 |
+| 18 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | n/a | ffa862c18cff | PASS (75%, 8) | 0.411 | 60% (15) | 10.0 tok/s | 28.10s | 15872 | 27.9 |
+| 19 | poolside/Laguna-XS-2.1-GGUF:Q4_K_M | llama.cpp | — | thinking | 644ba3997136 | PASS (50%, 8) | 0.358 | 87% (15) | — | — | 2840 | 25.3 |
+| 20 | mlx-community/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit | mei | — | thinking | d9be6d0097ea | FAIL (12%, 8) | — | 27% (15) | — | — | 5440 | 11.3 |
 
 ![Best overall composite score by model](score_chart.png)
 
@@ -553,6 +555,12 @@ confirmed-stable, just untested for flakiness.
 |---|---|---|---|---|---|
 | AtomicChat/Laguna-XS-2.1-MLX-5bit | mei | d65c8f880447 | 3e8f2dbb5101+dirty | hermes_ops | 2/8 |
 | AtomicChat/Laguna-XS-2.1-MLX-5bit | mei | d65c8f880447 | 3e8f2dbb5101+dirty | sanity | 2/2 |
+| AutomatosX/AX-Qwen3.6-35B-A3B-MLX-AXQ-4bit-MTP | mei | 984425a7e143 | 48e4bbe5c88c | hearth_full | 2/3 |
+| AutomatosX/AX-Qwen3.6-35B-A3B-MLX-AXQ-4bit-MTP | mei | 984425a7e143 | 48e4bbe5c88c | hearth_mini | 3/3 |
+| AutomatosX/AX-Qwen3.6-35B-A3B-MLX-AXQ-4bit-MTP | mei | 984425a7e143 | 48e4bbe5c88c | hermes_ops | 7/8 |
+| AutomatosX/AX-Qwen3.6-35B-A3B-MLX-AXQ-4bit-MTP | mei | 984425a7e143 | 48e4bbe5c88c | kiem_mini | 3/5 |
+| AutomatosX/AX-Qwen3.6-35B-A3B-MLX-AXQ-4bit-MTP | mei | 984425a7e143 | 48e4bbe5c88c | kipclip_mini | 4/4 |
+| AutomatosX/AX-Qwen3.6-35B-A3B-MLX-AXQ-4bit-MTP | mei | 984425a7e143 | 48e4bbe5c88c | sanity | 2/2 |
 | EigenLabs/Qwen3.6-35B-A3B-MLX-mixed-4bit | mei | 4f91b7aee214 | 152872acb630 | kiem_mini | 0/10 |
 | EigenLabs/Qwen3.6-35B-A3B-MLX-mixed-4bit | mei | 4f91b7aee214 | 377e1af4c7cf | kiem_mini | 10/15 |
 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | 6fa6f52fdc56 | 5fc289161e34 | hermes_ops | 6/8 |
