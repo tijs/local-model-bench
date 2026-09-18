@@ -93,3 +93,19 @@ Until then: no 25-row battery, no Bonsai/Gravity start, no leaderboard impact (0
 
 - Artifact: `artifacts/qwen36-axq6-build-diagnosis-20260918.md`
 - Repro + evidence: `~/.local/share/local-model-bench/scratch-typecheck/{axq6-repro.swift, axq6-repro-fixed.swift, axq6-evaluate-refactor.diff, axq6-patched-build.log}` (benchmark-owned runtime root, outside the repo)
+
+## Addendum (same tick): external launcher attempt confirms pristine-state reproducibility
+
+A third gate attempt ran at 2026-09-18T10:45:17Z (`results-mei/AutomatosX/AX-Qwen3.6-35B-A3B-MLX-AXQ-6bit-MTP/mei-20260918T104517Z/`), launched by an
+external actor (not this tick's worker — no `run_bench.py`/acceptance process was started by it;
+the launcher process was observed and then exited on its own). It consumed the same dedicated
+scratch dir **after** this tick's proof build and **after** the scratch checkout had been restored
+to the pristine pinned `44461ffd` state; its launcher.log ends with `FATAL: swift build failed` and
+the build log shows the **identical** `Evaluate.swift:3398` type-check error. This is independent
+confirmation that (a) the pristine pinned tree reproduces the blocker deterministically, and (b)
+the refactored proof build is not reached by any unmodified launcher path. Post-exit state checks:
+no listener on 8025, no `mei` process, no server.pid, no `kv-axq6-mtp` dir, 0 AXQ6 rows in
+`results/log.jsonl`. One hygiene note: the scratch `release/mei` binary from the 12:44 refactor
+proof still sits in the build dir; it cannot be launched by the launcher (any rebuild of the
+pristine tree fails SwiftCompile first), but the next authorized fix should rebuild that scratch
+from scratch to avoid any stale-artifact ambiguity.
