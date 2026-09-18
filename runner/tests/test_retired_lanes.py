@@ -25,6 +25,25 @@ import run_bench
 
 REPO = Path(__file__).resolve().parents[2]
 
+# Deliberately-retired CANDIDATE configs — not active lanes. A llama.cpp/Mei
+# config may only carry `viable: retired` when it is listed here with a
+# documented reason; the guard below fails on any undocumented flip. Each
+# retirement must keep the historical evidence (config provenance, artifacts,
+# evidence paths) intact.
+RETIRED_CANDIDATE_CONFIGS = {
+    # 2026-09-18 AXQ6 prospect-queue removal by explicit user decision
+    # ("Ok I'm giving up on axq6 let's remove that from the prospects and go
+    # to next"). Never benchmarked: the compiler compatibility fix/build/load
+    # succeeded (vmlx-swift type-check fix 15bada58 local PATH dep) but the
+    # direct slow probe failed within budget (plain_completion 3600.030 s
+    # timeout while decoding continuously; 0 results/log.jsonl rows, no
+    # leaderboard entry for f0c165be1ebe / prior pre-gate hashes). Slow-model/
+    # budget admission stop — NOT a model-incompatibility verdict. See the
+    # config's RETIRED-LANE banner, retired_reason, known_gaps, and
+    # artifacts/qwen36-axq6-native-gate-direct-probe-20260918.md.
+    "configs/AX-Qwen3.6-35B-A3B-MLX-AXQ-6bit-MTP/mei.yaml",
+}
+
 
 def _write_config(root: Path, rel: str, engine: str, viable: str):
     path = root / "configs" / Path(rel)
@@ -105,8 +124,10 @@ class HistoricalRowReadingTests(unittest.TestCase):
 class ActiveLaneSanityTests(unittest.TestCase):
     def test_no_active_llama_mei_config_was_marked_retired(self):
         """Retirement must never have flipped a currently-active llama.cpp/Mei
-        config to `retired`."""
-        bad = []
+        config to `retired`. Deliberately-retired candidate configs must be
+        documented in RETIRED_CANDIDATE_CONFIGS; anything else is a guard
+        violation."""
+        undocumented = []
         for path in sorted(REPO.glob("configs/*/*.yaml")):
             try:
                 cfg = yaml.safe_load(path.read_text()) or {}
@@ -114,9 +135,26 @@ class ActiveLaneSanityTests(unittest.TestCase):
                 continue
             engine = cfg.get("inference_engine", "")
             if engine in ("llama.cpp", "llama.cpp-dflash2", "llama.cpp-dspark", "mei"):
+                rel = str(path.relative_to(REPO))
                 if (cfg.get("orchestration") or {}).get("viable") in ("retired",):
-                    bad.append(str(path.relative_to(REPO)))
-        self.assertEqual(bad, [])
+                    if rel not in RETIRED_CANDIDATE_CONFIGS:
+                        undocumented.append(rel)
+        self.assertEqual(undocumented, [])
+
+    def test_retired_candidate_allowlist_is_current(self):
+        """Every documented retired candidate config must still exist and still
+        be marked retired — the allowlist may not silently drift."""
+        stale = []
+        for rel in sorted(RETIRED_CANDIDATE_CONFIGS):
+            path = REPO / rel
+            if not path.exists():
+                stale.append(f"{rel} (missing)")
+                continue
+            cfg = yaml.safe_load(path.read_text()) or {}
+            viable = (cfg.get("orchestration") or {}).get("viable")
+            if viable != "retired":
+                stale.append(f"{rel} (viable={viable})")
+        self.assertEqual(stale, [])
 
     def test_every_omlx_and_vllm_mlx_config_is_retired(self):
         """No oMLX / vllm-mlx config may remain an advertised runnable path."""
