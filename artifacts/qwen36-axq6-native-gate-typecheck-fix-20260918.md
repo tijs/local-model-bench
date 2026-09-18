@@ -1,8 +1,8 @@
 # AXQ6 Native Gate: vmlx-swift Type-Check Fix (2026-09-18)
 
 **Candidate (AXQ6):** AutomatosX/AX-Qwen3.6-35B-A3B-MLX-AXQ-6bit-MTP
-**Config hash:** `11c43b26cb6b` (new, post-fix config: `11c43b26cb6bffab77c28104a2ba8c0f16c750a4ba57deb1f049e886ae605f39`)
-**Previous pre-gate hashes (no rows exist for any):** `703118869d87`, `942fd0c767d0`
+**Config hash:** `f0c165be1ebe` — final committed config (full sha256 `f0c165be1ebec3ed28971dd7463b43ecf8f20ded0cdb8c29fbcaed41f8da275b`)
+**Previous pre-gate hashes (no rows exist for any):** `703118869d87`, `942fd0c767d0`, `11c43b26cb6b`
 
 ## Root cause
 
@@ -80,6 +80,25 @@ Config hash `942fd0c767d0` → `11c43b26cb6b`. No rows exist for either hash.
 - YAML parses (`yaml.safe_load` OK).
 - New hash computed from the exact committed bytes.
 - Fix commit object present in the local SPM store.
-- Port 8025 free; no mei/bench process active at fix time; disk ≥ 60 GiB.
-- Native gate outcome (next step) recorded in its own run dir under
-  `results-mei/AutomatosX/AX-Qwen3.6-35B-A3B-MLX-AXQ-6bit-MTP/` when run.
+- Path-dep scratch build: `Build complete!` (BUILD_RC=0, 255s full rebuild).
+- Server load (wrapper gate run mei-20260918T105928Z, config f0c165be1ebe
+  via the fixed export): model loaded — `active 24401171724` bytes under the
+  30 GB limit, listening on 8025, fused GDN decode active, KV dir created,
+  server decoded continuously (15-50% CPU, established socket) for the full
+  3600s probe budget. The probe produced NO probe.json within 3600s — the
+  wrapper's `run_mei_acceptance.py` kills `probe_mei.py` at 3600s; with
+  5+ generation-style stages each carrying up to 900s request timeouts on a
+  24.4 GB 6-bit MoE, the per-stage budget is exhausted before completion.
+  This is a slow-model budget classification (decode was continuous, no
+  idle hang), consistent with the dense-27B speed-gate evidence in this
+  repo. Evidence: run record `.../mei-20260918T105928Z/record.json`
+  (`TimeoutExpired ... timed out after 3600 seconds`, probe_rc None).
+- DIRECT probe run (server launched manually via start_mei_server.sh on the
+  same pinned build/export; probe_mei.py with `--skip-cache --skip-context
+  --timeout 3600`, output `.../mei-20260918T120000Z-direct/probe.json`)
+  started 2026-09-18 ~12:00Z; server serving exact identity immediately;
+  probe decoding continuously (18-99% CPU) — result pending in its
+  probe.json. This isolates the admission evidence (identity/plain/
+  stream/tool/parity) from the budget-heavy cache/context stages.
+- Port/process state at each step confirmed free before launches; no
+  concurrent bench writer (Qwen worker next tick 13:36 CEST was idle).
