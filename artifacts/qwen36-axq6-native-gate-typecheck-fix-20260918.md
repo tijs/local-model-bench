@@ -34,35 +34,34 @@ identical `VMLX_CACHE_FETCH_TRACE=1` gating, identical stderr target.
 - First patched scratch build (loose working-tree edit, 12:38-12:44 UTC):
   `scratch-typecheck/axq6-patched-build.log` — `Build complete! (219,05 sec)`
 
-## Why the first patch did not stick (durability fix)
+## Why the first two fixes did not stick (durability fix)
 
-The initial fix was a loose edit of the SPM scratch checkout
-(`mei-build-qwen36-axq6-pinned-050/checkouts/vmlx-swift/...`). The wrapper's
-next `swift build` re-provisioned that checkout from the pinned remote
-revision and hard-reset the edit, so the 12:45Z gate rerun failed with the
-same error (`mei-runtime/logs/build.log`, this day).
+1. **Loose working-tree edit** (12:38-12:44 UTC): the wrapper's next
+   `swift build` re-provisioned the SPM scratch checkout from the pinned
+   remote revision and hard-reset the edit (12:45Z rerun failed identically).
+2. **Local-only commit + `Package.resolved` revision pin** (15bada58 in the
+   local SPM store): SPM re-resolves against the fork URL
+   (`https://github.com/tijs/vmlx-swift.git`) during provisioning, cannot
+   find the local-only revision on the remote, and **rewrites
+   `Package.resolved` back to 44461ffd** — same failure again (10:49Z run).
+3. **Local PATH dependency (FINAL)**: the fixed export
+   `mei-source/mei-1518e7010875ff5fdfca2cfc29bb4a4f3bf31aeb-vmlxfix15bada58`
+   declares vmlx-swift as `.package(path: "/Users/tijs/.local/share/
+   local-model-bench/vmlx-swift")`. That directory is a **full checkout of
+   44461ffd including the git submodules** `Source/Cmlx/mlx` and
+   `Source/Cmlx/mlx-c` (SPM mirror clone; `git archive` alone strips
+   submodule content — first path-dep attempt failed with
+   `mlx/c/distributed.h file not found`) plus the refactor applied to
+   `Libraries/MLXLMCommon/Evaluate.swift` (tree equivalent of commit
+   15bada58). SPM derives package identity from the directory basename, so
+   the dir MUST be named `vmlx-swift` for the `.product(package:)`
+   references to resolve. Path dependencies are not recorded in
+   `Package.resolved`, so provisioning cannot re-resolve them away.
 
-Durable fix: the refactor is now a **local commit** on top of the pin,
-present in SPM's own repository store, so provisioning always extracts the
-fixed source:
-
-- Commit: `15bada58953b5f830d1b52f40850b695b87efdf8`
-  ("mlxlmcommon: split store-boundary trace string into sub-expressions",
-  parent `44461ffdf8dca836b624b2d0d268c800dedea05e`)
-- Location: local SPM store of the AXQ6 pinned build dir,
-  `mei-build-qwen36-axq6-pinned-050/repositories/vmlx-swift-6e46428d`,
-  ref `refs/heads/local/typecheck-44461ffd` (verified: `git cat-file -t`
-  reports `commit`; commits were made in the scratch checkout and pushed to
-  that local store; the scratch checkout's `.git/logs/HEAD` was read-only,
-  reflog writes disabled via `-c core.logAllRefUpdates=false`)
-- Pin: new source export copy
-  `mei-source/mei-1518e7010875ff5fdfca2cfc29bb4a4f3bf31aeb-vmlxfix15bada58/`
-  (3.2 MB copy of the v0.5.0 export; only `Package.resolved` changed:
-  vmlx-swift `state.revision` = `15bada58…`). The original
-  `mei-1518e7010875ff5fdfca2cfc29bb4a4f3bf31aeb` export is untouched.
-- No GitHub push: fork `tijs/vmlx-swift` main is `e37d1d59…` and still
-  contains the same unpatched expression (checked at `Libraries/MLXLMCommon/
-  Evaluate.swift:3263`), so there is no upstream fix to adopt.
+Durable fix: the refactor lives in the source the build actually consumes.
+No GitHub push: fork `tijs/vmlx-swift` main is `e37d1d59…` and still
+contains the same unpatched expression (checked at `Libraries/MLXLMCommon/
+Evaluate.swift:3263`), so there is no upstream fix to adopt.
 
 ## Config change
 
