@@ -546,8 +546,7 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
         if free_gb < MIN_FREE_DISK_GB_BEFORE_LAUNCH:
             print(f"FAILED: only {free_gb:.1f}GB free (need at least "
                   f"{MIN_FREE_DISK_GB_BEFORE_LAUNCH:.0f}GB) — refusing to launch "
-                  f"a candidate server whose own downloader could fail mid-fetch "
-                  f"and leave a truncated blob. Free up space and rerun this "
+                  f"onto a nearly-full filesystem. Free up space and rerun this "
                   f"config.")
             return
 

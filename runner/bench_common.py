@@ -66,16 +66,14 @@ INTERACTIVE_BUDGET_SECONDS = 300
 # cutoff means the same thing everywhere in this repo.
 MIN_HERMES_OPS_TOKENS_PER_SECOND = 4.0
 
-# Guards against launching a candidate server whose own downloader (llama-
-# server's --hf-repo, or vllm-mlx/omlx's huggingface_hub fetch) fails mid-
-# download because the disk filled up first — discovered live 2026-08-25:
-# a ~19.8GB GGUF download died with "error writing to file" after the disk
-# hit 138Mi free, leaving a truncated blob on disk and the run silently
-# reporting "backend never became healthy" with the real cause buried in
-# the server log. The largest single model file seen in this repo so far
-# is ~22GB (Qwen3.6-35B-A3B-family GGUFs); 30GB leaves headroom for that
-# plus the temp space some downloaders use during the fetch.
-MIN_FREE_DISK_GB_BEFORE_LAUNCH = 30.0
+# Pre-launch disk guard: refuse to launch only when the filesystem is
+# nearly full. There is NO 30GiB/20GiB launch reserve — 10 GiB free is
+# the only hard minimum (user policy, 2026-09-19); staging/downloads
+# account for their own exact space separately. The guard exists because
+# of the 2026-08-25 incident: a ~19.8GB GGUF download died with "error
+# writing to file" after the disk hit 138Mi free, leaving a truncated
+# blob and the run silently reporting "backend never became healthy".
+MIN_FREE_DISK_GB_BEFORE_LAUNCH = 10.0
 
 # A large GGUF's first (cold-cache) load can genuinely take well past the
 # old 600s ceiling on this hardware — confirmed live twice (2026-08-2x):

@@ -43,6 +43,16 @@ class GitShaDirtyCheckPathsTests(unittest.TestCase):
             self.assertIn(expected, captured["paths"])
 
 
+class DiskLaunchGuardTests(unittest.TestCase):
+    """User policy (2026-09-19): there is no 30GiB/20GiB launch reserve —
+    10 GiB free is the only hard minimum before launching an already-staged
+    candidate. Regression-guards MIN_FREE_DISK_GB_BEFORE_LAUNCH so a future
+    edit cannot silently resurrect the old reserved-gigabytes policy."""
+
+    def test_ten_gib_is_the_only_hard_minimum(self):
+        self.assertEqual(bench_common.MIN_FREE_DISK_GB_BEFORE_LAUNCH, 10.0)
+
+
 class SnapshotConfigTests(unittest.TestCase):
     def test_writes_snapshot_and_returns_stable_hash(self):
         tmp = tempfile.mkdtemp()
