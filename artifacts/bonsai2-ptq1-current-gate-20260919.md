@@ -10,7 +10,8 @@ battery ran, no leaderboard/ranking entry exists, and no rows were appended to
 
 ## Scope / boundary
 
-- Bounded native gate (6 checks) + fixed six-task one-trial canary only.
+- Bounded native gate (6 fresh native checks + 1 explicitly carried-forward
+  context measurement) + fixed six-task one-trial canary only.
   **No full 25-row run** (sanity 2 + hermes_ops 8 + kiem_mini 5 + hearth_mini 3
   + kipclip_mini 4 + hearth_full 3), **no leaderboard/ranking**, **no
   `results/log.jsonl` rows**, no transcripts, no config snapshot, no
@@ -19,8 +20,10 @@ battery ran, no leaderboard/ranking entry exists, and no rows were appended to
 - The external `server.log.snapshot` is an **archive snapshot of the
   disposable probe server's log**, not a current listener — the server was
   torn down after the gate (see Teardown) and port 8017 is free.
-- This task did not start/stop any server and did not re-run anything; it only
-  inspected existing evidence, re-verified hashes, and wrote this report.
+- This 2026-09-19 cycle launched the pinned Prism server under the current
+  config/canonical alias, ran the fresh native gate and bounded canary, then
+  stopped/teared down that owned server; this report itself only records the
+  resulting external evidence.
 - **Context near-boundary is explicitly carried forward, not rerun** on this
   date: the 64,951-prompt-token measurement at the 65,536 harness ceiling
   (931.308 s) comes from the committed 2026-09-18 evidence
@@ -146,8 +149,11 @@ this session (unchanged).
 - `results/log.jsonl`: **zero exact PTQ1_0 rows** (verified this session); no
   row was appended by this gate/canary or by this report.
 - `results/LEADERBOARD.md`: **no PTQ1_0 entry** (verified this session).
-- The only change in this cycle is this report file; nothing else was
-  modified, no configs were edited, no servers were launched or stopped.
+- The only committed checkout change is this report; the cycle also wrote the
+  external raw gate/canary/server-log evidence listed above, appended no
+  benchmark rows and edited no configs/leaderboard. The owned server and
+  canary were launched and then torn down, with all benchmark ports verified
+  free.
 
 ## Decision and next action
 
