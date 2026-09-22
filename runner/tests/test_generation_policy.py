@@ -17,6 +17,8 @@ Contract invariants under test here (durable plan
     explicit general/vendor default for Hermes Ops) and `coding_reasoning_effort`
     stays inside the `hermes chat --reasoning` vocabulary (the model-specific
     coding profile);
+  - every policy-enabled config carries a source-backed immutable citation in
+    its own `settings` under a `generation_profiles_policy` name;
   - selection actually reaches the wire: a real front-runner config driving
     run_prompt_suite.main() sends its resolved lane fields in the HTTP
     payload;
@@ -60,9 +62,11 @@ POLICY_CONFIGS = [
     "configs/Ternary-Bonsai-2-27B-PTQ1_0/prism-gguf.yaml",
     "configs/Ornith-1.5-35B-A3B/mei.yaml",
     "configs/Ornith-1.5-35B-A3B/gguf.yaml",
+    "configs/Ornith-1.5-35B-A3B/gguf-thinking.yaml",
     "configs/Qwen3.6-35B-A3B/mei.yaml",
     "configs/Qwen3.6-35B-A3B-textonly/mei.yaml",
     "configs/Qwen3.6-35B-A3B/gguf-official-q4km.yaml",
+    "configs/Qwen3.6-27B-A3B-Coder-MTP-GGUF/gguf-cd-iq4km.yaml",
     "configs/Qwen3.8-27B/gguf.yaml",
     "configs/Qwen3.8-27B/mei.yaml",
 ]
@@ -148,6 +152,30 @@ class PolicyConfigCoverageTests(unittest.TestCase):
                 effort, rfs.HERMES_REASONING_LEVELS,
                 f"{rel}: coding_reasoning_effort {effort!r} is not a hermes "
                 f"chat --reasoning level",
+            )
+
+    def test_every_policy_config_has_a_source_backed_settings_entry(self):
+        # The acceptance criterion is a source-backed immutable policy
+        # citation: each policy-enabled config must document its
+        # generation_policy in settings under the generation_profiles_policy
+        # name, sourced to its vendor/model card (never an invented value).
+        for rel in POLICY_CONFIGS:
+            cfg = _load_yaml(REPO_ROOT / rel)
+            settings = cfg.get("settings", [])
+            self.assertIsInstance(
+                settings, list, f"{rel}: settings must be a list"
+            )
+            self.assertTrue(
+                any(
+                    isinstance(entry, dict)
+                    and str(entry.get("name", "")).startswith(
+                        "generation_profiles_policy"
+                    )
+                    and entry.get("source")
+                    for entry in settings
+                ),
+                f"{rel}: settings must carry a generation_profiles_policy "
+                f"entry with a source citation",
             )
 
     def test_no_profile_carries_max_tokens_or_unknown_fields(self):
