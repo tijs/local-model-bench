@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/4145 rows below predate 2026-08-21
+> **⚠ 138/4185 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -126,7 +126,7 @@ means no usable timestamp was recoverable from that group's rows.
 | model | engine | quant | temp (coding only)¹ | reasoning | reasoning effort⁶ | sanity gate⁴ | config | runner | tasks | pass rate⁴ | slow passes² | avg tok/s | avg TTFT (s) | hallucinated tools⁵ | avg coding turns³ | coding tool errors³ | peak RSS (GB) | quant family | cache | MTP | total runtime (s)⁷ |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | AtomicChat/Laguna-XS-2.1-MLX-5bit | mei | — | 1.0 | thinking | n/a | 2/2 | [d65c8f880447](configs/d65c8f880447.yaml) — *config since changed* | 3e8f2dbb5101+dirty | 8 | 25% | 0 | 19.0 | 68.39 | 0 | — | 0 | 1.2 | MLX 5-bit affine g64 with 8-bit router gates (per staged config.json quantization/quantization_config) | — | — | 871 |
-| AutomatosX/AX-Qwen3.6-35B-A3B-MLX-AXQ-4bit-MTP | mei | — | 0.6 | thinking | n/a | 2/2 | [984425a7e143](configs/984425a7e143.yaml) | 48e4bbe5c88c | 23 | 83% | 1 | 44.8 | 52.94 | 1 | 8.4 | 5 | 4.7 | AXQuant AXQ v1.2.0 (AutomatosX) text-path quantization of Qwen3.6-35B-A3B: config.json quantization default bits 4 / group_size 32 / mode affine with a 1045-entry per-module assignment map (16-bit bf16 574 entries — vision tower + protected norms; 8-bit affine 81 — embeddings/protected; 4-bit affine 390), preferred group 32; effective bpw 5.14 (manifest), nominal 4.66; vision.safetensors preserved BF16 (VLM quality not claimed by the packager); MTP sidecar mtp.safetensors (draft 1, MLX-LM support 'runtime-dependent'). | — | — | 4427 |
+| AutomatosX/AX-Qwen3.6-35B-A3B-MLX-AXQ-4bit-MTP | mei | — | 0.6 | thinking | n/a | 2/2 | [984425a7e143](configs/984425a7e143.yaml) — *config since changed* | 48e4bbe5c88c | 23 | 83% | 1 | 44.8 | 52.94 | 1 | 8.4 | 5 | 4.7 | AXQuant AXQ v1.2.0 (AutomatosX) text-path quantization of Qwen3.6-35B-A3B: config.json quantization default bits 4 / group_size 32 / mode affine with a 1045-entry per-module assignment map (16-bit bf16 574 entries — vision tower + protected norms; 8-bit affine 81 — embeddings/protected; 4-bit affine 390), preferred group 32; effective bpw 5.14 (manifest), nominal 4.66; vision.safetensors preserved BF16 (VLM quality not claimed by the packager); MTP sidecar mtp.safetensors (draft 1, MLX-LM support 'runtime-dependent'). | — | — | 4427 |
 | EigenLabs/Qwen3.6-35B-A3B-MLX-mixed-4bit | mei | — | 0.6 | thinking | n/a | — | [4f91b7aee214](configs/4f91b7aee214.yaml) — *config since changed* | 152872acb630 | 10 | 0% | 0 | — | — | 0 | 8.8 | 13 | 1.0 | MLX affine mixed — down/up/gate half at 6-bit, all attention 6-bit, embed 5-bit, group 64 | — | — | 2043 |
 | EigenLabs/Qwen3.6-35B-A3B-MLX-mixed-4bit | mei | — | 0.6 | thinking | n/a | — | [4f91b7aee214](configs/4f91b7aee214.yaml) — *config since changed* | 377e1af4c7cf | 15 | 67% | 0 | — | — | 0 | 10.6 | 24 | 1.1 | MLX affine mixed — down/up/gate half at 6-bit, all attention 6-bit, embed 5-bit, group 64 | — | — | 2433 |
 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [6fa6f52fdc56](configs/6fa6f52fdc56.yaml) — *config since changed* | 5fc289161e34 | 8 | 75% | 0 | 43.9 | 7.05 | 0 | — | 0 | 23.1 | — | — | — | 342 |
@@ -253,6 +253,11 @@ means no usable timestamp was recoverable from that group's rows.
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [a2d241742068](configs/a2d241742068.yaml) | 38836484bab4 | 19 | 68% | 3 | 32.0 | 9.34 | 0 | 21.8 | 29 | 21.1 | — | — | — | 4195 |
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [a2d241742068](configs/a2d241742068.yaml) | 9df216e99cd9 | 23 | 83% | 3 | 31.9 | 9.34 | 0 | 18.7 | 33 | 21.0 | — | — | — | 4215 |
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [a2d241742068](configs/a2d241742068.yaml) | c8d9bde5c6d6 | 19 | 68% | 3 | 32.0 | 9.34 | 0 | 20.9 | 29 | 22.1 | — | — | — | 4889 |
+| batiai/Gravity-30BA5B-RL-GGUF:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [34c266c25d9a](configs/34c266c25d9a.yaml) | 2ee0259d6728 | 0 | n/a (all harness errors) | 0 | 72.7 | 2.63 | 0 | — | 0 | 22.1 | GGUF Q4_K_M (BatiAI imatrix-calibrated k-quant, single-file, 19,613,407,328 B / 18.266 GiB) | — | — | 8 |
+| batiai/Gravity-30BA5B-RL-GGUF:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [34c266c25d9a](configs/34c266c25d9a.yaml) | 4d19196761e0 | 23 | 26% | 0 | 17.5 | 26.45 | 0 | — | 0 | 23.4 | GGUF Q4_K_M (BatiAI imatrix-calibrated k-quant, single-file, 19,613,407,328 B / 18.266 GiB) | — | — | 47549 |
+| batiai/Gravity-30BA5B-RL-GGUF:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [34c266c25d9a](configs/34c266c25d9a.yaml) | 4ee53065eaf4 | 2 | 100% | 0 | 33.9 | 50.23 | 0 | — | 0 | 22.2 | GGUF Q4_K_M (BatiAI imatrix-calibrated k-quant, single-file, 19,613,407,328 B / 18.266 GiB) | — | — | 249 |
+| batiai/Gravity-30BA5B-RL-GGUF:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [34c266c25d9a](configs/34c266c25d9a.yaml) | 53920dc41d65 | 3 | 100% | 0 | 28.7 | 42.24 | 0 | — | 0 | 22.2 | GGUF Q4_K_M (BatiAI imatrix-calibrated k-quant, single-file, 19,613,407,328 B / 18.266 GiB) | — | — | 295 |
+| batiai/Gravity-30BA5B-RL-GGUF:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [34c266c25d9a](configs/34c266c25d9a.yaml) | bcb8e73140f7 | 2 | 100% | 0 | 34.0 | 50.16 | 0 | — | 0 | 22.2 | GGUF Q4_K_M (BatiAI imatrix-calibrated k-quant, single-file, 19,613,407,328 B / 18.266 GiB) | — | — | 248 |
 | empero-ai/Qwen3.8-27B-Ridge-GGUF | gguf | — | ? | ? | ? | 2/2 | [6a3700901e2b](configs/Qwen3.8-27B-Ridge/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 4 | 50% | 0 | 7.9 | 52.03 | 0 | — | 0 | — | ? | ? | ? | 1756 |
 | empero-ai/Qwen3.8-27B-Ridge-GGUF | gguf | — | 0.7 | instruct | n/a | 2/2 | [d135df9d860f](configs/d135df9d860f.yaml) — *config since changed* | e155170f4c1d | 8 | 62% | 0 | 7.8 | 30.15 | 0 | — | 0 | 18.9 | — | — | — | 1146 |
 | empero-ai/Qwen3.8-27B-Ridge-GGUF | llama.cpp | — | 0.7 | instruct | n/a | 2/2 | [7b1d82c8abab](configs/7b1d82c8abab.yaml) — *config since changed* | a58bee1684ac | 19 | 84% | 8 | 7.8 | 30.14 | 0 | — | 0 | 20.8 | — | — | — | 6945 |
@@ -498,7 +503,8 @@ most total coding+hermes_ops evidence, then recency.
 | 17 | orcarouter/Qwen3.8-27B-Uncensored-MLX (subdir 4-bit) | mei | — | thinking | 40fbffd03a95 | PASS (62%, 8) | 0.446 | 73% (15) | 19.3 tok/s | 304.51s | 26902 | 15.3 |
 | 18 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | n/a | ffa862c18cff | PASS (75%, 8) | 0.411 | 60% (15) | 10.0 tok/s | 28.10s | 15872 | 27.9 |
 | 19 | poolside/Laguna-XS-2.1-GGUF:Q4_K_M | llama.cpp | — | thinking | 644ba3997136 | PASS (50%, 8) | 0.358 | 87% (15) | — | — | 2840 | 25.3 |
-| 20 | mlx-community/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit | mei | — | thinking | d9be6d0097ea | FAIL (12%, 8) | — | 27% (15) | — | — | 5440 | 11.3 |
+| 20 | batiai/Gravity-30BA5B-RL-GGUF:Q4_K_M | llama.cpp | — | thinking | 34c266c25d9a | PASS (75%, 8) | 0.265 | 0% (15) | 17.5 tok/s | 26.45s | 47549 | 40.0 |
+| 21 | mlx-community/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit | mei | — | thinking | d9be6d0097ea | FAIL (12%, 8) | — | 27% (15) | — | — | 5440 | 11.3 |
 
 ![Best overall composite score by model](score_chart.png)
 
@@ -923,6 +929,19 @@ confirmed-stable, just untested for flakiness.
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | a2d241742068 | c8d9bde5c6d6 | kiem_mini | 2/5 |
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | a2d241742068 | c8d9bde5c6d6 | kipclip_mini | 2/3 |
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | a2d241742068 | c8d9bde5c6d6 | sanity | 2/2 |
+| batiai/Gravity-30BA5B-RL-GGUF:Q4_K_M | llama.cpp | 34c266c25d9a | 2ee0259d6728 | sanity | 2/2 |
+| batiai/Gravity-30BA5B-RL-GGUF:Q4_K_M | llama.cpp | 34c266c25d9a | 4d19196761e0 | hearth_full | 0/3 |
+| batiai/Gravity-30BA5B-RL-GGUF:Q4_K_M | llama.cpp | 34c266c25d9a | 4d19196761e0 | hearth_mini | 0/3 |
+| batiai/Gravity-30BA5B-RL-GGUF:Q4_K_M | llama.cpp | 34c266c25d9a | 4d19196761e0 | hermes_ops | 6/8 |
+| batiai/Gravity-30BA5B-RL-GGUF:Q4_K_M | llama.cpp | 34c266c25d9a | 4d19196761e0 | kiem_mini | 0/5 |
+| batiai/Gravity-30BA5B-RL-GGUF:Q4_K_M | llama.cpp | 34c266c25d9a | 4d19196761e0 | kipclip_mini | 0/4 |
+| batiai/Gravity-30BA5B-RL-GGUF:Q4_K_M | llama.cpp | 34c266c25d9a | 4d19196761e0 | sanity | 2/2 |
+| batiai/Gravity-30BA5B-RL-GGUF:Q4_K_M | llama.cpp | 34c266c25d9a | 4ee53065eaf4 | hermes_ops | 2/2 |
+| batiai/Gravity-30BA5B-RL-GGUF:Q4_K_M | llama.cpp | 34c266c25d9a | 4ee53065eaf4 | sanity | 2/2 |
+| batiai/Gravity-30BA5B-RL-GGUF:Q4_K_M | llama.cpp | 34c266c25d9a | 53920dc41d65 | hermes_ops | 3/3 |
+| batiai/Gravity-30BA5B-RL-GGUF:Q4_K_M | llama.cpp | 34c266c25d9a | 53920dc41d65 | sanity | 2/2 |
+| batiai/Gravity-30BA5B-RL-GGUF:Q4_K_M | llama.cpp | 34c266c25d9a | bcb8e73140f7 | hermes_ops | 2/2 |
+| batiai/Gravity-30BA5B-RL-GGUF:Q4_K_M | llama.cpp | 34c266c25d9a | bcb8e73140f7 | sanity | 2/2 |
 | empero-ai/Qwen3.8-27B-Ridge-GGUF | gguf | 6a3700901e2b | *(predates tracking)* | hermes_ops | 1/3 |
 | empero-ai/Qwen3.8-27B-Ridge-GGUF | gguf | 6a3700901e2b | *(predates tracking)* | kiem_mini | 1/1 |
 | empero-ai/Qwen3.8-27B-Ridge-GGUF | gguf | 6a3700901e2b | *(predates tracking)* | sanity | 2/2 |
@@ -1641,6 +1660,7 @@ advertised as runnable current paths.
 
 | engine | models (retired configs) | expansion |
 |---|---|---|
+| mei | 1 configs | configs/AX-Qwen3.6-35B-A3B-MLX-AXQ-6bit-MTP/mei.yaml |
 | omlx | 18 configs | configs/LFM2.5-8B-A1B-oQ4e-fp16/omlx-hot.yaml; configs/LFM2.5-8B-A1B-oQ4e-fp16/omlx-ssd.yaml; configs/LFM2.5-8B-A1B-oQ4e-fp16/omlx.yaml; configs/Laguna-XS-2.1/omlx.yaml; configs/LiquidAI-LFM2.5-2.6B/omlx.yaml; configs/LiquidAI-LFM2.5-8B-A1B/omlx.yaml; configs/Ornith-1.5-9B-oQ4e-fp16/omlx-hot.yaml; configs/Ornith-1.5-9B-oQ4e-fp16/omlx-ssd.yaml; configs/Ornith-1.5-9B-oQ4e-fp16/omlx.yaml; configs/Qwen3-Coder-30B-A3B/omlx.yaml; configs/Qwen3.8-27B/omlx.yaml; configs/Qwen3.8-27B-oQ4e-fp16-mtp/omlx-context-balanced.yaml; configs/Qwen3.8-27B-oQ4e-fp16-mtp/omlx-hot.yaml; configs/Qwen3.8-27B-oQ4e-fp16-mtp/omlx-mtp-xhigh.yaml; configs/Qwen3.8-27B-oQ4e-fp16-mtp/omlx-mtp.yaml; configs/Qwen3.8-27B-oQ4e-fp16-mtp/omlx-ssd.yaml; configs/Qwen3.8-27B-oQ4e-fp16-mtp/omlx.yaml; configs/Ternary-Bonsai-27B/omlx.yaml |
 | vllm-mlx | 12 configs | configs/Devstral-Small-2507/mlx.yaml; configs/Laguna-XS-2.1/mlx.yaml; configs/LiquidAI-LFM2.5-2.6B/mlx-8bit.yaml; configs/LiquidAI-LFM2.5-2.6B/mlx.yaml; configs/LiquidAI-LFM2.5-8B-A1B/mlx-8bit.yaml; configs/LiquidAI-LFM2.5-8B-A1B/mlx.yaml; configs/Ornith-1.5-35B-A3B/mlx.yaml; configs/Ornith-1.5-9B/mlx.yaml; configs/Qwen2.5-Coder-14B/mlx.yaml; configs/Qwen3-Coder-30B-A3B/mlx.yaml; configs/Qwen3.8-27B/mlx.yaml; configs/Ternary-Bonsai-27B/mlx.yaml |
 
