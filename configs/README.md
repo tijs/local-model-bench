@@ -257,9 +257,11 @@ its `hermes_ops_generation_profile`, and declares `coding_reasoning_effort`
 | `Ternary-Bonsai-2-27B-PTQ1_0/prism-gguf.yaml` | llama.cpp-prism | card Thinking-Mode preset (1.0/0.95/20/0) + **xhigh** (card default) | same sampling + **medium** (card: supported) | xhigh (card default; coding gated pending hermes_provider) |
 | `Ornith-1.5-35B-A3B/mei.yaml` | mei | card general preset (0.6/0.95/20) + **medium** (card silent on effort) | identical (card defines no second point) | medium |
 | `Ornith-1.5-35B-A3B/gguf.yaml` | llama.cpp | card general preset (0.6/0.95/20) + **medium** | identical | medium |
+| `Ornith-1.5-35B-A3B/gguf-thinking.yaml` | llama.cpp | card general preset (0.6/0.95/20) + **medium** (card silent on effort; also the template-fix default) | identical | medium |
 | `Qwen3.6-35B-A3B/mei.yaml` | mei | unsloth thinking precise-coding preset (0.6/0.95/20/0/presence 0/rep 1.0) + **medium** (card silent on effort) | identical | medium |
 | `Qwen3.6-35B-A3B-textonly/mei.yaml` | mei | same preset + medium | identical | medium |
 | `Qwen3.6-35B-A3B/gguf-official-q4km.yaml` | llama.cpp | same preset + medium | identical | medium |
+| `Qwen3.6-27B-A3B-Coder-MTP-GGUF/gguf-cd-iq4km.yaml` | llama.cpp | unsloth thinking precise-coding preset (0.6/0.95/20/0/presence 0/rep 1.0, --reasoning on contract) + **medium** (card silent on effort) | identical | medium |
 | `Qwen3.8-27B/gguf.yaml` | llama.cpp | thinking preset (1.0/0.95/20/0/presence 0/rep 1.0) + **xhigh** (template max mapping) | same sampling + **medium** (= historical template-default baseline) | medium (= historical baseline) |
 | `Qwen3.8-27B/mei.yaml` | mei | same as gguf sibling + xhigh | same sampling + medium | medium |
 
