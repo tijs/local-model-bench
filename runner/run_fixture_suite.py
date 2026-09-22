@@ -36,6 +36,14 @@ HERMES_BIN = Path(os.environ.get(
     "BENCH_HERMES_BIN", str(Path.home() / ".hermes/hermes-agent/venv/bin/hermes")
 ))  # override via env var instead of editing this file (adversarial review finding M8)
 
+# `hermes chat --reasoning LEVEL` vocabulary, from live `hermes chat --help`
+# (verified 2026-09-22): none/minimal/low/medium/high/xhigh/max/ultra. The
+# coding profile (config key `coding_reasoning_effort` / CLI `--reasoning`)
+# forwards the level EXACTLY as written — never normalized. None = the
+# hermes/server default (no silent assumption), mirroring the general/Hermes
+# Ops generation-profile policy.
+HERMES_REASONING_LEVELS = ("none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra")
+
 
 # macOS Seatbelt sandbox for the coding agent (improvement plan, M3).
 #
@@ -128,12 +136,17 @@ def sandbox_wrapped_command(cmd, run_dir):
     return [SANDBOX_EXEC, "-p", profile, *cmd], True
 
 
-def run_hermes(prompt, cwd, provider, model, max_turns, timeout):
+def run_hermes(prompt, cwd, provider, model, max_turns, timeout, reasoning=None):
     cmd = [
         str(HERMES_BIN), "chat", "--profile", "bench", "-q", prompt,
         "--provider", provider, "-m", model, "-Q", "--yolo",
         "--max-turns", str(max_turns),
     ]
+    # Explicit reasoning effort for the coding profile (2026-09-22): passed
+    # ONLY when selected (config coding_reasoning_effort or --reasoning), so
+    # old runs and unselected runs get exactly the hermes/server default.
+    if reasoning is not None:
+        cmd += ["--reasoning", reasoning]
     # `--yolo` auto-approves every tool call, so confine the agent's
     # writes to the disposable run root where the platform allows it
     # (improvement plan, M3). The restoration guards stay in place as
@@ -911,6 +924,13 @@ def main():
                           "deterministic across runs (confirmed live: same model/config/"
                           "task flipped pass<->fail across two runs), so a single trial "
                           "is not enough to trust a pass/fail as the model's real behavior")
+    ap.add_argument("--reasoning", default=None, choices=HERMES_REASONING_LEVELS,
+                    help="(2026-09-22, coding profile) explicit reasoning effort for "
+                         "every `hermes chat` invocation: one of "
+                         f"{', '.join(HERMES_REASONING_LEVELS)} (literally the "
+                         "`hermes chat --reasoning` vocabulary). Overrides the config's "
+                         "`coding_reasoning_effort`. Absent = hermes/server default — "
+                         "nothing is silently assumed.")
     args = ap.parse_args()
 
     task_file = REPO / "tasks" / f"{args.suite}.yaml"
@@ -922,6 +942,16 @@ def main():
     proxy_port = None
     raw_port = None
     system_prompt_suffix = None
+    # Coding profile (2026-09-22): explicit reasoning effort for the coding
+    # suites, resolved as CLI --reasoning > config `coding_reasoning_effort`
+    # > None (hermes/server default). Separate from the general/Hermes Ops
+    # request profile (generation_profiles / hermes_ops_generation_profile,
+    # which live at the HTTP request boundary in run_prompt_suite.py):
+    # `hermes chat` exposes ONLY the reasoning level per-invocation, so the
+    # coding profile carries just that; coding sampling beyond effort stays
+    # on the server launch flags. None means the default — never invented.
+    coding_reasoning_effort = None
+    reasoning_effort = None
     if args.config:
         config_hash, config_path = snapshot_config(args.config)
         cfg = yaml.safe_load(Path(args.config).read_text())
@@ -941,6 +971,17 @@ def main():
         # config with this set previously had it apply to 2 of 3 suites
         # without that being visible anywhere.
         system_prompt_suffix = cfg.get("system_prompt_suffix")
+        coding_reasoning_effort = cfg.get("coding_reasoning_effort")
+        if coding_reasoning_effort is not None:
+            if coding_reasoning_effort not in HERMES_REASONING_LEVELS:
+                raise SystemExit(
+                    f"config {args.config}: coding_reasoning_effort "
+                    f"{coding_reasoning_effort!r} is not a hermes chat --reasoning "
+                    f"level (supported: {', '.join(HERMES_REASONING_LEVELS)})"
+                )
+
+    # CLI wins over config; both None mean the hermes/server default.
+    reasoning_effort = args.reasoning or coding_reasoning_effort
 
     def ensure_proxy_idle():
         # Checked before EVERY hermes invocation, not just once before the
@@ -1017,6 +1058,7 @@ def main():
                         stdout, stderr, rc, wall, timed_out = run_hermes(
                             prompt, run_dir, args.hermes_provider, args.hermes_model,
                             max_turns=args.max_turns, timeout=timeout,
+                            reasoning=reasoning_effort,
                         )
                     peak_rss_gb = rss_sampler.stop()
                     session_stats = extract_hermes_session_stats(stdout, stderr)
@@ -1036,7 +1078,9 @@ def main():
                     transcript_path = transcript_dir / f"{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}_{model_slug}{trial_suffix}.log"
                     transcript_path.write_text(
                         f"$ hermes chat --profile bench --provider {args.hermes_provider} "
-                        f"-m {args.hermes_model} --max-turns {args.max_turns}\n\n"
+                        f"-m {args.hermes_model} --max-turns {args.max_turns}"
+                        + (f" --reasoning {reasoning_effort}" if reasoning_effort else "")
+                        + f"\n\n"
                         f"--- stdout ---\n{stdout}\n\n--- stderr ---\n{stderr}\n"
                     )
                     transcript_rel = str(transcript_path.relative_to(REPO))
@@ -1080,6 +1124,12 @@ def main():
                     "config_hash": config_hash,
                     "runner_git_sha": git_sha(),
                     "quant": args.quant,
+                    # Effective coding-profile reasoning effort (2026-09-22):
+                    # the exact `hermes chat --reasoning` level this row's
+                    # agent ran at, or None when the hermes/server default
+                    # applied. Recorded so an effort lane change never
+                    # silently contaminates historical comparisons.
+                    "reasoning_effort": reasoning_effort,
                     "trial": trial,
                     "pass": passed,
                     # Set only in the `except` branch above (3rd adversarial

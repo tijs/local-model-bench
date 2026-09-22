@@ -296,16 +296,51 @@ request and buffers the whole response into one SSE chunk — there are no
 incremental tokens on that path to watch.
 
 **Temperature is deliberately fixed at 0** for every `run_prompt.py` call
-(`sanity`/`hermes_ops`) — these suites test precise behavior fidelity (right
-tool, right args, converges vs. loops), where determinism matters more than
-matching a model's "recommended" sampling settings. This means a model's
-researched `temperature`/`top_k`/`repetition_penalty` (in `configs/<model>/
-*.yaml`) do **not** apply to sanity/hermes_ops — the client always overrides
-the server default. They **do** apply to the coding suites, since `hermes
-chat` (used by `run_fixture_suite.py`) doesn't hardcode temperature and
-respects the server's launch flags. Don't attribute a sanity/hermes_ops
-result to a sampling-settings change without checking this first (a
-2026-08-19 result was initially mis-attributed this way — see kiem notes).
+(`sanity`/`hermes_ops`) unless a config opts in — these suites test precise
+behavior fidelity (right tool, right args, converges vs. loops), where
+determinism matters more than matching a model's "recommended" sampling
+settings. This means a model's researched `temperature`/`top_k`/
+`repetition_penalty` (in `configs/<model>/*.yaml`) do **not** apply to
+sanity/hermes_ops by default — the client always overrides the server
+default. They **do** apply to the coding suites, since `hermes chat` (used
+by `run_fixture_suite.py`) doesn't hardcode temperature and respects the
+server's launch flags. Don't attribute a sanity/hermes_ops result to a
+sampling-settings change without checking this first (a 2026-08-19 result
+was initially mis-attributed this way — see kiem notes).
+
+**Request-time generation profiles (2026-09-22)** add an explicit, opt-in
+escape hatch for the one-shot hermes_ops path without touching the coding
+suites: a config may declare named `generation_profiles` (sampling fields +
+`reasoning_effort`) and select one via `hermes_ops_generation_profile`, or a
+run may select one per-run via `run_bench.py`/`run_prompt_suite.py
+--generation-profile <name>` (e.g. the capability/high vs practical/medium
+lane). Only fields actually declared are sent to the backend — a profile
+without `reasoning_effort` sends none (never a silent "medium" assumption),
+a profile without `temperature` sends no temperature field at all (never a
+silent fallback to the historic 0; the no-profile path keeps temperature=0
+exactly), and any undeclared profile name, unknown field, or wrongly-typed
+value fails the run loudly. Old configs with none of these keys keep the
+exact historic temperature=0 behavior. The coding suites have their own
+separate profile — `coding_reasoning_effort` maps onto `hermes chat
+--reasoning` (the only per-invocation generation control hermes chat
+exposes), recorded per row as `reasoning_effort`. Full schema and
+compatibility notes (including why there is no `enable_thinking` field)
+live in `configs/README.md`.
+
+**Every result records the resolved generation lane immutably (2026-09-22).**
+Prompt-suite log rows carry `generation_profile` (selected profile name or
+`null` for the historic no-profile lane), `generation_overrides` (the exact
+profile fields forwarded to run_prompt.py, or `null` when none), and
+`generation` (the exact sampler/effort fields the backend received for the
+first turn — `{"temperature": 0}` on the no-profile lane), and the durable
+result JSON written to `results/prompt_results/` carries the same
+`generation` field. Coding-suite rows and transcripts record
+`reasoning_effort` / the exact `hermes chat --reasoning` invocation. A row's
+operating point is thus fully reconstructible from the row itself plus its
+`config_hash` snapshot — never from possibly-edited live config state. Don't
+attribute a row to a sampling/effort lane without reading these fields; a
+lane change (e.g. `hermes_ops_generation_profile: capability` on a
+front-runner config) shows up in them, never silently.
 
 **Endpoint matters more than it looks**: for an MLX config whose model needs
 translation (`orchestration.needs_proxy: true`), always point `--base-url` at

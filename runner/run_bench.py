@@ -482,7 +482,7 @@ def _record_speed_gate_failure(model, inference_engine, config_path, config_hash
 
 
 def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage="all",
-                  seed=None):
+                  seed=None, generation_profile=None, reasoning=None):
     cfg = yaml.safe_load(config_path.read_text())
     orch = cfg.get("orchestration")
     if not orch:
@@ -656,7 +656,8 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
             run([sys.executable, str(REPO / "runner" / "run_prompt_suite.py"),
                  "--suite", "hermes_ops", "--base-url", base_url, "--model", model,
                  "--request-model", request_model, "--inference-engine", inference_engine, "--config", str(config_path),
-                 "--trials", str(trials), "--summary-out", str(summary_path)])
+                 "--trials", str(trials), "--summary-out", str(summary_path)]
+                + (["--generation-profile", generation_profile] if generation_profile else []))
             tps_values = _hermes_ops_tps_values(summary_path)
 
         # Speed gate (fail-fast, before the coding suite): a config whose
@@ -695,14 +696,16 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
                      "--suite", suite,
                      "--hermes-provider", hermes_provider, "--hermes-model", request_model,
                      "--log-model", model, "--inference-engine", inference_engine, "--config", str(config_path),
-                     "--trials", str(trials)])
+                     "--trials", str(trials)]
+                    + (["--reasoning", reasoning] if reasoning else []))
         else:
             print(f"\n--- coding spot-check ({CODING_SPOTCHECK_TASK}) ---")
             run([sys.executable, str(REPO / "runner" / "run_fixture_suite.py"),
                  "--suite", CODING_SPOTCHECK_SUITE, "--only-task", CODING_SPOTCHECK_TASK,
                  "--hermes-provider", hermes_provider, "--hermes-model", request_model,
                  "--log-model", model, "--inference-engine", inference_engine, "--config", str(config_path),
-                 "--trials", str(trials)])
+                 "--trials", str(trials)]
+                + (["--reasoning", reasoning] if reasoning else []))
     elif stage in ("all", "coding") and viable in ("full", "coding_only"):
         print("\n(coding spot-check skipped — no hermes_provider registered for this config)")
 
@@ -727,7 +730,7 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
 
 
 def run_one(config_path: Path, trials: int = 1, coding_suites=None, stage="all",
-            seed=None):
+            seed=None, generation_profile=None, reasoning=None):
     """Run one config and always tear down the isolated Mei process.
 
     The implementation has many deliberate fail-fast returns.  Keeping cleanup
@@ -739,7 +742,7 @@ def run_one(config_path: Path, trials: int = 1, coding_suites=None, stage="all",
     try:
         return _run_one_impl(
             config_path, trials=trials, coding_suites=coding_suites, stage=stage,
-            seed=seed,
+            seed=seed, generation_profile=generation_profile, reasoning=reasoning,
         )
     finally:
         try:
@@ -845,6 +848,22 @@ def build_arg_parser():
                     help="run the normal full config matrix (all), or only the coding "
                          "fixture stage after a harness repair (coding); identity, cold "
                          "load, and plain-completion gates still run")
+    ap.add_argument("--generation-profile", default=None,
+                    help="(2026-09-22) name of a generation_profiles entry in the config "
+                         "to carry as request-time overrides on the one-shot Hermes Ops "
+                         "suite only — how a run selects e.g. the capability/high vs "
+                         "practical/medium lane without editing the config. NOT applied "
+                         "to sanity (the determinism gate keeps the config defaults) nor "
+                         "to the coding suites (those run through `hermes chat` and "
+                         "inherit the server launch flags). Fails if the name is not "
+                         "declared in the config.")
+    ap.add_argument("--reasoning", default=None,
+                    choices=("none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"),
+                    help="(2026-09-22, coding profile) explicit reasoning effort for "
+                         "every coding-suite `hermes chat` invocation (the `hermes chat "
+                         "--reasoning` vocabulary). Overrides the config's own "
+                         "`coding_reasoning_effort`. Absent = hermes/server default — "
+                         "nothing is silently assumed.")
     return ap
 
 
@@ -907,7 +926,8 @@ def main():
             print(f"\n\n########## [{i}/{len(configs)}] {config_path} ##########")
             if not run_one(
                 config_path, trials=args.trials, coding_suites=coding_suites,
-                stage=args.stage, seed=args.seed,
+                stage=args.stage, seed=args.seed, generation_profile=args.generation_profile,
+                reasoning=args.reasoning,
             ):
                 failed.append(str(config_path))
         if failed:
@@ -917,7 +937,8 @@ def main():
     else:
         if not run_one(
             Path(args.config), trials=args.trials, coding_suites=coding_suites,
-            stage=args.stage, seed=args.seed,
+            stage=args.stage, seed=args.seed, generation_profile=args.generation_profile,
+            reasoning=args.reasoning,
         ):
             sys.exit(1)
 

@@ -60,6 +60,60 @@ system_prompt_suffix: null   # optional — a model-specific operating
   # instead, since hermes chat's CLI has no system-prompt-append flag —
   # see configs/Muse-Glimmer-30B/gguf.yaml for the full reasoning.
 
+# OPTIONAL — named request-time generation profiles (2026-09-22,
+# task-specific generation settings). This is the REQUEST-TIME override
+# layer: a profile's fields are forwarded onto the one-shot prompt-suite
+# client (run_prompt.py) as per-request sampling/reasoning settings for the
+# current backend. Server launch flags remain the coding/default baseline —
+# the coding suites run through `hermes chat` and inherit them untouched;
+# only the one-shot path can carry these overrides, and only when a profile
+# is actually selected (see hermes_ops_generation_profile below). Each
+# profile is EXPLICIT: a listed field is sent, an omitted field is NOT sent
+# (the backend serves its own launch/default value for it). Supported
+# fields: temperature, top_p, top_k, min_p, repetition_penalty,
+# presence_penalty, frequency_penalty, reasoning_effort. Unknown field
+# names and wrongly-typed values fail the run loudly at parse time — never
+# silently dropped.
+generation_profiles:
+  capability:                 # capability/high lane: front-runners at high
+    temperature: 1.0          #   effort, or xhigh where the model/vendor
+    top_p: 0.95               #   supports/recommends it; new contenders
+    top_k: 20                 #   are admitted high/xhigh first.
+    min_p: 0
+    presence_penalty: 1.5
+    repetition_penalty: 1.0
+    reasoning_effort: xhigh   # ONLY when the vendor/model actually declares
+                              # a recommended effort. Never invented: a
+                              # profile without this field sends NO
+                              # reasoning_effort field — the harness does
+                              # not silently assume 'medium'.
+  practical:                  # practical/medium lane: medium effort for
+    temperature: 0.8          #   models supporting it, to measure
+    top_p: 0.9                #   lower-token behavior.
+    reasoning_effort: medium
+
+hermes_ops_generation_profile: capability  # OPTIONAL — which profile the
+  # one-shot hermes_ops (general reasoning) suite uses for this model.
+  # Absent = no request-time overrides at all (historic temperature=0
+  # behavior preserved; old configs are untouched). A run can select a
+  # DIFFERENT lane without editing the config via
+  # `run_bench.py --generation-profile <name>` (hermes_ops stage only) or
+  # `run_prompt_suite.py --generation-profile <name>`. Selection is
+  # explicit: an undeclared profile name fails the run.
+
+# OPTIONAL — coding profile (2026-09-22), SEPARATE from the general/Hermes
+# Ops request profile above. `hermes chat` (the coding suites' agent loop)
+# exposes only ONE per-invocation generation control — `--reasoning LEVEL`
+# (vocabulary, from live `hermes chat --help`: none/minimal/low/medium/
+# high/xhigh/max/ultra) — so the coding profile carries just that: the
+# reasoning effort every coding task runs at. Sampling fields beyond effort
+# are NOT passable at the `hermes chat` boundary and stay on the server
+# launch flags (the coding/default baseline). Absent = the hermes/server
+# default — never invented. CLI override for a run:
+# `run_bench.py --reasoning <level>` / `run_fixture_suite.py --reasoning <level>`.
+coding_reasoning_effort: xhigh   # validated against the vocabulary above;
+  # an unknown level fails the run before any task launches.
+
 # Machine-readable — this is what runner/run_bench.py actually reads to
 # drive a run. Everything else in this file is human-facing documentation.
 orchestration:
@@ -130,6 +184,102 @@ settings:
 last_updated: 2026-08-20
 last_verified_against_docs: 2026-08-20   # bump when re-checked — configs go stale
 ```
+
+### Request-time generation profiles: policy and compatibility notes
+
+- **Request-time override, not a new baseline.** `generation_profiles` /
+  `hermes_ops_generation_profile` only override sampling/reasoning settings
+  on the one-shot prompt-suite path (sanity/hermes_ops's run_prompt.py
+  client), and `coding_reasoning_effort` only sets `hermes chat
+  --reasoning` on the coding path. The server launch flags in
+  `benchmark_launch_command` remain the coding/default baseline. When a
+  profile does not declare a field, that field is not sent and the backend
+  uses its own launch/default value — including temperature: a selected
+  profile without `temperature` sends NO temperature field (never a
+  silent fallback to the historic temperature=0), while a run with NO
+  profile selected keeps the historic deterministic temperature=0 exactly
+  (run_prompt_suite.py passes `--temperature 0` explicitly in that case).
+- **`max_tokens` is deliberately not a profile field.** `hermes_ops_max_tokens`
+  remains the single config source for the one-shot client's completion cap
+  (see above); a profile that contains `max_tokens` fails validation so
+  there can never be two competing max-token sources.
+- **No `enable_thinking` / `chat_template_kwargs` field.** Mei's
+  `ChatRequest` has no arbitrary `chat_template_kwargs` and silently drops
+  unknown JSON keys, so a top-level `enable_thinking` boolean could only be
+  honored by llama.cpp — not representable safely for both active engines.
+  The backend-neutral way to disable thinking per-request is
+  `reasoning_effort: none` (Mei passes it into the chat template's
+  additionalContext and disables thinking when `--enable-thinking` is
+  unset; llama.cpp's exact handling depends on its chat template). For
+  forcing thinking on, keep using the server-side `--enable-thinking`
+  launch flag.
+- **Sanity is never affected.** `run_bench.py --generation-profile` is
+  forwarded to the hermes_ops stage only; the sanity suite (determinism
+  gate) always runs at the historic defaults.
+- **Coding rows record the effective effort.** `run_fixture_suite.py` log
+  rows carry `reasoning_effort` = the exact `hermes chat --reasoning`
+  level that row's agent ran at (or `null` when the hermes/server default
+  applied), so an effort-lane change can never silently contaminate
+  historical comparisons.
+- **Backward compatibility is byte-level.** A config without these keys —
+  or with profiles declared but none selected — produces exactly the same
+  HTTP body it always has (temperature 0, max_tokens, nothing else), so old
+  configs and old `results/log.jsonl` rows are unaffected. The capability/
+  practical lane split is an evaluation-methodology choice for future runs;
+  this schema change is infrastructure only.
+- **Rows record the resolved lane immutably (2026-09-22).** Every prompt-suite
+  row now carries `generation_profile` (the selected profile name, or
+  `null` for the historic no-profile lane), `generation_overrides` (the
+  exact profile fields resolved and forwarded to run_prompt.py, or `null`),
+  and `generation` (the exact sampler/effort fields the backend actually
+  received for the first turn — `{"temperature": 0}` on the no-profile
+  lane). Coding-suite rows carry `reasoning_effort` (see above) and each
+  transcript header shows the exact `hermes chat --reasoning` invocation.
+  Together with `config_hash` (the immutable snapshot of the config that
+  declared the profiles) a row can always be reconstructed to the exact
+  operating point it ran at — never re-derived from possibly-edited live
+  config state.
+
+### Policy-enabled configs (front-runners, 2026-09-22)
+
+The infrastructure above is exercised by explicit per-front-runner POLICY
+(durable plan 7f5c67e7-b564-4df3-8209-14f7443b56e2: explicit general/vendor
+defaults for Hermes Ops, model-specific coding profiles, explicit
+high/xhigh capability-ceiling overlays, explicit medium comparison overlays,
+never silently invent sampler or effort values). Each config below declares
+`generation_profiles` (`capability` + `practical`), selects `capability` as
+its `hermes_ops_generation_profile`, and declares `coding_reasoning_effort`
+— every value cited to its vendor/model-card source in that config's own
+`settings/generation_profiles_policy` entry:
+
+| Config | Engine | capability lane (Hermes Ops default) | practical/medium lane | coding effort |
+|---|---|---|---|---|
+| `Ternary-Bonsai-2-27B-PTQ1_0/prism-gguf.yaml` | llama.cpp-prism | card Thinking-Mode preset (1.0/0.95/20/0) + **xhigh** (card default) | same sampling + **medium** (card: supported) | xhigh (card default; coding gated pending hermes_provider) |
+| `Ornith-1.5-35B-A3B/mei.yaml` | mei | card general preset (0.6/0.95/20) + **medium** (card silent on effort) | identical (card defines no second point) | medium |
+| `Ornith-1.5-35B-A3B/gguf.yaml` | llama.cpp | card general preset (0.6/0.95/20) + **medium** | identical | medium |
+| `Qwen3.6-35B-A3B/mei.yaml` | mei | unsloth thinking precise-coding preset (0.6/0.95/20/0/presence 0/rep 1.0) + **medium** (card silent on effort) | identical | medium |
+| `Qwen3.6-35B-A3B-textonly/mei.yaml` | mei | same preset + medium | identical | medium |
+| `Qwen3.6-35B-A3B/gguf-official-q4km.yaml` | llama.cpp | same preset + medium | identical | medium |
+| `Qwen3.8-27B/gguf.yaml` | llama.cpp | thinking preset (1.0/0.95/20/0/presence 0/rep 1.0) + **xhigh** (template max mapping) | same sampling + **medium** (= historical template-default baseline) | medium (= historical baseline) |
+| `Qwen3.8-27B/mei.yaml` | mei | same as gguf sibling + xhigh | same sampling + medium | medium |
+
+Notes:
+
+- **`medium` where the vendor is silent on effort is an explicit plan
+  decision, not an invention.** For models whose cards document no effort
+  level (Ornith, Qwen3.6), `reasoning_effort: medium` is the plan's
+  sanctioned default and each config records it out loud with its source.
+  This per-model resolution supersedes the blanket "do not globally force
+  `reasoning_effort=medium`" note in `docs/OMLX_MODEL_MATRIX.md`, which is
+  historical research for the RETIRED oMLX lane and predates the plan.
+- **`hermes_ops_generation_profile: capability` changes future hermes_ops
+  rows** for these configs (vendor operating point instead of the historic
+  temperature=0 wire shape). Historic rows are append-only and untouched;
+  the change is explicit in each config's config_hash snapshot and recorded
+  per row.
+- **Configs not listed here have no policy yet** — they keep the historic
+  no-profile behavior exactly until their own lane policy is written
+  (next-step work; no values are guessed for them).
 
 ## Process for adding a new model+inference-engine config
 

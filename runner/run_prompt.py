@@ -10,7 +10,17 @@ real system prompt + tool manifest) — same mechanism, different scale.
 
 Usage:
   run_prompt.py --base-url http://127.0.0.1:8012/v1 --model <name> \
-      --spec task_spec.json [--max-turns 6] [--temperature 0]
+      --spec task_spec.json [--max-turns 6] [--temperature F] \
+      [--top-p 0.95] [--top-k 20] [--min-p 0] \
+      [--repetition-penalty 1.0] [--presence-penalty 1.5] \
+      [--frequency-penalty 0] [--reasoning-effort high]
+Optional sampling/reasoning overrides are sent to the backend ONLY when
+given; temperature is likewise sent only when given, so a caller that
+passes nothing produces a body without sampling fields at all (the
+historic temperature=0 wire shape is preserved by run_prompt_suite.py,
+which passes --temperature 0 explicitly whenever no generation profile is
+selected). run_prompt_suite.py resolves a config's named
+generation_profiles into these flags (see configs/README.md).
 
 task_spec.json:
   {
@@ -40,6 +50,14 @@ Prints a single JSON result to stdout:
     "prompt_tokens": N, "completion_tokens": N, "total_tokens": N,
     "wall_seconds": N,
     "tokens_per_second": N,      // completion_tokens / wall_seconds
+    "generation": {...},         // immutable resolved sampler/effort metadata
+                                 // (2026-09-22): the exact per-request fields
+                                 // actually sent on the wire — temperature,
+                                 // top_p, top_k, min_p, repetition_penalty,
+                                 // presence_penalty, frequency_penalty,
+                                 // reasoning_effort — or null when no request
+                                 // was ever made. Absent fields (backend
+                                 // defaults) are not listed.
     "error": null | "message",   // set if the run failed (timeout, HTTP error, etc.)
     "timeout_phase": null | "connect" | "first_progress" | "stream_idle" | "turn_total"
   }
@@ -108,6 +126,131 @@ DEFAULT_NO_RESPONSE_RETRIES = 1
 DEFAULT_RETRY_DELAY_SECONDS = 2.0
 MAX_NO_RESPONSE_RETRIES = 3
 MAX_RETRY_DELAY_SECONDS = 30.0
+
+# Task-specific generation settings (2026-09-22, infrastructure only).
+#
+# The sanity/hermes_ops client has historically hardcoded temperature=0 and
+# sent no other sampling fields, so every backend served whatever its launch
+# flags defaulted to. Some configs now need REQUEST-time overrides for the
+# one-shot Hermes Ops path (e.g. Qwen3.6 general thinking: temperature 1.0,
+# top_p 0.95, top_k 20, min_p 0, presence_penalty 1.5, repetition_penalty
+# 1.0) without touching the coding suites, which run through `hermes chat`
+# and keep inheriting the server/configured coding preset.
+#
+# These are the fields the active backends (Mei, llama.cpp) genuinely honor
+# per-request, under these exact JSON names:
+#   - Mei: ChatRequest carries temperature/top_p/top_k/min_p/max_tokens/
+#     repetition_penalty/presence_penalty/frequency_penalty, applied over the
+#     server defaults in Engine.makeParameters; reasoning_effort goes into the
+#     chat template's additionalContext and "none" disables thinking when
+#     the server's --enable-thinking setting is unset.
+#   - llama.cpp: llama-server's OpenAI-compatible endpoint accepts the same
+#     sampling family under these names (repeat_penalty alias aside).
+# A field is added to the HTTP body ONLY when configured; absent fields keep
+# the exact pre-existing wire shape. There is deliberately NO enable_thinking
+# / chat_template_kwargs field: Mei's ChatRequest has no arbitrary
+# chat_template_kwargs and silently drops unknown JSON keys, so a top-level
+# enable_thinking boolean cannot be represented safely for BOTH engines —
+# per-request thinking can only be switched off in a backend-neutral way via
+# reasoning_effort "none" (see configs/README.md's generation_profiles
+# section for the full compatibility note).
+_GENERATION_OVERRIDE_TYPES = {
+    "temperature": (int, float),
+    "top_p": (int, float),
+    "top_k": (int,),
+    "min_p": (int, float),
+    "repetition_penalty": (int, float),
+    "presence_penalty": (int, float),
+    "frequency_penalty": (int, float),
+    "reasoning_effort": (str,),
+}
+
+
+def normalize_generation_overrides(overrides):
+    """Validate a generation-override mapping and return a fresh dict.
+
+    A typo'ed or wrongly-typed field must fail LOUDLY at parse time: a
+    silently dropped override would run the model at the server default
+    while the config and docs claim a different operating point. Shared by
+    run_prompt_suite.py's config parsing and this module's request path.
+    """
+    if overrides is None:
+        return {}
+    if not isinstance(overrides, dict):
+        raise ValueError(
+            f"generation overrides must be a mapping of field -> value, "
+            f"got {type(overrides).__name__}"
+        )
+    for key, value in overrides.items():
+        if key not in _GENERATION_OVERRIDE_TYPES:
+            raise ValueError(
+                f"unsupported generation override field {key!r} "
+                f"(supported: {', '.join(sorted(_GENERATION_OVERRIDE_TYPES))})"
+            )
+        if isinstance(value, bool):
+            raise ValueError(
+                f"generation override {key!r}: boolean values are not valid "
+                f"for this field ({value!r})"
+            )
+        if not isinstance(value, _GENERATION_OVERRIDE_TYPES[key]):
+            allowed = "/".join(t.__name__ for t in _GENERATION_OVERRIDE_TYPES[key])
+            raise ValueError(
+                f"generation override {key!r}: expected {allowed}, got "
+                f"{type(value).__name__} ({value!r})"
+            )
+        if key == "reasoning_effort" and not value.strip():
+            raise ValueError(
+                "generation override 'reasoning_effort': must be a non-empty string"
+            )
+    return dict(overrides)
+
+
+def build_chat_body(*, model, messages, tools, temperature, max_tokens,
+                    top_p=None, top_k=None, min_p=None,
+                    repetition_penalty=None, presence_penalty=None,
+                    frequency_penalty=None, reasoning_effort=None,
+                    stream=True):
+    """Assemble the /chat/completions JSON body for one streaming turn.
+
+    Optional sampling/reasoning fields — temperature included — are
+    included ONLY when not None and are validated by
+    normalize_generation_overrides(), so a caller that passes nothing
+    produces the bare body the harness has always sent except for the
+    sampling fields (model, messages, max_tokens, stream,
+    stream_options, plus tools when present). run_prompt_suite.py passes
+    --temperature 0 explicitly when no generation profile is selected,
+    which is what preserves the historic temperature=0 wire shape.
+    """
+    overrides = {
+        "top_p": top_p,
+        "top_k": top_k,
+        "min_p": min_p,
+        "repetition_penalty": repetition_penalty,
+        "presence_penalty": presence_penalty,
+        "frequency_penalty": frequency_penalty,
+        "reasoning_effort": reasoning_effort,
+    }
+    overrides = normalize_generation_overrides(
+        {k: v for k, v in overrides.items() if v is not None}
+    )
+    body = {
+        "model": model,
+        "messages": messages,
+        "max_tokens": max_tokens,
+        "stream": stream,
+        "stream_options": {"include_usage": True},
+    }
+    # temperature is itself an optional override: omitted by default so a
+    # selected generation profile that does not declare it never silently
+    # forces temperature=0 onto the backend (the historic temperature=0
+    # default is preserved by run_prompt_suite.py passing --temperature 0
+    # explicitly whenever NO profile is selected — see configs/README.md).
+    if temperature is not None:
+        body["temperature"] = temperature
+    if tools:
+        body["tools"] = tools
+    body.update(overrides)
+    return body
 
 
 class InitialNoResponse(Exception):
@@ -362,6 +505,9 @@ def guardrail_warning(tool_history, name, args_key, warned):
 
 
 def call_backend_streaming(base_url, model, messages, tools, temperature, timeout, max_tokens,
+                           top_p=None, top_k=None, min_p=None,
+                           repetition_penalty=None, presence_penalty=None,
+                           frequency_penalty=None, reasoning_effort=None,
                            api_key=None, connect_timeout=DEFAULT_CONNECT_TIMEOUT,
                            first_progress_timeout=DEFAULT_FIRST_PROGRESS_TIMEOUT,
                            stream_idle_timeout=DEFAULT_STREAM_IDLE_TIMEOUT,
@@ -405,16 +551,34 @@ def call_backend_streaming(base_url, model, messages, tools, temperature, timeou
         )
 
     def _attempt_once():
-        body = {
-            "model": model,
-            "messages": messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-            "stream": True,
-            "stream_options": {"include_usage": True},
+        body = build_chat_body(
+            model=model,
+            messages=messages,
+            tools=tools,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            top_p=top_p,
+            top_k=top_k,
+            min_p=min_p,
+            repetition_penalty=repetition_penalty,
+            presence_penalty=presence_penalty,
+            frequency_penalty=frequency_penalty,
+            reasoning_effort=reasoning_effort,
+        )
+        # Immutable per-request sampler/effort metadata (2026-09-22): the
+        # EXACT sampling/reasoning fields present in this turn's HTTP body —
+        # the resolved operating point the backend actually received. Named
+        # generation profiles are resolved to CLI flags by run_prompt_suite.py;
+        # this records the end of that chain, so a durable result file / log
+        # row never has to be re-derived from config state. Absent fields
+        # (the backend's own defaults) are deliberately NOT listed.
+        generation = {
+            key: body[key]
+            for key in ("temperature", "top_p", "top_k", "min_p",
+                        "repetition_penalty", "presence_penalty",
+                        "frequency_penalty", "reasoning_effort")
+            if key in body
         }
-        if tools:
-            body["tools"] = tools
         headers = {"Content-Type": "application/json"}
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"
@@ -555,6 +719,7 @@ def call_backend_streaming(base_url, model, messages, tools, temperature, timeou
             "usage": usage,
             "usage_estimated": usage_estimated,
             "timings": timings,
+            "generation": generation,
         }, ttft, decode_window
 
     # Bounded no-response retry. A StreamStall from _attempt_once() has already
@@ -587,7 +752,12 @@ def main():
     ap.add_argument("--model", required=True)
     ap.add_argument("--spec", required=True, help="path to task_spec.json")
     ap.add_argument("--max-turns", type=int, default=6)
-    ap.add_argument("--temperature", type=float, default=0)
+    ap.add_argument("--temperature", type=float, default=None,
+                    help="optional per-request temperature (sent ONLY when set; "
+                         "omitted = the backend serves its own launch/default "
+                         "value). run_prompt_suite.py passes --temperature 0 "
+                         "explicitly whenever NO generation profile is selected, "
+                         "preserving the historic deterministic default")
     ap.add_argument("--timeout", type=float, default=120,
                      help="TOTAL budget for one HTTP turn, in seconds. Was a socket "
                           "INACTIVITY timeout until the 2026-08-25 timeout/liveness "
@@ -619,6 +789,28 @@ def main():
                           "~/.hermes/profiles/bench/config.yaml) — was hardcoded to 1024 "
                           "until adversarial review finding M1, which silently truncated "
                           "longer reasoning-mode responses before a real answer")
+    # Optional per-request sampling/reasoning overrides (task-specific
+    # generation settings, 2026-09-22). Each is sent ONLY when given; when
+    # none are given the wire body is byte-identical to the historical one
+    # (temperature + max_tokens only). run_prompt_suite.py resolves a config's
+    # named generation_profiles into these flags — see configs/README.md.
+    ap.add_argument("--top-p", type=float, default=None,
+                    help="optional per-request top_p (sent only when set)")
+    ap.add_argument("--top-k", type=int, default=None,
+                    help="optional per-request top_k (sent only when set)")
+    ap.add_argument("--min-p", type=float, default=None,
+                    help="optional per-request min_p (sent only when set)")
+    ap.add_argument("--repetition-penalty", type=float, default=None,
+                    help="optional per-request repetition_penalty (sent only when set)")
+    ap.add_argument("--presence-penalty", type=float, default=None,
+                    help="optional per-request presence_penalty (sent only when set)")
+    ap.add_argument("--frequency-penalty", type=float, default=None,
+                    help="optional per-request frequency_penalty (sent only when set)")
+    ap.add_argument("--reasoning-effort", default=None,
+                    help="optional per-request reasoning_effort, forwarded EXACTLY "
+                         "(e.g. 'high'/'xhigh'/'medium'/'none') — never normalized; "
+                         "'none' disables thinking on backends that honor it (Mei "
+                         "when --enable-thinking is unset). Sent only when set.")
     ap.add_argument("--api-key-env", default=None,
                      help="name of an env var holding a Bearer token for hosted "
                           "APIs (e.g. OPENROUTER_API_KEY) — the value is read from "
@@ -674,12 +866,24 @@ def main():
     # cache. Comparable to Mei's cached_tokens, so the two engines' cache hit
     # rates can be read off the same axis.
     backend_cached_tokens = None
+    # Resolved per-request sampler/effort metadata (2026-09-22): the exact
+    # sampling/reasoning fields sent on the wire (first turn; arguments are
+    # constant across turns), or None when no request was ever made.
+    generation = None
 
     try:
         for turns in range(1, args.max_turns + 1):
             resp, turn_ttft, turn_decode_window = call_backend_streaming(
                 args.base_url, args.model, messages, tools, args.temperature, args.timeout,
-                args.max_tokens, api_key=api_key,
+                args.max_tokens,
+                top_p=args.top_p,
+                top_k=args.top_k,
+                min_p=args.min_p,
+                repetition_penalty=args.repetition_penalty,
+                presence_penalty=args.presence_penalty,
+                frequency_penalty=args.frequency_penalty,
+                reasoning_effort=args.reasoning_effort,
+                api_key=api_key,
                 connect_timeout=args.connect_timeout,
                 first_progress_timeout=args.first_progress_timeout,
                 stream_idle_timeout=args.stream_idle_timeout,
@@ -688,6 +892,8 @@ def main():
             )
             if ttft_seconds is None:
                 ttft_seconds = turn_ttft
+            if generation is None and resp.get("generation") is not None:
+                generation = resp["generation"]
             if turn_decode_window:
                 decode_window_seconds += turn_decode_window
             if resp.get("usage_estimated"):
@@ -844,6 +1050,10 @@ def main():
         "backend_cached_tokens": backend_cached_tokens,
         "usage_estimated": usage_estimated,
         "total_cost_usd": total_cost_usd,
+        # Immutable resolved sampler/effort metadata (2026-09-22): the exact
+        # per-request sampling/reasoning fields sent on the wire, or None when
+        # no request was ever made. See build_chat_body() for the field set.
+        "generation": generation,
         "error": error,
         "timeout_phase": timeout_phase,
     }

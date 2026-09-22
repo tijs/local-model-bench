@@ -26,6 +26,11 @@ import yaml
 
 from bench_common import INTERACTIVE_BUDGET_SECONDS, REPO, PeakRSSSampler, git_sha, snapshot_config
 
+# Shared by the request path (run_prompt.py) and this module's config
+# parsing: validates a generation-override mapping and fails loudly on an
+# unknown field or wrongly-typed value instead of silently dropping it.
+from run_prompt import normalize_generation_overrides
+
 # Hard ceiling on one suite task, used when the suite file doesn't declare
 # `task_timeout_seconds` itself. Before the 2026-08-25 timeout/liveness
 # redesign the ONLY subprocess bound was derived as
@@ -143,6 +148,14 @@ def main():
                           "reaching into the shared log by position (adversarial review "
                           "finding H3: a crashed/empty subprocess used to make the caller "
                           "silently read the PREVIOUS config's rows instead)")
+    ap.add_argument("--generation-profile", default=None,
+                    help="(2026-09-22) name of a generation_profiles entry in --config to "
+                         "apply as request-time overrides for THIS suite run — how a run "
+                         "selects e.g. the capability/high vs practical/medium lane "
+                         "without editing the config. Overrides the config's own "
+                         "hermes_ops_generation_profile selector. Fails if the name is "
+                         "not declared: profiles are explicit, there is no implicit "
+                         "default profile.")
     args = ap.parse_args()
 
     task_file = REPO / "tasks" / f"{args.suite}.yaml"
@@ -178,6 +191,17 @@ def main():
     ttft_measurable = True
     raw_port = None
     hermes_ops_max_tokens = None
+    # Resolved request-time generation overrides (2026-09-22): populated
+    # ONLY when a named generation profile is actually selected for this
+    # run (see the config block below). Empty for every pre-existing config
+    # and for every non-hermes_ops suite without an explicit
+    # --generation-profile, so the historic deterministic body is untouched.
+    hermes_ops_generation = {}
+    # Named generation profile selected for this run (None = no profile, the
+    # historic temperature=0 lane). Bound here at function scope so a
+    # no-config invocation (args.config is None) still records None on its
+    # rows; the config block below resolves the actual name when present.
+    selected_profile_name = None
     if args.config:
         config_hash, config_path = snapshot_config(args.config)
         config_yaml = yaml.safe_load(Path(args.config).read_text())
@@ -210,6 +234,69 @@ def main():
         # real fitness-profile default, so this is only set for thinking-mode
         # models that need more budget to reason AND answer in one turn.
         hermes_ops_max_tokens = config_yaml.get("hermes_ops_max_tokens")
+        # Named request-time generation profiles (2026-09-22, task-specific
+        # generation settings — infrastructure only; schema + rationale in
+        # configs/README.md "generation_profiles"). Each profile is an
+        # explicit bundle of per-request sampling/reasoning overrides that
+        # run_prompt.py carries on the one-shot prompt-suite client. Every
+        # declared profile is validated HERE, before any task launches, so a
+        # typo'ed field or wrongly-typed value fails this run loudly instead
+        # of being silently dropped from the HTTP payload. Fields are
+        # forwarded EXACTLY as declared; a profile that omits
+        # reasoning_effort sends NO reasoning_effort at all (we never
+        # silently assume a vendor effort — see the user's 2026-09-22 policy
+        # note), and the only config key that can size hermes_ops max_tokens
+        # remains hermes_ops_max_tokens (no duplicate/conflicting max-token
+        # sources).
+        generation_profiles = {}
+        raw_profiles = config_yaml.get("generation_profiles") or {}
+        if not isinstance(raw_profiles, dict):
+            raise SystemExit(
+                f"config {args.config}: generation_profiles must be a mapping of "
+                f"profile-name -> fields, got {type(raw_profiles).__name__}"
+            )
+        for name, profile in raw_profiles.items():
+            if not isinstance(profile, dict):
+                raise SystemExit(
+                    f"config {args.config}: generation_profiles[{name!r}] must be a "
+                    f"mapping of field -> value, got {type(profile).__name__}"
+                )
+            try:
+                generation_profiles[name] = normalize_generation_overrides(profile)
+            except ValueError as exc:
+                raise SystemExit(
+                    f"config {args.config}: generation_profiles[{name!r}]: {exc}"
+                ) from exc
+        # SELECTION is explicit, never implicit:
+        #   - hermes_ops_generation_profile: <name> selects the config-level
+        #     default profile for the hermes_ops suite (absent = no overrides,
+        #     i.e. old configs keep the historic temperature=0 behavior);
+        #   - --generation-profile <name> overrides that for this suite run
+        #     (how a run picks e.g. the capability/high vs practical/medium
+        #     lane). A name that is not declared fails loudly — there is no
+        #     implicit default profile.
+        hermes_ops_profile_name = config_yaml.get("hermes_ops_generation_profile")
+        if hermes_ops_profile_name is not None and hermes_ops_profile_name not in generation_profiles:
+            raise SystemExit(
+                f"config {args.config}: hermes_ops_generation_profile "
+                f"{hermes_ops_profile_name!r} is not declared in generation_profiles "
+                f"(declared: {', '.join(sorted(generation_profiles)) or 'none'}). "
+                f"Profiles must be explicit — there is no implicit default profile."
+            )
+        selected_profile_name = None
+        if args.generation_profile:
+            selected_profile_name = args.generation_profile
+        elif args.suite == "hermes_ops" and hermes_ops_profile_name is not None:
+            selected_profile_name = hermes_ops_profile_name
+        if selected_profile_name is not None:
+            if selected_profile_name not in generation_profiles:
+                raise SystemExit(
+                    f"config {args.config}: --generation-profile "
+                    f"{selected_profile_name!r} is not declared in generation_profiles "
+                    f"(declared: {', '.join(sorted(generation_profiles)) or 'none'}). "
+                    f"Profiles must be explicit — there is no implicit default profile."
+                )
+            hermes_ops_generation = generation_profiles[selected_profile_name]
 
     rows = []
     for task in task_spec["tasks"]:
@@ -252,6 +339,28 @@ def main():
                         cmd += ["--api-key-env", api_key_env]
                     if hermes_ops_max_tokens is not None:
                         cmd += ["--max-tokens", str(hermes_ops_max_tokens)]
+                    if not hermes_ops_generation:
+                        # Historic deterministic default, preserved
+                        # byte-for-byte: with NO generation profile selected,
+                        # temperature is explicitly 0 (see run_prompt.py's
+                        # --temperature help — the flag is now optional, so
+                        # the suite must say 0 out loud to keep the legacy
+                        # wire shape). When a profile IS selected,
+                        # temperature is forwarded only if the profile
+                        # declares it; otherwise it is omitted so the
+                        # backend serves its configured/default value and a
+                        # profile can never silently fall back to
+                        # temperature=0.
+                        cmd += ["--temperature", "0"]
+                    # Request-time generation overrides (2026-09-22): the
+                    # resolved profile's fields become run_prompt.py flags,
+                    # which only include them in the HTTP body when set.
+                    # hermes_ops_generation stays empty unless a profile was
+                    # explicitly selected, so old configs and non-hermes_ops
+                    # suites without --generation-profile keep the historic
+                    # deterministic body.
+                    for key, value in hermes_ops_generation.items():
+                        cmd += [f"--{key.replace('_', '-')}", str(value)]
                     if connect_timeout is not None:
                         cmd += ["--connect-timeout", str(connect_timeout)]
                     if first_progress_timeout is not None:
@@ -432,6 +541,19 @@ def main():
                 "quant": args.quant,
                 "config_path": config_path,
                 "config_hash": config_hash,
+                # Immutable resolved generation-lane metadata (2026-09-22):
+                # the named generation_profiles entry selected for THIS row
+                # (None = historic no-profile lane), plus the exact fields it
+                # resolved to and were forwarded to run_prompt.py as
+                # per-request overrides (empty when no profile is selected —
+                # the historic temperature=0 lane). The sampler/effort values
+                # actually on the wire are additionally recorded per-run in
+                # the durable result JSON's `generation` field and surfaced
+                # here via `generation` when the result was parseable.
+                "generation_profile": selected_profile_name,
+                "generation_overrides": (
+                    dict(hermes_ops_generation) if hermes_ops_generation else None
+                ),
                 "harness_error": harness_crashed,
                 "result_path": result_path_rel,
                 # Which budget ran out, if any: "connect" / "first_progress"
@@ -483,6 +605,11 @@ def main():
                 ),
                 "usage_estimated": parsed.get("usage_estimated", False),
                 "ttft_measurable": ttft_measurable,
+                # The exact sampler/effort fields the backend received for this
+                # task's first turn (run_prompt.py result `generation`), e.g.
+                # {"temperature": 0} on the historic no-profile lane. None only
+                # when run_prompt.py produced no parseable result.
+                "generation": parsed.get("generation"),
                 "peak_rss_gb": round(peak_rss_gb, 2) if peak_rss_gb is not None else None,
                 "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             }
