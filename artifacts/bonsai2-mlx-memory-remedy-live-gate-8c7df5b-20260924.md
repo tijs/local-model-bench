@@ -118,5 +118,5 @@ Therefore: **token counts, cache-token figures, and context-capacity results in 
 ## 10. Evidence
 
 - Raw evidence: `/Users/tijs/.local/share/local-model-bench/results-mei/Ternary-Bonsai-2-27B-mlx-2bit/prism-8c7df5b-20260924T034458Z-live-admission/` — `command.txt`, `run-state.txt`, `probe.json`, `probe.exit`, `probe.stdout.log`, `probe.stderr.log`, `server.log`, `request-log.jsonl`, `health.json`, `health.stderr`, `build.log`, `run_admission.sh`, `kv-cache/`.
-- This artifact: `artifacts/bonsai2-mlx-memory-remedy-live-gate-8c7df5b-20260924.md`, committed at parent HEAD `3f289f68aa474e843cb28f734c3ea58be7459283`+1 (see `git log` for the commit SHA).
+- This artifact: `artifacts/bonsai2-mlx-memory-remedy-live-gate-8c7df5b-20260924.md`, initially committed at `63a0a47b2b145a3dc60bc28e02651f2f79ab308d` (parent HEAD `3f289f68aa474e843cb28f734c3ea58be7459283`+1) and finally corrected to the verified 12/12 named probe total at `303c780701a752d3f8f13d7d68388f281fc04a9b`.
 - Effective worker route: provider `custom:umans`, model `umans-deepseek-v4-flash-0731` (not `umans-coder`).
