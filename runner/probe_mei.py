@@ -13,6 +13,14 @@ Mei-specific additions on top of the oMLX probe:
     engine reports it via usage, plus client-side wall measurements)
 
 Output artifact is JSON; exit code 0 only when every probe passed.
+
+Probe result schema: each `probes.<name>` entry carries a reserved
+`status` verdict ('passed' | 'failed' | 'skipped') and `elapsed_seconds`,
+plus the probe's own detail. Probe detail can never clobber the reserved
+keys: an expected HTTP rejection records its numeric code as
+`http_status` (e.g. 400 from the over-cap gate), distinct from the
+per-probe pass/fail verdict. The top-level `status` aggregates the
+per-probe verdicts.
 """
 from __future__ import annotations
 
@@ -217,13 +225,32 @@ def probe(name: str, output: dict[str, Any], fn) -> None:
     started = time.monotonic()
     try:
         detail = fn()
-        output["probes"][name] = {"status": "passed", "elapsed_seconds": time.monotonic() - started, **detail}
+        # Collision-safe merge: `status` and `elapsed_seconds` are reserved
+        # per-probe schema keys owned by this wrapper, so probe detail can
+        # never clobber the pass/fail verdict or the timing. A numeric HTTP
+        # status code an expected-rejection probe carries in detail (e.g.
+        # {"status": 400}) is preserved as `http_status`, distinct from the
+        # per-probe `status` verdict.
+        entry = dict(detail) if isinstance(detail, dict) else {"detail": detail}
+        raw_status = entry.pop("status", None)
+        if isinstance(raw_status, int) and "http_status" not in entry:
+            entry["http_status"] = raw_status
+        entry["status"] = "passed"
+        entry["elapsed_seconds"] = time.monotonic() - started
+        output["probes"][name] = entry
     except BaseException as exc:
         output["probes"][name] = {
             "status": "failed",
             "elapsed_seconds": time.monotonic() - started,
             "error": f"{type(exc).__name__}: {exc}",
         }
+
+
+def aggregate_status(probes: dict[str, dict[str, Any]]) -> str:
+    """Aggregate verdict: 'passed' only when every recorded probe passed."""
+    if not probes:
+        return "failed"
+    return "passed" if all(p.get("status") == "passed" for p in probes.values()) else "failed"
 
 
 def main() -> int:
@@ -477,15 +504,19 @@ def main() -> int:
                 except RuntimeError as exc:
                     if "HTTP 400" not in str(exc):
                         raise
-                    return {"rejected_as_expected": True, "error": str(exc)}
+                    return {
+                        "rejected_as_expected": True,
+                        # Numeric HTTP code, distinct from the per-probe
+                        # `status` verdict (collision-safe merge in probe()).
+                        "http_status": 400,
+                        "error": str(exc),
+                    }
                 raise AssertionError(f"{args.context_cap + 1}-token prompt unexpectedly succeeded in {elapsed:.3f}s: {response!r}")
 
             probe("context_over_cap_rejected", result, context_over_cap)
 
     result["finished_epoch"] = time.time()
-    result["status"] = "passed" if all(
-        p["status"] == "passed" for p in result["probes"].values()
-    ) and result["probes"] else "failed"
+    result["status"] = aggregate_status(result["probes"])
     args.output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0 if result["status"] == "passed" else 1

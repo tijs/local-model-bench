@@ -1,16 +1,20 @@
-"""No-network unit tests for the probe_mei tokenizer selection logic.
+"""No-network unit tests for probe_mei result schema and tokenizer routing.
 
 Run: uv run --locked python -m unittest runner.tests.test_probe_mei -v
    (or the repo-wide: uv run --locked python -m unittest discover -s runner/tests -v)
 
-Covers the narrowly scoped Bonsai tokenizer override used by the exact-token
-context-cap probe: only a directory whose own metadata carries both halves of
-the staged fingerprint (config.json model_type `prism_hadamard_qwen35` AND
-tokenizer_config.json tokenizer_class `Qwen2Tokenizer`) gets the explicit
-Qwen2 + fix_mistral_regex=True load; an ordinary tokenizer directory gets
-the historical plain AutoTokenizer behavior. No tokenizer/model is ever
-loaded and no network is touched: the load-routing tests stub the
-`transformers` module in sys.modules with recording fakes.
+Two concerns are covered without any server or network: (1) the probe()
+wrapper's collision-safe result schema — a numeric HTTP status in a probe's
+detail stays `http_status`, the per-probe verdict stays `passed`/`failed`,
+and aggregate_status reflects the verdicts; (2) the narrowly scoped Bonsai
+tokenizer override used by the exact-token context-cap probe: only a
+directory whose own metadata carries both halves of the staged fingerprint
+(config.json model_type `prism_hadamard_qwen35` AND tokenizer_config.json
+tokenizer_class `Qwen2Tokenizer`) gets the explicit Qwen2 +
+fix_mistral_regex=True load; an ordinary tokenizer directory gets the
+historical plain AutoTokenizer behavior. No tokenizer/model is ever loaded
+and no network is touched: the load-routing tests stub the `transformers`
+module in sys.modules with recording fakes.
 """
 import contextlib
 import json
@@ -217,6 +221,75 @@ class LoadRoutingTests(unittest.TestCase):
                     self.assertEqual(_FakeAutoTokenizer.calls, [])  # no silent fallback
                 finally:
                     _FakeQwen2Tokenizer.fail = False
+
+
+class WrapperStatusTests(unittest.TestCase):
+    """Probe result schema: per-probe verdict vs returned HTTP metadata.
+
+    No network is touched: probe() is exercised directly with synthetic
+    detail dicts and raising functions.
+    """
+
+    def test_expected_http_400_detail_keeps_probe_passed(self):
+        # A probe that anticipates a rejection carries the numeric HTTP
+        # status in its detail; the wrapper must keep the per-probe verdict
+        # 'passed' and preserve the code as http_status, not clobber status.
+        result = {"probes": {}}
+        probe_mei.probe(
+            "context_over_cap_rejected",
+            result,
+            lambda: {
+                "status": 400,
+                "rejected_as_expected": True,
+                "error": "HTTP 400: context length exceeded",
+            },
+        )
+        entry = result["probes"]["context_over_cap_rejected"]
+        self.assertEqual(entry["status"], "passed")
+        self.assertEqual(entry["http_status"], 400)
+        self.assertTrue(entry["rejected_as_expected"])
+        self.assertIn("HTTP 400", entry["error"])
+        self.assertIsInstance(entry["elapsed_seconds"], float)
+
+    def test_reserved_status_key_is_always_owned_by_wrapper(self):
+        # Non-numeric or odd `status` values in detail must not clobber the
+        # verdict either; the wrapper's reserved keys always win.
+        result = {"probes": {}}
+        probe_mei.probe("plain", result, lambda: {"status": "ok", "content": "ready"})
+        entry = result["probes"]["plain"]
+        self.assertEqual(entry["status"], "passed")
+        self.assertEqual(entry["content"], "ready")
+        self.assertNotIn("http_status", entry)
+
+    def test_aggregate_passed_when_all_cases_pass(self):
+        result = {"probes": {}}
+        probe_mei.probe(
+            "context_over_cap_rejected",
+            result,
+            lambda: {"status": 400, "rejected_as_expected": True},
+        )
+        probe_mei.probe("plain_completion", result, lambda: {"content": "ready", "usage": {}})
+        self.assertEqual(probe_mei.aggregate_status(result["probes"]), "passed")
+
+    def test_aggregate_failed_when_a_real_failure_occurs(self):
+        result = {"probes": {}}
+        probe_mei.probe(
+            "context_over_cap_rejected",
+            result,
+            lambda: {"status": 400, "rejected_as_expected": True},
+        )
+
+        def failing() -> dict:
+            raise AssertionError("server returned empty content")
+
+        probe_mei.probe("plain_completion", result, failing)
+        failure = result["probes"]["plain_completion"]
+        self.assertEqual(failure["status"], "failed")
+        self.assertIn("AssertionError: server returned empty content", failure["error"])
+        self.assertEqual(probe_mei.aggregate_status(result["probes"]), "failed")
+
+    def test_aggregate_empty_probes_is_failed(self):
+        self.assertEqual(probe_mei.aggregate_status({}), "failed")
 
 
 if __name__ == "__main__":
