@@ -42,6 +42,32 @@ RETIRED_CANDIDATE_CONFIGS = {
     # config's RETIRED-LANE banner, retired_reason, known_gaps, and
     # artifacts/qwen36-axq6-native-gate-direct-probe-20260918.md.
     "configs/AX-Qwen3.6-35B-A3B-MLX-AXQ-6bit-MTP/mei.yaml",
+    # 2026-09-24 Gravity-arm scope retirement by explicit user direction
+    # (commit 4adb4fb; further research for the Gravity arm and the Bonsai 2
+    # GGUF PTQ1_0 lane is DISCARDED — only the Bonsai 2 27B MLX pack on
+    # Mei/vmlx remains active). Never benchmarked: the bounded native gate
+    # PASSED 7/7 and the exploratory canary ran 5/6 on the pinned binary +
+    # staged artifact (2026-09-19), but zero results/log.jsonl rows ever
+    # existed for this config — closure is a research-scope decision, NOT an
+    # incompatibility or performance verdict. See the config's RETIRED-LANE
+    # banner, retired_reason, known_gaps, and
+    # artifacts/gravity-rl-q4km-native-gate-20260919.md.
+    "configs/Gravity-30BA5B-RL-GGUF/gguf-q4km.yaml",
+    # 2026-09-24 Bonsai 2 GGUF (PTQ1_0) lane scope retirement by the same
+    # explicit user direction (commit 4adb4fb). Not a quality verdict: the
+    # bounded native gates PASSED on the pinned Prism fork binary + staged
+    # artifact (2026-09-18 initial + canonical-alias recheck; 2026-09-23
+    # current-hash gate 7/7 under config hash 5e4c9a30643f / runner SHA
+    # 1bd7d8810d53), the one-trial canaries were exploratory 2/6 model-
+    # behavior evidence, and the only benchmark fragment is the interrupted
+    # two-sanity-row leg under OLD hash 5b760871ce84 / runner SHA
+    # 0d384a593830 (commit d656bcc) — preserved append-only, never a
+    # completed/rankable run. Engine label is llama.cpp-prism (explicit
+    # SEPARATE fork grouping, still llama.cpp-family per the runner's
+    # startswith('llama.cpp') identity-alias logic). See the config's
+    # RETIRED-LANE banner, retired_reason, known_gaps, and
+    # artifacts/bonsai2-ptq1-interrupted-20260923.md.
+    "configs/Ternary-Bonsai-2-27B-PTQ1_0/prism-gguf.yaml",
 }
 
 
@@ -134,7 +160,7 @@ class ActiveLaneSanityTests(unittest.TestCase):
             except yaml.YAMLError:
                 continue
             engine = cfg.get("inference_engine", "")
-            if engine in ("llama.cpp", "llama.cpp-dflash2", "llama.cpp-dspark", "mei"):
+            if engine in ("llama.cpp", "llama.cpp-dflash2", "llama.cpp-dspark", "llama.cpp-prism", "mei"):
                 rel = str(path.relative_to(REPO))
                 if (cfg.get("orchestration") or {}).get("viable") in ("retired",):
                     if rel not in RETIRED_CANDIDATE_CONFIGS:
