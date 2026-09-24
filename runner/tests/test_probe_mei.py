@@ -194,7 +194,11 @@ class LoadRoutingTests(unittest.TestCase):
                 self.assertEqual(args, (directory,))
                 self.assertEqual(kwargs, {"trust_remote_code": False})
 
-    def test_special_path_failure_falls_back_to_generic(self):
+    def test_special_path_failure_is_surfaced_not_routed_to_generic(self):
+        # A matched directory whose explicit Qwen2 load fails must surface a
+        # RuntimeError with the original exception chained — never silently
+        # fall back to AutoTokenizer, which would reintroduce the warnings
+        # while the probe appears to work.
         with tempfile.TemporaryDirectory() as tmp:
             directory = _make_dir(
                 Path(tmp), "bonsai",
@@ -204,11 +208,13 @@ class LoadRoutingTests(unittest.TestCase):
             with _patched_transformers():
                 _FakeQwen2Tokenizer.fail = True
                 try:
-                    loaded = probe_mei.load_exact_prompt_tokenizer(directory)
-                    self.assertEqual(loaded, "generic-loaded")  # fail-safe fallback
-                    (args, kwargs), = _FakeAutoTokenizer.calls
-                    self.assertEqual(args, (directory,))
-                    self.assertEqual(kwargs, {"trust_remote_code": False})
+                    with self.assertRaises(RuntimeError) as raised:
+                        probe_mei.load_exact_prompt_tokenizer(directory)
+                    self.assertIsInstance(raised.exception.__cause__, RuntimeError)
+                    self.assertIn("Qwen2Tokenizer", str(raised.exception))
+                    self.assertIn("prism_hadamard_qwen35", str(raised.exception))
+                    self.assertIn("fix_mistral_regex", str(raised.exception))
+                    self.assertEqual(_FakeAutoTokenizer.calls, [])  # no silent fallback
                 finally:
                     _FakeQwen2Tokenizer.fail = False
 

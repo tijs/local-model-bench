@@ -175,9 +175,11 @@ def load_exact_prompt_tokenizer(tokenizer_path: Path):
     unknown (model-type warning) and, because the staged config.json carries
     no transformers_version, additionally flags a false Mistral-regex
     warning. For that exact metadata fingerprint only, load the real Qwen2
-    tokenizer class directly with fix_mistral_regex=True. Any failure of the
-    special path falls back to the historical generic behavior so probe
-    semantics never change.
+    tokenizer class directly with fix_mistral_regex=True. A failure of that
+    explicit load is surfaced as a RuntimeError chaining the original
+    exception, never silently routed to AutoTokenizer — the fallback would
+    reintroduce both warnings while the probe appears to work. Every other
+    directory keeps the historical generic AutoTokenizer behavior.
     """
     override = tokenizer_override_kwargs(tokenizer_path)
     if override is not None:
@@ -185,9 +187,15 @@ def load_exact_prompt_tokenizer(tokenizer_path: Path):
             from transformers import Qwen2Tokenizer  # type: ignore[import-not-found]
 
             return Qwen2Tokenizer.from_pretrained(tokenizer_path, **override)
-        except Exception:
-            # Fail-safe: fall through to the generic path below.
-            pass
+        except Exception as exc:
+            raise RuntimeError(
+                f"matched Bonsai tokenizer {tokenizer_path} failed its explicit "
+                f"Qwen2Tokenizer load (model_type={PRISM_QWEN35_MODEL_TYPE!r}, "
+                f"tokenizer_class={PRISM_QWEN35_TOKENIZER_CLASS!r}, "
+                f"kwargs={override!r}); refusing to silently fall back to "
+                "AutoTokenizer because that would reintroduce the model-type "
+                "and regex warnings while the probe appears to work"
+            ) from exc
     from transformers import AutoTokenizer  # type: ignore[import-not-found]
 
     return AutoTokenizer.from_pretrained(tokenizer_path, trust_remote_code=False)
