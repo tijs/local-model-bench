@@ -1,5 +1,19 @@
 # Bonsai 2 MLX / Mei follow-on direction, 2026-09-18
 
+> **SCOPE UPDATE 2026-09-24 — active scope of this note.** Per explicit user
+> direction, further research for the **Gravity** arm and the **Bonsai 2 GGUF
+> (PTQ1_0)** follow-on is **DISCARDED**; those scopes are closed
+> (`configs/Gravity-30BA5B-RL-GGUF/gguf-q4km.yaml` and
+> `configs/Ternary-Bonsai-2-27B-PTQ1_0/prism-gguf.yaml` are retired
+> `orchestration.viable: retired`, 2026-09-24). The **only active target** is
+> the Bonsai 2 27B MLX pack on Mei/vmlx — exactly
+> `prism-ml/Ternary-Bonsai-2-27B-mlx-2bit` @
+> `3f926b415992eaa2ae9dd7b573706494d6bbf787` (section 2 below). Section 1
+> (bounded GGUF baseline policy) and section 4 step 1 (baseline-queue-first)
+> are **CLOSED / SUPERSEDED** and are retained below as historical policy only;
+> all other facts, claims, and URLs in this note are unchanged historical
+> content.
+
 Priority change (parent direction, 2026-09-18): the Bonsai 2 27B GGUF/llama.cpp
 leg is a BOUNDED baseline comparison only — do not spend disproportionate time
 on it. Once the currently queued baseline legs (including Bonsai 2) are
@@ -14,7 +28,13 @@ verified READ-ONLY against the HuggingFace API and the raw README AT the pinned
 revision on 2026-09-18 (no download of the model payload). **Local measurements:
 NONE yet.**
 
-## 1. Bounded GGUF / llama.cpp baseline policy (the queued PTQ1_0 leg)
+## 1. ~~Bounded GGUF / llama.cpp baseline policy (the queued PTQ1_0 leg)~~ — CLOSED / SUPERSEDED 2026-09-24
+
+> **CLOSED 2026-09-24:** the Bonsai 2 GGUF (PTQ1_0) baseline leg and the
+> Gravity follow-on are DISCARDED by user direction — no runs, no expansion,
+> and no further research under this policy. The policy text below is retained
+> verbatim as a historical record of what was previously authorized; it is not
+> current direction.
 
 The queued PrismML Bonsai 2 GGUF candidate
 (`configs/Ternary-Bonsai-2-27B-PTQ1_0/prism-gguf.yaml`, committed f1d450d) stays
@@ -43,7 +63,12 @@ Source: the committed config + model card +
 upstream claim), all as recorded in the config's `settings/` and `known_gaps`
 at f1d450d.
 
-## 2. Primary follow-on MLX target (the main goal after baselines are terminal)
+## 2. Primary ACTIVE follow-on MLX target (the only active target; no GGUF baseline prerequisite)
+
+> **ACTIVE 2026-09-24:** this is the only active target in this note. Exactly
+> `prism-ml/Ternary-Bonsai-2-27B-mlx-2bit` @
+> `3f926b415992eaa2ae9dd7b573706494d6bbf787`, on Mei/vmlx. The GGUF baselines
+> (section 1) and section 4 step 1 no longer gate or precede this work.
 
 - Repo: `prism-ml/Ternary-Bonsai-2-27B-mlx-2bit`
   (https://huggingface.co/prism-ml/Ternary-Bonsai-2-27B-mlx-2bit)
@@ -88,10 +113,14 @@ review (Mei plan todo, below).
 
 ## 4. Staged follow-on sequence (MLX pack on Mei/vmlx)
 
-1. **Baseline first:** finish and review the current serialized baseline queue
+1. ~~**Baseline first:** finish and review the current serialized baseline queue
    (AXQ6 -> bounded Bonsai 2 PTQ1_0 GGUF -> Gravity RL Q4_K_M -> gated BF16
    Gravity Base, as applicable). The MLX follow-on depends on terminal/reviewed
-   baseline legs.
+   baseline legs.~~ **SUPERSEDED 2026-09-24:** the GGUF baseline legs (Bonsai 2
+   PTQ1_0 GGUF, Gravity RL Q4_K_M, gated BF16 Gravity Base) are DISCARDED and
+   their scopes closed (configs retired 2026-09-24); the MLX follow-on NO
+   LONGER depends on any GGUF baseline leg — proceed directly with the MLX pack
+   target in section 2.
 2. **Isolated Mei/vmlx loader/transform compatibility work** — source audit of
    the activation transform + inverse embedding lookup requirement; implement
    and gate behind a feature flag in an isolated worktree, with a fallback.
