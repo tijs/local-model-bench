@@ -61,7 +61,7 @@
 
 ## 4. Probe result (locked acceptance probe)
 
-Probe exit 0 (`probe.exit` = `probe_exit_code=0`); overall `probe.json` status **`passed`, 11/11** as accounted in the verified handoff, and every named probe key in `probe.json` reports `"status": "passed"`:
+Probe exit 0 (`probe.exit` = `probe_exit_code=0`); overall `probe.json` status **`passed`, 12/12 named probe entries** as accounted in the verified handoff, and every named probe key in `probe.json` reports `"status": "passed"`:
 
 | Check | Observed | Result |
 |---|---|---|
@@ -106,7 +106,7 @@ Therefore: **token counts, cache-token figures, and context-capacity results in 
 
 ## 9. Verdict
 
-**Passed:** source/build gate (fresh consumer build, exit 0) and live capability admission (11/11 probe, exact-65536 context prefill completed, over-cap rejected, growing/repeated prefix cache reuse, native tool calls, clean teardown, no runtime kernel-admission crash).
+**Passed:** source/build gate (fresh consumer build, exit 0) and live capability admission (12/12 named probe entries, exact-65536 context prefill completed, over-cap rejected, growing/repeated prefix cache reuse, native tool calls, clean teardown, no runtime kernel-admission crash).
 
 **Not covered / explicitly not claimed:**
 - no numeric fused-vs-dense parity measurement;
