@@ -125,10 +125,76 @@ def validate_add_call(response: dict[str, Any]) -> dict[str, Any]:
     return {"name": function["name"], "arguments": arguments, "finish_reason": finish_reason}
 
 
-def exact_prompt(tokenizer_path: Path, target: int) -> str:
+def _read_json_object(path: Path) -> dict[str, Any] | None:
+    """Read a JSON file as a dict; None on missing/corrupt/type mismatch."""
+    try:
+        with path.open(encoding="utf-8") as handle:
+            data = json.load(handle)
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+# The staged Bonsai tokenizer declares a custom model type (unknown to
+# transformers) but the real Qwen2 tokenizer contract. Detection is
+# metadata-based — never a model-name substring — and the override stays
+# default-off for every other directory.
+PRISM_QWEN35_MODEL_TYPE = "prism_hadamard_qwen35"
+PRISM_QWEN35_TOKENIZER_CLASS = "Qwen2Tokenizer"
+
+
+def tokenizer_override_kwargs(tokenizer_path: Path) -> dict[str, Any] | None:
+    """Explicit-load kwargs for one narrowly scoped custom tokenizer.
+
+    Only a directory whose own metadata carries both halves of the staged
+    Bonsai fingerprint — config.json `model_type` ``prism_hadamard_qwen35``
+    AND tokenizer_config.json `tokenizer_class` ``Qwen2Tokenizer`` — gets
+    the override. transformers' `fix_mistral_regex=True` is the supported
+    correction for the Mistral-derived pre-tokenizer regex these
+    Qwen2-lineage tokenizer.json files ship with; it silences the
+    incorrect-regex warning without touching the staged files. Any other
+    directory (or unreadable metadata) returns None so the generic
+    AutoTokenizer path stays exactly as before.
+    """
+    config = _read_json_object(Path(tokenizer_path) / "config.json")
+    tokenizer_config = _read_json_object(Path(tokenizer_path) / "tokenizer_config.json")
+    if (
+        config is not None
+        and tokenizer_config is not None
+        and config.get("model_type") == PRISM_QWEN35_MODEL_TYPE
+        and tokenizer_config.get("tokenizer_class") == PRISM_QWEN35_TOKENIZER_CLASS
+    ):
+        return {"fix_mistral_regex": True}
+    return None
+
+
+def load_exact_prompt_tokenizer(tokenizer_path: Path):
+    """Load the probe tokenizer, warning-free where the custom model type allows it.
+
+    AutoTokenizer resolves the custom `prism_hadamard_qwen35` model type as
+    unknown (model-type warning) and, because the staged config.json carries
+    no transformers_version, additionally flags a false Mistral-regex
+    warning. For that exact metadata fingerprint only, load the real Qwen2
+    tokenizer class directly with fix_mistral_regex=True. Any failure of the
+    special path falls back to the historical generic behavior so probe
+    semantics never change.
+    """
+    override = tokenizer_override_kwargs(tokenizer_path)
+    if override is not None:
+        try:
+            from transformers import Qwen2Tokenizer  # type: ignore[import-not-found]
+
+            return Qwen2Tokenizer.from_pretrained(tokenizer_path, **override)
+        except Exception:
+            # Fail-safe: fall through to the generic path below.
+            pass
     from transformers import AutoTokenizer  # type: ignore[import-not-found]
 
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_path, trust_remote_code=False)
+    return AutoTokenizer.from_pretrained(tokenizer_path, trust_remote_code=False)
+
+
+def exact_prompt(tokenizer_path: Path, target: int) -> str:
+    tokenizer = load_exact_prompt_tokenizer(tokenizer_path)
     unit = " hello"
     if len(tokenizer.encode(unit, add_special_tokens=False)) != 1:
         raise RuntimeError("the exact-token prompt unit is not one token for this tokenizer")
