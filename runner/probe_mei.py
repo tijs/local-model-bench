@@ -186,8 +186,11 @@ def load_exact_prompt_tokenizer(tokenizer_path: Path):
     tokenizer class directly with fix_mistral_regex=True. A failure of that
     explicit load is surfaced as a RuntimeError chaining the original
     exception, never silently routed to AutoTokenizer — the fallback would
-    reintroduce both warnings while the probe appears to work. Every other
-    directory keeps the historical generic AutoTokenizer behavior.
+    reintroduce the model-type warning while the probe appears to work.
+    Every other directory loads AutoTokenizer with trust_remote_code=False
+    and fix_mistral_regex=True, mirroring the authoritative mei-openai-p0
+    probe so the incorrect-regex warning stays silenced for Qwen2-lineage
+    tokenizer.json directories without any metadata fingerprint.
     """
     override = tokenizer_override_kwargs(tokenizer_path)
     if override is not None:
@@ -202,11 +205,13 @@ def load_exact_prompt_tokenizer(tokenizer_path: Path):
                 f"tokenizer_class={PRISM_QWEN35_TOKENIZER_CLASS!r}, "
                 f"kwargs={override!r}); refusing to silently fall back to "
                 "AutoTokenizer because that would reintroduce the model-type "
-                "and regex warnings while the probe appears to work"
+                "warning while the probe appears to work"
             ) from exc
     from transformers import AutoTokenizer  # type: ignore[import-not-found]
 
-    return AutoTokenizer.from_pretrained(tokenizer_path, trust_remote_code=False)
+    return AutoTokenizer.from_pretrained(
+        tokenizer_path, trust_remote_code=False, fix_mistral_regex=True
+    )
 
 
 def exact_prompt(tokenizer_path: Path, target: int) -> str:

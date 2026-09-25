@@ -11,10 +11,11 @@ tokenizer override used by the exact-token context-cap probe: only a
 directory whose own metadata carries both halves of the staged fingerprint
 (config.json model_type `prism_hadamard_qwen35` AND tokenizer_config.json
 tokenizer_class `Qwen2Tokenizer`) gets the explicit Qwen2 +
-fix_mistral_regex=True load; an ordinary tokenizer directory gets the
-historical plain AutoTokenizer behavior. No tokenizer/model is ever loaded
-and no network is touched: the load-routing tests stub the `transformers`
-module in sys.modules with recording fakes.
+fix_mistral_regex=True load; an ordinary tokenizer directory gets
+AutoTokenizer with trust_remote_code=False and fix_mistral_regex=True,
+mirroring the authoritative mei-openai-p0 probe. No tokenizer/model is ever
+loaded and no network is touched: the load-routing tests stub the
+`transformers` module in sys.modules with recording fakes.
 """
 import contextlib
 import json
@@ -183,7 +184,12 @@ class LoadRoutingTests(unittest.TestCase):
                 self.assertEqual(kwargs, {"fix_mistral_regex": True})
                 self.assertEqual(_FakeAutoTokenizer.calls, [])  # generic path not used
 
-    def test_generic_path_uses_plain_auto_tokenizer(self):
+    def test_generic_path_loads_auto_tokenizer_with_fix_mistral_regex(self):
+        # Mirror of the authoritative mei-openai-p0 probe fix: an ordinary
+        # tokenizer directory loads AutoTokenizer with trust_remote_code=False
+        # AND fix_mistral_regex=True, so the incorrect-regex warning is
+        # silenced for Qwen2-lineage tokenizer.json files even without the
+        # staged Bonsai fingerprint.
         with tempfile.TemporaryDirectory() as tmp:
             directory = _make_dir(
                 Path(tmp), "ordinary",
@@ -196,7 +202,47 @@ class LoadRoutingTests(unittest.TestCase):
                 self.assertEqual(_FakeQwen2Tokenizer.calls, [])
                 (args, kwargs), = _FakeAutoTokenizer.calls
                 self.assertEqual(args, (directory,))
-                self.assertEqual(kwargs, {"trust_remote_code": False})
+                self.assertEqual(
+                    kwargs, {"trust_remote_code": False, "fix_mistral_regex": True}
+                )
+
+    def test_exact_prompt_auto_tokenizer_load_carries_fix_mistral_regex(self):
+        # Deterministic no-network coverage of the exact-token prompt builder
+        # itself: with a recording AutoTokenizer stub whose encode() counts
+        # " hello" as exactly one token, exact_prompt() must reach the generic
+        # AutoTokenizer load with trust_remote_code=False AND
+        # fix_mistral_regex=True and produce the exact token count. The stub
+        # is a throwaway local class so no shared test fake is mutated.
+        class _TokenizingStub:
+            def __init__(self, tokenizer_path):
+                self.tokenizer_path = tokenizer_path
+
+            def encode(self, text, add_special_tokens=True):
+                return [0] * text.count(" hello")
+
+        def _stub_auto(cls, *args, **kwargs):
+            cls.calls.append((args, kwargs))
+            return _TokenizingStub(args[0])
+
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = _make_dir(
+                Path(tmp), "ordinary",
+                config={"model_type": "qwen2"},
+                tokenizer_config={"tokenizer_class": "Qwen2Tokenizer"},
+            )
+            with _patched_transformers():
+                local_fake = types.new_class("AutoTokenizer", (), {})
+                local_fake.calls = []
+                setattr(local_fake, "from_pretrained", classmethod(_stub_auto))
+                setattr(sys.modules["transformers"], "AutoTokenizer", local_fake)
+                prompt = probe_mei.exact_prompt(directory, 3)
+                self.assertEqual(prompt, " hello hello hello")
+                (args, kwargs), = local_fake.calls
+                self.assertEqual(args, (directory,))
+                self.assertEqual(
+                    kwargs, {"trust_remote_code": False, "fix_mistral_regex": True}
+                )
+                self.assertEqual(_FakeQwen2Tokenizer.calls, [])  # generic path only
 
     def test_special_path_failure_is_surfaced_not_routed_to_generic(self):
         # A matched directory whose explicit Qwen2 load fails must surface a
