@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/4185 rows below predate 2026-08-21
+> **⚠ 138/4212 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -198,7 +198,7 @@ means no usable timestamp was recoverable from that group's rows.
 | LiquidAI/LFM2.5-8B-A1B-MLX-bf16 | vllm-mlx | — | 0.2 | n/a | n/a | 2/2 | [9693319bc3a1](configs/9693319bc3a1.yaml) — *config since changed* | 798e2f07f493 | 9 | 67% | 0 | — | n/a (proxied — not real TTFT) | 0 | — | 0 | 9.5 | — | — | — | 504 |
 | ManniX-ITA/Qwen3.6-27B-A3B-Coder-MTP-GGUF:CD-IQ4_K_M | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [02c0f591926b](configs/02c0f591926b.yaml) — *config since changed* | 91c123cb02a0 | 11 | 82% | 1 | 40.6 | 7.95 | 0 | 15.0 | 6 | 19.2 | GGUF Q4_K_M (ManniX-ITA community CD-IQ4_K_M k-quant, single-file, 16.7 GB) | — | — | 1384 |
 | ManniX-ITA/Qwen3.6-27B-A3B-Coder-MTP-GGUF:CD-IQ4_K_M | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [71b86463d35f](configs/71b86463d35f.yaml) — *config since changed* | a018d59cefab | 16 | 75% | 1 | 40.6 | 7.95 | 0 | 8.8 | 11 | 20.3 | GGUF Q4_K_M (ManniX-ITA community CD-IQ4_K_M k-quant, single-file, 16.7 GB) | — | — | 5654 |
-| ManniX-ITA/Qwen3.6-27B-A3B-Coder-MTP-GGUF:CD-IQ4_K_M | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [f4e4206eab5c](configs/f4e4206eab5c.yaml) | 711e537c4dc4 | 23 | 83% | 2 | 40.6 | 7.95 | 0 | 6.5 | 9 | 21.4 | GGUF Q4_K_M (ManniX-ITA community CD-IQ4_K_M k-quant, single-file, 16.7 GB) | — | — | 4826 |
+| ManniX-ITA/Qwen3.6-27B-A3B-Coder-MTP-GGUF:CD-IQ4_K_M | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [f4e4206eab5c](configs/f4e4206eab5c.yaml) — *config since changed* | 711e537c4dc4 | 23 | 83% | 2 | 40.6 | 7.95 | 0 | 6.5 | 9 | 21.4 | GGUF Q4_K_M (ManniX-ITA community CD-IQ4_K_M k-quant, single-file, 16.7 GB) | — | — | 4826 |
 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | — | 0.2 | n/a | n/a | 2/2 | [00fc47aef271](configs/00fc47aef271.yaml) — *config since changed* | 65bb6d23192e | 8 | 75% | 0 | 15.0 | 13.02 | 0 | — | 0 | 5.1 | oQ4-fp16 mixed precision | cold | off | 375 |
 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | — | 0.2 | n/a | n/a | 4/4 | [00fc47aef271](configs/00fc47aef271.yaml) — *config since changed* | fc71ba2c66f8+dirty | 9 | 44% | 0 | 9.8 | 9.97 | 0 | — | 0 | — | oQ4-fp16 mixed precision | cold | off | 22061 |
 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | — | 0.2 | n/a | n/a | 2/2 | [8c159510d3a5](configs/8c159510d3a5.yaml) — *config since changed* | 65bb6d23192e | 0 | n/a (all harness errors) | 0 | — | 1.05 | 0 | — | 0 | 5.1 | oQ4-fp16 mixed precision | ssd | off | 2 |
@@ -213,6 +213,7 @@ means no usable timestamp was recoverable from that group's rows.
 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | — | 0.6 | thinking | n/a | 2/2 | [2e8b1d29956e](configs/2e8b1d29956e.yaml) — *config since changed* | 3e8f2dbb5101+dirty | 23 | 100% | 2 | 57.9 | 43.44 | 0 | 8.9 | 12 | 1.3 | MLX 4-bit affine g64 (mlx-community; qwen3_5_moe conditional-generation arch), 8-bit router gates | — | — | 5212 |
 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | — | 0.6 | thinking | n/a | — | [3421f91401ab](configs/3421f91401ab.yaml) — *config since changed* | 0869b8310378 | 21 | 95% | 2 | 44.0 | 63.27 | 0 | 8.1 | 14 | 1.1 | MLX 4-bit affine g64 (mlx-community; qwen3_5_moe conditional-generation arch), 8-bit router gates | — | — | 3718 |
 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | — | 0.6 | thinking | n/a | 2/2 | [3421f91401ab](configs/3421f91401ab.yaml) — *config since changed* | 244380d4563e+dirty | 2 | 100% | 0 | 81.5 | 33.35 | 0 | — | 0 | 1.0 | MLX 4-bit affine g64 (mlx-community; qwen3_5_moe conditional-generation arch), 8-bit router gates | — | — | 146 |
+| Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | — | 0.6 | thinking | n/a | 2/2 | [3cc9b8a79cb1](configs/3cc9b8a79cb1.yaml) | a6a7ce4048a1 | 23 | 78% | 0 | 51.4 | 35.38 | 0 | 8.0 | 6 | 1.3 | MLX 4-bit affine g64 (mlx-community; qwen3_5_moe conditional-generation arch), 8-bit router gates | — | — | 2295 |
 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | — | 0.6 | thinking | n/a | 2/2 | [4eacff1c767c](configs/4eacff1c767c.yaml) — *config since changed* | 14cd77bf6b99 | 23 | 96% | 3 | 56.0 | 7.30 | 0 | 8.6 | 10 | 1.3 | MLX 4-bit affine g64 (mlx-community; qwen3_5_moe conditional-generation arch), 8-bit router gates | — | — | 2833 |
 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | — | 0.6 | thinking | n/a | 4/4 | [4eacff1c767c](configs/4eacff1c767c.yaml) — *config since changed* | 6c00a8bde9cb | 18 | 94% | 0 | 56.4 | 2.13 | 0 | 12.5 | 3 | 1.4 | MLX 4-bit affine g64 (mlx-community; qwen3_5_moe conditional-generation arch), 8-bit router gates | — | — | 1347 |
 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | — | 0.6 | thinking | n/a | 2/2 | [4eacff1c767c](configs/4eacff1c767c.yaml) — *config since changed* | 8cd7401034db | 9 | 89% | 0 | 55.9 | 7.30 | 0 | 9.0 | 1 | 1.3 | MLX 4-bit affine g64 (mlx-community; qwen3_5_moe conditional-generation arch), 8-bit router gates | — | — | 320 |
@@ -242,9 +243,9 @@ means no usable timestamp was recoverable from that group's rows.
 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | — | ? | ? | ? | 2/2 | [e6a0628476cc](configs/Qwen3.8-27B/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 100% | 0 | 10.5 | 8.98 | 0 | — | 0 | — | ? | ? | ? | 294 |
 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | — | ? | ? | ? | 4/4 | [f6397d624011](configs/Qwen3.8-27B/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 4 | 100% | 0 | 11.4 | 52.74 | 0 | — | 0 | — | ? | ? | ? | 12879 |
 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | gguf | Q4_K_M+DFlash2 | ? | ? | ? | 2/2 | [0686abeab746](configs/Qwen3.8-27B/gguf-dflash2.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 100% | 0 | 9.3 | 55.96 | 0 | — | 0 | — | ? | ? | ? | 15711 |
-| bartowski/Qwen3.8-27B-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | medium | 2/2 | [5149cbc5a1b1](configs/5149cbc5a1b1.yaml) | 307dc5a146b4+dirty | 0 | n/a (all harness errors) | 0 | 13.5 | 5.83 | 0 | — | 0 | 22.8 | — | — | — | 18 |
-| bartowski/Qwen3.8-27B-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | medium | — | [5149cbc5a1b1](configs/5149cbc5a1b1.yaml) | b0cc46113de8+dirty | 1 | 100% | 1 | 9.0 | 239.40 | 0 | — | 0 | 23.5 | — | — | — | 359 |
-| bartowski/Qwen3.8-27B-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | medium | — | [5149cbc5a1b1](configs/5149cbc5a1b1.yaml) | de366070023d | 18 | 89% | 8 | 11.8 | 18.40 | 0 | 13.6 | 14 | 23.7 | — | — | — | 10012 |
+| bartowski/Qwen3.8-27B-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | medium | 2/2 | [5149cbc5a1b1](configs/5149cbc5a1b1.yaml) — *config since changed* | 307dc5a146b4+dirty | 0 | n/a (all harness errors) | 0 | 13.5 | 5.83 | 0 | — | 0 | 22.8 | — | — | — | 18 |
+| bartowski/Qwen3.8-27B-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | medium | — | [5149cbc5a1b1](configs/5149cbc5a1b1.yaml) — *config since changed* | b0cc46113de8+dirty | 1 | 100% | 1 | 9.0 | 239.40 | 0 | — | 0 | 23.5 | — | — | — | 359 |
+| bartowski/Qwen3.8-27B-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | medium | — | [5149cbc5a1b1](configs/5149cbc5a1b1.yaml) — *config since changed* | de366070023d | 18 | 89% | 8 | 11.8 | 18.40 | 0 | 13.6 | 14 | 23.7 | — | — | — | 10012 |
 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | n/a | 2/2 | [c02615b57f21](configs/c02615b57f21.yaml) — *config since changed* | 9756e52a1739 | 19 | 84% | 11 | 11.7 | 38.00 | 0 | — | 0 | 23.7 | — | — | — | 11535 |
 | bartowski/Qwen3.8-27B-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | n/a | 2/2 | [c7eb832ac1e8](configs/c7eb832ac1e8.yaml) — *config since changed* | 8bf29fca2f15 | 19 | 79% | 12 | 9.3 | 63.62 | 0 | — | 0 | 23.6 | — | — | — | 14061 |
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | gguf | — | ? | ? | ? | 2/2 | [163fa63ffb83](configs/Qwen3.5-9B/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 67% | 0 | 38.2 | 15.45 | 0 | — | 0 | — | ? | ? | ? | 102 |
@@ -253,15 +254,15 @@ means no usable timestamp was recoverable from that group's rows.
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [a2d241742068](configs/a2d241742068.yaml) | 38836484bab4 | 19 | 68% | 3 | 32.0 | 9.34 | 0 | 21.8 | 29 | 21.1 | — | — | — | 4195 |
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [a2d241742068](configs/a2d241742068.yaml) | 9df216e99cd9 | 23 | 83% | 3 | 31.9 | 9.34 | 0 | 18.7 | 33 | 21.0 | — | — | — | 4215 |
 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [a2d241742068](configs/a2d241742068.yaml) | c8d9bde5c6d6 | 19 | 68% | 3 | 32.0 | 9.34 | 0 | 20.9 | 29 | 22.1 | — | — | — | 4889 |
-| batiai/Gravity-30BA5B-RL-GGUF:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [34c266c25d9a](configs/34c266c25d9a.yaml) | 2ee0259d6728 | 0 | n/a (all harness errors) | 0 | 72.7 | 2.63 | 0 | — | 0 | 22.1 | GGUF Q4_K_M (BatiAI imatrix-calibrated k-quant, single-file, 19,613,407,328 B / 18.266 GiB) | — | — | 8 |
-| batiai/Gravity-30BA5B-RL-GGUF:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [34c266c25d9a](configs/34c266c25d9a.yaml) | 4d19196761e0 | 23 | 26% | 0 | 17.5 | 26.45 | 0 | — | 0 | 23.4 | GGUF Q4_K_M (BatiAI imatrix-calibrated k-quant, single-file, 19,613,407,328 B / 18.266 GiB) | — | — | 47549 |
-| batiai/Gravity-30BA5B-RL-GGUF:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [34c266c25d9a](configs/34c266c25d9a.yaml) | 4ee53065eaf4 | 2 | 100% | 0 | 33.9 | 50.23 | 0 | — | 0 | 22.2 | GGUF Q4_K_M (BatiAI imatrix-calibrated k-quant, single-file, 19,613,407,328 B / 18.266 GiB) | — | — | 249 |
-| batiai/Gravity-30BA5B-RL-GGUF:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [34c266c25d9a](configs/34c266c25d9a.yaml) | 53920dc41d65 | 3 | 100% | 0 | 28.7 | 42.24 | 0 | — | 0 | 22.2 | GGUF Q4_K_M (BatiAI imatrix-calibrated k-quant, single-file, 19,613,407,328 B / 18.266 GiB) | — | — | 295 |
-| batiai/Gravity-30BA5B-RL-GGUF:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [34c266c25d9a](configs/34c266c25d9a.yaml) | bcb8e73140f7 | 2 | 100% | 0 | 34.0 | 50.16 | 0 | — | 0 | 22.2 | GGUF Q4_K_M (BatiAI imatrix-calibrated k-quant, single-file, 19,613,407,328 B / 18.266 GiB) | — | — | 248 |
+| batiai/Gravity-30BA5B-RL-GGUF:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [34c266c25d9a](configs/34c266c25d9a.yaml) — *config since changed* | 2ee0259d6728 | 0 | n/a (all harness errors) | 0 | 72.7 | 2.63 | 0 | — | 0 | 22.1 | GGUF Q4_K_M (BatiAI imatrix-calibrated k-quant, single-file, 19,613,407,328 B / 18.266 GiB) | — | — | 8 |
+| batiai/Gravity-30BA5B-RL-GGUF:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [34c266c25d9a](configs/34c266c25d9a.yaml) — *config since changed* | 4d19196761e0 | 23 | 26% | 0 | 17.5 | 26.45 | 0 | — | 0 | 23.4 | GGUF Q4_K_M (BatiAI imatrix-calibrated k-quant, single-file, 19,613,407,328 B / 18.266 GiB) | — | — | 47549 |
+| batiai/Gravity-30BA5B-RL-GGUF:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [34c266c25d9a](configs/34c266c25d9a.yaml) — *config since changed* | 4ee53065eaf4 | 2 | 100% | 0 | 33.9 | 50.23 | 0 | — | 0 | 22.2 | GGUF Q4_K_M (BatiAI imatrix-calibrated k-quant, single-file, 19,613,407,328 B / 18.266 GiB) | — | — | 249 |
+| batiai/Gravity-30BA5B-RL-GGUF:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [34c266c25d9a](configs/34c266c25d9a.yaml) — *config since changed* | 53920dc41d65 | 3 | 100% | 0 | 28.7 | 42.24 | 0 | — | 0 | 22.2 | GGUF Q4_K_M (BatiAI imatrix-calibrated k-quant, single-file, 19,613,407,328 B / 18.266 GiB) | — | — | 295 |
+| batiai/Gravity-30BA5B-RL-GGUF:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | 2/2 | [34c266c25d9a](configs/34c266c25d9a.yaml) — *config since changed* | bcb8e73140f7 | 2 | 100% | 0 | 34.0 | 50.16 | 0 | — | 0 | 22.2 | GGUF Q4_K_M (BatiAI imatrix-calibrated k-quant, single-file, 19,613,407,328 B / 18.266 GiB) | — | — | 248 |
 | empero-ai/Qwen3.8-27B-Ridge-GGUF | gguf | — | ? | ? | ? | 2/2 | [6a3700901e2b](configs/Qwen3.8-27B-Ridge/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 4 | 50% | 0 | 7.9 | 52.03 | 0 | — | 0 | — | ? | ? | ? | 1756 |
 | empero-ai/Qwen3.8-27B-Ridge-GGUF | gguf | — | 0.7 | instruct | n/a | 2/2 | [d135df9d860f](configs/d135df9d860f.yaml) — *config since changed* | e155170f4c1d | 8 | 62% | 0 | 7.8 | 30.15 | 0 | — | 0 | 18.9 | — | — | — | 1146 |
 | empero-ai/Qwen3.8-27B-Ridge-GGUF | llama.cpp | — | 0.7 | instruct | n/a | 2/2 | [7b1d82c8abab](configs/7b1d82c8abab.yaml) — *config since changed* | a58bee1684ac | 19 | 84% | 8 | 7.8 | 30.14 | 0 | — | 0 | 20.8 | — | — | — | 6945 |
-| ggml-org/Qwen3.6-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | — | [6824b87f5e21](configs/6824b87f5e21.yaml) | 19aee89cd756 | 3 | 67% | 0 | — | — | 0 | 10.0 | 3 | 22.2 | GGUF Q4_K_M (official ggml-org k-quant, single-file, 20.4 GB) | — | — | 817 |
+| ggml-org/Qwen3.6-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | 0.6 | thinking | n/a | — | [6824b87f5e21](configs/6824b87f5e21.yaml) — *config since changed* | 19aee89cd756 | 3 | 67% | 0 | — | — | 0 | 10.0 | 3 | 22.2 | GGUF Q4_K_M (official ggml-org k-quant, single-file, 20.4 GB) | — | — | 817 |
 | gpt-5.6-luna | api | — | ? | ? | ? | — | [86cbe69b94ae](configs/Luna/api.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 1 | 100% | 0 | — | — | 0 | — | 0 | — | ? | ? | ? | 121 |
 | gpt-5.6-luna | api | — | None | unspecified | n/a | — | [dc55dd82a2c3](configs/dc55dd82a2c3.yaml) — *config since changed* | e155170f4c1d | 1 | 0% | 0 | — | — | 0 | — | 0 | — | — | — | — | 12 |
 | mlx-community/Devstral-Small-2507-4bit-DWQ | mlx | — | 0.15 | n/a | n/a | 1/2 | [54b39a32dd69](configs/54b39a32dd69.yaml) — *config since changed* | 65bb6d23192e | 0 | n/a (all harness errors) | 0 | 19.9 | 9.13 | 0 | — | 0 | 8.7 | — | — | — | 21 |
@@ -306,7 +307,7 @@ means no usable timestamp was recoverable from that group's rows.
 | mlx-community/Qwen3.6-35B-A3B-4bit-DWQ | mei | — | 0.6 | thinking | n/a | — | [b6b5824d3567](configs/b6b5824d3567.yaml) — *config since changed* | 1c8ea189fdb2 | 15 | 73% | 1 | — | — | 0 | 9.7 | 30 | 8.8 | MLX DWQ mixed — experts 4-bit, embeddings/attention/router 8-bit, group 64 affine | — | — | 3380 |
 | mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit | mei | — | 0.6 | thinking | n/a | — | [31a7f0b6a256](configs/31a7f0b6a256.yaml) | b5b7f49bcb62 | 15 | 93% | 1 | — | — | 0 | 7.3 | 6 | 7.5 | OptiQ mixed precision — optiq_mixed_precision, group 64 affine; per-layer 8-bit high-bit / 4-bit low-bit (optiq_metadata.json: 392 high-bit + 118 low-bit entries, target 4.5 bpw, achieved 4.506152583685804; reference uniform_4bit) | — | — | 3054 |
 | mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit | mei | — | 0.6 | thinking | n/a | — | [31a7f0b6a256](configs/31a7f0b6a256.yaml) | f713b29fc5c7 | 5 | 60% | 1 | — | — | 0 | 9.0 | 9 | 8.7 | OptiQ mixed precision — optiq_mixed_precision, group 64 affine; per-layer 8-bit high-bit / 4-bit low-bit (optiq_metadata.json: 392 high-bit + 118 low-bit entries, target 4.5 bpw, achieved 4.506152583685804; reference uniform_4bit) | — | — | 1485 |
-| mlx-community/Qwen3.8-27B-4bit | mei | — | 1.0 | thinking | n/a | 2/2 | [c7f10a958b1e](configs/c7f10a958b1e.yaml) | 7f3de21dba70 | 23 | 87% | 19 | 14.6 | 294.05 | 0 | 11.8 | 9 | 2.0 | MLX 4-bit affine g64 (mlx-community, qwen3_5 arch) | — | — | 22412 |
+| mlx-community/Qwen3.8-27B-4bit | mei | — | 1.0 | thinking | n/a | 2/2 | [c7f10a958b1e](configs/c7f10a958b1e.yaml) — *config since changed* | 7f3de21dba70 | 23 | 87% | 19 | 14.6 | 294.05 | 0 | 11.8 | 9 | 2.0 | MLX 4-bit affine g64 (mlx-community, qwen3_5 arch) | — | — | 22412 |
 | mlx-community/Qwen3.8-27B-4bit | mei | — | 1.0 | thinking | n/a | 2/2 | [d23c67ad6d2d](configs/d23c67ad6d2d.yaml) — *config since changed* | 3496bdf4e3aa | 11 | 55% | 6 | 15.0 | 293.24 | 2 | 5.7 | 1 | 1.8 | MLX 4-bit affine g64 (mlx-community, qwen3_5 arch) | — | — | 7441 |
 | mlx-community/Qwen3.8-27B-4bit | mlx | — | ? | ? | ? | 2/2 | [152424abaa13](configs/Qwen3.8-27B/mlx.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 100% | 0 | 4.9 | 198.83 | 0 | — | 0 | — | ? | ? | ? | 4851 |
 | mlx-community/Qwen3.8-27B-4bit | mlx | — | 1.0 | thinking | n/a | 2/2 | [968652aede2d](configs/968652aede2d.yaml) — *config since changed* | 69e4b1fd937f | 3 | 67% | 2 | 4.9 | 198.67 | 1 | — | 0 | 1.6 | — | — | — | 4616 |
@@ -340,8 +341,8 @@ means no usable timestamp was recoverable from that group's rows.
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | 0.6 | unspecified | n/a | — | [48d75180adbc](configs/48d75180adbc.yaml) — *config since changed* | 319b144e6b0b+dirty | 13 | 100% | 2 | 39.7 | 2.98 | 0 | 16.9 | 24 | 22.8 | — | — | — | 2641 |
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | 0.6 | unspecified | n/a | 2/2 | [48d75180adbc](configs/48d75180adbc.yaml) — *config since changed* | 6cc8b646db2e | 19 | 95% | 2 | 42.2 | 6.96 | 0 | 17.7 | 20 | 23.9 | — | — | — | 2876 |
 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | 0.6 | unspecified | n/a | 2/2 | [48d75180adbc](configs/48d75180adbc.yaml) — *config since changed* | 9df216e99cd9 | 23 | 96% | 3 | 40.1 | 7.70 | 0 | 15.6 | 20 | 6.7 | — | — | — | 3207 |
-| ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | 0.6 | unspecified | n/a | 2/2 | [86f6177b6c31](configs/86f6177b6c31.yaml) | 06e4834d4bb8 | 23 | 91% | 1 | 39.7 | 7.01 | 0 | 11.0 | 26 | 23.4 | — | — | — | 2696 |
-| ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | 0.6 | thinking | medium | 2/2 | [f51c7e72e2ad](configs/f51c7e72e2ad.yaml) | 0adb046c1c3e+dirty | 23 | 96% | 3 | 42.4 | 7.01 | 0 | 16.8 | 28 | 23.6 | — | — | — | 3504 |
+| ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | 0.6 | unspecified | n/a | 2/2 | [86f6177b6c31](configs/86f6177b6c31.yaml) — *config since changed* | 06e4834d4bb8 | 23 | 91% | 1 | 39.7 | 7.01 | 0 | 11.0 | 26 | 23.4 | — | — | — | 2696 |
+| ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | 0.6 | thinking | medium | 2/2 | [f51c7e72e2ad](configs/f51c7e72e2ad.yaml) — *config since changed* | 0adb046c1c3e+dirty | 23 | 96% | 3 | 42.4 | 7.01 | 0 | 16.8 | 28 | 23.6 | — | — | — | 3504 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | — | — | — | — | — | f5e260cd9925 | 1 | 100% | 0 | 42.5 | 54.48 | 0 | — | 0 | — | — | — | — | 161 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | 2/2 | [0a4370d3d909](configs/0a4370d3d909.yaml) — *config since changed* | 6642492d4afd | 9 | 89% | 1 | 39.6 | 7.01 | 0 | 39.0 | 14 | 1.2 | MLX 4-bit (ornith-ai official) | — | — | 819 |
 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | 0.6 | unspecified | n/a | — | [0a4370d3d909](configs/0a4370d3d909.yaml) — *config since changed* | 7678bd71d022 | 20 | 65% | 2 | 38.2 | 10.75 | 0 | 12.5 | 17 | 1.2 | MLX 4-bit (ornith-ai official) | — | — | 3281 |
@@ -408,6 +409,7 @@ means no usable timestamp was recoverable from that group's rows.
 | poolside/Laguna-XS-2.1-GGUF:Q4_K_M | gguf | — | ? | ? | ? | 1/2 | [e427e7a50b14](configs/Laguna-XS-2.1/gguf.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 0 | n/a (all harness errors) | 0 | — | 11.96 | 0 | — | 0 | — | ? | ? | ? | 19 |
 | poolside/Laguna-XS-2.1-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | n/a | 2/2 | [644ba3997136](configs/644ba3997136.yaml) | 9df216e99cd9 | 23 | 74% | 2 | — | n/a (proxied — not real TTFT) | 1 | 25.3 | 30 | 24.1 | — | — | — | 2840 |
 | poolside/Laguna-XS-2.1-GGUF:Q4_K_M | llama.cpp | — | 1.0 | thinking | n/a | 2/2 | [644ba3997136](configs/644ba3997136.yaml) | e23570ec40be | 19 | 74% | 1 | — | n/a (proxied — not real TTFT) | 1 | 24.5 | 22 | 23.1 | — | — | — | 2167 |
+| prism-ml/Ternary-Bonsai-2-27B-gguf:PTQ1_0 | llama.cpp-prism | — | 1.0 | thinking | n/a | 2/2 | [5b760871ce84](configs/5b760871ce84.yaml) — *config since changed* | 0d384a593830 | 0 | n/a (all harness errors) | 0 | 17.0 | 4.94 | 0 | — | 0 | 10.8 | GGUF PTQ1_0 (PrismML ternary g128 dense-trit packing, 1.75 bpw effective, single-file 5,946,648,928 B / 5.538 GiB; sibling PQ2_0 2-bit-slot packing 7,206,168,928 B recorded separately in settings/quant — NOT this config's artifact) | — | — | 17 |
 | prism-ml/Ternary-Bonsai-27B-mlx-2bit | mlx | — | 0.7 | unspecified | n/a | 2/2 | [2152fbd9febb](configs/2152fbd9febb.yaml) — *config since changed* | e155170f4c1d | 8 | 62% | 4 | 6.3 | 155.61 | 1 | — | 0 | 7.8 | — | — | — | 8261 |
 | prism-ml/Ternary-Bonsai-27B-mlx-2bit | mlx | — | ? | ? | ? | — | [8e85abe37e32](configs/Ternary-Bonsai-27B/mlx.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 1 | 0% | 0 | — | — | 0 | — | 0 | — | ? | ? | ? | 573 |
 | prism-ml/Ternary-Bonsai-27B-mlx-2bit | mlx | 2bit-native | ? | ? | ? | 2/2 | [21faf0240ec3](configs/Ternary-Bonsai-27B/mlx.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 100% | 0 | 8.3 | 117.18 | 0 | — | 0 | — | ? | ? | ? | 2420 |
@@ -484,26 +486,26 @@ most total coding+hermes_ops evidence, then recency.
 
 | rank | model | engine | quant | reasoning⁶ | config | usefulness gate | score | coding | decode speed | avg TTFT | total runtime (s)⁷ | avg turns |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 1 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | — | thinking | 271c7ee694e8 | PASS (100%, 8) | 0.909 | 80% (15) | 56.0 tok/s | 7.30s | 2731 | 8.5 |
-| 2 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | unspecified | 86f6177b6c31 | PASS (100%, 8) | 0.847 | 87% (15) | 39.7 tok/s | 7.01s | 2696 | 11.0 |
-| 3 | ManniX-ITA/Qwen3.6-27B-A3B-Coder-MTP-GGUF:CD-IQ4_K_M | llama.cpp | — | thinking | f4e4206eab5c | PASS (88%, 8) | 0.829 | 80% (15) | 40.6 tok/s | 7.95s | 4826 | 6.5 |
-| 4 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-I-Quality | llama.cpp | — | unspecified | 73c161a87535 | PASS (88%, 8) | 0.828 | 93% (15) | 39.5 tok/s | 7.16s | 3355 | 14.2 |
-| 5 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | — | thinking | d35863fa1b50 | PASS (75%, 8) | 0.812 | 80% (15) | 50.2 tok/s | 8.49s | 2763 | 9.1 |
-| 6 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | thinking | 98fbff8ca864 | PASS (75%, 8) | 0.806 | 87% (15) | 43.4 tok/s | 7.05s | 2767 | 15.7 |
-| 7 | mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Quality | llama.cpp | — | unspecified | 49ec38e05e0c | PASS (88%, 8) | 0.746 | 87% (15) | 42.9 tok/s | 10.67s | 5398 | 20.2 |
-| 8 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | — | unspecified | 7b0652d1fb9e | PASS (100%, 8) | 0.718 | 80% (15) | 33.3 tok/s | 10.29s | 4419 | 15.3 |
-| 9 | mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Compact | llama.cpp | — | unspecified | 0b31098f54f7 | PASS (75%, 8) | 0.699 | 73% (15) | 44.9 tok/s | 10.16s | 3447 | 22.9 |
-| 10 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | thinking | a2d241742068 | PASS (75%, 8) | 0.699 | 87% (15) | 31.9 tok/s | 9.34s | 4215 | 18.7 |
-| 11 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | unspecified | 2737ce74ab39 | PASS (100%, 8) | 0.695 | 80% (15) | 42.6 tok/s | 43.47s | 2290 | 7.9 |
-| 12 | AutomatosX/AX-Qwen3.6-35B-A3B-MLX-AXQ-4bit-MTP | mei | — | thinking | 984425a7e143 | PASS (88%, 8) | 0.675 | 80% (15) | 44.8 tok/s | 52.94s | 4427 | 8.4 |
-| 13 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | — | instruct | 644415678c37 | PASS (75%, 8) | 0.659 | 87% (15) | 26.1 tok/s | 9.50s | 5045 | 27.5 |
-| 14 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | thinking (medium) | 340ca3032e6c | PASS (88%, 8) | 0.522 | 87% (15) | 11.6 tok/s | 46.59s | 16645 | 13.3 |
-| 15 | mlx-community/Qwen3.8-27B-4bit | mei | — | thinking | c7f10a958b1e | PASS (75%, 8) | 0.516 | 93% (15) | 14.6 tok/s | 294.05s | 22412 | 11.8 |
-| 16 | trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M | llama.cpp | — | thinking (medium) | 891242963db5 | PASS (100%, 8) | 0.511 | 80% (15) | 11.1 tok/s | 49.89s | 22074 | 15.4 |
-| 17 | orcarouter/Qwen3.8-27B-Uncensored-MLX (subdir 4-bit) | mei | — | thinking | 40fbffd03a95 | PASS (62%, 8) | 0.446 | 73% (15) | 19.3 tok/s | 304.51s | 26902 | 15.3 |
-| 18 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | n/a | ffa862c18cff | PASS (75%, 8) | 0.411 | 60% (15) | 10.0 tok/s | 28.10s | 15872 | 27.9 |
+| 1 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | unspecified | 86f6177b6c31 | PASS (100%, 8) | 0.863 | 87% (15) | 39.7 tok/s | 7.01s | 2696 | 11.0 |
+| 2 | ManniX-ITA/Qwen3.6-27B-A3B-Coder-MTP-GGUF:CD-IQ4_K_M | llama.cpp | — | thinking | f4e4206eab5c | PASS (88%, 8) | 0.846 | 80% (15) | 40.6 tok/s | 7.95s | 4826 | 6.5 |
+| 3 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-I-Quality | llama.cpp | — | unspecified | 73c161a87535 | PASS (88%, 8) | 0.844 | 93% (15) | 39.5 tok/s | 7.16s | 3355 | 14.2 |
+| 4 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | — | thinking | d35863fa1b50 | PASS (75%, 8) | 0.832 | 80% (15) | 50.2 tok/s | 8.49s | 2763 | 9.1 |
+| 5 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | thinking | 98fbff8ca864 | PASS (75%, 8) | 0.823 | 87% (15) | 43.4 tok/s | 7.05s | 2767 | 15.7 |
+| 6 | mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Quality | llama.cpp | — | unspecified | 49ec38e05e0c | PASS (88%, 8) | 0.763 | 87% (15) | 42.9 tok/s | 10.67s | 5398 | 20.2 |
+| 7 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | — | unspecified | 7b0652d1fb9e | PASS (100%, 8) | 0.732 | 80% (15) | 33.3 tok/s | 10.29s | 4419 | 15.3 |
+| 8 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | — | thinking | 3cc9b8a79cb1 | PASS (88%, 8) | 0.723 | 73% (15) | 51.4 tok/s | 35.38s | 2295 | 8.0 |
+| 9 | mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Compact | llama.cpp | — | unspecified | 0b31098f54f7 | PASS (75%, 8) | 0.717 | 73% (15) | 44.9 tok/s | 10.16s | 3447 | 22.9 |
+| 10 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | unspecified | 2737ce74ab39 | PASS (100%, 8) | 0.712 | 80% (15) | 42.6 tok/s | 43.47s | 2290 | 7.9 |
+| 11 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | thinking | a2d241742068 | PASS (75%, 8) | 0.712 | 87% (15) | 31.9 tok/s | 9.34s | 4215 | 18.7 |
+| 12 | AutomatosX/AX-Qwen3.6-35B-A3B-MLX-AXQ-4bit-MTP | mei | — | thinking | 984425a7e143 | PASS (88%, 8) | 0.693 | 80% (15) | 44.8 tok/s | 52.94s | 4427 | 8.4 |
+| 13 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | — | instruct | 644415678c37 | PASS (75%, 8) | 0.670 | 87% (15) | 26.1 tok/s | 9.50s | 5045 | 27.5 |
+| 14 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | thinking (medium) | 340ca3032e6c | PASS (88%, 8) | 0.527 | 87% (15) | 11.6 tok/s | 46.59s | 16645 | 13.3 |
+| 15 | mlx-community/Qwen3.8-27B-4bit | mei | — | thinking | c7f10a958b1e | PASS (75%, 8) | 0.522 | 93% (15) | 14.6 tok/s | 294.05s | 22412 | 11.8 |
+| 16 | trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M | llama.cpp | — | thinking (medium) | 891242963db5 | PASS (100%, 8) | 0.515 | 80% (15) | 11.1 tok/s | 49.89s | 22074 | 15.4 |
+| 17 | orcarouter/Qwen3.8-27B-Uncensored-MLX (subdir 4-bit) | mei | — | thinking | 40fbffd03a95 | PASS (62%, 8) | 0.454 | 73% (15) | 19.3 tok/s | 304.51s | 26902 | 15.3 |
+| 18 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | n/a | ffa862c18cff | PASS (75%, 8) | 0.415 | 60% (15) | 10.0 tok/s | 28.10s | 15872 | 27.9 |
 | 19 | poolside/Laguna-XS-2.1-GGUF:Q4_K_M | llama.cpp | — | thinking | 644ba3997136 | PASS (50%, 8) | 0.358 | 87% (15) | — | — | 2840 | 25.3 |
-| 20 | batiai/Gravity-30BA5B-RL-GGUF:Q4_K_M | llama.cpp | — | thinking | 34c266c25d9a | PASS (75%, 8) | 0.265 | 0% (15) | 17.5 tok/s | 26.45s | 47549 | 40.0 |
+| 20 | batiai/Gravity-30BA5B-RL-GGUF:Q4_K_M | llama.cpp | — | thinking | 34c266c25d9a | PASS (75%, 8) | 0.272 | 0% (15) | 17.5 tok/s | 26.45s | 47549 | 40.0 |
 | 21 | mlx-community/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit | mei | — | thinking | d9be6d0097ea | FAIL (12%, 8) | — | 27% (15) | — | — | 5440 | 11.3 |
 
 ![Best overall composite score by model](score_chart.png)
@@ -799,6 +801,12 @@ confirmed-stable, just untested for flakiness.
 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | 3421f91401ab | 0869b8310378 | kipclip_mini | 4/4 |
 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | 3421f91401ab | 244380d4563e+dirty | hermes_ops | 2/2 |
 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | 3421f91401ab | 244380d4563e+dirty | sanity | 2/2 |
+| Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | 3cc9b8a79cb1 | a6a7ce4048a1 | hearth_full | 3/3 |
+| Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | 3cc9b8a79cb1 | a6a7ce4048a1 | hearth_mini | 3/3 |
+| Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | 3cc9b8a79cb1 | a6a7ce4048a1 | hermes_ops | 7/8 |
+| Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | 3cc9b8a79cb1 | a6a7ce4048a1 | kiem_mini | 2/5 |
+| Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | 3cc9b8a79cb1 | a6a7ce4048a1 | kipclip_mini | 3/4 |
+| Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | 3cc9b8a79cb1 | a6a7ce4048a1 | sanity | 2/2 |
 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | 4eacff1c767c | 14cd77bf6b99 | hearth_full | 3/3 |
 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | 4eacff1c767c | 14cd77bf6b99 | hearth_mini | 3/3 |
 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | 4eacff1c767c | 14cd77bf6b99 | hermes_ops | 8/8 |
@@ -1440,6 +1448,7 @@ confirmed-stable, just untested for flakiness.
 | poolside/Laguna-XS-2.1-GGUF:Q4_K_M | llama.cpp | 644ba3997136 | e23570ec40be | kiem_mini | 4/5 |
 | poolside/Laguna-XS-2.1-GGUF:Q4_K_M | llama.cpp | 644ba3997136 | e23570ec40be | kipclip_mini | 3/3 |
 | poolside/Laguna-XS-2.1-GGUF:Q4_K_M | llama.cpp | 644ba3997136 | e23570ec40be | sanity | 2/2 |
+| prism-ml/Ternary-Bonsai-2-27B-gguf:PTQ1_0 | llama.cpp-prism | 5b760871ce84 | 0d384a593830 | sanity | 2/2 |
 | prism-ml/Ternary-Bonsai-27B-mlx-2bit | mlx | 2152fbd9febb | e155170f4c1d | hermes_ops | 5/8 |
 | prism-ml/Ternary-Bonsai-27B-mlx-2bit | mlx | 2152fbd9febb | e155170f4c1d | sanity | 2/2 |
 | prism-ml/Ternary-Bonsai-27B-mlx-2bit | mlx | 21faf0240ec3 | *(predates tracking)* | hermes_ops | 3/3 |
@@ -1660,6 +1669,8 @@ advertised as runnable current paths.
 
 | engine | models (retired configs) | expansion |
 |---|---|---|
+| llama.cpp | 1 configs | configs/Gravity-30BA5B-RL-GGUF/gguf-q4km.yaml |
+| llama.cpp-prism | 1 configs | configs/Ternary-Bonsai-2-27B-PTQ1_0/prism-gguf.yaml |
 | mei | 1 configs | configs/AX-Qwen3.6-35B-A3B-MLX-AXQ-6bit-MTP/mei.yaml |
 | omlx | 18 configs | configs/LFM2.5-8B-A1B-oQ4e-fp16/omlx-hot.yaml; configs/LFM2.5-8B-A1B-oQ4e-fp16/omlx-ssd.yaml; configs/LFM2.5-8B-A1B-oQ4e-fp16/omlx.yaml; configs/Laguna-XS-2.1/omlx.yaml; configs/LiquidAI-LFM2.5-2.6B/omlx.yaml; configs/LiquidAI-LFM2.5-8B-A1B/omlx.yaml; configs/Ornith-1.5-9B-oQ4e-fp16/omlx-hot.yaml; configs/Ornith-1.5-9B-oQ4e-fp16/omlx-ssd.yaml; configs/Ornith-1.5-9B-oQ4e-fp16/omlx.yaml; configs/Qwen3-Coder-30B-A3B/omlx.yaml; configs/Qwen3.8-27B/omlx.yaml; configs/Qwen3.8-27B-oQ4e-fp16-mtp/omlx-context-balanced.yaml; configs/Qwen3.8-27B-oQ4e-fp16-mtp/omlx-hot.yaml; configs/Qwen3.8-27B-oQ4e-fp16-mtp/omlx-mtp-xhigh.yaml; configs/Qwen3.8-27B-oQ4e-fp16-mtp/omlx-mtp.yaml; configs/Qwen3.8-27B-oQ4e-fp16-mtp/omlx-ssd.yaml; configs/Qwen3.8-27B-oQ4e-fp16-mtp/omlx.yaml; configs/Ternary-Bonsai-27B/omlx.yaml |
 | vllm-mlx | 12 configs | configs/Devstral-Small-2507/mlx.yaml; configs/Laguna-XS-2.1/mlx.yaml; configs/LiquidAI-LFM2.5-2.6B/mlx-8bit.yaml; configs/LiquidAI-LFM2.5-2.6B/mlx.yaml; configs/LiquidAI-LFM2.5-8B-A1B/mlx-8bit.yaml; configs/LiquidAI-LFM2.5-8B-A1B/mlx.yaml; configs/Ornith-1.5-35B-A3B/mlx.yaml; configs/Ornith-1.5-9B/mlx.yaml; configs/Qwen2.5-Coder-14B/mlx.yaml; configs/Qwen3-Coder-30B-A3B/mlx.yaml; configs/Qwen3.8-27B/mlx.yaml; configs/Ternary-Bonsai-27B/mlx.yaml |
