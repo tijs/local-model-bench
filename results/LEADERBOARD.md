@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/4262 rows below predate 2026-08-21
+> **⚠ 138/4287 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -295,6 +295,7 @@ means no usable timestamp was recoverable from that group's rows.
 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | — | 0.6 | thinking | n/a | 4/4 | [632e9c29f2c5](configs/632e9c29f2c5.yaml) — *config since changed* | 0a7c7af571f4 | 50 | 78% | 4 | 48.3 | 44.60 | 2 | 10.8 | 32 | 1.2 | MLX 4-bit affine g64 (mlx-community; qwen3_5_moe conditional-generation arch), 8-bit router gates | — | — | 15492 |
 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | — | 0.6 | thinking | n/a | 8/8 | [632e9c29f2c5](configs/632e9c29f2c5.yaml) — *config since changed* | cf60a2bdcc37 | 46 | 83% | 6 | 48.2 | 14.26 | 1 | 12.4 | 31 | 1.3 | MLX 4-bit affine g64 (mlx-community; qwen3_5_moe conditional-generation arch), 8-bit router gates | — | — | 7021 |
 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | — | 0.6 | thinking | n/a | 2/2 | [924bf86be47f](configs/924bf86be47f.yaml) — *config since changed* | 11bbbb7c0919 | 23 | 83% | 2 | 47.9 | 44.63 | 0 | 9.3 | 13 | 1.2 | MLX 4-bit affine g64 (mlx-community; qwen3_5_moe conditional-generation arch), 8-bit router gates | — | — | 4002 |
+| mlx-community/Qwen3.6-35B-A3B-4bit | mei | — | 0.6 | thinking | n/a | 2/2 | [931272c8c4de](configs/931272c8c4de.yaml) | a469a58b7454 | 23 | 61% | 5 | 14.8 | 53.86 | 0 | 7.7 | 10 | 10.3 | MLX 4-bit affine g64 (mlx-community; qwen3_5_moe conditional-generation arch), 8-bit router gates | — | — | 7946 |
 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | — | 0.6 | thinking | n/a | 6/6 | [a23687499989](configs/a23687499989.yaml) — *config since changed* | 0a7c7af571f4 | 69 | 83% | 4 | 48.6 | 8.45 | 0 | 9.1 | 34 | 1.2 | MLX 4-bit affine g64 (mlx-community; qwen3_5_moe conditional-generation arch), 8-bit router gates | — | — | 17863 |
 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | — | 0.6 | thinking | n/a | 6/6 | [a23687499989](configs/a23687499989.yaml) — *config since changed* | cf60a2bdcc37 | 27 | 89% | 0 | 48.9 | 4.57 | 0 | 15.3 | 8 | 1.4 | MLX 4-bit affine g64 (mlx-community; qwen3_5_moe conditional-generation arch), 8-bit router gates | — | — | 2707 |
 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | — | 0.6 | thinking | n/a | — | [cea524483faf](configs/cea524483faf.yaml) — *config since changed* | 6a6d9f534804 | 6 | 83% | 2 | — | — | 0 | 10.5 | 3 | 0.9 | MLX 4-bit affine g64 (mlx-community; qwen3_5_moe conditional-generation arch), 8-bit router gates | — | — | 2434 |
@@ -488,26 +489,26 @@ most total coding+hermes_ops evidence, then recency.
 
 | rank | model | engine | quant | reasoning⁶ | config | usefulness gate | score | coding | decode speed | avg TTFT | total runtime (s)⁷ | avg turns |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 1 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | unspecified | 86f6177b6c31 | PASS (100%, 8) | 0.867 | 87% (15) | 39.7 tok/s | 7.01s | 2696 | 11.0 |
-| 2 | ManniX-ITA/Qwen3.6-27B-A3B-Coder-MTP-GGUF:CD-IQ4_K_M | llama.cpp | — | thinking | f4e4206eab5c | PASS (88%, 8) | 0.850 | 80% (15) | 40.6 tok/s | 7.95s | 4826 | 6.5 |
-| 3 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-I-Quality | llama.cpp | — | unspecified | 73c161a87535 | PASS (88%, 8) | 0.848 | 93% (15) | 39.5 tok/s | 7.16s | 3355 | 14.2 |
-| 4 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | — | thinking | d35863fa1b50 | PASS (75%, 8) | 0.838 | 80% (15) | 50.2 tok/s | 8.49s | 2763 | 9.1 |
-| 5 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | thinking | 98fbff8ca864 | PASS (75%, 8) | 0.828 | 87% (15) | 43.4 tok/s | 7.05s | 2767 | 15.7 |
-| 6 | mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Quality | llama.cpp | — | unspecified | 49ec38e05e0c | PASS (88%, 8) | 0.768 | 87% (15) | 42.9 tok/s | 10.67s | 5398 | 20.2 |
-| 7 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | — | thinking | bd41db91bc65 | PASS (75%, 8) | 0.752 | 93% (15) | 47.8 tok/s | 35.28s | 1963 | 7.7 |
-| 8 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | — | unspecified | 7b0652d1fb9e | PASS (100%, 8) | 0.735 | 80% (15) | 33.3 tok/s | 10.29s | 4419 | 15.3 |
-| 9 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | unspecified | be5b0c5716de | PASS (100%, 8) | 0.725 | 87% (15) | 43.5 tok/s | 34.03s | 2913 | 11.3 |
-| 10 | mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Compact | llama.cpp | — | unspecified | 0b31098f54f7 | PASS (75%, 8) | 0.722 | 73% (15) | 44.9 tok/s | 10.16s | 3447 | 22.9 |
-| 11 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | thinking | a2d241742068 | PASS (75%, 8) | 0.715 | 87% (15) | 31.9 tok/s | 9.34s | 4215 | 18.7 |
-| 12 | AutomatosX/AX-Qwen3.6-35B-A3B-MLX-AXQ-4bit-MTP | mei | — | thinking | 984425a7e143 | PASS (88%, 8) | 0.698 | 80% (15) | 44.8 tok/s | 52.94s | 4427 | 8.4 |
-| 13 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | — | instruct | 644415678c37 | PASS (75%, 8) | 0.673 | 87% (15) | 26.1 tok/s | 9.50s | 5045 | 27.5 |
-| 14 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | thinking (medium) | 340ca3032e6c | PASS (88%, 8) | 0.528 | 87% (15) | 11.6 tok/s | 46.59s | 16645 | 13.3 |
-| 15 | mlx-community/Qwen3.8-27B-4bit | mei | — | thinking | c7f10a958b1e | PASS (75%, 8) | 0.523 | 93% (15) | 14.6 tok/s | 294.05s | 22412 | 11.8 |
-| 16 | trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M | llama.cpp | — | thinking (medium) | 891242963db5 | PASS (100%, 8) | 0.517 | 80% (15) | 11.1 tok/s | 49.89s | 22074 | 15.4 |
-| 17 | orcarouter/Qwen3.8-27B-Uncensored-MLX (subdir 4-bit) | mei | — | thinking | 40fbffd03a95 | PASS (62%, 8) | 0.456 | 73% (15) | 19.3 tok/s | 304.51s | 26902 | 15.3 |
-| 18 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | n/a | ffa862c18cff | PASS (75%, 8) | 0.416 | 60% (15) | 10.0 tok/s | 28.10s | 15872 | 27.9 |
+| 1 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | — | unspecified | 86f6177b6c31 | PASS (100%, 8) | 0.877 | 87% (15) | 39.7 tok/s | 7.01s | 2696 | 11.0 |
+| 2 | ManniX-ITA/Qwen3.6-27B-A3B-Coder-MTP-GGUF:CD-IQ4_K_M | llama.cpp | — | thinking | f4e4206eab5c | PASS (88%, 8) | 0.861 | 80% (15) | 40.6 tok/s | 7.95s | 4826 | 6.5 |
+| 3 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-I-Quality | llama.cpp | — | unspecified | 73c161a87535 | PASS (88%, 8) | 0.859 | 93% (15) | 39.5 tok/s | 7.16s | 3355 | 14.2 |
+| 4 | HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive:Q4_K_M | llama.cpp | — | thinking | 98fbff8ca864 | PASS (75%, 8) | 0.839 | 87% (15) | 43.4 tok/s | 7.05s | 2767 | 15.7 |
+| 5 | mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Quality | llama.cpp | — | unspecified | 49ec38e05e0c | PASS (88%, 8) | 0.779 | 87% (15) | 42.9 tok/s | 10.67s | 5398 | 20.2 |
+| 6 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | — | thinking | bd41db91bc65 | PASS (75%, 8) | 0.765 | 93% (15) | 47.8 tok/s | 35.28s | 1963 | 7.7 |
+| 7 | mudler/Ornith-1.5-35B-A3B-APEX-GGUF:APEX-Compact | llama.cpp | — | unspecified | 7b0652d1fb9e | PASS (100%, 8) | 0.744 | 80% (15) | 33.3 tok/s | 10.29s | 4419 | 15.3 |
+| 8 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | — | unspecified | be5b0c5716de | PASS (100%, 8) | 0.737 | 87% (15) | 43.5 tok/s | 34.03s | 2913 | 11.3 |
+| 9 | mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Compact | llama.cpp | — | unspecified | 0b31098f54f7 | PASS (75%, 8) | 0.734 | 73% (15) | 44.9 tok/s | 10.16s | 3447 | 22.9 |
+| 10 | bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0 | llama.cpp | — | thinking | a2d241742068 | PASS (75%, 8) | 0.724 | 87% (15) | 31.9 tok/s | 9.34s | 4215 | 18.7 |
+| 11 | AutomatosX/AX-Qwen3.6-35B-A3B-MLX-AXQ-4bit-MTP | mei | — | thinking | 984425a7e143 | PASS (88%, 8) | 0.710 | 80% (15) | 44.8 tok/s | 52.94s | 4427 | 8.4 |
+| 12 | unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M | llama.cpp | — | instruct | 644415678c37 | PASS (75%, 8) | 0.680 | 87% (15) | 26.1 tok/s | 9.50s | 5045 | 27.5 |
+| 13 | unsloth/Qwen3.8-27B-GGUF:UD-Q5_K_M | llama.cpp | — | thinking (medium) | 340ca3032e6c | PASS (88%, 8) | 0.531 | 87% (15) | 11.6 tok/s | 46.59s | 16645 | 13.3 |
+| 14 | mlx-community/Qwen3.8-27B-4bit | mei | — | thinking | c7f10a958b1e | PASS (75%, 8) | 0.527 | 93% (15) | 14.6 tok/s | 294.05s | 22412 | 11.8 |
+| 15 | trohrbaugh/Qwen3.8-27B-heretic-ara-gguf-Q5:Q5_K_M | llama.cpp | — | thinking (medium) | 891242963db5 | PASS (100%, 8) | 0.519 | 80% (15) | 11.1 tok/s | 49.89s | 22074 | 15.4 |
+| 16 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | — | thinking | 931272c8c4de | PASS (62%, 8) | 0.462 | 60% (15) | 14.8 tok/s | 53.86s | 7946 | 7.7 |
+| 17 | orcarouter/Qwen3.8-27B-Uncensored-MLX (subdir 4-bit) | mei | — | thinking | 40fbffd03a95 | PASS (62%, 8) | 0.461 | 73% (15) | 19.3 tok/s | 304.51s | 26902 | 15.3 |
+| 18 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | n/a | ffa862c18cff | PASS (75%, 8) | 0.419 | 60% (15) | 10.0 tok/s | 28.10s | 15872 | 27.9 |
 | 19 | poolside/Laguna-XS-2.1-GGUF:Q4_K_M | llama.cpp | — | thinking | 644ba3997136 | PASS (50%, 8) | 0.358 | 87% (15) | — | — | 2840 | 25.3 |
-| 20 | batiai/Gravity-30BA5B-RL-GGUF:Q4_K_M | llama.cpp | — | thinking | 34c266c25d9a | PASS (75%, 8) | 0.274 | 0% (15) | 17.5 tok/s | 26.45s | 47549 | 40.0 |
+| 20 | batiai/Gravity-30BA5B-RL-GGUF:Q4_K_M | llama.cpp | — | thinking | 34c266c25d9a | PASS (75%, 8) | 0.278 | 0% (15) | 17.5 tok/s | 26.45s | 47549 | 40.0 |
 | 21 | mlx-community/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit | mei | — | thinking | d9be6d0097ea | FAIL (12%, 8) | — | 27% (15) | — | — | 5440 | 11.3 |
 
 ![Best overall composite score by model](score_chart.png)
@@ -1042,6 +1043,12 @@ confirmed-stable, just untested for flakiness.
 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | 924bf86be47f | 11bbbb7c0919 | kiem_mini | 3/5 |
 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | 924bf86be47f | 11bbbb7c0919 | kipclip_mini | 3/4 |
 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | 924bf86be47f | 11bbbb7c0919 | sanity | 2/2 |
+| mlx-community/Qwen3.6-35B-A3B-4bit | mei | 931272c8c4de | a469a58b7454 | hearth_full | 0/3 |
+| mlx-community/Qwen3.6-35B-A3B-4bit | mei | 931272c8c4de | a469a58b7454 | hearth_mini | 2/3 |
+| mlx-community/Qwen3.6-35B-A3B-4bit | mei | 931272c8c4de | a469a58b7454 | hermes_ops | 5/8 |
+| mlx-community/Qwen3.6-35B-A3B-4bit | mei | 931272c8c4de | a469a58b7454 | kiem_mini | 3/5 |
+| mlx-community/Qwen3.6-35B-A3B-4bit | mei | 931272c8c4de | a469a58b7454 | kipclip_mini | 4/4 |
+| mlx-community/Qwen3.6-35B-A3B-4bit | mei | 931272c8c4de | a469a58b7454 | sanity | 2/2 |
 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | a23687499989 | 0a7c7af571f4 | hearth_full | 8/9 |
 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | a23687499989 | 0a7c7af571f4 | hearth_mini | 9/9 |
 | mlx-community/Qwen3.6-35B-A3B-4bit | mei | a23687499989 | 0a7c7af571f4 | hermes_ops | 21/24 |
