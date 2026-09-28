@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/4337 rows below predate 2026-08-21
+> **⚠ 138/4347 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -310,6 +310,7 @@ means no usable timestamp was recoverable from that group's rows.
 | mlx-community/Qwen3.6-35B-A3B-4bit-DWQ | mei | — | 0.6 | thinking | n/a | — | [b6b5824d3567](configs/b6b5824d3567.yaml) — *config since changed* | 1c8ea189fdb2 | 15 | 73% | 1 | — | — | 0 | 9.7 | 30 | 8.8 | MLX DWQ mixed — experts 4-bit, embeddings/attention/router 8-bit, group 64 affine | — | — | 3380 |
 | mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit | mei | — | 0.6 | thinking | n/a | — | [31a7f0b6a256](configs/31a7f0b6a256.yaml) | b5b7f49bcb62 | 15 | 93% | 1 | — | — | 0 | 7.3 | 6 | 7.5 | OptiQ mixed precision — optiq_mixed_precision, group 64 affine; per-layer 8-bit high-bit / 4-bit low-bit (optiq_metadata.json: 392 high-bit + 118 low-bit entries, target 4.5 bpw, achieved 4.506152583685804; reference uniform_4bit) | — | — | 3054 |
 | mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit | mei | — | 0.6 | thinking | n/a | — | [31a7f0b6a256](configs/31a7f0b6a256.yaml) | f713b29fc5c7 | 5 | 60% | 1 | — | — | 0 | 9.0 | 9 | 8.7 | OptiQ mixed precision — optiq_mixed_precision, group 64 affine; per-layer 8-bit high-bit / 4-bit low-bit (optiq_metadata.json: 392 high-bit + 118 low-bit entries, target 4.5 bpw, achieved 4.506152583685804; reference uniform_4bit) | — | — | 1485 |
+| mlx-community/Qwen3.8-27B-4bit | mei | — | 1.0 | thinking | n/a | 2/2 | [9791b995cd0d](configs/9791b995cd0d.yaml) | a169dfaae665 | 8 | 62% | 5 | 3.3 | 357.12 | 0 | — | 0 | 14.5 | MLX 4-bit affine g64 (mlx-community, qwen3_5 arch) | — | — | 16641 |
 | mlx-community/Qwen3.8-27B-4bit | mei | — | 1.0 | thinking | n/a | 2/2 | [c7f10a958b1e](configs/c7f10a958b1e.yaml) — *config since changed* | 7f3de21dba70 | 23 | 87% | 19 | 14.6 | 294.05 | 0 | 11.8 | 9 | 2.0 | MLX 4-bit affine g64 (mlx-community, qwen3_5 arch) | — | — | 22412 |
 | mlx-community/Qwen3.8-27B-4bit | mei | — | 1.0 | thinking | n/a | 2/2 | [d23c67ad6d2d](configs/d23c67ad6d2d.yaml) — *config since changed* | 3496bdf4e3aa | 11 | 55% | 6 | 15.0 | 293.24 | 2 | 5.7 | 1 | 1.8 | MLX 4-bit affine g64 (mlx-community, qwen3_5 arch) | — | — | 7441 |
 | mlx-community/Qwen3.8-27B-4bit | mlx | — | ? | ? | ? | 2/2 | [152424abaa13](configs/Qwen3.8-27B/mlx.yaml) (unsnapshotted, predates 2026-08-21 fix — may not match) — *config since changed* | *(predates tracking)* | 3 | 100% | 0 | 4.9 | 198.83 | 0 | — | 0 | — | ? | ? | ? | 4851 |
@@ -1104,6 +1105,8 @@ confirmed-stable, just untested for flakiness.
 | mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit | mei | 31a7f0b6a256 | b5b7f49bcb62 | kiem_mini | 4/5 |
 | mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit | mei | 31a7f0b6a256 | b5b7f49bcb62 | kipclip_mini | 4/4 |
 | mlx-community/Qwen3.6-35B-A3B-OptiQ-4bit | mei | 31a7f0b6a256 | f713b29fc5c7 | kiem_mini | 3/5 |
+| mlx-community/Qwen3.8-27B-4bit | mei | 9791b995cd0d | a169dfaae665 | hermes_ops | 5/8 |
+| mlx-community/Qwen3.8-27B-4bit | mei | 9791b995cd0d | a169dfaae665 | sanity | 2/2 |
 | mlx-community/Qwen3.8-27B-4bit | mei | c7f10a958b1e | 7f3de21dba70 | hearth_full | 3/3 |
 | mlx-community/Qwen3.8-27B-4bit | mei | c7f10a958b1e | 7f3de21dba70 | hearth_mini | 3/3 |
 | mlx-community/Qwen3.8-27B-4bit | mei | c7f10a958b1e | 7f3de21dba70 | hermes_ops | 6/8 |
@@ -1745,3 +1748,4 @@ has to infer from a config missing coding rows.
 | mlx-community/gemma-4-26b-a4b-it-4bit | mei | configs/Gemma-4-26B-A4B/mei.yaml | 2.01 | 0.68, 1.07, 2.12, 1.55, 0.80, 0.17, 2.25, 7.44 | 4.0 | 2026-09-05T10:20:48Z |
 | mlx-community/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit | mei | configs/NVIDIA-Nemotron-3.5-Lightning-30B-A3B/mei.yaml | 1.02 | 0.64, 0.31, 0.07, 0.27, 4.09, 0.27, 1.73, 0.78 | 4.0 | 2026-09-06T16:46:20Z |
 | AtomicChat/Laguna-XS-2.1-MLX-5bit | mei | configs/Laguna-XS-2.1/mei.yaml | 0.94 | 1.06, 1.00, 0.33, 0.78, 1.80, 0.64, 0.42, 1.49 | 4.0 | 2026-09-09T09:25:15Z |
+| mlx-community/Qwen3.8-27B-4bit | mei | configs/Qwen3.8-27B/mei-061.yaml | 1.22 | 0.89, 0.75, 1.95, 1.62, 0.72, 1.50, 0.98, 1.37 | 4.0 | 2026-09-27T18:55:09Z |
