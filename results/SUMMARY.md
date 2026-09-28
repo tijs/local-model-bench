@@ -3,8 +3,62 @@
 **Hand-curated, not auto-regenerated** — unlike `LEADERBOARD.md` (rebuilt
 from `log.jsonl` after every run; never hand-edit it), this is a
 point-in-time reading of the saved benchmark rows. Last updated
-**2026-09-08**. Prior findings, superseded comparisons, and the full
+**2026-09-28**. Prior findings, superseded comparisons, and the full
 decision history are archived verbatim in [`results/HISTORY.md`](HISTORY.md).
+
+## Mei 0.6.1 three-contender campaign (2026-09-27)
+
+The three Mei contender configurations were run on the released **Mei 0.6.1**
+build (a hardening patch over 0.6.0; vmlx pin unchanged) on 2026-09-27. All
+three legs served the same built source — Mei `ae7b3b4e046e` (tag `v0.6.1`),
+vmlx `fef563a55b4f`, staged from the scratch build dir `mei-build-061` with
+the fixed **source-built metallib** (provisioned from SwiftPM's Cmlx build
+product with recorded provenance; vendored MLX 0.32.2). Ornith and Qwen3.6
+text-only ran the full 25 rows; Qwen3.8 was speed-gated after `hermes_ops`
+and is now retired.
+
+| contender | config hash | scope | quality | avg decode (tok/s) | weighted completion/wall (tok/s) |
+|---|---|---|---:|---:|---:|
+| Ornith-1.5-35B-A3B MLX 4-bit | `18466a4917a8` | full 25 rows | **24/25 (96%)**, 0 harness errors | 10.5375 (0.6.0: 9.805, +7.5%) | 16.6776 (0.6.0: 14.9198, +11.8%) |
+| Qwen3.6-35B-A3B text-only | `46f751ca4515` | full 25 rows | **24/25 (96%)**, 0 harness errors | 8.935 (0.6.0: 7.73, +15.6%) | 9.9917 (0.6.0: 8.6222, +15.9%) |
+| Qwen3.8-27B (base) | `9791b995cd0d` | speed-gated, 10 rows (retired) | 7/10 completed-row passes, 0 harness errors | 1.2225 (4.0 cutoff) | — (coding not started) |
+
+Both full legs share one suite breakdown — sanity 2/2, hermes_ops 8/8,
+kiem_mini 4/5, hearth_mini 3/3, kipclip_mini 4/4, hearth_full 3/3 — and both
+failed only `kiem_mini-testwrite`. Ornith is +1 pass against its matched Mei
+0.6.0 same-candidate run (`be5b0c5716de`, 23/25), recovering
+`kiem_mini-parse-note`; Qwen3.6 text-only is +2 passes against its
+matched-settings 0.6.0 run (`bd41db91bc65`, 22/25), recovering both prior
+`hermes_ops` failures.
+
+**Against Mei 0.5.0 — mixed, and not a blanket win.** On quality, Qwen3.6
+text-only sits one pass above the mean of its two same text-only Mei 0.5.0
+anchors (22/25 and 24/25; mean 23/25). On speed it is **not an
+across-the-board improvement**: decode is 1.6% lower (9.08435 → 8.935 tok/s)
+and weighted completion/wall 11.4% lower (11.28355 → 9.9917), while TTFT and
+aggregate Hermes wall are lower. Qwen3.8's mean Hermes decode of 1.2225 tok/s
+is below the 4.0 tok/s viability cutoff (coding not started); two `hermes_ops`
+rows recorded stream-stall run errors and one failed the final-answer check,
+with no server crash, connection reset, malformed tool call, or harness
+error. There is no Qwen3.8-specific Mei 0.5.0 raw benchmark anchor — do not
+invent one; the prior complete Qwen3.8 Mei run (`c7f10a958b1e`, 22/25, raw
+Hermes mean 4.045 tok/s) has different Mei/model/runner provenance and is not
+a 0.6.1 full-run comparison.
+
+**Qwen3.8-27B is retired.** It is discarded as a contender and excluded from
+further optimization; only its speed-gated evidence above is retained, as
+historical record.
+
+**Scope.** Attribution caveats apply: model revisions, request/build settings,
+and metallib provisioning differ from the historical Mei 0.5.0 rows, so those
+deltas are directional, not attribution-grade. This campaign does **not**
+support a blanket claim that Mei 0.6.1 is faster than Mei 0.5.0; its
+strongest evidence is the matched 0.6.0 quality/throughput comparison for
+Ornith and Qwen3.6 text-only. Evidence:
+[`comparisons/ornith-mei061-vs-mei060-mei050.json`](comparisons/ornith-mei061-vs-mei060-mei050.json) (`7c17b2a`),
+[`comparisons/qwen36-textonly-mei061-vs-mei060-mei050.json`](comparisons/qwen36-textonly-mei061-vs-mei060-mei050.json) (`a169dfa`),
+[`comparisons/qwen38-mei061-speedgate-vs-prior.json`](comparisons/qwen38-mei061-speedgate-vs-prior.json) (`c2becf0`);
+0.6.1 configs added by `c843394`.
 
 ## Current top picks
 

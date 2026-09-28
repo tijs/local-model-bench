@@ -729,3 +729,130 @@ hosted `openai/gpt-5.6-luna` (via OpenRouter) ties the author's-own-quant
 Ornith result for about 2 cents per full sanity+hermes_ops run — worth
 knowing as a reference point, but Ornith (either quant) beats it locally,
 for free, at comparable or better speed.
+
+## 2026-09-27: Mei 0.6.1 three-contender campaign — Ornith and Qwen3.6 text-only at 24/25, Qwen3.8 speed-gated
+
+The three-contender Mei 0.6.1 campaign, preserved in local commits `c843394`
+(configs), `7c17b2a` (Ornith evidence), `a169dfa` (Qwen3.6 text-only
+evidence) and `c2becf0` (Qwen3.8 speed gate). Historical `mei-060` configs
+and rows stayed append-only.
+
+### Common provenance
+
+All three legs served the same built source: Mei `ae7b3b4e046e` (tag
+`v0.6.1`, shipped 2026-09-26 — a hardening patch over 0.6.0, no dependency
+change, vmlx pin `fef563a55b4f` unchanged), staged from the scratch build dir
+`mei-build-061` with the **fixed source-built metallib**. 0.6.1 stopped
+re-accepting a stale `mlx.metallib` built for a different MLX version (mei
+commit `25478fe`) and began preferring SwiftPM's source-built Cmlx kernels
+with recorded provenance (mei commit `83087c3`). The serving library for this
+campaign was provisioned 2026-09-27 from the build's own
+`mlx-swift_Cmlx.bundle/Contents/Resources/default.metallib` (vendored MLX
+0.32.2; sha256 `0f6bdc29ff9afb81369eb5ca6f6561e0fdbb63228db0d4520c91e3c281738da3`).
+
+The 0.6.1 configs (`configs/*/mei-061.yaml`) are copies of their historical
+counterparts with identical launch settings; only the served Mei build moved
+to the released 0.6.1 scratch build with an explicit `--mei-repo` at tag
+`v0.6.1`.
+
+### Ornith-1.5-35B-A3B MLX 4-bit — 24/25, zero harness errors
+
+- Full 25 rows: 24 pass / 1 model-side FAIL, 0 `harness_error` rows.
+- Suites: sanity 2/2, hermes_ops 8/8, kiem_mini 4/5, hearth_mini 3/3,
+  kipclip_mini 4/4, hearth_full 3/3.
+- Only FAIL: `kiem_mini-testwrite` (2/3 mutants killed, 1 survived;
+  `harness_error=false`, `run_error=null`).
+- Matched Mei 0.6.0 same-candidate anchor `be5b0c5716de` (runner
+  `ab3b5b3d8aec`): 23/25 (failures `kiem_mini-parse-note`,
+  `kiem_mini-testwrite`). 0.6.1 is +1 pass and recovered
+  `kiem_mini-parse-note`; average decode 9.805 → 10.5375 tok/s (+7.5%);
+  weighted completion/wall 14.9198 → 16.6776 tok/s (+11.8%).
+- Selected complete Mei 0.5.0 anchor `2737ce74ab39` (runner
+  `56a33007567f`): 22/25 — not fully attribution-grade (different model
+  revision, build and settings).
+- Artifact caveat, recorded and committed unaltered: the comparison JSON's
+  mei_050 `failures` list (`hearth_full-testwrite`, `kiem_mini-parse-note`,
+  `kiem_mini-testwrite`) does not reconcile with the log rows for runner
+  `56a33007567f`, whose actual FAILs are `kiem_mini-debug`,
+  `kiem_mini-testwrite` and `hearth_full-feature`; the anchor pass counts and
+  metric figures do reconcile.
+- Evidence: `results/comparisons/ornith-mei061-vs-mei060-mei050.json`
+  (commit `7c17b2a`), config snapshot `results/configs/18466a4917a8.yaml`,
+  raw rows in `results/log.jsonl`.
+
+### Qwen3.6-35B-A3B text-only — 24/25, zero harness errors
+
+- Full 25 rows: 24 pass / 1 model-side FAIL, 0 `harness_error` rows.
+- Suites: same breakdown as Ornith — sanity 2/2, hermes_ops 8/8, kiem_mini
+  4/5, hearth_mini 3/3, kipclip_mini 4/4, hearth_full 3/3.
+- Only FAIL: `kiem_mini-testwrite`. The run's only over-budget row was
+  `hearth_full-feature` (passed; `within_budget=false`, 1735.2 s). The server
+  passed admission/plain completion and stopped normally.
+- Matched-settings Mei 0.6.0 anchor `bd41db91bc65` (runner `8c85c9af4d82`):
+  22/25 (failures `hermes_ops-targeted-edit`,
+  `hermes_ops-multi-step-chain`, `kiem_mini-testwrite`). 0.6.1 is +2 passes
+  and recovered both prior hermes_ops failures; decode 7.73 → 8.935 tok/s
+  (+15.6%); weighted completion/wall 8.6222 → 9.9917 tok/s (+15.9%).
+- Against the two same text-only Mei 0.5.0-era anchors under `bf88c5f70b58`
+  (24/25 at runner `258148c2d48a`; 22/25 at runner `0cb59d6a039f`; mean
+  23/25): quality is one pass higher than the mean, but decode is 1.6% lower
+  (9.08435 → 8.935 tok/s) and weighted completion/wall 11.4% lower
+  (11.28355 → 9.9917 tok/s); TTFT (53.561 → 42.448 s) and aggregate Hermes
+  wall (590.6845 → 461.683 s) are lower. **This is not an across-the-board
+  speed improvement and must not be labelled as one.** The 0.5.0 leg spans
+  different engine pins and historical generation behavior; the same-settings
+  0.6.0 comparison is the stronger release signal.
+- Evidence: `results/comparisons/qwen36-textonly-mei061-vs-mei060-mei050.json`
+  (commit `a169dfa`), config snapshot `results/configs/46f751ca4515.yaml`.
+
+### Qwen3.8-27B (base) — speed-gated partial, 10 rows (retired; historical evidence only)
+
+- Status `speed_gated_partial`: sanity 2/2, hermes_ops 5/8; 10 rows total,
+  7/10 completed-row passes, zero `harness_error` rows; coding not started.
+- Mean Hermes decode 1.2225 tok/s (per-task 0.89, 0.75, 1.95, 1.62, 0.72, 1.5,
+  0.98, 1.37) versus the 4.0 tok/s viability cutoff; the runner stopped after
+  Hermes Ops and launched no coding suites. The Mei server stopped cleanly.
+- Two hermes_ops rows recorded stream-stall run errors (`turn_total` phase);
+  one failed the final-answer check. No server crash, connection reset,
+  malformed tool call, or harness error was observed.
+- **No Qwen3.8-specific Mei 0.5.0 raw benchmark anchor exists — do not invent
+  a 0.5.0 comparison.** The prior complete Qwen3.8 Mei run on record
+  (`c7f10a958b1e`, repo commit `fe25e76c004c553828658695cc446f0a1081757a`)
+  was 22/25 with raw Hermes mean 4.045 tok/s, but its Mei source
+  (`67e897e2160d`), model revision and runner provenance differ — it is not a
+  0.6.1 full-run comparison, and this partial result must not be presented as
+  a full 0.6.1 Qwen3.8 score. The 0.6.1 config records the resolved HF
+  revision `10c35caafbb80f7dc6a7a432cdd11af10a6d4818` (same file set/sizes and
+  config_sha256 as the historical pin; model ID unchanged).
+- **Retired — excluded from further optimization.** Qwen3.8-27B is discarded
+  as a contender and must not be re-opened as an optimization target; only
+  this speed-gated evidence is retained, as historical record.
+- Evidence: `results/comparisons/qwen38-mei061-speedgate-vs-prior.json`
+  (commit `c2becf0`), `results/speed_gate.jsonl`, config snapshot
+  `results/configs/9791b995cd0d.yaml`.
+
+### Issues observed and disposition
+
+- **Qwen3.8 stream stalls** — two hermes_ops rows recorded stream-stall run
+  errors (`turn_total` phase); recorded as run errors with
+  `harness_error=false`. No fix applied; the run was ended by the speed gate
+  by design, and no wrong score was produced.
+- **Qwen3.6 text-only over-budget row** — `hearth_full-feature` passed over
+  its wall budget (1735.2 s); budget outcomes are task-level metadata, not
+  harness errors.
+- **Ornith artifact reconciliation caveat** — the comparison JSON's mei_050
+  `failures` list does not reconcile with the log rows for its runner (detail
+  above); the artifact was committed unaltered and the caveat kept attached.
+- **Transcript hygiene** — new transcripts had a trailing blank line
+  normalized so `git diff --cached --check` passes; no content changed.
+- No Mei source or benchmark-code change was made by the three evidence
+  commits; all are local, append-only, and not pushed.
+
+### What this does and does not support
+
+This campaign does **not** support a blanket claim that Mei 0.6.1 is faster
+than Mei 0.5.0. The strongest evidence it provides is the matched 0.6.0
+quality/throughput comparison for Ornith and Qwen3.6 text-only. Every
+comparison against historical Mei 0.5.0 rows spans different model revisions,
+request/build settings and metallib provisioning, so those deltas are
+directional only — keep the artifacts' own attribution caveats attached.
