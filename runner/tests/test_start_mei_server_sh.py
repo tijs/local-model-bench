@@ -16,6 +16,13 @@ stays backward-compatible when they are absent, rejects the pre-0.5.0 flag
 name, and --dry-run prints the full launch line WITHOUT compiling the Swift
 package or launching a server.
 
+Context (2026-10-15): Mei's ServerConfig has supported --repetition-penalty
+since before 0.9.0 (Sources/MeiCore/ServerConfig.swift), but the wrapper never
+forwarded it, so no config could pin a repetition penalty. LFM2.5-24B-A2B's
+vendor sampling (temperature 0.1 / top_k 50 / repetition_penalty 1.05) needs
+it. Forwarded ONLY when explicit — no default is injected, so every existing
+config keeps Mei's own default exactly as before.
+
 Run: uv run --locked python -m unittest discover -s runner/tests -v
 """
 import subprocess
@@ -52,6 +59,16 @@ LOAD_MMAP_FLAT = [
 ]
 LOAD_MMAP_PAIRS = [
     ("--load-mmap", "false"),
+]
+
+# Mei's sampling repetition penalty (ServerConfig --repetition-penalty).
+# Wired into the wrapper 2026-10-15 for LFM2.5-24B-A2B's vendor sampling
+# (1.05); forwarded only when explicit so older configs keep Mei's default.
+REPETITION_PENALTY_FLAT = [
+    "--repetition-penalty", "1.05",
+]
+REPETITION_PENALTY_PAIRS = [
+    ("--repetition-penalty", "1.05"),
 ]
 
 BASE_ARGS = [
@@ -115,6 +132,16 @@ class StartMeiServerForwardingTests(unittest.TestCase):
             self.assertIn(flag, res.stdout)
             self.assertIn(val, res.stdout)
 
+    def test_dry_run_forwards_repetition_penalty_when_explicit(self):
+        # --repetition-penalty must reach the launch line verbatim when a
+        # config pins it (LFM2.5-24B-A2B vendor sampling 1.05)...
+        _, res = _dry_run(REPETITION_PENALTY_FLAT)
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertIn("mei isolated launch:", res.stdout)
+        for flag, val in REPETITION_PENALTY_PAIRS:
+            self.assertIn(flag, res.stdout)
+            self.assertIn(val, res.stdout)
+
     def test_dry_run_does_not_build_or_touch_runtime(self):
         base, res = _dry_run(GATE_CONTROLS_FLAT)
         self.assertEqual(res.returncode, 0, res.stderr)
@@ -135,11 +162,12 @@ class StartMeiServerForwardingTests(unittest.TestCase):
 
     def test_defaults_do_not_forward_gate_controls(self):
         # Backward compatibility: without the flags, none of the gate controls
-        # (nor the --load-mmap load-path override) appear in the launch line,
-        # so existing configs are unaffected.
+        # (nor the --load-mmap load-path override, nor the sampling
+        # --repetition-penalty) appear in the launch line, so existing
+        # configs are unaffected.
         _, res = _dry_run([])
         self.assertEqual(res.returncode, 0, res.stderr)
-        for flag, _ in GATE_CONTROLS_PAIRS + LOAD_MMAP_PAIRS:
+        for flag, _ in GATE_CONTROLS_PAIRS + LOAD_MMAP_PAIRS + REPETITION_PENALTY_PAIRS:
             self.assertNotIn(flag, res.stdout)
 
 

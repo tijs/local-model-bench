@@ -26,6 +26,10 @@ Options:
   --max-tokens N            Server-side generation cap (default: unset -> Mei
                             decides, from --model-profile or its own default)
   --temperature F --top-p F --top-k N --min-p F
+  --repetition-penalty F    Mei's per-request repetition penalty (default:
+                            none -> not passed; Mei's own default applies).
+                            Forwarded only when explicit, so existing configs
+                            are unaffected.
   --emit-reasoning BOOL     Expose reasoning_content (default: true)
   --enable-thinking BOOL    Force template enable_thinking (default: none ->
                             not passed; nil = template default, which for the
@@ -86,6 +90,7 @@ TEMPERATURE="0.6"
 TOP_P="0.95"
 TOP_K="20"
 MIN_P=""
+REPETITION_PENALTY=""
 EMIT_REASONING="true"
 ENABLE_THINKING=""
 CACHE_REUSE="true"
@@ -117,6 +122,7 @@ while [[ $# -gt 0 ]]; do
     --top-p) TOP_P="${2:?missing value}"; shift 2 ;;
     --top-k) TOP_K="${2:?missing value}"; shift 2 ;;
     --min-p) MIN_P="${2:?missing value}"; shift 2 ;;
+    --repetition-penalty) REPETITION_PENALTY="${2:?missing value}"; shift 2 ;;
     --emit-reasoning) EMIT_REASONING="${2:?missing value}"; shift 2 ;;
     --enable-thinking) ENABLE_THINKING="${2:?missing value}"; shift 2 ;;
     --cache-reuse) CACHE_REUSE="${2:?missing value}"; shift 2 ;;
@@ -184,6 +190,11 @@ ARGS=(--model-dir "$MODEL_DIR" --served-model-id "$SERVED_MODEL_ID"
 [[ -n "$MAX_TOKENS" ]] && ARGS+=(--max-tokens "$MAX_TOKENS")
 [[ -n "$PREFILL_STEP_SIZE" ]] && ARGS+=(--prefill-step-size "$PREFILL_STEP_SIZE")
 [[ -n "$MIN_P" ]] && ARGS+=(--min-p "$MIN_P")
+# Sampling penalty (Mei 0.9.0 supports --repetition-penalty; the wrapper
+# previously did not forward it). ONLY when the config asks for it — no
+# default is injected, so every existing config keeps Mei's own default
+# exactly as before. LFM2.5's vendor sampling pins 1.05.
+[[ -n "$REPETITION_PENALTY" ]] && ARGS+=(--repetition-penalty "$REPETITION_PENALTY")
 [[ -n "$ENABLE_THINKING" ]] && ARGS+=(--enable-thinking "$ENABLE_THINKING")
 [[ -n "$KV_BITS" ]] && ARGS+=(--kv-bits "$KV_BITS")
 [[ -n "$KV_CACHE_DIR" ]] && ARGS+=(--kv-cache-dir "$KV_CACHE_DIR")

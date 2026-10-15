@@ -1,0 +1,136 @@
+# LFM2.5-24B-A2B (official LiquidAI MLX 4-bit) on Mei — SETUP config.
+#
+# Committed BEFORE any launch (per AGENTS.md: a benchmark config must be
+# committed before a run). No rows exist for this model and nothing here is
+# measured yet; every value is either the vendor's own documented setting or
+# a safe default, cited below. See known_gaps for the gates that must close
+# before results can be trusted.
+#
+# LOCAL BUILD IDENTITY (2026-10-15):
+#   * Mei: worktree branch work/lfm25-mei-20261015 at
+#     /Users/tijs/projects/mei-lfm25, commit
+#     bd6276e549d273a2950270fea3a9fb9aadbf2b90 (adds the
+#     --model-profile lfm2.5-24b-a2b setup profile; base = v0.9.0
+#     6b632ebea3b2b843085ad4f37a0e75b31df3e4d7), built into a dedicated
+#     scratch dir (--build-dir below).
+#   * vmlx-swift ROUTER-FIX GATE: the official quant was converted with
+#     mlx-lm 0.32.0 and REQUIRES >= 0.32.0 because earlier versions route
+#     experts incorrectly. The Swift port's parity fix lives on worktree
+#     branch work/lfm25-route-20261015 at /Users/tijs/projects/vmlx-swift-lfm25,
+#     commit ed49a4daf1d30cb31a7a38f4f06feceada23cced (sigmoid scores;
+#     expert bias selects experts only; unbiased normalized weights;
+#     routed_scaling_factor). The Mei worktree's Package.resolved still pins
+#     vmlx 633fe166, which does NOT contain the fix — the pin must be
+#     promoted (or a local package override used) for the build that
+#     produces results. A build without the fix produces INVALID rows.
+#
+# STAGING GATE (2026-10-15): the model is NOT staged. The weight pack is
+# 13,567,294,335 bytes (~12.64 GiB); free disk was ~16.9 GiB with a 10 GiB
+# launch floor and no matching cache/external volume. Parent handles the
+# storage decision; staging command in known_gaps.
+
+model: LiquidAI/LFM2.5-24B-A2B-MLX-4bit
+# Vendor sampling: the artifact's own generation_config.json carries
+# temperature 0.1 / top_k 50 / repetition_penalty 1.05, and the official
+# mlx-lm call is make_sampler(temp=0.1, top_k=50) with top_p omitted
+# => 0.0 under mlx-lm 0.32.0. Kept EXPLICIT here and on the launch line —
+# Mei builds generation parameters from ServerConfig and does NOT read the
+# bundle's generation_config.json, so nothing is inherited silently.
+temperature: 0.1
+reasoning_mode: thinking   # LFM2.5 always thinks; template behavior preserved
+inference_engine: mei
+mei_commit: 633fe166630ef04310aea7d5a1795555ab32970d  # vmlx-swift pin in the mei-lfm25 worktree Package.resolved — does NOT include the router fix (see header + known_gaps)
+mei_source_commit: bd6276e549d273a2950270fea3a9fb9aadbf2b90  # work/lfm25-mei-20261015 (adds --model-profile lfm2.5-24b-a2b; base = v0.9.0 6b632ebe)
+source_revision: 667408d494bde191c2cb9dd4f4549827816b9275  # LiquidAI/LFM2.5-24B-A2B-MLX-4bit — OFFICIAL LiquidAI MLX 4-bit quant, pinned
+source_model_revision: 1769516ac588c4c558089c94f27d96b0dc67b183  # LiquidAI/LFM2.5-24B-A2B source model — provenance reference only; the loaded artifact is the MLX quant above
+model_bytes: 13567294335   # weight shards total (3 shards), HF API metadata-only check 2026-10-15; whole-repo total 13585304293
+quant_family: MLX 4-bit affine g64 (official LiquidAI conversion with mlx-lm 0.32.0; token embedding/tied head 6-bit; MoE routing gates kept fp32 unquantized)
+context_cap: 65536
+prefill_step_size: 64   # generic architecture default, pinned by --model-profile; NOT measured — see settings/prefill_chunking
+tool_call_path: native_mei_requires_live_probe
+
+# OPTIONAL request-time generation profiles (configs/README.md schema).
+# One lane only: the vendor's own operating point. The vendor defines exactly
+# one point and nothing has been measured here to justify another.
+generation_profiles:
+  vendor:                  # artifact generation_config.json + the official
+    temperature: 0.1       # mlx-lm 0.32.0 make_sampler(temp=0.1, top_k=50)
+    top_p: 0.0             # top_p omitted by the vendor => 0.0 (mlx-lm
+    top_k: 50              # 0.32.0 default); 0 disables nucleus filtering
+    min_p: 0               # (vmlx applies top-p only when 0 < topP < 1)
+    repetition_penalty: 1.05
+    # NO reasoning_effort: the vendor specifies none (the model always
+    # thinks). Never invented.
+hermes_ops_generation_profile: vendor
+# coding_reasoning_effort deliberately ABSENT: no vendor effort level is
+# declared and the schema's absent = hermes/server default (never invented).
+
+benchmark_launch_command: |
+  bash runner/start_mei_server.sh --model-dir /Users/tijs/.local/share/local-model-bench/mei-models/LFM2.5-24B-A2B-MLX-4bit \
+    --served-model-id LiquidAI/LFM2.5-24B-A2B-MLX-4bit --port 8029 --context-cap 65536 \
+    --max-tokens 4096 \
+    --temperature 0.1 --top-p 0 --top-k 50 --min-p 0 --repetition-penalty 1.05 \
+    --emit-reasoning true --cache-reuse true \
+    --model-profile lfm2.5-24b-a2b \
+    --build-dir /Users/tijs/.local/share/local-model-bench/mei-build-lfm25-0.9.0 \
+    --mei-repo /Users/tijs/projects/mei-lfm25
+benchmark_endpoint: http://127.0.0.1:8029/v1
+
+hermes_ops_max_tokens: 4096   # vendor max_new_tokens; also the server-side cap
+
+orchestration:
+  raw_port: 8029
+  needs_proxy: false   # native tool_calls required; probe_mei.py gates this.
+  hermes_provider: null   # no coding-suite run yet; a custom_providers entry is created only if/when this lane is actually exercised
+  served_model_id: LiquidAI/LFM2.5-24B-A2B-MLX-4bit
+  viable: full
+  # run_order: higher = later in the --all / engine sweep (2026-09-05).
+  # This is a late-added model whose directory would otherwise sort before
+  # Ornith; run it LAST, mirroring configs/Ling-3.0-tiny/mei.yaml.
+  run_order: 1
+
+settings:
+  - name: artifact_identity
+    value: "LiquidAI/LFM2.5-24B-A2B-MLX-4bit @ 667408d494bde191c2cb9dd4f4549827816b9275 — 3 safetensors shards totalling 13,567,294,335 bytes (whole repo 13,585,304,293 bytes incl. tokenizer/config/chat_template.jinja) → staged path ~/.local/share/local-model-bench/mei-models/LFM2.5-24B-A2B-MLX-4bit. NOT STAGED."
+    source: "Hugging Face API metadata only (file list + sizes + revision sha, 2026-10-15); no weights downloaded."
+  - name: provenance_separation
+    value: "SOURCE model = LiquidAI/LFM2.5-24B-A2B @ 1769516a (official full-precision source; provenance reference only, recorded as source_model_revision). ARTIFACT to serve = LiquidAI/LFM2.5-24B-A2B-MLX-4bit @ 667408d4 (OFFICIAL LiquidAI MLX conversion — not third-party). Its README: 'converted ... using mlx-lm version 0.32.0' and 'Requires mlx-lm 0.32.0 or later. Earlier versions load the model but route the experts incorrectly.'"
+    source: "HF README + config.json of the artifact (fetched 2026-10-15)."
+  - name: vmlx_swift_pin_and_router_fix
+    value: "Mei worktree Package.resolved pins vmlx-swift 633fe166 (tijs/vmlx-swift) — it does NOT include the LFM2MoE router parity fix. Results are only valid on a build that includes work/lfm25-route-20261015 @ ed49a4daf1d30cb31a7a38f4f06feceada23cced: sigmoid scores, expert bias selects experts only, weights are the unbiased sigmoid values normalized (/ (sum + 1e-6)) and scaled by routed_scaling_factor — the official mlx_lm/models/lfm2_moe.py v0.32.0 semantics."
+    source: "vmlx worktree commit ed49a4da; official mlx-lm v0.32.0 lfm2_moe.py; official quant README version requirement."
+  - name: quant_family
+    value: "MLX 4-bit affine, group size 64; token embedding (tied output head) 6-bit; MoE routing gates kept unquantized float32; use_expert_bias true; norm_topk_prob true; 4 of 64 experts per token; routed_scaling_factor 1.0; 40 layers (10 full-attention at idxs 2,6,...,38; 30 short-conv) with 2 dense FFN layers."
+    source: "artifact config.json (fetched 2026-10-15)."
+  - name: generation_sampling
+    value: "temperature 0.1 / top_k 50 / repetition_penalty 1.05 (the artifact's own generation_config.json); top_p omitted by the vendor => 0.0 (mlx-lm 0.32.0 make_sampler default; vmlx's sampler applies top-p only when 0 < topP < 1, so 0 = no nucleus filtering); min_p 0. Passed EXPLICITLY on the launch line and as the hermes_ops 'vendor' profile — Mei builds parameters from ServerConfig and does not read the bundle's generation_config.json."
+    source: "artifact generation_config.json; https://huggingface.co/LiquidAI/LFM2.5-24B-A2B (recommended settings); mlx-lm v0.32.0 sample_utils.make_sampler; vmlx MLXLMCommon/Evaluate.swift top-p gate."
+  - name: context_and_generation_caps
+    value: "65,536 prompt tokens (project parity cap; the model advertises max_position_embeddings 131072 — raising the cap is optional separate work AFTER safe admission at 65536); up to 4,096 generated tokens (vendor max_new_tokens; server-side cap and hermes_ops client cap together)."
+    source: "artifact config.json + generation_config.json; runner schema (hermes_ops_max_tokens)."
+  - name: prefill_chunking
+    value: "64 — the generic architecture default, pinned EXPLICITLY by the --model-profile lfm2.5-24b-a2b profile. NOT measured: no LFM2.5 prefill-step sweep has been run on this stack; replace with a measured value from a bounded sweep on a clean-GPU gate before trusting speed numbers."
+    source: "Mei ModelTuningRegistry (lfm2.5-24b-a2b provenance, 2026-10-15)."
+  - name: kv_cache
+    value: "defaults only: --cache-reuse true, no --kv-cache-dir, no --kv-bits. lfm2_moe is a hybrid-cache topology (MambaCache on conv layers + KVCacheSimple on attention layers); whether cross-turn prefix reuse needs the disk-backed tier for this family is UNVERIFIED — a live sweep is the gate. No 'optimal' cache settings are claimed."
+    source: "Mei ServerConfig defaults; no LFM2.5 measurement exists."
+  - name: native_tool_call_parser
+    value: "must pass BOTH non-streaming and streaming add_numbers schema probes; no benchmark proxy/parser shim. vmlx has the LFM2 chat-template fallback and the LFM2ToolCallParser (lfm2_moe is registered in LLMModelFactory), but nothing is trusted until probe_mei.py passes on the staged artifact."
+    source: "runner/probe_mei.py; vmlx LLMModelFactory.swift + ToolCallFormat LFM family mapping."
+  - name: reasoning
+    value: "LFM2.5 always thinks (vendor card). --emit-reasoning true; the chat template's thinking behavior is left untouched (no --enable-thinking flag is passed). The vendor specifies no reasoning_effort and none is sent — the profile carries no reasoning_effort field."
+    source: "vendor model card; configs/README.md 'never invent an effort' policy."
+  - name: generation_profiles_policy
+    value: "Single 'vendor' lane = the vendor's own operating point (temperature 0.1 / top_p 0.0 / top_k 50 / min_p 0 / repetition_penalty 1.05), selected as hermes_ops_generation_profile. No second lane: the vendor defines exactly one point and nothing has been measured here to justify another. coding_reasoning_effort deliberately absent (the vendor declares no effort level; never invented). The launch line carries the same sampling as the coding/default baseline."
+    source: "artifact generation_config.json; configs/README.md generation_profiles contract; plan's explicit-values policy."
+
+known_gaps:
+  - "NOT STAGED, NOT LOADABILITY-ACCEPTED. No LFM2.5 rows exist anywhere. Staging command (manual, only after the storage decision): /Users/tijs/projects/mei/tools/stage_mlx_checkpoint.py --repo LiquidAI/LFM2.5-24B-A2B-MLX-4bit --revision 667408d494bde191c2cb9dd4f4549827816b9275 --target /Users/tijs/.local/share/local-model-bench/mei-models/LFM2.5-24B-A2B-MLX-4bit --expect-bytes 13567294335. Mei-native alternative once the worktree build exists: mei pull lfm2.5-24b-a2b --dest <same dir>."
+  - "STORAGE GATE: the weight pack is ~12.64 GiB; free disk was ~16.9 GiB (before this preparation's local builds) against the 10 GiB launch floor, and no matching cache or external volume exists. Do not stage until the parent frees or relocates storage."
+  - "ROUTER-FIX GATE: the built vmlx must include work/lfm25-route-20261015 @ ed49a4da (LFM2MoE router parity fix). The current Package.resolved pin 633fe166 does not. Promote the pin or use a local package override for the build; a build without the fix produces invalid rows."
+  - "UNMEASURED SETUP: prefill 64, anchors off, and the KV tier choice are safe defaults, not measured optima; run the bounded prefill-step sweep (and a cache-tier check) before trusting speed numbers. The model's 131072 advertised context is optional later work after safe admission at 65536."
+  - "Tool-call format: verify live on the staged artifact (probe_mei.py, streaming + non-streaming) before trusting any row."
+  - "Server build path: this config serves the mei-lfm25 worktree (--mei-repo). When that branch is merged/promoted, update --mei-repo/--build-dir to the promoted checkout and re-record the build identity here."
+  - "hermes_provider is null: no coding-suite spot-check has been run; create the custom_providers entry only when the lane is actually exercised."
+
+last_updated: 2026-10-15
