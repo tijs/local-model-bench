@@ -422,7 +422,7 @@ class MeiConfigDryRunTests(unittest.TestCase):
             "--served-model-id", "LiquidAI/LFM2.5-24B-A2B-MLX-4bit",
             "--host", "127.0.0.1", "--port", "8029", "--context-cap", "65536",
             "--temperature", "0.1", "--top-p", "0", "--top-k", "50",
-            "--emit-reasoning", "true", "--cache-reuse", "true",
+            "--emit-reasoning", "true", "--cache-reuse", "false",
             "--max-tokens", "4096", "--prefill-step-size", "512",
             "--min-p", "0", "--repetition-penalty", "1.05",
             "--model-profile", "lfm2.5-24b-a2b",
@@ -457,6 +457,12 @@ class MeiConfigDryRunTests(unittest.TestCase):
                     else:
                         self.assertNotIn(flag, argv)
                         saw_absent.add(flag)
+                # Cache-off is LFM-only; explicit values and the wrapper's
+                # existing true default remain unchanged for every other lane.
+                self.assertEqual(argv.count("--cache-reuse"), 1)
+                expected_cache = command[command.index("--cache-reuse") + 1] \
+                    if "--cache-reuse" in command else "true"
+                self.assertEqual(argv[argv.index("--cache-reuse") + 1], expected_cache)
         # Fail if the config inventory no longer exercises either absence path.
         self.assertTrue({"--prefill-step-size", "--memory-limit-bytes"} <= saw_absent)
 

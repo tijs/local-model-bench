@@ -8,7 +8,128 @@ provisioning after the initial checks are recorded below; they were not test
 side effects. This repository-only follow-up reads that evidence and updates
 config/provenance/runtime wiring without altering model or profile files.
 
-## Fusion-cache opt-out: experimental/unmeasured (current candidate)
+## Candidate 2: prefix reuse disabled (current, experimental/unmeasured)
+
+Isolated worktree **`/Users/tijs/projects/local-model-bench-lfm25-candidate2`**,
+branch **`work/lfm25-candidate2-no-prefix-reuse-20261015`**, created from exactly
+**`40a09674b577552912bb422986e7e205a6a4634f`**. Repository/workspace `AGENTS.md`,
+branch, complete tracked/untracked status and Kiem project state were inspected
+before editing. The results worktree is not edited, switched, reset or cleaned.
+
+Config SHA-256:
+**`3b818db1c96a640d9041289fcdcf39dacedf5d860597bf2da552eb21e2110a23`**
+(short identity **`3b818db1c96a`**), distinct from attempt 1 **`137b34e01f9f`**
+and every older candidate/baseline. No result snapshot or ledger row is created.
+
+### Hypothesis and unchanged controls
+
+The **only execution delta** from attempt 1 is
+**`--cache-reuse true` → `--cache-reuse false`**. Fused gate/up cache remains
+disabled through child-only **`VMLX_FUSED_GATE_UP_CACHE_LIMIT_BYTES=0`**.
+Vendor sampler, context65536, output4096, connect300, prefill512,
+allocator32000000000, mmap=false and model/source/build/runtime/profile pins
+are unchanged. No runtime code, acceptance/probe implementation or other model
+config is changed; no MLX buffer-pool limit or KV directory/bits flag is added.
+
+The parent reports attempt 1 passed **12/12 admission probes**, but its chain
+diagnostic (client config **`48943cd94769`**) reached **29 request-log entries**
+and was preventatively stopped for host memory pressure, without a task summary
+or ledger row. This is incomplete evidence, not a task correctness verdict.
+Preserve that bundle and every earlier partial attempt unchanged.
+
+Candidate 2 tests whether repeated cached-prefix retention contributes to the
+continuing allocator/memory-pressure climb. Pinned Mei
+`57d87f52c3ce5b605882d06a8acf36def3bc27e7` already supports the switch:
+`ServerConfig.swift:241-242` parses it; `Engine.swift:139-188` enables the cache
+coordinator only when reuse is true and otherwise logs prefix cache disabled.
+The unchanged wrapper forwards the explicit Bool. This is **experimental,
+unmeasured and not a proven fix or safe default**. Per-generation KV state and
+the MLX buffer pool still exist. Repeated long prompts must be prefilled again
+and will likely be **much slower**. No memory/speed/correctness benefit is claimed.
+
+### Executed model-free checks
+
+```bash
+env -u PYTHONPATH -u PYTHONHOME TMPDIR=/Users/tijs/.hermes/cache/scratch \
+  uv sync --locked --offline
+# exit 0; isolated worktree-local .venv, no manifest/lockfile edits.
+env -u PYTHONPATH -u PYTHONHOME TMPDIR=/Users/tijs/.hermes/cache/scratch \
+  PYTHONDONTWRITEBYTECODE=1 uv run --locked --offline python -m unittest \
+  runner.tests.test_lfm25_setup runner.tests.test_start_mei_server_sh \
+  runner.tests.test_mei_runtime runner.tests.test_run_bench \
+  runner.tests.test_run_prompt_suite runner.tests.test_bench_common -v
+# exit 0: 82 tests, 0 failures/errors/skips.
+bash -n runner/start_mei_server.sh runner/stop_mei_server.sh
+git diff --check
+# both exit 0.
+```
+
+The same **82 tests passed** a second replay (exit **0**) through
+`/Users/tijs/.hermes/cache/scratch/lfm25-candidate2-prep-20iw6mzm/network-denied-tests.py`:
+Python audit hooks denied socket bind/connect/DNS, with **0 network attempts**.
+Before the config edit, the cache-off config and exact-wrapper-argv regressions
+failed as expected (`true` versus `false`), while the mocked cache-skip test
+passed: **3 tests, 2 expected failures, exit 1**. No broad discovery or
+HTTP-fixture suite was run.
+
+Coverage pins the full cache-off LFM launch vector and inherited env=0,
+unchanged explicit/absent cache flags in all **51 other wrapper configs**, and
+`--skip-cache` forwarding without `--skip-context`. Mocked probe failure still
+produces failed status; no live probe result is weakened or fabricated. All
+launch/stop/health/probe calls in orchestration tests are explicit mocks.
+Wrapper tests use metadata-only scratch fixtures and inert shell recorders,
+not Swift, Mei, model weights, listeners or real endpoint calls.
+
+The actual config was parsed with canonical `split_launch_command` and passed
+to the unchanged wrapper with **`--dry-run`** (exit **0**). The real local-vMLX
+guard verified the pinned revision and printed SwiftPM selection **not applied**.
+The full emitted launch argv was asserted equal to:
+
+```text
+env VMLX_FUSED_GATE_UP_CACHE_LIMIT_BYTES=0 /Users/tijs/projects/mei-lfm25/.build/release/mei --model-dir /Users/tijs/.local/share/local-model-bench/mei-models/LFM2.5-24B-A2B-MLX-4bit --served-model-id LiquidAI/LFM2.5-24B-A2B-MLX-4bit --host 127.0.0.1 --port 8029 --context-cap 65536 --temperature 0.1 --top-p 0 --top-k 50 --emit-reasoning true --cache-reuse false --max-tokens 4096 --prefill-step-size 512 --min-p 0 --repetition-penalty 1.05 --model-profile lfm2.5-24b-a2b --memory-limit-bytes 32000000000 --load-mmap false
+```
+
+This printed vector was **not executed**. No build, Mei/model launch, runtime
+log write or port-8029 request occurred. Dry-run output is retained at
+`/Users/tijs/.hermes/cache/scratch/lfm25-candidate2-prep-20iw6mzm/candidate2-real-path-dry-run.log`.
+
+Parsed base comparison (exit **0**) confirms only `benchmark_launch_command`,
+`settings` and `known_gaps` differ; the three changed `settings` entries are
+documentation (`memory_limit`, `fused_gate_up_cache_limit`, `kv_cache`). Restoring
+the single cache-reuse value to `true` gives the **exact attempt-1 launch argv**.
+All **123 other tracked config YAML files** are byte-identical to the base.
+Results, tasks, fixtures, grading checks, staging/pre-load/profile evidence and
+manifest/lockfile are unchanged.
+
+The source checkout actually had **seven**, not six, dirty/untracked result
+artifacts at initial inspection: `results/LEADERBOARD.md`, `results/log.jsonl`,
+`results/speed_gate.jsonl`, and config snapshots `0fb346ed9077`, `48943cd94769`,
+`a4be8e840181`, `d965c90a5391`. SHA-256/byte-size readback (exit **0**) verified
+all seven unchanged, along with all **2456 tracked/nonignored result files**,
+source HEAD/branch and complete tracked/untracked Git status. The before-manifest
+is outside Git at
+`/Users/tijs/.hermes/cache/scratch/lfm25-candidate2-prep-20iw6mzm/source-results-before.json`.
+
+### Live gates explicitly not executed
+
+Parent review/merge and fresh sustained memory/swap/disk/process/listener gates
+must precede any load. Future candidate-2 admission uses only:
+
+```bash
+# Future live command, NOT executed here.
+uv run --locked python runner/run_mei_acceptance.py \
+  --config configs/LiquidAI-LFM2.5-24B-A2B-MLX-4bit/mei.yaml --skip-cache
+```
+
+Only intentionally-disabled cache assertions are skipped; context, tools,
+parity and every other admission probe remain required. Do not add
+`--skip-context`. After passing admission and teardown, another fresh resource
+gate and safe isolated chain-task completion/review are required before full25.
+Keep normal sanity/speed gates and the 10 GiB disk reserve. No canary, benchmark,
+profile/service/CoCore change, cache/evidence deletion, push or release is part
+of this model-free preparation.
+
+## Fusion-cache opt-out (historical attempt-1 model-free verification)
 
 This repository-only change is isolated at
 `/Users/tijs/projects/local-model-bench-lfm25-fused-cache-off`, branch
@@ -49,7 +170,7 @@ Preserved controls: vendor sampler, 65536 context, 4096 output, connect300,
 prefill512, allocator32000000000, cache-reuse true, mmap=false, and all model/
 source/build/runtime/profile identities. No cache/evidence deletion is involved.
 
-Current config SHA-256:
+Attempt-1 config SHA-256:
 **`137b34e01f9fe955487a910bf0446b752397b5b8631db4e6fb6c48fda2634b78`**
 (short identity **`137b34e01f9f`**). Keep e4 and all older attempts separate;
 no result snapshot or ledger row is created for this candidate.
@@ -99,7 +220,7 @@ readback confirms the original worktree's **six** dirty/untracked result files,
 Git status and binary diff are unchanged; the prior memory-tuning worktree
 remains clean at the original base. Only the six files in this change are edited.
 
-### Current live gates remain pending
+### Attempt-1 implementation-time live gates (historical)
 
 No model/server/endpoint/acceptance/benchmark activity is part of this change.
 Before any separately authorized load, require a fresh sustained resource

@@ -58,7 +58,7 @@ class LFM25ConfigTests(unittest.TestCase):
                             "--prefill-step-size": str(c["prefill_step_size"]),
                             "--memory-limit-bytes": str(c["memory_limit_bytes"]),
                             "--fused-gate-up-cache-limit-bytes": "0",
-                            "--cache-reuse": "true", "--min-p": "0",
+                            "--cache-reuse": "false", "--min-p": "0",
                             "--load-mmap": "false"}.items():
             self.assertEqual(argv[argv.index(flag) + 1], value)
         self.assertEqual(argv[argv.index("--vmlx-revision") + 1], c["mei_commit"])
@@ -102,7 +102,8 @@ class LFM25ConfigTests(unittest.TestCase):
         self.assertIs(type(self.cfg["prefill_step_size"]), int)
         self.assertIs(type(self.cfg["memory_limit_bytes"]), int)
         current_hash = hashlib.sha256(CONFIG.read_bytes()).hexdigest()[:12]
-        self.assertNotIn(current_hash, ("0fb346ed9077", "a4be8e840181", "e4f67e0554e2"))
+        self.assertNotIn(current_hash, ("0fb346ed9077", "a4be8e840181", "e4f67e0554e2",
+                                       "137b34e01f9f"))
         settings = {s["name"]: s for s in self.cfg["settings"]}
         for name in ("prefill_chunking", "memory_limit"):
             with self.subTest(setting=name):
@@ -130,6 +131,21 @@ class LFM25ConfigTests(unittest.TestCase):
         self.assertEqual(argv.count("--fused-gate-up-cache-limit-bytes"), 1)
         # The wrapper, not an outer shell/global export, owns the assignment.
         self.assertNotIn("VMLX_FUSED_GATE_UP_CACHE_LIMIT_BYTES=0", argv)
+
+    def test_candidate2_disables_only_prefix_reuse_and_documents_its_cost(self):
+        argv = acceptance.split_launch_command(self.cfg["benchmark_launch_command"])
+        self.assertEqual(argv.count("--cache-reuse"), 1)
+        self.assertEqual(argv[argv.index("--cache-reuse") + 1], "false")
+        self.assertEqual(argv[argv.index("--fused-gate-up-cache-limit-bytes") + 1], "0")
+        for flag in ("--cache-limit-bytes", "--kv-cache-dir", "--kv-bits",
+                     "--ssm-anchor-boundaries"):
+            self.assertNotIn(flag, argv)
+        setting = next(s for s in self.cfg["settings"] if s["name"] == "kv_cache")
+        for text in ("EXPERIMENTAL/UNMEASURED", "137b34e01f9f", "--cache-reuse false",
+                     "much slower", "not a proven", "--skip-cache"):
+            self.assertIn(text, setting["value"])
+        self.assertIn("Engine.swift", setting["source"])
+        self.assertIn("ServerConfig.swift", setting["source"])
 
     def test_tracked_staging_provenance_pins_integrity_not_loadability(self):
         c = self.cfg

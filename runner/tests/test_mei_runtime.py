@@ -117,7 +117,8 @@ class MeiRuntimeRunnerTests(unittest.TestCase):
                     self.assertTrue(rb.run_one(self.config))
             run.assert_called_once_with(self.expected_stop())
 
-    def run_acceptance_fixture(self, override, health_failure=False, probe_rc=0):
+    def run_acceptance_fixture(self, override, health_failure=False, probe_rc=0,
+                               *, skip_context=True, skip_cache=True):
         self.write_config(override)
         events = []
         process = mock.Mock()
@@ -135,12 +136,20 @@ class MeiRuntimeRunnerTests(unittest.TestCase):
                 mock.patch.object(acceptance, "wait_ready",
                                   side_effect=RuntimeError("offline health failure") if health_failure else None), \
                 mock.patch.object(acceptance.subprocess, "run", side_effect=fake_subprocess) as run:
-            record = acceptance.run_config(self.config, argparse.Namespace(skip_context=True, skip_cache=True))
+            record = acceptance.run_config(self.config, argparse.Namespace(
+                skip_context=skip_context, skip_cache=skip_cache))
         launch.assert_called_once()  # mocked: no server was started
         stop_calls = [c for c in run.call_args_list
                       if any(str(x).endswith("stop_mei_server.sh") for x in c.args[0])]
         self.assertEqual(len(stop_calls), 1)
         self.assertEqual(stop_calls[0].args[0], self.expected_stop(override))
+        probe_calls = [c.args[0] for c in run.call_args_list
+                       if any(str(x).endswith("probe_mei.py") for x in c.args[0])]
+        self.assertEqual(len(probe_calls), 0 if health_failure else 1)
+        if probe_calls:
+            self.assertEqual("--skip-cache" in probe_calls[0], skip_cache)
+            self.assertEqual("--skip-context" in probe_calls[0], skip_context)
+            self.assertEqual(probe_calls[0][probe_calls[0].index("--context-cap") + 1], "65536")
         self.assertLess(events.index("stop-server"), events.index("terminate-wrapper"))
         process.terminate.assert_called_once_with()
         process.wait.assert_called_once_with(timeout=30)
@@ -153,6 +162,16 @@ class MeiRuntimeRunnerTests(unittest.TestCase):
         for rc in (0, 1):
             with self.subTest(probe_rc=rc):
                 record = self.run_acceptance_fixture(override=True, probe_rc=rc)
+                self.assertEqual(record["status"], "passed" if rc == 0 else "failed")
+
+    def test_cache_disabled_admission_skips_only_cache_and_preserves_probe_failure(self):
+        # Explicit mocks exercise CLI forwarding, not live admission outcomes.
+        # --skip-cache must not imply --skip-context or turn a failed probe green.
+        for rc in (0, 1):
+            with self.subTest(probe_rc=rc):
+                record = self.run_acceptance_fixture(
+                    override=True, probe_rc=rc, skip_context=False, skip_cache=True)
+                self.assertEqual(record["probe_rc"], rc)
                 self.assertEqual(record["status"], "passed" if rc == 0 else "failed")
 
     def test_acceptance_cleanup_preserves_default_without_override(self):

@@ -1,18 +1,19 @@
 # LFM2.5-24B-A2B (official LiquidAI MLX 4-bit) on Mei — EXPERIMENTAL/UNMEASURED.
 #
-# Memory-relief candidate: ONLY the fusion-cache env override changes from
-# e4f67e0554e2: VMLX_FUSED_GATE_UP_CACHE_LIMIT_BYTES=0, for the Mei child only.
+# Candidate 2: ONLY --cache-reuse false changes execution from 137b34e01f9f.
+# Keep VMLX_FUSED_GATE_UP_CACHE_LIMIT_BYTES=0 for the Mei child only.
 # Prefill 512 / allocator limit 32000000000 bytes (32e9, NOT 32 GiB) stay pinned.
-# Fusion opt-out is EXPERIMENTAL/UNMEASURED, not a proven safe fix or speedup;
-# unfused projections may be slower. No other config or vMLX default changes.
-# Parent-reported baseline a4be8e840181 / runner 8e17e3a33ec8 passed sanity 2/2
-# and Hermes Ops selection at 142.058s, confirming that task's connect fix;
-# chaining stayed in flight until an intentional resource-pressure stop.
-# Preserve its 3 rows/bundle and the older 0fb346ed9077 attempt verbatim.
+# Hypothesis: retained/reused prefixes contribute to continuing memory growth.
+# EXPERIMENTAL/UNMEASURED, not a proven fix or safe default; repeated long
+# prompts will likely be much slower without reuse. No other runtime/default
+# or vendor setting changes. Parent reports attempt 1 passed 12/12 admission,
+# but its chain diagnostic stopped for host pressure after 29 request-log
+# entries, with no task summary/ledger row. Preserve every prior attempt.
 # This candidate is NOT vendor sampling or a benchmark result. Commit before
 # any authorized load; fresh resource + bounded admission/one-task gates must
 # be reviewed before a full retry. No model/server/probe was run by this
-# model-free follow-up. See VERIFICATION.md and known_gaps.
+# model-free follow-up. Future acceptance uses --skip-cache ONLY, because
+# reuse is intentionally disabled; all other probes remain. See VERIFICATION.md.
 #
 # LOCAL BUILD IDENTITY (2026-10-15, release built; no model load):
 #   * Mei ../mei-lfm25 @ 57d87f52c3ce5b605882d06a8acf36def3bc27e7
@@ -87,7 +88,7 @@ benchmark_launch_command: |
     --served-model-id LiquidAI/LFM2.5-24B-A2B-MLX-4bit --port 8029 --context-cap 65536 \
     --max-tokens 4096 \
     --temperature 0.1 --top-p 0 --top-k 50 --min-p 0 --repetition-penalty 1.05 \
-    --emit-reasoning true --cache-reuse true \
+    --emit-reasoning true --cache-reuse false \
     --model-profile lfm2.5-24b-a2b \
     --prefill-step-size 512 --memory-limit-bytes 32000000000 \
     --fused-gate-up-cache-limit-bytes 0 \
@@ -155,14 +156,14 @@ settings:
     value: "EXPERIMENTAL/UNMEASURED candidate 512 via --prefill-step-size 512, overriding the lfm2.5-24b-a2b profile's generic unmeasured 64 used by baseline a4be8e840181. Larger chunks are a runtime hypothesis, not vendor advice or an LFM-specific measured optimum; they may increase peak memory or alter output. Mei examples using 512 on other models do not establish LFM safety or speed. The profile/source defaults stay unchanged. Fresh bounded resource/correctness admission and a prefill-step sweep are required before any benefit claim."
     source: "Mei Sources/MeiCore/ModelTuning.swift:139-167 (setup profile), ServerConfig.swift:210-212,323-345 (explicit flag wins); docs/MODELS.md:73-75,104-105 (other-model examples only), all @ 57d87f52c3ce5b605882d06a8acf36def3bc27e7; parent-reported a4be8e840181 resource stop; VERIFICATION.md."
   - name: memory_limit
-    value: "EXPERIMENTAL/UNMEASURED candidate 32000000000 bytes (32e9, ~29.802 GiB), explicitly --memory-limit-bytes 32000000000; not proven safe or optimal. It is above the parent-reported 28.712 GiB active peak under a4be8e840181 and below physical 34359738368 bytes (32 GiB), but that arithmetic does NOT guarantee OS/runtime headroom or bound total process/system memory. Baseline used the post-load MLX default ~22.4 GiB; allocations waiting below the working set are a source-backed hypothesis, NOT a proven cause of chaining's stall. Raising the allocator ceiling and prefill together may worsen pressure. Fresh sustained resource gate and bounded admission/one-task review are required; no live tuning measurement or fix claim exists. No cache-limit, cache-reuse, mmap, sampler or other-model default is changed."
+    value: "EXPERIMENTAL/UNMEASURED candidate 32000000000 bytes (32e9, ~29.802 GiB), explicitly --memory-limit-bytes 32000000000; not proven safe or optimal. It is above the parent-reported 28.712 GiB active peak under a4be8e840181 and below physical 34359738368 bytes (32 GiB), but that arithmetic does NOT guarantee OS/runtime headroom or bound total process/system memory. Baseline used the post-load MLX default ~22.4 GiB; allocations waiting below the working set are a source-backed hypothesis, NOT a proven cause of chaining's stall. Raising the allocator ceiling and prefill together may worsen pressure. Fresh sustained resource gate and bounded admission/one-task review are required; no live tuning measurement or fix claim exists. This allocator value is unchanged from attempt 1; candidate 2 separately disables prefix reuse. No MLX buffer-cache limit, mmap, sampler or other-model default is changed."
     source: "Mei Sources/MeiCore/ServerConfig.swift:247-248; Engine.swift:109-114,194-205 (explicit limit reasserted after loader's default fraction(0.70)); docs/BENCHMARKING.md:15-19 (below-working-set allocation wait), all @ 57d87f52c3ce5b605882d06a8acf36def3bc27e7. Parent-reported a4be8e840181 / 8e17e3a33ec8 resource-stop bundle full-run-20261015T170436Z-connect300-resource-stop; VERIFICATION.md."
   - name: fused_gate_up_cache_limit
-    value: "EXPERIMENTAL/UNMEASURED: 0 via --fused-gate-up-cache-limit-bytes 0 emits env VMLX_FUSED_GATE_UP_CACHE_LIMIT_BYTES=0 for only the Mei executable. The only execution delta from e4f67e0554e2: skip nonempty per-layer quantized gate/up concat caches that otherwise materialize and remain resident on first forward. vMLX defaults to 512 MiB per layer, NOT a global process-memory ceiling; LFM constructs SwitchGLU with default fusion enabled. Avoiding duplicate banks is a source-backed memory-relief hypothesis, not measured savings, a safe fix, output parity or speedup; unfused projections may reduce decode speed. Preserve prefill512, allocator32e9, cache-reuse true, mmap=false and all vendor settings. Fresh resource gate, bounded admission and isolated chain-task review remain required before any full retry."
+    value: "EXPERIMENTAL/UNMEASURED candidate 2 retains 0 via --fused-gate-up-cache-limit-bytes 0, emitting env VMLX_FUSED_GATE_UP_CACHE_LIMIT_BYTES=0 for only the Mei executable. This was attempt 1's only execution delta from e4f67e0554e2: skip nonempty per-layer quantized gate/up concat caches that otherwise materialize and remain resident on first forward. vMLX defaults to 512 MiB per layer, NOT a global process-memory ceiling; LFM constructs SwitchGLU with default fusion enabled. Parent reports attempt 1's admission passed 12/12, but its chain diagnostic was resource-stopped/incomplete; this is not a safe-fix, output-parity or speedup claim. Unfused projections may reduce decode speed. Candidate 2 separately disables prefix reuse, retaining prefill512, allocator32e9, mmap=false and all vendor settings. Fresh resource gate, bounded admission and isolated chain-task review remain required before any full retry."
     source: "vMLX Libraries/MLXLMCommon/SwitchLayers.swift:249-258,291-369 (allowFusedGateUpCache default true; lazy materialization; Int env override; per-layer byte guard) and Libraries/MLXLLM/Models/LFM2MoE.swift:293-298 @ 22969e9555b5e86df862e43e3d7356575d3dd053; runner/start_mei_server.sh child-only launch environment; README.md and VERIFICATION.md."
   - name: kv_cache
-    value: "defaults only: --cache-reuse true, no --kv-cache-dir, no --kv-bits. lfm2_moe is a hybrid-cache topology (MambaCache on conv layers + KVCacheSimple on attention layers); whether cross-turn prefix reuse needs the disk-backed tier for this family is UNVERIFIED — a live sweep is the gate. No 'optimal' cache settings are claimed."
-    source: "Mei ServerConfig defaults; no LFM2.5 measurement exists."
+    value: "EXPERIMENTAL/UNMEASURED CANDIDATE 2: --cache-reuse false is the only execution change from attempt 1 (137b34e01f9f); fused gate/up cache remains disabled. Hypothesis: repeated cached-prefix retention contributes to continuing allocator/memory-pressure growth; disabling reuse tests that hypothesis, not a proven fix or safe default. Repeated long prompts must be prefilled again and will likely be much slower. This disables cross-request KV/prefix reuse, not per-generation KV state or the MLX buffer pool. No --kv-cache-dir, --kv-bits or --cache-limit-bytes is added. Future run_mei_acceptance.py --skip-cache skips only intentionally-disabled cache assertions; context, tool, parity and all other admission probes remain required. No live candidate-2 result exists."
+    source: "Mei Sources/MeiCore/ServerConfig.swift:241-242 (existing Bool switch), Engine.swift:139-188 (cache coordinator enabled only with cacheReuse) @ 57d87f52c3ce5b605882d06a8acf36def3bc27e7; runner/start_mei_server.sh:142,220-224 forwarding; runner/run_mei_acceptance.py:113-117; parent-reported attempt-1 diagnostic, README.md and VERIFICATION.md."
   - name: native_tool_call_parser
     value: "must pass BOTH non-streaming and streaming add_numbers schema probes; no benchmark proxy/parser shim. vmlx has the LFM2 chat-template fallback and the LFM2ToolCallParser (lfm2_moe is registered in LLMModelFactory), but nothing is trusted until probe_mei.py passes on the staged artifact."
     source: "runner/probe_mei.py; vmlx LLMModelFactory.swift + ToolCallFormat LFM family mapping."
@@ -174,7 +175,9 @@ settings:
     source: "artifact generation_config.json; configs/README.md generation_profiles contract; plan's explicit-values policy."
 
 known_gaps:
-  - "EXPERIMENTAL/UNMEASURED FUSION OPT-OUT: only VMLX_FUSED_GATE_UP_CACHE_LIMIT_BYTES=0 is added to e4f67e0554e2, scoped to the Mei executable, not build/helpers or other configs. Source predicts skipped retained concat banks, not measured memory savings or preserved correctness/speed. No new model load or live gate is performed here. Keep earlier attempt identities/evidence separate; require a fresh sustained resource gate, bounded admission and isolated chain-task resource review before any full retry."
+  - "EXPERIMENTAL/UNMEASURED CANDIDATE 2: only --cache-reuse true -> false changes execution from 137b34e01f9f; fusion remains disabled, all other LFM settings and other configs/runtime code stay unchanged. Prefix retention is a memory-growth hypothesis, not a proven fix; repeated long-prompt prefill will likely be much slower. No new model load, endpoint call, live gate or ledger row is produced here. Require fresh sustained resource gates, bounded acceptance with --skip-cache only (never --skip-context), then isolated chain-task/resource review before any full retry."
+  - "ATTEMPT 1 INCOMPLETE, NOT A TASK VERDICT: parent reports 137b34e01f9f admission passed 12/12; diagnostic client 48943cd94769 reached 29 request-log entries before a preventative host-memory-pressure stop. No task summary or ledger row was written. Preserve its bundle and all older rows/snapshots byte-for-byte; prior admission does not establish candidate-2 correctness or memory safety."
+  - "INHERITED FUSION OPT-OUT: VMLX_FUSED_GATE_UP_CACHE_LIMIT_BYTES=0 was attempt 1's only execution change from e4f67e0554e2, scoped to the Mei executable, not build/helpers or other configs. Candidate 2 retains this control and separately disables prefix reuse; no global vMLX default is changed. Unfused projections may reduce decode speed; no new correctness/speed claim follows from model-free tests."
   - "PRIOR LIVE ATTEMPT, NOT A COMPLETE RESULT: parent reports Mei 0.9.0 loaded the exact artifact, identity/plain completion passed, native canary passed 12/12 (including full context/tools), and sanity passed 2/2. Four Hermes Ops rows then hit timeout_phase=connect at 60s with no usage; four later rows are harness errors after the operator stopped the server. Preserve all rows/snapshots under config 0fb346ed9077 / runner edda01df84c3. This repository-only follow-up does not independently rerun admission or inference."
   - "CONNECT300 BASELINE INCOMPLETE: parent reports a4be8e840181 / 8e17e3a33ec8 wrote 3 rows only (sanity 2/2; hermes_ops-selection passed, 142.058s / 40,899 prompt / 134 completion tokens / 0.94 end-to-end tok/s). Chaining had no row after ~15 min in flight and was intentionally stopped for resource pressure; no speed-gate or coding rows. Preserve that bundle and older 0fb346ed9077 evidence separately; selection recovery is not full-battery completion."
   - "LIVE RESOURCE RECHECK: last successful baseline status reported 28.712 GiB active peak vs 24.96 GiB recommended / 32 GiB physical, active + queued generations; swap reached 3.319 GiB and disk 16.022 GiB. Parent stopped before the 10 GiB reserve; teardown freed the port and pressure recovered. Historical pre-load gates are not a launch guarantee. Immediately recheck sustained clean-GPU/memory/swap/disk/listener state before any authorized load; no further deletion."
@@ -184,6 +187,6 @@ known_gaps:
   - "Tool-call format: prior native probes passed per the parent; retain the streaming + non-streaming gate on the exact staged artifact/build before trusting a fresh run."
   - "Server build path: this config serves the mei-lfm25 worktree (--mei-repo). When that branch is merged/promoted, update --mei-repo/--build-dir to the promoted checkout and re-record the build identity here."
   - "PROFILE LIVE GATE: parent/operator provisioned a fresh isolated bench-lfm25 / lfm25-mei profile, config check passed, and endpoint/sampler/benchmark-CLI-policy readback matches the repository template. Prior admission is parent-reported; no profile state is changed by this follow-up. All 25 tasks remain gated by normal sanity/speed checks."
-  - "BENCHMARK GATE: after bounded native text/SSE/tools/reasoning/multi-turn/cache/context admission, run the complete 25-row battery from the committed config; audit counts/config hash/runner SHA/failure classes and exact-runtime teardown. No performance or quality result is claimed."
+  - "BENCHMARK GATE: after fresh resource gates, bounded native text/SSE/tools/reasoning/context admission (--skip-cache only for intentionally-disabled reuse) and safe isolated chain-task completion, consider the complete 25-row battery from the committed config; retain normal sanity/speed gates and audit counts/config hash/runner SHA/failure classes and exact-runtime teardown. No performance or quality result is claimed."
 
 last_updated: 2026-10-15

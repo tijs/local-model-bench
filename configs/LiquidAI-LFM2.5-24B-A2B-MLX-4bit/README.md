@@ -6,9 +6,49 @@ This lane uses the official MLX artifact at
 establish loadability, tool correctness, useful speed, or benchmark results.
 No model or Hermes profile is installed by these tests.
 
-## Current memory-relief candidate: fusion cache off (experimental/unmeasured)
+## Current candidate 2: prefix reuse off (experimental/unmeasured)
 
-The only execution change from **`e4f67e0554e2`** is
+Config **`3b818db1c96a`** changes exactly one execution value from attempt 1
+(`137b34e01f9f`): **`--cache-reuse true` → `--cache-reuse false`**.
+**`VMLX_FUSED_GATE_UP_CACHE_LIMIT_BYTES=0` remains set for the Mei child only**.
+Prefill **512**, allocator **32000000000 bytes**, **mmap=false**, vendor sampler,
+65536 context, 4096 output, connect300 and all source/build/runtime/profile
+identities stay unchanged. No runtime code or other model config is changed.
+
+The parent reports attempt 1 passed its **12/12 admission canary**, but its
+`hermes_ops-chaining` diagnostic (client `48943cd94769`) was stopped for host
+memory pressure after **29 request-log entries**, without a task summary or
+ledger row. This is incomplete evidence, not a task-correctness verdict.
+Preserve that bundle and every earlier partial attempt unchanged.
+
+**Hypothesis, not a proven fix:** retained/reused KV prefixes may contribute to
+the continuing allocator/memory-pressure climb. Pinned Mei `ServerConfig.swift`
+parses the existing switch; `Engine.swift:139-188` enables the cache coordinator
+only when reuse is true. Turning it off does not disable per-generation KV
+state, cap the MLX buffer pool, or prove safe completion. Repeated long prompts
+must be prefilled again and will likely be **much slower**; no latency/memory/
+correctness result is claimed for candidate 2.
+
+After parent review/merge and fresh sustained resource gates, the separately
+authorized admission command is:
+
+```bash
+# Future live gate only — NOT executed by this model-free change.
+uv run --locked python runner/run_mei_acceptance.py \
+  --config configs/LiquidAI-LFM2.5-24B-A2B-MLX-4bit/mei.yaml --skip-cache
+```
+
+`--skip-cache` skips only the intentionally-disabled cache assertions; **do not
+add `--skip-context` or weaken any other admission probe**. The canonical
+acceptance/probe code already supports this mode and is unchanged. Model-free
+regressions verify cache-skip forwarding, preserved context coverage, and that a
+failed mocked probe remains failed. A passing future admission still requires
+another fresh resource gate and safe isolated chain-task/resource review before
+considering a full battery. See `VERIFICATION.md` for executed offline checks.
+
+## Inherited fusion-cache opt-out (attempt 1; unchanged)
+
+Attempt 1's only execution change from **`e4f67e0554e2`** was
 **`--fused-gate-up-cache-limit-bytes 0`** in this LFM config's launch command.
 Matching top-level `fused_gate_up_cache_limit_bytes: 0` is provenance metadata,
 not an automatic override. The wrapper translates the CLI option into:
@@ -17,9 +57,9 @@ not an automatic override. The wrapper translates the CLI option into:
 env VMLX_FUSED_GATE_UP_CACHE_LIMIT_BYTES=0 /Users/tijs/projects/mei-lfm25/.build/release/mei
 ```
 
-This is the start of the exact launch vector printed in both `--dry-run` and
-startup output, followed by the unchanged Mei flags. The assignment applies
-**only to the Mei executable**, not SwiftPM, source-selection/metallib helpers,
+This remains the start of the exact launch vector printed in both `--dry-run`
+and startup output, now followed by the candidate-2 cache-off flags. The assignment
+applies **only to the Mei executable**, not SwiftPM, source-selection/metallib helpers,
 the caller's environment, or any other config. The optional wrapper argument
 is **not a Mei CLI flag**. Omitting it preserves the original launch and any
 inherited environment; no default is injected or cleared. Existing configs
@@ -37,18 +77,15 @@ quantized gate/up weights/scales/biases on first forward. Its default is
 **512 MiB per layer**, not a global memory bound; zero skips every nonempty
 concat cache. `LFM2MoE.swift:293-298` constructs `SwitchGLU` with default fusion
 enabled. Both sources are at `22969e9555b5e86df862e43e3d7356575d3dd053`.
-Avoiding retained duplicate banks is a source-backed hypothesis, **not measured
-memory savings, a safe fix, numerical/tool parity, or a speedup**; unfused
-projections may reduce decode speed.
+The original model-free implementation predicted avoiding retained duplicate
+banks; it did not measure savings, establish a safe fix, numerical/tool parity,
+or a speedup. The parent's subsequent admission pass did not establish safe
+chain-task completion. Unfused projections may reduce decode speed.
 
-Config identity is now **`137b34e01f9f`**; keep it separate from e4 and every
-earlier partial attempt. Prefill **512**, allocator **32000000000 bytes**,
-cache reuse **true**, **mmap=false**, vendor sampler, context/output/connect
-budgets and all source/build/runtime/artifact pins remain unchanged. No model
-or server is launched and no endpoint, acceptance or benchmark is run by this
-follow-up. A future authorized load still requires a fresh sustained resource
-gate, bounded native admission and isolated chain-task/resource review before
-considering the full battery. See `VERIFICATION.md` for executed offline checks.
+Attempt 1's config identity was **`137b34e01f9f`** with cache reuse **true**;
+keep its evidence separate from candidate 2, e4 and every earlier partial
+attempt. All other listed controls remain unchanged in candidate 2. No model,
+server, endpoint call, acceptance or benchmark is run by this follow-up.
 
 ## Inherited prefill/allocator candidate (unchanged)
 
@@ -95,8 +132,8 @@ flag, and explicit/absent settings in every other Mei config, using only
 metadata-only scratch fixtures and a stubbed local-vMLX guard.
 
 Vendor sampler, **65536 context**, **4096 output**, connect budget **300s**,
-cache reuse, **mmap=false**, runtime/build/source/artifact pins and all other
-models stay unchanged. The candidate has a new config hash; never fold the
+**mmap=false**, runtime/build/source/artifact pins and all other models stay
+unchanged; only candidate 2 separately disables prefix reuse. Never fold the
 `a4be8e840181` or older `0fb346ed9077` partial rows into it. No model/server,
 endpoint call, admission probe or benchmark is part of this follow-up. Before
 any future authorized load: commit the candidate, pass a fresh sustained
@@ -290,8 +327,9 @@ run; nothing here bypasses those policies. Results remain append-only.
 
 Remaining candidate gates: sustained clean-GPU/memory/swap/disk headroom
 (10 GiB disk floor) without further deletion, and binary/metallib identity if
-rebuilt; bounded native admission and one-task resource check, reviewed before
-a full retry. Retain normal sanity/speed gates and audit any later full battery's
+rebuilt; bounded native admission with **`--skip-cache` only** and one-task
+resource check, reviewed before a full retry. Retain normal sanity/speed gates
+and audit any later full battery's
 distinct config/runner identity, rows and teardown. Controlled sweeps and at
 least three repeats are required for performance claims, separating TTFT/prefill,
 decode and end-to-end speed. Prior admission and selection recovery are
