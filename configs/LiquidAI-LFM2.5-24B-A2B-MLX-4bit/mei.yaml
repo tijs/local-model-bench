@@ -1,12 +1,15 @@
-# LFM2.5-24B-A2B (official LiquidAI MLX 4-bit) on Mei — HERMES OPS RETRY PENDING.
+# LFM2.5-24B-A2B (official LiquidAI MLX 4-bit) on Mei — EXPERIMENTAL/UNMEASURED.
 #
-# Commit this corrected config BEFORE any retry (AGENTS.md). Parent-reported
-# prior canary passed 12/12 and sanity passed 2/2, but Hermes Ops repeatedly
-# hit the unchanged 60s pre-header watchdog. Preserve that incomplete attempt
-# (config 0fb346ed9077, runner edda01df84c3); this config's explicit 300s
-# Hermes Ops-only budget gives the corrected retry a distinct config hash.
-# No retry/inference was run by this harness follow-up. See VERIFICATION.md
-# for the evidence boundary and known_gaps for remaining gates.
+# Candidate runtime overrides ONLY: prefill 512 / allocator limit 32000000000
+# bytes (32e9, NOT 32 GiB). Neither is proven safe or optimal for this model.
+# Parent-reported baseline a4be8e840181 / runner 8e17e3a33ec8 passed sanity 2/2
+# and Hermes Ops selection at 142.058s, confirming that task's connect fix;
+# chaining stayed in flight until an intentional resource-pressure stop.
+# Preserve its 3 rows/bundle and the older 0fb346ed9077 attempt verbatim.
+# This candidate is NOT vendor sampling or a benchmark result. Commit before
+# any authorized load; fresh resource + bounded admission/one-task gates must
+# be reviewed before a full retry. No model/server/probe was run by this
+# model-free follow-up. See VERIFICATION.md and known_gaps.
 #
 # LOCAL BUILD IDENTITY (2026-10-15, release built; no model load):
 #   * Mei ../mei-lfm25 @ 57d87f52c3ce5b605882d06a8acf36def3bc27e7
@@ -48,7 +51,10 @@ staging_status: staged-complete-loadability-pending
 staging_provenance: configs/LiquidAI-LFM2.5-24B-A2B-MLX-4bit/staging-provenance.json
 quant_family: MLX 4-bit affine g64 (official LiquidAI conversion with mlx-lm 0.32.0; token embedding/tied head 6-bit; MoE routing gates kept fp32 unquantized)
 context_cap: 65536
-prefill_step_size: 64   # generic architecture default, pinned by --model-profile; NOT measured — see settings/prefill_chunking
+# Metadata mirrors the explicit launch flags below; it does not set Mei flags.
+runtime_tuning_status: experimental-unmeasured
+prefill_step_size: 512   # candidate override of the profile's unmeasured generic 64; NOT vendor advice
+memory_limit_bytes: 32000000000   # candidate 32e9 bytes (~29.802 GiB), NOT 32 GiB or a safe system-memory cap
 tool_call_path: native_mei_requires_live_probe
 
 # OPTIONAL request-time generation profiles (configs/README.md schema).
@@ -79,6 +85,7 @@ benchmark_launch_command: |
     --temperature 0.1 --top-p 0 --top-k 50 --min-p 0 --repetition-penalty 1.05 \
     --emit-reasoning true --cache-reuse true \
     --model-profile lfm2.5-24b-a2b \
+    --prefill-step-size 512 --memory-limit-bytes 32000000000 \
     --load-mmap false \
     --runtime-base /Users/tijs/.local/share/local-model-bench/mei-runtime-lfm25 \
     --build-dir /Users/tijs/projects/mei-lfm25/.build \
@@ -89,7 +96,8 @@ benchmark_endpoint: http://127.0.0.1:8029/v1
 
 hermes_ops_max_tokens: 4096   # vendor max_new_tokens; also the server-side cap
 # Harness policy, not vendor tuning: allow delayed response headers for the
-# ~26-27K-token Hermes Ops prompt. Other suites/defaults/budgets stay unchanged.
+# long Hermes Ops prompts (selection used 40,899 tokens in the prior retry).
+# Other suites/defaults/budgets stay unchanged.
 hermes_ops_connect_timeout: 300
 
 orchestration:
@@ -136,11 +144,14 @@ settings:
     value: "65,536 prompt tokens (project parity cap; the model advertises max_position_embeddings 131072 — raising the cap is optional separate work AFTER safe admission at 65536); up to 4,096 generated tokens (vendor max_new_tokens; server-side cap and hermes_ops client cap together)."
     source: "artifact config.json + generation_config.json; runner schema (hermes_ops_max_tokens)."
   - name: hermes_ops_connect_timeout
-    value: "300 seconds, Hermes Ops only. Explicit bounded harness policy, NOT a vendor recommendation or measured optimum: the parent reports four repeated timeout_phase=connect failures with no prompt/completion usage at the old 60s budget, after native canary 12/12 and sanity 2/2 passed. urllib.request.urlopen waits for response headers within the connect budget, so first-progress 600s cannot help a backend delaying headers during long-prompt prefill. Allow up to five minutes before headers, still below the unchanged 1000s per-turn budget; first-progress 600s, stream-idle 300s, task deadline 14400s and retry policy are unchanged. This correction has model-free forwarding/validation coverage only; live recovery remains unverified."
-    source: "runner/run_prompt.py: DEFAULT_CONNECT_TIMEOUT and call_backend_streaming urlopen(timeout=min(connect_timeout, timeout)); runner/run_prompt_suite.py: config validation and --connect-timeout forwarding; tasks/hermes_ops.yaml; parent-reported incomplete attempt config_hash=0fb346ed9077 / runner_git_sha=edda01df84c3 (append-only rows retained); VERIFICATION.md."
+    value: "300 seconds, Hermes Ops only; unchanged from baseline a4be8e840181. Explicit bounded harness policy, NOT vendor sampling or a measured optimum. The parent reports four old 60s pre-header stalls under 0fb346ed9077; the corrected retry's selection task passed at 142.058s with 40,899 prompt / 134 completion tokens. That confirms recovery for selection only; chaining remained in flight until a resource-pressure stop, so full recovery remains unverified. urllib.request.urlopen includes response-header wait in the connect budget; first-progress 600s cannot help before headers. Per-turn 1000s, first-progress 600s, stream-idle 300s, task deadline 14400s and retry policy remain unchanged."
+    source: "runner/run_prompt.py: DEFAULT_CONNECT_TIMEOUT and call_backend_streaming urlopen(timeout=min(connect_timeout, timeout)); runner/run_prompt_suite.py: config validation and --connect-timeout forwarding; tasks/hermes_ops.yaml; parent-reported incomplete attempts 0fb346ed9077 / edda01df84c3 and a4be8e840181 / 8e17e3a33ec8; VERIFICATION.md."
   - name: prefill_chunking
-    value: "64 — the generic architecture default, pinned EXPLICITLY by the --model-profile lfm2.5-24b-a2b profile. NOT measured: no LFM2.5 prefill-step sweep has been run on this stack; replace with a measured value from a bounded sweep on a clean-GPU gate before trusting speed numbers."
-    source: "Mei ModelTuningRegistry (lfm2.5-24b-a2b provenance, 2026-10-15)."
+    value: "EXPERIMENTAL/UNMEASURED candidate 512 via --prefill-step-size 512, overriding the lfm2.5-24b-a2b profile's generic unmeasured 64 used by baseline a4be8e840181. Larger chunks are a runtime hypothesis, not vendor advice or an LFM-specific measured optimum; they may increase peak memory or alter output. Mei examples using 512 on other models do not establish LFM safety or speed. The profile/source defaults stay unchanged. Fresh bounded resource/correctness admission and a prefill-step sweep are required before any benefit claim."
+    source: "Mei Sources/MeiCore/ModelTuning.swift:139-167 (setup profile), ServerConfig.swift:210-212,323-345 (explicit flag wins); docs/MODELS.md:73-75,104-105 (other-model examples only), all @ 57d87f52c3ce5b605882d06a8acf36def3bc27e7; parent-reported a4be8e840181 resource stop; VERIFICATION.md."
+  - name: memory_limit
+    value: "EXPERIMENTAL/UNMEASURED candidate 32000000000 bytes (32e9, ~29.802 GiB), explicitly --memory-limit-bytes 32000000000; not proven safe or optimal. It is above the parent-reported 28.712 GiB active peak under a4be8e840181 and below physical 34359738368 bytes (32 GiB), but that arithmetic does NOT guarantee OS/runtime headroom or bound total process/system memory. Baseline used the post-load MLX default ~22.4 GiB; allocations waiting below the working set are a source-backed hypothesis, NOT a proven cause of chaining's stall. Raising the allocator ceiling and prefill together may worsen pressure. Fresh sustained resource gate and bounded admission/one-task review are required; no live tuning measurement or fix claim exists. No cache-limit, cache-reuse, mmap, sampler or other-model default is changed."
+    source: "Mei Sources/MeiCore/ServerConfig.swift:247-248; Engine.swift:109-114,194-205 (explicit limit reasserted after loader's default fraction(0.70)); docs/BENCHMARKING.md:15-19 (below-working-set allocation wait), all @ 57d87f52c3ce5b605882d06a8acf36def3bc27e7. Parent-reported a4be8e840181 / 8e17e3a33ec8 resource-stop bundle full-run-20261015T170436Z-connect300-resource-stop; VERIFICATION.md."
   - name: kv_cache
     value: "defaults only: --cache-reuse true, no --kv-cache-dir, no --kv-bits. lfm2_moe is a hybrid-cache topology (MambaCache on conv layers + KVCacheSimple on attention layers); whether cross-turn prefix reuse needs the disk-backed tier for this family is UNVERIFIED — a live sweep is the gate. No 'optimal' cache settings are claimed."
     source: "Mei ServerConfig defaults; no LFM2.5 measurement exists."
@@ -156,11 +167,11 @@ settings:
 
 known_gaps:
   - "PRIOR LIVE ATTEMPT, NOT A COMPLETE RESULT: parent reports Mei 0.9.0 loaded the exact artifact, identity/plain completion passed, native canary passed 12/12 (including full context/tools), and sanity passed 2/2. Four Hermes Ops rows then hit timeout_phase=connect at 60s with no usage; four later rows are harness errors after the operator stopped the server. Preserve all rows/snapshots under config 0fb346ed9077 / runner edda01df84c3. This repository-only follow-up does not independently rerun admission or inference."
-  - "CONNECT-WATCHDOG RETRY PENDING: hermes_ops_connect_timeout=300 is now explicit and model-free validated/forwarded only for Hermes Ops. It is not proof that this budget is sufficient or that long-prompt prefill completes. Commit the changed config (new content hash), then independently verify a fresh gated run; do not merge the incomplete old attempt into the corrected one."
-  - "LIVE RESOURCE RECHECK: the 11-sample sustained pre-load gate PASSED (21.151–21.546 GiB reclaimable; no inference owners, no swap, port 8029 free), and free disk after staging was 20.104 GiB (parent measurement), above the 10 GiB floor. These are historical measurements, not a future launch guarantee. Immediately recheck clean-GPU/memory/disk/listener state before load; do not delete more data."
+  - "CONNECT300 BASELINE INCOMPLETE: parent reports a4be8e840181 / 8e17e3a33ec8 wrote 3 rows only (sanity 2/2; hermes_ops-selection passed, 142.058s / 40,899 prompt / 134 completion tokens / 0.94 end-to-end tok/s). Chaining had no row after ~15 min in flight and was intentionally stopped for resource pressure; no speed-gate or coding rows. Preserve that bundle and older 0fb346ed9077 evidence separately; selection recovery is not full-battery completion."
+  - "LIVE RESOURCE RECHECK: last successful baseline status reported 28.712 GiB active peak vs 24.96 GiB recommended / 32 GiB physical, active + queued generations; swap reached 3.319 GiB and disk 16.022 GiB. Parent stopped before the 10 GiB reserve; teardown freed the port and pressure recovered. Historical pre-load gates are not a launch guarantee. Immediately recheck sustained clean-GPU/memory/swap/disk/listener state before any authorized load; no further deletion."
   - "LOAD SAFETY: --load-mmap false stays pinned because every staged tensor is dtype-misaligned and the mmap aligned-copy path risks extra resident storage/OOM. Original official shards and SHA-256 values stay unchanged; no repack or original-file healing is authorized. Prior admission is parent-reported, not a fresh resource guarantee."
   - "LIVE COMPATIBILITY RECHECK: the prior attempt reports Mei 0.9.0 and passed native admission. The launcher rebuilds on launch; recheck the resulting binary/metallib against the recorded identity, and fail closed on a dirty/mismatched local vMLX revision."
-  - "UNMEASURED SETUP: prefill 64, anchors off, and the KV tier choice are safe defaults, not measured optima; run the bounded prefill-step sweep (and a cache-tier check) before trusting speed numbers. The model's 131072 advertised context is optional later work after safe admission at 65536."
+  - "EXPERIMENTAL/UNMEASURED RUNTIME CANDIDATE: prefill 512 and allocator ceiling 32000000000 bytes are NOT proven safe or optimal and are not vendor settings. Larger prefill may increase working set; a below-physical allocator limit is not a system safety bound. Require a fresh sustained resource gate and bounded native admission/one-task probe, reviewed before any full retry. Any future speed claim requires controlled sweeps and at least three repeats, separating prefill/TTFT/decode/end-to-end; changing both knobs alone cannot attribute a benefit. Anchors off and KV tier are unchanged/unmeasured; 131072 context remains optional separate work after safe 65536 admission."
   - "Tool-call format: prior native probes passed per the parent; retain the streaming + non-streaming gate on the exact staged artifact/build before trusting a fresh run."
   - "Server build path: this config serves the mei-lfm25 worktree (--mei-repo). When that branch is merged/promoted, update --mei-repo/--build-dir to the promoted checkout and re-record the build identity here."
   - "PROFILE LIVE GATE: parent/operator provisioned a fresh isolated bench-lfm25 / lfm25-mei profile, config check passed, and endpoint/sampler/benchmark-CLI-policy readback matches the repository template. Prior admission is parent-reported; no profile state is changed by this follow-up. All 25 tasks remain gated by normal sanity/speed checks."

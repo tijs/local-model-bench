@@ -6,7 +6,60 @@ This lane uses the official MLX artifact at
 establish loadability, tool correctness, useful speed, or benchmark results.
 No model or Hermes profile is installed by these tests.
 
-## Current harness correction: Hermes Ops connect budget
+## Current runtime candidate: experimental and unmeasured
+
+`mei.yaml` now explicitly requests **`--prefill-step-size 512`** and
+**`--memory-limit-bytes 32000000000`**. Top-level `prefill_step_size`,
+`memory_limit_bytes` and `runtime_tuning_status: experimental-unmeasured` are
+matching provenance metadata, not automatic launch overrides: the flags in
+`benchmark_launch_command` are what Mei receives. **Neither value is proven
+safe or optimal for this LFM model.** This is runtime tuning, not a new vendor
+sampling lane or a performance result.
+
+The connect-only baseline was config **`a4be8e840181`**, benchmark commit
+**`8e17e3a33ec8b66b12808c35d4d6368f1bd8cfdb`**. The parent reports that its
+retry wrote **3 rows**: sanity **2/2** and `hermes_ops-selection` passed at
+**142.058s**, **40,899 prompt / 134 completion tokens**, **0.94 end-to-end tok/s**.
+This confirms the connect fix for selection, not pure decode speed or full
+recovery. `hermes_ops-chaining` stayed in flight for about 15 minutes with no
+result row; the parent intentionally stopped for resource pressure. Last
+successful status reported **28.712 GiB active peak** versus **24.96 GiB
+recommended / 32 GiB physical**, with active + queued generations; swap reached
+**3.319 GiB** and disk **16.022 GiB**. Teardown freed the port and pressure
+recovered. Preserve its bundle unchanged:
+
+```text
+/Users/tijs/.local/share/local-model-bench/results-mei/LiquidAI/LFM2.5-24B-A2B-MLX-4bit/full-run-20261015T170436Z-connect300-resource-stop/
+```
+
+The baseline used the profile's **unmeasured generic prefill 64** and the
+loader's effective default allocator limit, about **22.4 GiB**. Pinned Mei
+`Engine.swift` reapplies explicit memory limits after loading, and
+`docs/BENCHMARKING.md` warns that allocations can wait when a limit sits below
+the working set. That is a plausible investigation direction, **not proof of
+the chaining stall's cause**. `docs/MODELS.md` uses prefill 512 / explicit limits
+for other models, not LFM-specific evidence.
+
+The candidate **32000000000 bytes = 32e9 bytes, about 29.802 GiB**, above the
+observed 28.712 GiB peak but below **34359738368 bytes (32 GiB)** physical RAM.
+It is **not 32 GiB**, a total-system/process cap, or a guarantee of OS/runtime
+headroom. Larger prefill chunks can increase peak memory or alter output;
+raising both knobs can worsen pressure and cannot attribute a benefit to one.
+The source/model profile and wrapper defaults are unchanged. Model-free
+regressions check the **exact emitted LFM argv**, independent omission of either
+flag, and explicit/absent settings in every other Mei config, using only
+metadata-only scratch fixtures and a stubbed local-vMLX guard.
+
+Vendor sampler, **65536 context**, **4096 output**, connect budget **300s**,
+cache reuse, **mmap=false**, runtime/build/source/artifact pins and all other
+models stay unchanged. The candidate has a new config hash; never fold the
+`a4be8e840181` or older `0fb346ed9077` partial rows into it. No model/server,
+endpoint call, admission probe or benchmark is part of this follow-up. Before
+any future authorized load: commit the candidate, pass a fresh sustained
+resource gate, then bounded admission/one-task checks and review their resource
+evidence **before a full retry**. No safe/optimal/speedup claim is made.
+
+## Prior harness correction: Hermes Ops connect budget
 
 The parent reports that the separate native admission passed **12/12** (including
 full context/tools), and the first canonical attempt loaded Mei 0.9.0 with exact
@@ -17,8 +70,8 @@ earlier pending-live language in the staging/build sections below, but is **not
 a complete benchmark result**. The prior attempt remains append-only under
 config **`0fb346ed9077`** / runner **`edda01df84c3`**.
 
-`mei.yaml` now opts into **`hermes_ops_connect_timeout: 300`**. This is a bounded
-client harness policy, not vendor tuning or a measured optimum. The connect
+The baseline added **`hermes_ops_connect_timeout: 300`**, retained here. This is a
+bounded client harness policy, not vendor tuning or a measured optimum. The connect
 budget includes waiting for response headers, so the suite's 600-second
 first-progress budget cannot help until headers arrive. The model override is
 validated as positive finite numeric seconds (no bool) and forwarded only for
@@ -27,11 +80,10 @@ Hermes Ops as `--connect-timeout 300`; absent fields retain the existing
 coding, sampling, context/cache/mmap, all other liveness/turn/task budgets and
 retries are unchanged. See `configs/README.md` for precedence and validation.
 
-The corrected config has a distinct content hash and must be committed before
-any fresh gated retry. **Live recovery at 300 seconds is unverified**: this
-follow-up performs only model-free tests, no inference/server/full benchmark,
-and never alters the existing result artifacts. `VERIFICATION.md` distinguishes
-the parent's prior evidence from the harness tests and remaining retry gate.
+That corrected config hashed to **`a4be8e840181`** and was committed before its
+retry. Selection recovery is now parent-reported as described above; chaining
+and the full battery remain incomplete. `VERIFICATION.md` preserves the earlier
+model-free repair record separately from this unmeasured runtime candidate.
 
 ## Build selection
 
@@ -75,7 +127,7 @@ The **11-sample sustained pre-load gate passed** at 15:31:16–15:35:48 UTC on
 inference owners and port 8029 free throughout. `preload-memory-gate.jsonl`
 preserves the original metadata-only evidence verbatim. This is a past gate,
 not a launch permit: **immediately recheck** memory/owners/disk/listener state
-before launch. Model load, canary and full-battery gates remain pending.
+before launch. All live gates for the current runtime candidate remain pending.
 
 `mei_runtime_base` and the launch command's `--runtime-base` both select:
 
@@ -192,21 +244,28 @@ selects every suite after normal sanity/speed gates pass. They produce **no real
 benchmark rows**. Sanity failure or the normal speed gate can still stop a real
 run; nothing here bypasses those policies. Results remain append-only.
 
-Remaining retry gates: recheck clean-GPU/memory/disk headroom (10 GiB launch
-floor) without further deletion, and binary/metallib identity if rebuilt; retain
-native admission, sanity and speed gates; verify the corrected connect budget
-on a fresh complete battery with a distinct config/runner identity and independent
-row/provenance/teardown audit. Prior admission is parent-reported, not a new
-guarantee, measured tuning result, or proof of recovery. Do not run these live
-stages as part of model-free verification.
+Remaining candidate gates: sustained clean-GPU/memory/swap/disk headroom
+(10 GiB disk floor) without further deletion, and binary/metallib identity if
+rebuilt; bounded native admission and one-task resource check, reviewed before
+a full retry. Retain normal sanity/speed gates and audit any later full battery's
+distinct config/runner identity, rows and teardown. Controlled sweeps and at
+least three repeats are required for performance claims, separating TTFT/prefill,
+decode and end-to-end speed. Prior admission and selection recovery are
+parent-reported, not a new resource guarantee or evidence for this candidate.
+Do not run these live stages as part of model-free verification.
 
 Model-free checks:
 
 ```bash
 env -u PYTHONPATH -u PYTHONHOME TMPDIR=/Users/tijs/.hermes/cache/scratch \
-  uv run --locked python -m unittest runner.tests.test_run_prompt_suite \
-  runner.tests.test_generation_overrides runner.tests.test_lfm25_setup -v
-uv run --locked python -m unittest discover -s runner/tests -p test_lfm25_setup.py -v
-uv run --locked python -m unittest discover -s runner/tests -p test_start_mei_server_sh.py -v
-uv run --locked python -m unittest discover -s runner/tests -p test_mei_runtime.py -v
+  uv run --locked --offline python -m unittest runner.tests.test_lfm25_setup \
+  runner.tests.test_start_mei_server_sh runner.tests.test_mei_runtime \
+  runner.tests.test_run_bench runner.tests.test_run_prompt_suite \
+  runner.tests.test_bench_common -v
+bash -n runner/start_mei_server.sh runner/stop_mei_server.sh
+git diff --check
 ```
+
+These focused suites use mocks and wrapper dry-runs only; no HTTP fixture
+server or live endpoint is needed. Do not substitute broad discovery for this
+restricted check: some adjacent suites start loopback HTTP fixtures.

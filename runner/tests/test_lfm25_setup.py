@@ -40,7 +40,9 @@ class LFM25ConfigTests(unittest.TestCase):
         self.assertEqual(c["source_revision"], "667408d494bde191c2cb9dd4f4549827816b9275")
         self.assertEqual(c["context_cap"], 65536)
         self.assertEqual(c["hermes_ops_max_tokens"], 4096)
-        self.assertEqual(c["prefill_step_size"], 64)
+        self.assertEqual(c["prefill_step_size"], 512)
+        self.assertEqual(c["memory_limit_bytes"], 32000000000)
+        self.assertEqual(c["runtime_tuning_status"], "experimental-unmeasured")
         self.assertEqual(c["generation_profiles"]["vendor"], {
             "temperature": 0.1, "top_k": 50, "top_p": 0.0, "min_p": 0,
             "repetition_penalty": 1.05})
@@ -51,6 +53,9 @@ class LFM25ConfigTests(unittest.TestCase):
                             "--repetition-penalty": "1.05", "--max-tokens": "4096",
                             "--context-cap": "65536", "--port": "8029",
                             "--model-profile": "lfm2.5-24b-a2b",
+                            "--prefill-step-size": str(c["prefill_step_size"]),
+                            "--memory-limit-bytes": str(c["memory_limit_bytes"]),
+                            "--cache-reuse": "true", "--min-p": "0",
                             "--load-mmap": "false"}.items():
             self.assertEqual(argv[argv.index(flag) + 1], value)
         self.assertEqual(argv[argv.index("--vmlx-revision") + 1], c["mei_commit"])
@@ -87,7 +92,26 @@ class LFM25ConfigTests(unittest.TestCase):
                        if s["name"] == "hermes_ops_connect_timeout")
         self.assertIn("runner/run_prompt.py", setting["source"])
         self.assertIn("0fb346ed9077", setting["source"])
-        self.assertIn("live recovery remains unverified", setting["value"])
+        self.assertIn("142.058s", setting["value"])
+        self.assertIn("full recovery remains unverified", setting["value"])
+
+    def test_runtime_candidate_is_unmeasured_and_distinct_from_prior_attempts(self):
+        self.assertIs(type(self.cfg["prefill_step_size"]), int)
+        self.assertIs(type(self.cfg["memory_limit_bytes"]), int)
+        current_hash = hashlib.sha256(CONFIG.read_bytes()).hexdigest()[:12]
+        self.assertNotIn(current_hash, ("0fb346ed9077", "a4be8e840181"))
+        settings = {s["name"]: s for s in self.cfg["settings"]}
+        for name in ("prefill_chunking", "memory_limit"):
+            with self.subTest(setting=name):
+                self.assertIn("EXPERIMENTAL/UNMEASURED", settings[name]["value"])
+                self.assertIn("a4be8e840181", settings[name]["value"])
+        self.assertIn("512", settings["prefill_chunking"]["value"])
+        self.assertIn("ModelTuning.swift", settings["prefill_chunking"]["source"])
+        self.assertIn("32000000000", settings["memory_limit"]["value"])
+        self.assertIn("28.712 GiB", settings["memory_limit"]["value"])
+        self.assertIn("not proven safe or optimal", settings["memory_limit"]["value"])
+        self.assertIn("Engine.swift", settings["memory_limit"]["source"])
+        self.assertIn("docs/BENCHMARKING.md", settings["memory_limit"]["source"])
 
     def test_tracked_staging_provenance_pins_integrity_not_loadability(self):
         c = self.cfg

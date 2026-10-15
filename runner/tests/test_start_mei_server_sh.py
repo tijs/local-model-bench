@@ -25,11 +25,14 @@ config keeps Mei's own default exactly as before.
 
 Run: uv run --locked python -m unittest discover -s runner/tests -v
 """
+import shlex
 import shutil
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+
+import yaml
 
 REPO = Path(__file__).resolve().parents[2]  # local-model-bench root
 START_MEI = REPO / "runner" / "start_mei_server.sh"
@@ -103,14 +106,27 @@ def _stub_env():
     return base, str(model), str(repo), str(kv), str(build)
 
 
-def _dry_run(extra):
+def _dry_run(extra, *, omit=()):
     base, model, repo, kv, build = _stub_env()
-    argv = [a.format(model=model, kv=kv, build=build, repo=repo) for a in BASE_ARGS]
+    argv = []
+    for flag, value in zip(BASE_ARGS[::2], BASE_ARGS[1::2]):
+        if flag not in omit:
+            argv += [flag, value.format(model=model, kv=kv, build=build, repo=repo)]
     res = subprocess.run(
         ["bash", str(START_MEI), *argv, *extra, "--dry-run"],
-        capture_output=True, text=True,
+        capture_output=True, text=True, timeout=30,
     )
     return base, res
+
+
+def _launch_argv(res):
+    """Parse the shell-quoted vector, not loose flag/value substrings."""
+    prefix = "mei isolated launch: "
+    lines = [line[len(prefix):] for line in res.stdout.splitlines()
+             if line.startswith(prefix)]
+    if len(lines) != 1:
+        raise AssertionError(f"expected one launch vector: {res.stdout!r}")
+    return shlex.split(lines[0])
 
 
 class StartMeiServerForwardingTests(unittest.TestCase):
@@ -218,6 +234,112 @@ class StartMeiServerForwardingTests(unittest.TestCase):
         self.assertEqual(res.returncode, 0, res.stderr)
         for flag, _ in GATE_CONTROLS_PAIRS + LOAD_MMAP_PAIRS + REPETITION_PENALTY_PAIRS:
             self.assertNotIn(flag, res.stdout)
+
+    def test_prefill_and_memory_candidate_flags_are_explicit_and_independent(self):
+        # Suppress BASE_ARGS' explicit prefill/max caps to exercise absence.
+        # The wrapper must not turn an LFM candidate into a global default.
+        for extra in ([], ["--prefill-step-size", "512"],
+                      ["--memory-limit-bytes", "32000000000"],
+                      ["--prefill-step-size", "512", "--memory-limit-bytes", "32000000000"]):
+            with self.subTest(extra=extra):
+                base, res = _dry_run(["--model-profile", "qwen3.6-35b-a3b-text", *extra],
+                                     omit=("--prefill-step-size", "--max-tokens"))
+                self.addCleanup(shutil.rmtree, base)
+                self.assertEqual(res.returncode, 0, res.stderr)
+                argv = _launch_argv(res)
+                self.assertNotIn("--max-tokens", argv)
+                for flag in ("--prefill-step-size", "--memory-limit-bytes"):
+                    if flag in extra:
+                        self.assertEqual(argv.count(flag), 1)
+                        self.assertEqual(argv[argv.index(flag) + 1], extra[extra.index(flag) + 1])
+                    else:
+                        self.assertNotIn(flag, argv)
+                self.assertFalse((base / "build").exists())
+
+
+class MeiConfigDryRunTests(unittest.TestCase):
+    """Real config -> wrapper -> exact argv, with metadata-only path fixtures.
+
+    No real model/source/runtime path is accessed. The local-vMLX guard is an
+    explicit echo stub; it is not a source-identity or inference test.
+    """
+
+    def _config_dry_run(self, cfg):
+        base, model, repo, kv, build = _stub_env()
+        self.addCleanup(shutil.rmtree, base)
+        paths = {
+            "--model-dir": model, "--mei-repo": repo, "--build-dir": build,
+            "--runtime-base": str(base / "runtime"),
+            "--vmlx-repo": str(base / "vmlx"), "--kv-cache-dir": kv,
+        }
+        command = shlex.split(cfg["benchmark_launch_command"].replace("\\\n", " "))
+        wrapper = command.index("runner/start_mei_server.sh")
+        self.assertEqual(command[wrapper - 1], "bash")
+        # Drop, never execute, config-specific env prefixes. The wrapper is
+        # exercised directly with unchanged non-path options and --dry-run.
+        args = command[wrapper + 1:]
+        for flag, value in paths.items():
+            if flag in args:
+                self.assertEqual(args.count(flag), 1)
+                args[args.index(flag) + 1] = value
+        for flag in ("--mei-repo", "--build-dir", "--runtime-base"):
+            if flag not in args:
+                args += [flag, paths[flag]]
+        if "--vmlx-repo" in args:
+            scripts = Path(repo) / "scripts"
+            scripts.mkdir()
+            (scripts / "use_local_vmlx.sh").write_text(
+                "#!/bin/bash\nprintf 'override guard: '; printf '%q ' \"$@\"; printf '\\n'\n")
+        before = {p.relative_to(base) for p in base.rglob("*")}
+        res = subprocess.run(["bash", str(START_MEI), *args, "--dry-run"],
+                             capture_output=True, text=True, timeout=30)
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertEqual({p.relative_to(base) for p in base.rglob("*")}, before)
+        self.assertFalse(Path(build).exists())
+        self.assertFalse(Path(paths["--runtime-base"]).exists())
+        return res, paths
+
+    def test_lfm_experimental_config_dry_run_has_exact_launch_argv(self):
+        config = REPO / "configs" / "LiquidAI-LFM2.5-24B-A2B-MLX-4bit" / "mei.yaml"
+        res, paths = self._config_dry_run(yaml.safe_load(config.read_text()))
+        self.assertEqual(_launch_argv(res), [
+            str(Path(paths["--build-dir"]) / "release" / "mei"),
+            "--model-dir", paths["--model-dir"],
+            "--served-model-id", "LiquidAI/LFM2.5-24B-A2B-MLX-4bit",
+            "--host", "127.0.0.1", "--port", "8029", "--context-cap", "65536",
+            "--temperature", "0.1", "--top-p", "0", "--top-k", "50",
+            "--emit-reasoning", "true", "--cache-reuse", "true",
+            "--max-tokens", "4096", "--prefill-step-size", "512",
+            "--min-p", "0", "--repetition-penalty", "1.05",
+            "--model-profile", "lfm2.5-24b-a2b",
+            "--memory-limit-bytes", "32000000000", "--load-mmap", "false",
+        ])
+        self.assertIn(
+            f"override guard: --path {paths['--vmlx-repo']} "
+            "--revision 22969e9555b5e86df862e43e3d7356575d3dd053 "
+            f"--build-dir {paths['--build-dir']} --dry-run", res.stdout)
+
+    def test_other_mei_configs_keep_explicit_values_and_absent_defaults(self):
+        configs = [p for p in sorted((REPO / "configs").glob("*/mei.yaml"))
+                   if p.parent.name != "LiquidAI-LFM2.5-24B-A2B-MLX-4bit"]
+        self.assertTrue(configs)
+        saw_absent = set()
+        for path in configs:
+            with self.subTest(config=str(path.relative_to(REPO))):
+                cfg = yaml.safe_load(path.read_text())
+                command = shlex.split(cfg["benchmark_launch_command"].replace("\\\n", " "))
+                res, _ = self._config_dry_run(cfg)
+                argv = _launch_argv(res)
+                for flag in ("--prefill-step-size", "--memory-limit-bytes", "--max-tokens",
+                             "--model-profile", "--load-mmap", "--repetition-penalty"):
+                    if flag in command:
+                        self.assertEqual(argv.count(flag), 1)
+                        self.assertEqual(argv[argv.index(flag) + 1], command[command.index(flag) + 1])
+                    else:
+                        self.assertNotIn(flag, argv)
+                        saw_absent.add(flag)
+        # Fail if the config inventory no longer exercises either absence path.
+        self.assertTrue({"--prefill-step-size", "--memory-limit-bytes"} <= saw_absent)
 
 
 if __name__ == "__main__":

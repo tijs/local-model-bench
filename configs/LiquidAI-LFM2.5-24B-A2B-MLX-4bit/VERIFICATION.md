@@ -8,7 +8,146 @@ provisioning after the initial checks are recorded below; they were not test
 side effects. This repository-only follow-up reads that evidence and updates
 config/provenance/runtime wiring without altering model or profile files.
 
-## Hermes Ops connect-watchdog correction (latest gate status)
+## Runtime candidate: experimental/unmeasured (current gate status)
+
+This follow-up is isolated at
+`/Users/tijs/projects/local-model-bench-lfm25-mem-tune`, branch
+`work/lfm25-mem-tune-20261015`, based **exactly** on benchmark commit
+**`8e17e3a33ec8b66b12808c35d4d6368f1bd8cfdb`** from
+`work/lfm25-full-20261015`. The active results-dirty worktree and external
+attempt bundles are not modified. No model/server, endpoint call, admission
+probe, benchmark, profile/service/CoCore change, push or release is part of
+this work.
+
+### Baseline evidence supplied by the parent, not rerun here
+
+The latest retry used config **`a4be8e840181`**, full config SHA-256
+**`a4be8e8401811da0607a75cc01fdceb6d65a5283a0fc56daabf32226dac6a036`**,
+runner **`8e17e3a33ec8b66b12808c35d4d6368f1bd8cfdb`**. The parent's report,
+also recorded in Kiem note `c1734e12-0ade-4d50-a0ba-06aaa7012f44` (read only),
+supersedes the earlier pending-connect-retry language below:
+
+- **3 rows only**: sanity **2/2**, then `hermes_ops-selection` passed at
+  **142.058s**, **40,899 prompt / 134 completion tokens**, **0.94 end-to-end
+  tok/s**. Selection's 300s connect fix worked; this is not a decode benchmark
+  or evidence of full-battery recovery.
+- `hermes_ops-chaining` remained in flight for about 15 minutes, with **no
+  result row**. The parent intentionally stopped for resource pressure; do
+  not invent a timeout/failure row for that interrupted task.
+- Last successful status: **28.712 GiB active peak** versus **24.96 GiB
+  recommended / 32 GiB physical**; active + queued generations. Swap reached
+  **3.319 GiB**, disk **16.022 GiB**. Stop occurred before the 10 GiB disk
+  reserve; teardown freed the port and pressure recovered.
+- Preserved bundle:
+  `/Users/tijs/.local/share/local-model-bench/results-mei/LiquidAI/LFM2.5-24B-A2B-MLX-4bit/full-run-20261015T170436Z-connect300-resource-stop/`.
+  No speed-gate/coding rows or completed battery are claimed. Older
+  **`0fb346ed9077`** attempt rows/snapshots/bundle also remain separate.
+
+These are historical parent-reported observations, not fresh resource samples,
+an independently repeated artifact audit, or live measurements of this candidate.
+
+### Source-backed hypothesis, not a proven repair
+
+Read-only source inspection confirmed Mei HEAD
+**`57d87f52c3ce5b605882d06a8acf36def3bc27e7`**, clean, and:
+
+- `Sources/MeiCore/ModelTuning.swift:139-167`: `lfm2.5-24b-a2b` is explicitly
+  an **unmeasured SETUP profile** with generic prefill **64**, not measured
+  LFM tuning. `ServerConfig.swift:210-212,323-345` lets an explicit prefill
+  flag override it.
+- `ServerConfig.swift:247-248` accepts `--memory-limit-bytes`;
+  `Engine.swift:109-114,194-205` applies an explicit positive limit before
+  load and reasserts it afterward. The loader otherwise installs
+  `.fraction(0.70)` of physical RAM, about **22.4 GiB** here. This effective
+  post-load default, not the wrapper help's generic MLX-default description,
+  is the relevant baseline.
+- `docs/BENCHMARKING.md:15-19`: a below-working-set allocator limit can make
+  allocations wait on scheduled tasks. This motivates investigation, **not
+  a diagnosis proving why chaining stopped making progress**.
+- `docs/MODELS.md:73-75,104-105` uses prefill **512** and explicit **30 GB**
+  limits for another model. That is not LFM-specific measurement or advice.
+
+The config now declares `runtime_tuning_status: experimental-unmeasured`,
+`prefill_step_size: 512` and `memory_limit_bytes: 32000000000`, plus exactly
+these two added launch flags:
+
+```text
+--prefill-step-size 512 --memory-limit-bytes 32000000000
+```
+
+**32000000000 bytes = 32e9 bytes = approximately 29.802 GiB, not 32 GiB.**
+It is above the observed 28.712 GiB peak and below physical **34359738368
+bytes (32 GiB)**, but is not a total process/system cap or a guarantee of
+OS/runtime headroom. Larger prefill can increase working set or alter output;
+raising both knobs may worsen pressure and cannot attribute a benefit to one.
+**Neither setting is proven safe or optimal; no candidate live measurement
+exists.** Vendor sampling, 65536 context, 4096 output, cache reuse, mmap=false,
+connect300 and source/build/runtime/artifact pins remain unchanged.
+
+Candidate config hash: **`e4f67e0554e2`**, full SHA-256
+**`e4f67e0554e2e15c88d4225b9fda4326be2e1eb1e2a62308757d7982fea0abcd`**,
+computed directly from config bytes without writing a results snapshot. Never
+merge baseline partial rows into this new identity.
+
+### Executed model-free checks for this candidate
+
+```bash
+env -u PYTHONPATH -u PYTHONHOME TMPDIR=/Users/tijs/.hermes/cache/scratch \
+  uv sync --locked --offline
+# exit 0; isolated worktree-local environment, no manifest/lockfile edits.
+env -u PYTHONPATH -u PYTHONHOME TMPDIR=/Users/tijs/.hermes/cache/scratch \
+  uv run --locked --offline python -m unittest runner.tests.test_lfm25_setup \
+  runner.tests.test_start_mei_server_sh runner.tests.test_mei_runtime \
+  runner.tests.test_run_bench runner.tests.test_run_prompt_suite \
+  runner.tests.test_bench_common -v
+# exit 0: 74 tests, 0 failures/errors/skips.
+# LFM setup 16; launcher/config dry-run 13; runtime/cleanup 11;
+# orchestration 20; prompt-suite connect/config 11; shared helpers 3.
+bash -n runner/start_mei_server.sh runner/stop_mei_server.sh
+git diff --check
+# both exit 0.
+```
+
+The config-contract and exact-argv regressions first failed **2/2 as expected**
+against the unchanged baseline config (64 != 512; both candidate flags absent
+from the emitted vector). The final 74-test pass above includes both repaired
+regressions. No wrapper repair was needed: its existing explicit-only
+forwarding works and **`start_mei_server.sh` is unchanged**. The same 74-test
+selection also passed a replay with Python audit hooks denying socket bind,
+connect and DNS operations (0 failures/errors/skips).
+
+The dry-run checks substitute metadata-only scratch model/source/build/runtime
+paths, use an explicit echo stub for the local-vMLX guard, parse the printed
+shell-quoted vector and compare the **entire LFM argv in order**. They do not
+read weights, invoke Swift, launch a server or create build/runtime directories.
+They also check independent explicit/absent prefill and memory options, and
+all **14 other Mei configs** for unchanged explicit values and omitted defaults.
+The orchestration/cleanup/prompt child calls are mocked; fixture rows/snapshots
+stay under disposable scratch roots. No HTTP fixture server or endpoint call
+is required. Broader discovery / HTTP-fixture suites were not run; the older
+ledger-count caveat below is not hidden or resolved.
+
+A parsed comparison against the exact base confirmed the only changed keys are
+`benchmark_launch_command`, `prefill_step_size`, `memory_limit_bytes`,
+`runtime_tuning_status`, `settings`, and `known_gaps`. Removing the two added
+flag/value pairs leaves the original launch argv **identical**. All **123
+other tracked YAML files under configs/** are byte-identical to base, including
+the profile template. `git diff --exit-code` against base also confirms no
+change to results (log, speed gate, leaderboard, historical config snapshots),
+tasks, fixtures, checks, staging/alignment/pre-load evidence, shell launch/stop
+scripts, manifests or lockfile. No external historical artifacts were written.
+
+### Remaining live gate — not authorized or executed by this follow-up
+
+Commit the distinct candidate before any future authorized load. Recheck
+sustained clean-GPU/memory/swap/disk/listener headroom (10 GiB disk reserve,
+no deletion), then bounded native admission and a one-task resource probe;
+**review that evidence before any full retry**. Keep normal sanity/speed gates
+and independently audit any later complete 25-task run and teardown. Controlled
+sweeps and at least three repeats are required before claiming safe/optimal
+tuning or speed gains, with TTFT/prefill, decode and end-to-end rates separate.
+
+## Hermes Ops connect-watchdog correction (historical connect-only repair)
 
 This section supersedes the pending-live status of the earlier staging/build
 records below. **Prior live evidence is parent/operator-reported**, supplied to
@@ -95,7 +234,7 @@ context/cache/mmap/launch identity and other execution settings are identical.
 Full discovery was not rerun; the historical ledger-count caveat below is not
 resolved or hidden by these focused checks.
 
-### Current remaining gates
+### Remaining gates at the connect-only repair (historical)
 
 **Live recovery remains unverified.** No inference/model-server/full-benchmark,
 launch/stop/unload, Hermes profile or CoCore change, external result-ledger write,
