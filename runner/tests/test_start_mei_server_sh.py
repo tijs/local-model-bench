@@ -113,6 +113,32 @@ def _dry_run(extra):
 
 
 class StartMeiServerForwardingTests(unittest.TestCase):
+    def test_local_vmlx_requires_path_and_revision_together(self):
+        for extra in (["--vmlx-repo", "/not-used"],
+                      ["--vmlx-revision", "a" * 40]):
+            _, res = _dry_run(extra)
+            self.assertEqual(res.returncode, 2, res.stdout + res.stderr)
+            self.assertIn("must be supplied together", res.stderr)
+
+    def test_local_vmlx_dry_run_delegates_exact_selection_to_mei_guard(self):
+        # Explicit helper stub tests the wrapper boundary; real Git/SwiftPM
+        # selection is separately exercised by Mei's override tests/build.
+        base, model, repo, kv, build = _stub_env()
+        scripts = Path(repo) / "scripts"
+        scripts.mkdir()
+        (scripts / "use_local_vmlx.sh").write_text(
+            "#!/bin/bash\nprintf 'override guard: '; printf '%q ' \"$@\"; printf '\\n'\n")
+        argv = [a.format(model=model, kv=kv, build=build, repo=repo) for a in BASE_ARGS]
+        revision = "a" * 40
+        res = subprocess.run(
+            ["bash", str(START_MEI), *argv, "--vmlx-repo", str(base / "local-vmlx"),
+             "--vmlx-revision", revision, "--dry-run"], capture_output=True, text=True)
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertIn("override guard:", res.stdout)
+        self.assertIn(f"--path {base / 'local-vmlx'} --revision {revision}", res.stdout)
+        self.assertIn(f"--build-dir {build} --dry-run", res.stdout)
+        self.assertFalse(Path(build).exists())
+
     def test_dry_run_prints_all_four_gate_controls(self):
         _, res = _dry_run(GATE_CONTROLS_FLAT)
         self.assertEqual(res.returncode, 0, res.stderr)

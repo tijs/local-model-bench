@@ -123,8 +123,12 @@ orchestration:
   proxy_parser: lfm        # required if needs_proxy: true — must match a
                            # name in runner/bench_local_proxy.py's PARSERS
   proxy_port: 8015         # default; rarely needs changing
+  hermes_profile: bench   # optional per-run profile (default remains bench);
+                           # forwarded to coding chat + session export, not a
+                           # sticky/global `hermes profile use`. Named isolated
+                           # profiles are not reset implicitly; provision fresh.
   hermes_provider: local-mlx   # must match an entry in
-                               # ~/.hermes/profiles/bench/config.yaml,
+                               # the selected profile's config.yaml,
                                # or null if no coding-suite spot-check
                                # was ever run for this config
   server_binary: null      # optional — a non-default binary path (e.g.

@@ -30,7 +30,7 @@ from pathlib import Path
 
 import yaml
 
-from bench_common import INTERACTIVE_BUDGET_SECONDS, REPO, PeakRSSSampler, git_sha, snapshot_config
+from bench_common import INTERACTIVE_BUDGET_SECONDS, REPO, PeakRSSSampler, git_sha, snapshot_config, resolve_hermes_profile
 
 HERMES_BIN = Path(os.environ.get(
     "BENCH_HERMES_BIN", str(Path.home() / ".hermes/hermes-agent/venv/bin/hermes")
@@ -136,9 +136,11 @@ def sandbox_wrapped_command(cmd, run_dir):
     return [SANDBOX_EXEC, "-p", profile, *cmd], True
 
 
-def run_hermes(prompt, cwd, provider, model, max_turns, timeout, reasoning=None):
+def run_hermes(prompt, cwd, provider, model, max_turns, timeout, reasoning=None,
+               hermes_profile="bench"):
+    hermes_profile = resolve_hermes_profile(hermes_profile)
     cmd = [
-        str(HERMES_BIN), "chat", "--profile", "bench", "-q", prompt,
+        str(HERMES_BIN), "chat", "--profile", hermes_profile, "-q", prompt,
         "--provider", provider, "-m", model, "-Q", "--yolo",
         "--max-turns", str(max_turns),
     ]
@@ -195,7 +197,7 @@ _EMPTY_SESSION_STATS = {
 }
 
 
-def extract_hermes_session_stats(stdout, stderr=""):
+def extract_hermes_session_stats(stdout, stderr="", hermes_profile="bench"):
     """Pull turn/tool-call/token counts out of hermes's own SQLite session
     store for the just-finished run (methodology review, finding F6): the
     coding suite previously logged only pass/exit-code/wall/diff-stat — no
@@ -222,9 +224,10 @@ def extract_hermes_session_stats(stdout, stderr=""):
     if not match:
         return dict(_EMPTY_SESSION_STATS)
     session_id = match.group(1)
+    hermes_profile = resolve_hermes_profile(hermes_profile)
     try:
         proc = subprocess.run(
-            [str(HERMES_BIN), "--profile", "bench", "sessions", "export",
+            [str(HERMES_BIN), "--profile", hermes_profile, "sessions", "export",
              "--session-id", session_id, "--format", "jsonl", "-"],
             capture_output=True, text=True, timeout=30,
         )
@@ -910,6 +913,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--suite", required=True)
     ap.add_argument("--hermes-provider", required=True)
+    ap.add_argument("--hermes-profile", default=None,
+                    help="isolated Hermes profile; overrides orchestration.hermes_profile (default: bench)")
     ap.add_argument("--hermes-model", required=True)
     ap.add_argument("--log-model", default=None,
                     help="source model ID to record when --hermes-model is a stable served alias")
@@ -952,6 +957,7 @@ def main():
     # on the server launch flags. None means the default — never invented.
     coding_reasoning_effort = None
     reasoning_effort = None
+    orch = {}
     if args.config:
         config_hash, config_path = snapshot_config(args.config)
         cfg = yaml.safe_load(Path(args.config).read_text())
@@ -982,6 +988,9 @@ def main():
 
     # CLI wins over config; both None mean the hermes/server default.
     reasoning_effort = args.reasoning or coding_reasoning_effort
+    hermes_profile = resolve_hermes_profile(
+        args.hermes_profile if args.hermes_profile is not None
+        else orch.get("hermes_profile", "bench"))
 
     def ensure_proxy_idle():
         # Checked before EVERY hermes invocation, not just once before the
@@ -1059,9 +1068,11 @@ def main():
                             prompt, run_dir, args.hermes_provider, args.hermes_model,
                             max_turns=args.max_turns, timeout=timeout,
                             reasoning=reasoning_effort,
+                            hermes_profile=hermes_profile,
                         )
                     peak_rss_gb = rss_sampler.stop()
-                    session_stats = extract_hermes_session_stats(stdout, stderr)
+                    session_stats = extract_hermes_session_stats(
+                        stdout, stderr, hermes_profile=hermes_profile)
 
                     # Full transcript, saved and committed (not just the last 500
                     # chars of grade_output) — discovered live 2026-08-20 that no
@@ -1077,7 +1088,7 @@ def main():
                     trial_suffix = f"_trial{trial}" if args.trials > 1 else ""
                     transcript_path = transcript_dir / f"{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}_{model_slug}{trial_suffix}.log"
                     transcript_path.write_text(
-                        f"$ hermes chat --profile bench --provider {args.hermes_provider} "
+                        f"$ hermes chat --profile {hermes_profile} --provider {args.hermes_provider} "
                         f"-m {args.hermes_model} --max-turns {args.max_turns}"
                         + (f" --reasoning {reasoning_effort}" if reasoning_effort else "")
                         + f"\n\n"

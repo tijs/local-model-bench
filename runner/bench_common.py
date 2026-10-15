@@ -17,11 +17,21 @@ run time (so a runner-code change naturally starts a new leaderboard group,
 the same way a config change already did).
 """
 import hashlib
+import re
 import subprocess
 import threading
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
+
+
+def resolve_hermes_profile(value: object = "bench") -> str:
+    """Require a named, isolated profile; never silently select the user's default."""
+    if (not isinstance(value, str)
+            or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}", value)
+            or value == "default"):
+        raise ValueError("hermes_profile must name an isolated profile (not default, null, or a path)")
+    return value
 
 # Added 2026-08-22 (methodology review, finding F5): PASS carried no
 # latency signal at all — a task that took 3135s scored identically to

@@ -94,7 +94,7 @@ from statistics import mean
 
 import yaml
 
-from bench_common import BACKEND_HEALTH_TIMEOUT_SECONDS, MIN_FREE_DISK_GB_BEFORE_LAUNCH, MIN_HERMES_OPS_TOKENS_PER_SECOND
+from bench_common import BACKEND_HEALTH_TIMEOUT_SECONDS, MIN_FREE_DISK_GB_BEFORE_LAUNCH, MIN_HERMES_OPS_TOKENS_PER_SECOND, resolve_hermes_profile
 
 REPO = Path(__file__).resolve().parent.parent
 CODING_SPOTCHECK_SUITE = "kiem_mini"
@@ -513,6 +513,7 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
     needs_proxy = orch.get("needs_proxy", False)
     proxy_port = orch.get("proxy_port", 8015)
     hermes_provider = orch.get("hermes_provider")
+    hermes_profile = resolve_hermes_profile(orch.get("hermes_profile", "bench"))
     api_base_url = orch.get("api_base_url")
 
     if api_base_url and not orch.get("api_key_env"):
@@ -537,8 +538,14 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
         # Best-effort like unload_all.sh above (not gating this run on its
         # exit code) since a missing bench profile shouldn't abort an
         # otherwise-working config.
-        print("\n--- reset bench hermes profile session/memory state ---")
-        run(["bash", str(REPO / "runner" / "reset_bench_profile.sh")])
+        if hermes_profile == "bench":
+            print("\n--- reset bench hermes profile session/memory state ---")
+            run(["bash", str(REPO / "runner" / "reset_bench_profile.sh")])
+        else:
+            # Never clear the shared bench profile for an isolated run, or
+            # delete an operator-selected profile's state implicitly. Provision
+            # a fresh named profile before the run (see configs/README.md).
+            print(f"\n--- using isolated Hermes profile {hermes_profile}; no shared profile reset ---")
 
         clear_kv_cache_dir(cfg)
 
@@ -695,6 +702,7 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
                 run([sys.executable, str(REPO / "runner" / "run_fixture_suite.py"),
                      "--suite", suite,
                      "--hermes-provider", hermes_provider, "--hermes-model", request_model,
+                     "--hermes-profile", hermes_profile,
                      "--log-model", model, "--inference-engine", inference_engine, "--config", str(config_path),
                      "--trials", str(trials)]
                     + (["--reasoning", reasoning] if reasoning else []))
@@ -703,6 +711,7 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
             run([sys.executable, str(REPO / "runner" / "run_fixture_suite.py"),
                  "--suite", CODING_SPOTCHECK_SUITE, "--only-task", CODING_SPOTCHECK_TASK,
                  "--hermes-provider", hermes_provider, "--hermes-model", request_model,
+                 "--hermes-profile", hermes_profile,
                  "--log-model", model, "--inference-engine", inference_engine, "--config", str(config_path),
                  "--trials", str(trials)]
                 + (["--reasoning", reasoning] if reasoning else []))

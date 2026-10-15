@@ -74,6 +74,9 @@ Options:
                             shards; the default mmap path realigned ~16.6 GiB
                             of temporary copies and OOM'd the GPU allocator)
   --mei-repo PATH           Mei checkout (default: ~/projects/mei)
+  --vmlx-repo PATH          Optional clean local vMLX worktree (SwiftPM edit)
+  --vmlx-revision SHA       Required exact revision with --vmlx-repo; uses
+                            Mei's use_local_vmlx.sh, never a shared mirror
   --runtime-base PATH       Mei runtime root (default: ~/.local/share/local-model-bench/mei-runtime)
   --build-dir PATH          SwiftPM scratch/build dir (default: .../mei-build-pinned-91fed8be)
   --dry-run                 Validate and print, but do not launch
@@ -106,6 +109,8 @@ REQUEST_LOG=""
 LOG_REQUESTS=""
 SEED=""
 MEI_REPO="$MEI_REPO_DEFAULT"
+VMLX_REPO=""
+VMLX_REVISION=""
 RUNTIME_BASE="$RUNTIME_BASE_DEFAULT"
 BUILD_DIR="$BUILD_DIR_DEFAULT"
 DRY_RUN=0
@@ -138,6 +143,8 @@ while [[ $# -gt 0 ]]; do
     --log-requests) LOG_REQUESTS="${2:?missing value}"; shift 2 ;;
     --seed) SEED="${2:?missing value}"; shift 2 ;;
     --mei-repo) MEI_REPO="${2:?missing value}"; shift 2 ;;
+    --vmlx-repo) VMLX_REPO="${2:?missing value}"; shift 2 ;;
+    --vmlx-revision) VMLX_REVISION="${2:?missing value}"; shift 2 ;;
     --runtime-base) RUNTIME_BASE="${2:?missing value}"; shift 2 ;;
     --build-dir) BUILD_DIR="${2:?missing value}"; shift 2 ;;
     --dry-run) DRY_RUN=1; shift ;;
@@ -158,6 +165,18 @@ done
 
 [[ -d "$MEI_REPO" ]] || { echo "FATAL: Mei checkout missing: $MEI_REPO" >&2; exit 1; }
 [[ -f "$MEI_REPO/Package.swift" ]] || { echo "FATAL: $MEI_REPO is not a Swift package" >&2; exit 1; }
+if [[ -n "$VMLX_REPO" || -n "$VMLX_REVISION" ]]; then
+  [[ -n "$VMLX_REPO" && -n "$VMLX_REVISION" ]] || {
+    echo "FATAL: --vmlx-repo and --vmlx-revision must be supplied together" >&2; exit 2;
+  }
+  [[ -f "$MEI_REPO/scripts/use_local_vmlx.sh" ]] || {
+    echo "FATAL: Mei checkout does not support revision-checked local vMLX" >&2; exit 1;
+  }
+  # Validate even in dry-run, before any build/runtime writes. The helper
+  # checks both clean Git identity and the exact SHA without invoking Swift.
+  bash "$MEI_REPO/scripts/use_local_vmlx.sh" --path "$VMLX_REPO" \
+    --revision "$VMLX_REVISION" --build-dir "$BUILD_DIR" --dry-run
+fi
 [[ -d "$MODEL_DIR" ]] || { echo "FATAL: model directory missing: $MODEL_DIR" >&2; exit 1; }
 [[ -f "$MODEL_DIR/config.json" ]] || { echo "FATAL: missing config.json: $MODEL_DIR/config.json" >&2; exit 1; }
 
@@ -232,13 +251,19 @@ LOG_DIR="$RUNTIME_BASE/logs"
 PID_FILE="$RUNTIME_BASE/server.pid"
 
 echo "mei: building (release, scratch: $BUILD_DIR) ..."
-"${MEI_SWIFT:-swift}" build -c release --scratch-path "$BUILD_DIR" --package-path "$MEI_REPO" \
+BUILD_COMMAND=("${MEI_SWIFT:-swift}" build -c release --scratch-path "$BUILD_DIR" --package-path "$MEI_REPO")
+if [[ -n "$VMLX_REPO" ]]; then
+  BUILD_COMMAND=(bash "$MEI_REPO/scripts/use_local_vmlx.sh" --path "$VMLX_REPO"
+    --revision "$VMLX_REVISION" --build-dir "$BUILD_DIR" -- build -c release)
+fi
+"${BUILD_COMMAND[@]}" \
   > "$LOG_DIR/build.log" 2>&1 || {
   echo "FATAL: swift build failed — see $LOG_DIR/build.log" >&2
   exit 1
 }
 [[ -x "$BIN" ]] || { echo "FATAL: built binary missing at $BIN" >&2; exit 1; }
-bash "$MEI_REPO/scripts/prepare_metallib.sh" "$BUILD_DIR/release" || { echo "FATAL: missing Metal kernel library" >&2; exit 1; }
+MEI_VMLX_CHECKOUT="${VMLX_REPO:-$BUILD_DIR/checkouts/vmlx-swift}" \
+  bash "$MEI_REPO/scripts/prepare_metallib.sh" "$BUILD_DIR/release" || { echo "FATAL: missing Metal kernel library" >&2; exit 1; }
 
 "$BIN" "${ARGS[@]}" >> "$LOG_DIR/server.log" 2>&1 &
 SERVER_PID=$!

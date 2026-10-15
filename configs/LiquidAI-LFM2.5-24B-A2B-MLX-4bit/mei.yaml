@@ -6,28 +6,19 @@
 # a safe default, cited below. See known_gaps for the gates that must close
 # before results can be trusted.
 #
-# LOCAL BUILD IDENTITY (2026-10-15):
-#   * Mei: worktree branch work/lfm25-mei-20261015 at
-#     /Users/tijs/projects/mei-lfm25, commit
-#     bd6276e549d273a2950270fea3a9fb9aadbf2b90 (adds the
-#     --model-profile lfm2.5-24b-a2b setup profile; base = v0.9.0
-#     6b632ebea3b2b843085ad4f37a0e75b31df3e4d7), built into a dedicated
-#     scratch dir (--build-dir below).
-#   * vmlx-swift ROUTER-FIX GATE: the official quant was converted with
-#     mlx-lm 0.32.0 and REQUIRES >= 0.32.0 because earlier versions route
-#     experts incorrectly. The Swift port's parity fix lives on worktree
-#     branch work/lfm25-route-20261015 at /Users/tijs/projects/vmlx-swift-lfm25,
-#     commit ed49a4daf1d30cb31a7a38f4f06feceada23cced (sigmoid scores;
-#     expert bias selects experts only; unbiased normalized weights;
-#     routed_scaling_factor). The Mei worktree's Package.resolved still pins
-#     vmlx 633fe166, which does NOT contain the fix — the pin must be
-#     promoted (or a local package override used) for the build that
-#     produces results. A build without the fix produces INVALID rows.
-#
-# STAGING GATE (2026-10-15): the model is NOT staged. The weight pack is
-# 13,567,294,335 bytes (~12.64 GiB); free disk was ~16.9 GiB with a 10 GiB
-# launch floor and no matching cache/external volume. Parent handles the
-# storage decision; staging command in known_gaps.
+# LOCAL BUILD IDENTITY (2026-10-15, model-free gates only):
+#   * Mei ../mei-lfm25 @ 57d87f52c3ce5b605882d06a8acf36def3bc27e7
+#     (v0.9.0 base 6b632ebea3b2b843085ad4f37a0e75b31df3e4d7).
+#   * vMLX ../vmlx-swift-lfm25 @ 22969e9555b5e86df862e43e3d7356575d3dd053
+#     includes router fix ed49a4da plus the passing Module-update forward test.
+#     --vmlx-repo/--vmlx-revision select this exact clean tree through SwiftPM
+#     edit and verify its resolved dependency path. The public 633fe166 pin
+#     remains unchanged, but is NOT the dependency used for this lane.
+#   * Full-battery coding selects isolated profile bench-lfm25 / provider
+#     lfm25-mei (8029). See hermes-profile.example.yaml and README.md.
+# The model is NOT staged; no load, canary, or benchmark has been run.
+# Storage cleanup is complete; recheck the 10 GiB launch floor before staging,
+# without deleting models, worktrees, or historical results.
 
 model: LiquidAI/LFM2.5-24B-A2B-MLX-4bit
 # Vendor sampling: the artifact's own generation_config.json carries
@@ -39,8 +30,8 @@ model: LiquidAI/LFM2.5-24B-A2B-MLX-4bit
 temperature: 0.1
 reasoning_mode: thinking   # LFM2.5 always thinks; template behavior preserved
 inference_engine: mei
-mei_commit: 633fe166630ef04310aea7d5a1795555ab32970d  # vmlx-swift pin in the mei-lfm25 worktree Package.resolved — does NOT include the router fix (see header + known_gaps)
-mei_source_commit: bd6276e549d273a2950270fea3a9fb9aadbf2b90  # work/lfm25-mei-20261015 (adds --model-profile lfm2.5-24b-a2b; base = v0.9.0 6b632ebe)
+mei_commit: 22969e9555b5e86df862e43e3d7356575d3dd053  # effective vmlx-swift dependency, selected by local SwiftPM override
+mei_source_commit: 57d87f52c3ce5b605882d06a8acf36def3bc27e7  # tested Mei setup profile + revision-checked local dependency helper
 source_revision: 667408d494bde191c2cb9dd4f4549827816b9275  # LiquidAI/LFM2.5-24B-A2B-MLX-4bit — OFFICIAL LiquidAI MLX 4-bit quant, pinned
 source_model_revision: 1769516ac588c4c558089c94f27d96b0dc67b183  # LiquidAI/LFM2.5-24B-A2B source model — provenance reference only; the loaded artifact is the MLX quant above
 model_bytes: 13567294335   # weight shards total (3 shards), HF API metadata-only check 2026-10-15; whole-repo total 13585304293
@@ -66,14 +57,16 @@ hermes_ops_generation_profile: vendor
 # declared and the schema's absent = hermes/server default (never invented).
 
 benchmark_launch_command: |
-  bash runner/start_mei_server.sh --model-dir /Users/tijs/.local/share/local-model-bench/mei-models/LFM2.5-24B-A2B-MLX-4bit \
+  bash runner/start_mei_server.sh --model-dir "$HOME/.local/share/local-model-bench/mei-models/LFM2.5-24B-A2B-MLX-4bit" \
     --served-model-id LiquidAI/LFM2.5-24B-A2B-MLX-4bit --port 8029 --context-cap 65536 \
     --max-tokens 4096 \
     --temperature 0.1 --top-p 0 --top-k 50 --min-p 0 --repetition-penalty 1.05 \
     --emit-reasoning true --cache-reuse true \
     --model-profile lfm2.5-24b-a2b \
-    --build-dir /Users/tijs/.local/share/local-model-bench/mei-build-lfm25-0.9.0 \
-    --mei-repo /Users/tijs/projects/mei-lfm25
+    --build-dir "$PWD/../mei-lfm25/.build" \
+    --mei-repo ../mei-lfm25 \
+    --vmlx-repo ../vmlx-swift-lfm25 \
+    --vmlx-revision 22969e9555b5e86df862e43e3d7356575d3dd053
 benchmark_endpoint: http://127.0.0.1:8029/v1
 
 hermes_ops_max_tokens: 4096   # vendor max_new_tokens; also the server-side cap
@@ -81,7 +74,8 @@ hermes_ops_max_tokens: 4096   # vendor max_new_tokens; also the server-side cap
 orchestration:
   raw_port: 8029
   needs_proxy: false   # native tool_calls required; probe_mei.py gates this.
-  hermes_provider: null   # no coding-suite run yet; a custom_providers entry is created only if/when this lane is actually exercised
+  hermes_profile: bench-lfm25   # per-run selection, never edits/resets the shared bench or default profile
+  hermes_provider: lfm25-mei    # non-null: all four coding suites are eligible; provision this profile before a live run
   served_model_id: LiquidAI/LFM2.5-24B-A2B-MLX-4bit
   viable: full
   # run_order: higher = later in the --all / engine sweep (2026-09-05).
@@ -97,8 +91,8 @@ settings:
     value: "SOURCE model = LiquidAI/LFM2.5-24B-A2B @ 1769516a (official full-precision source; provenance reference only, recorded as source_model_revision). ARTIFACT to serve = LiquidAI/LFM2.5-24B-A2B-MLX-4bit @ 667408d4 (OFFICIAL LiquidAI MLX conversion — not third-party). Its README: 'converted ... using mlx-lm version 0.32.0' and 'Requires mlx-lm 0.32.0 or later. Earlier versions load the model but route the experts incorrectly.'"
     source: "HF README + config.json of the artifact (fetched 2026-10-15)."
   - name: vmlx_swift_pin_and_router_fix
-    value: "Mei worktree Package.resolved pins vmlx-swift 633fe166 (tijs/vmlx-swift) — it does NOT include the LFM2MoE router parity fix. Results are only valid on a build that includes work/lfm25-route-20261015 @ ed49a4daf1d30cb31a7a38f4f06feceada23cced: sigmoid scores, expert bias selects experts only, weights are the unbiased sigmoid values normalized (/ (sum + 1e-6)) and scaled by routed_scaling_factor — the official mlx_lm/models/lfm2_moe.py v0.32.0 semantics."
-    source: "vmlx worktree commit ed49a4da; official mlx-lm v0.32.0 lfm2_moe.py; official quant README version requirement."
+    value: "Effective vmlx dependency = 22969e9555b5e86df862e43e3d7356575d3dd053, selected by --vmlx-repo/--vmlx-revision through Mei use_local_vmlx.sh (clean SHA + resolved SwiftPM path verified). Includes ed49a4da router fix: sigmoid scores, expert bias selects only, unbiased normalization / (sum + 1e-6), routed_scaling_factor. The public Package.resolved pin 633fe166 is deliberately unchanged and is not this lane's build identity."
+    source: "Mei local override helper + SwiftPM resolved-graph readback and focused Swift build/tests; official mlx-lm v0.32.0 lfm2_moe.py."
   - name: quant_family
     value: "MLX 4-bit affine, group size 64; token embedding (tied output head) 6-bit; MoE routing gates kept unquantized float32; use_expert_bias true; norm_topk_prob true; 4 of 64 experts per token; routed_scaling_factor 1.0; 40 layers (10 full-attention at idxs 2,6,...,38; 30 short-conv) with 2 dense FFN layers."
     source: "artifact config.json (fetched 2026-10-15)."
@@ -125,12 +119,12 @@ settings:
     source: "artifact generation_config.json; configs/README.md generation_profiles contract; plan's explicit-values policy."
 
 known_gaps:
-  - "NOT STAGED, NOT LOADABILITY-ACCEPTED. No LFM2.5 rows exist anywhere. Staging command (manual, only after the storage decision): /Users/tijs/projects/mei/tools/stage_mlx_checkpoint.py --repo LiquidAI/LFM2.5-24B-A2B-MLX-4bit --revision 667408d494bde191c2cb9dd4f4549827816b9275 --target /Users/tijs/.local/share/local-model-bench/mei-models/LFM2.5-24B-A2B-MLX-4bit --expect-bytes 13567294335. Mei-native alternative once the worktree build exists: mei pull lfm2.5-24b-a2b --dest <same dir>."
-  - "STORAGE GATE: the weight pack is ~12.64 GiB; free disk was ~16.9 GiB (before this preparation's local builds) against the 10 GiB launch floor, and no matching cache or external volume exists. Do not stage until the parent frees or relocates storage."
-  - "ROUTER-FIX GATE: the built vmlx must include work/lfm25-route-20261015 @ ed49a4da (LFM2MoE router parity fix). The current Package.resolved pin 633fe166 does not. Promote the pin or use a local package override for the build; a build without the fix produces invalid rows."
+  - "NOT STAGED, NOT LOADABILITY-ACCEPTED. No LFM2.5 rows exist for this lane. Future manual staging uses ../mei-lfm25/tools/stage_mlx_checkpoint.py --repo LiquidAI/LFM2.5-24B-A2B-MLX-4bit --revision 667408d494bde191c2cb9dd4f4549827816b9275 --target <approved-model-dir> --expect-bytes 13567294335. No staging/download command is part of model-free verification."
+  - "STAGING/LIVE GATE: storage cleanup is complete, but no model was downloaded/staged during model-free verification. Recheck disk/memory headroom before any separately authorized staging/load; do not delete more data."
+  - "BUILD GATE: model-free Swift tests built against the local router-fixed dependency. A release build, exact binary/metallib provenance and live compatibility remain separate gates; the launcher fails closed on a dirty/mismatched local vMLX revision."
   - "UNMEASURED SETUP: prefill 64, anchors off, and the KV tier choice are safe defaults, not measured optima; run the bounded prefill-step sweep (and a cache-tier check) before trusting speed numbers. The model's 131072 advertised context is optional later work after safe admission at 65536."
   - "Tool-call format: verify live on the staged artifact (probe_mei.py, streaming + non-streaming) before trusting any row."
   - "Server build path: this config serves the mei-lfm25 worktree (--mei-repo). When that branch is merged/promoted, update --mei-repo/--build-dir to the promoted checkout and re-record the build identity here."
-  - "hermes_provider is null: no coding-suite spot-check has been run; create the custom_providers entry only when the lane is actually exercised."
+  - "PROFILE PROVISIONING GATE: orchestration names bench-lfm25 / lfm25-mei, matching hermes-profile.example.yaml at 8029. No global or named Hermes profile state was written in this preparation. Provision a fresh isolated profile explicitly before the live run; all 25 tasks are eligible only after the normal sanity/speed gates pass."
 
 last_updated: 2026-10-15
