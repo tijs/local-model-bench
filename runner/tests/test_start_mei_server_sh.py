@@ -25,6 +25,7 @@ config keeps Mei's own default exactly as before.
 
 Run: uv run --locked python -m unittest discover -s runner/tests -v
 """
+import os
 import shlex
 import shutil
 import subprocess
@@ -36,6 +37,8 @@ import yaml
 
 REPO = Path(__file__).resolve().parents[2]  # local-model-bench root
 START_MEI = REPO / "runner" / "start_mei_server.sh"
+FUSED_CACHE_FLAG = "--fused-gate-up-cache-limit-bytes"
+FUSED_CACHE_ENV = "VMLX_FUSED_GATE_UP_CACHE_LIMIT_BYTES"
 
 # Flat argv tokens so they can be concatenated with the base args.
 GATE_CONTROLS_FLAT = [
@@ -106,7 +109,7 @@ def _stub_env():
     return base, str(model), str(repo), str(kv), str(build)
 
 
-def _dry_run(extra, *, omit=()):
+def _dry_run(extra, *, omit=(), env=None):
     base, model, repo, kv, build = _stub_env()
     argv = []
     for flag, value in zip(BASE_ARGS[::2], BASE_ARGS[1::2]):
@@ -114,7 +117,7 @@ def _dry_run(extra, *, omit=()):
             argv += [flag, value.format(model=model, kv=kv, build=build, repo=repo)]
     res = subprocess.run(
         ["bash", str(START_MEI), *argv, *extra, "--dry-run"],
-        capture_output=True, text=True, timeout=30,
+        capture_output=True, text=True, timeout=30, env=env,
     )
     return base, res
 
@@ -257,6 +260,107 @@ class StartMeiServerForwardingTests(unittest.TestCase):
                 self.assertFalse((base / "build").exists())
 
 
+class FusedGateUpEnvironmentTests(unittest.TestCase):
+    """Child-only env forwarding, with no Swift, model, server or endpoint.
+
+    The non-dry-run path uses inert shell recorders in place of the build,
+    metallib helper and executable. Nothing listens or performs inference.
+    """
+
+    def test_absent_option_injects_no_environment_or_mei_flag(self):
+        env = os.environ.copy()
+        env.pop(FUSED_CACHE_ENV, None)
+        base, res = _dry_run([], env=env)
+        self.addCleanup(shutil.rmtree, base)
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertNotIn(FUSED_CACHE_ENV, res.stdout)
+        self.assertNotIn(FUSED_CACHE_FLAG, _launch_argv(res))
+        self.assertNotEqual(_launch_argv(res)[0], "env")
+
+    def test_explicit_zero_and_nonnegative_integers_are_visible_not_mei_flags(self):
+        for value in ("0", "000", "536870912", "9223372036854775807"):
+            with self.subTest(value=value):
+                base, res = _dry_run([FUSED_CACHE_FLAG, value])
+                self.addCleanup(shutil.rmtree, base)
+                self.assertEqual(res.returncode, 0, res.stderr)
+                argv = _launch_argv(res)
+                self.assertEqual(argv[:2], ["env", f"{FUSED_CACHE_ENV}={value}"])
+                self.assertEqual(argv[2], str(base / "build" / "release" / "mei"))
+                self.assertNotIn(FUSED_CACHE_FLAG, argv)
+                self.assertFalse((base / "build").exists())
+                self.assertNotIn("building", res.stdout)
+
+    def test_invalid_values_fail_closed_before_build_or_launch(self):
+        for value in ("", "-1", "+1", "0.0", "1e3", "true", "false", "null",
+                      " 0", "0 ", "0\n", "0x0", "１２", "1;exit 0",
+                      "9223372036854775808", "9" * 100):
+            with self.subTest(value=value):
+                base, res = _dry_run([FUSED_CACHE_FLAG, value])
+                self.addCleanup(shutil.rmtree, base)
+                self.assertEqual(res.returncode, 2, res.stdout + res.stderr)
+                self.assertIn(f"{FUSED_CACHE_FLAG} must be a nonnegative integer", res.stderr)
+                self.assertNotIn("mei isolated launch:", res.stdout)
+                self.assertFalse((base / "build").exists())
+
+    def test_missing_value_is_rejected(self):
+        base, res = _dry_run([FUSED_CACHE_FLAG])
+        self.addCleanup(shutil.rmtree, base)
+        self.assertEqual(res.returncode, 2, res.stdout + res.stderr)
+        self.assertIn(f"{FUSED_CACHE_FLAG} must be a nonnegative integer", res.stderr)
+
+    def test_launch_env_is_child_only_and_absent_option_preserves_inheritance(self):
+        for inherited, selected in ((None, None), (None, "0"), ("123", None), ("123", "0")):
+            with self.subTest(inherited=inherited, selected=selected):
+                base, model, repo, kv, build = _stub_env()
+                self.addCleanup(shutil.rmtree, base)
+                scripts = Path(repo) / "scripts"
+                scripts.mkdir()
+                # These scripts only print their environment/argv and exit.
+                recorder = (
+                    '#!/bin/bash\n'
+                    f'printf "recorder env: %s\\n" "${{{FUSED_CACHE_ENV}-unset}}"\n'
+                    'printf "recorder argv: "; printf "%q " "$@"; printf "\\n"\n'
+                )
+                swift = base / "record-build"
+                swift.write_text(recorder)
+                swift.chmod(0o755)
+                (scripts / "prepare_metallib.sh").write_text(recorder)
+                binary = Path(build) / "release" / "mei"
+                binary.parent.mkdir(parents=True)
+                binary.write_text(recorder)
+                binary.chmod(0o755)
+                runtime = base / "runtime"
+                env = os.environ.copy()
+                env.pop(FUSED_CACHE_ENV, None)
+                if inherited is not None:
+                    env[FUSED_CACHE_ENV] = inherited
+                env["MEI_SWIFT"] = str(swift)
+                before = env.copy()
+                argv = [a.format(model=model, kv=kv, build=build, repo=repo) for a in BASE_ARGS]
+                # No listener is created; port 0 avoids checking a model port.
+                argv[argv.index("--port") + 1] = "0"
+                extra = [] if selected is None else [FUSED_CACHE_FLAG, selected]
+                res = subprocess.run(
+                    ["bash", str(START_MEI), *argv, "--runtime-base", str(runtime), *extra],
+                    capture_output=True, text=True, timeout=30, env=env)
+                self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+                effective = selected if selected is not None else inherited
+                self.assertIn(f"recorder env: {effective or 'unset'}\n",
+                              (runtime / "logs" / "server.log").read_text())
+                helper_env = f"recorder env: {inherited or 'unset'}\n"
+                self.assertIn(helper_env, (runtime / "logs" / "build.log").read_text())
+                self.assertIn(helper_env, res.stdout)  # metallib helper
+                self.assertNotIn(FUSED_CACHE_FLAG, (runtime / "logs" / "server.log").read_text())
+                self.assertEqual(env, before)
+                self.assertFalse((runtime / "server.pid").exists())
+                launch = _launch_argv(res)
+                if selected is None:
+                    self.assertEqual(launch[0], str(binary))
+                    self.assertNotIn(FUSED_CACHE_ENV, res.stdout)
+                else:
+                    self.assertEqual(launch[:3], ["env", f"{FUSED_CACHE_ENV}={selected}", str(binary)])
+
+
 class MeiConfigDryRunTests(unittest.TestCase):
     """Real config -> wrapper -> exact argv, with metadata-only path fixtures.
 
@@ -275,8 +379,17 @@ class MeiConfigDryRunTests(unittest.TestCase):
         command = shlex.split(cfg["benchmark_launch_command"].replace("\\\n", " "))
         wrapper = command.index("runner/start_mei_server.sh")
         self.assertEqual(command[wrapper - 1], "bash")
-        # Drop, never execute, config-specific env prefixes. The wrapper is
-        # exercised directly with unchanged non-path options and --dry-run.
+        # Apply only literal env assignments; never execute a shell prefix.
+        # Existing research configs' inherited settings must remain intact.
+        env = os.environ.copy()
+        env.pop(FUSED_CACHE_ENV, None)
+        prefix = command[:wrapper - 1]
+        if prefix:
+            self.assertEqual(prefix[0], "env")
+            for assignment in prefix[1:]:
+                key, separator, value = assignment.partition("=")
+                self.assertEqual(separator, "=")
+                env[key] = value
         args = command[wrapper + 1:]
         for flag, value in paths.items():
             if flag in args:
@@ -292,7 +405,7 @@ class MeiConfigDryRunTests(unittest.TestCase):
                 "#!/bin/bash\nprintf 'override guard: '; printf '%q ' \"$@\"; printf '\\n'\n")
         before = {p.relative_to(base) for p in base.rglob("*")}
         res = subprocess.run(["bash", str(START_MEI), *args, "--dry-run"],
-                             capture_output=True, text=True, timeout=30)
+                             capture_output=True, text=True, timeout=30, env=env)
         self.assertEqual(res.returncode, 0, res.stderr)
         self.assertEqual({p.relative_to(base) for p in base.rglob("*")}, before)
         self.assertFalse(Path(build).exists())
@@ -303,6 +416,7 @@ class MeiConfigDryRunTests(unittest.TestCase):
         config = REPO / "configs" / "LiquidAI-LFM2.5-24B-A2B-MLX-4bit" / "mei.yaml"
         res, paths = self._config_dry_run(yaml.safe_load(config.read_text()))
         self.assertEqual(_launch_argv(res), [
+            "env", f"{FUSED_CACHE_ENV}=0",
             str(Path(paths["--build-dir"]) / "release" / "mei"),
             "--model-dir", paths["--model-dir"],
             "--served-model-id", "LiquidAI/LFM2.5-24B-A2B-MLX-4bit",
@@ -320,16 +434,21 @@ class MeiConfigDryRunTests(unittest.TestCase):
             f"--build-dir {paths['--build-dir']} --dry-run", res.stdout)
 
     def test_other_mei_configs_keep_explicit_values_and_absent_defaults(self):
-        configs = [p for p in sorted((REPO / "configs").glob("*/mei.yaml"))
-                   if p.parent.name != "LiquidAI-LFM2.5-24B-A2B-MLX-4bit"]
+        configs = [(p, cfg) for p in sorted((REPO / "configs").glob("*/*.yaml"))
+                   if p.parent.name != "LiquidAI-LFM2.5-24B-A2B-MLX-4bit"
+                   and "runner/start_mei_server.sh" in
+                   (cfg := yaml.safe_load(p.read_text())).get("benchmark_launch_command", "")]
         self.assertTrue(configs)
         saw_absent = set()
-        for path in configs:
+        for path, cfg in configs:
             with self.subTest(config=str(path.relative_to(REPO))):
-                cfg = yaml.safe_load(path.read_text())
                 command = shlex.split(cfg["benchmark_launch_command"].replace("\\\n", " "))
                 res, _ = self._config_dry_run(cfg)
                 argv = _launch_argv(res)
+                self.assertNotIn(FUSED_CACHE_FLAG, command)
+                self.assertNotIn("fused_gate_up_cache_limit_bytes", cfg)
+                self.assertNotIn(FUSED_CACHE_ENV, res.stdout)
+                self.assertNotEqual(argv[0], "env")
                 for flag in ("--prefill-step-size", "--memory-limit-bytes", "--max-tokens",
                              "--model-profile", "--load-mmap", "--repetition-penalty"):
                     if flag in command:

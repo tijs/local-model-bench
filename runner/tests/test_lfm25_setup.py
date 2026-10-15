@@ -42,6 +42,8 @@ class LFM25ConfigTests(unittest.TestCase):
         self.assertEqual(c["hermes_ops_max_tokens"], 4096)
         self.assertEqual(c["prefill_step_size"], 512)
         self.assertEqual(c["memory_limit_bytes"], 32000000000)
+        self.assertIs(type(c["fused_gate_up_cache_limit_bytes"]), int)
+        self.assertEqual(c["fused_gate_up_cache_limit_bytes"], 0)
         self.assertEqual(c["runtime_tuning_status"], "experimental-unmeasured")
         self.assertEqual(c["generation_profiles"]["vendor"], {
             "temperature": 0.1, "top_k": 50, "top_p": 0.0, "min_p": 0,
@@ -55,6 +57,7 @@ class LFM25ConfigTests(unittest.TestCase):
                             "--model-profile": "lfm2.5-24b-a2b",
                             "--prefill-step-size": str(c["prefill_step_size"]),
                             "--memory-limit-bytes": str(c["memory_limit_bytes"]),
+                            "--fused-gate-up-cache-limit-bytes": "0",
                             "--cache-reuse": "true", "--min-p": "0",
                             "--load-mmap": "false"}.items():
             self.assertEqual(argv[argv.index(flag) + 1], value)
@@ -99,7 +102,7 @@ class LFM25ConfigTests(unittest.TestCase):
         self.assertIs(type(self.cfg["prefill_step_size"]), int)
         self.assertIs(type(self.cfg["memory_limit_bytes"]), int)
         current_hash = hashlib.sha256(CONFIG.read_bytes()).hexdigest()[:12]
-        self.assertNotIn(current_hash, ("0fb346ed9077", "a4be8e840181"))
+        self.assertNotIn(current_hash, ("0fb346ed9077", "a4be8e840181", "e4f67e0554e2"))
         settings = {s["name"]: s for s in self.cfg["settings"]}
         for name in ("prefill_chunking", "memory_limit"):
             with self.subTest(setting=name):
@@ -112,6 +115,21 @@ class LFM25ConfigTests(unittest.TestCase):
         self.assertIn("not proven safe or optimal", settings["memory_limit"]["value"])
         self.assertIn("Engine.swift", settings["memory_limit"]["source"])
         self.assertIn("docs/BENCHMARKING.md", settings["memory_limit"]["source"])
+
+    def test_fused_cache_candidate_is_explicit_child_only_and_unmeasured(self):
+        setting = next(s for s in self.cfg["settings"]
+                       if s["name"] == "fused_gate_up_cache_limit")
+        self.assertIn("EXPERIMENTAL/UNMEASURED", setting["value"])
+        self.assertIn("VMLX_FUSED_GATE_UP_CACHE_LIMIT_BYTES=0", setting["value"])
+        self.assertIn("e4f67e0554e2", setting["value"])
+        self.assertIn("512 MiB per layer", setting["value"])
+        self.assertIn("SwitchLayers.swift", setting["source"])
+        self.assertIn("LFM2MoE.swift", setting["source"])
+        argv = acceptance.split_launch_command(self.cfg["benchmark_launch_command"])
+        self.assertEqual(argv[:2], ["bash", "runner/start_mei_server.sh"])
+        self.assertEqual(argv.count("--fused-gate-up-cache-limit-bytes"), 1)
+        # The wrapper, not an outer shell/global export, owns the assignment.
+        self.assertNotIn("VMLX_FUSED_GATE_UP_CACHE_LIMIT_BYTES=0", argv)
 
     def test_tracked_staging_provenance_pins_integrity_not_loadability(self):
         c = self.cfg

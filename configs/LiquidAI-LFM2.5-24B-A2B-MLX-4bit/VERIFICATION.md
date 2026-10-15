@@ -8,7 +8,106 @@ provisioning after the initial checks are recorded below; they were not test
 side effects. This repository-only follow-up reads that evidence and updates
 config/provenance/runtime wiring without altering model or profile files.
 
-## Runtime candidate: experimental/unmeasured (current gate status)
+## Fusion-cache opt-out: experimental/unmeasured (current candidate)
+
+This repository-only change is isolated at
+`/Users/tijs/projects/local-model-bench-lfm25-fused-cache-off`, branch
+`work/lfm25-fused-cache-off-20261015`, based exactly on
+**`8fe45d2d6d5fc1e74aad881b93108ac20d8aaea3`**. The original results-dirty
+worktree and the prior clean memory-tuning worktree remain untouched.
+
+The only execution delta from config **`e4f67e0554e2`** is
+`--fused-gate-up-cache-limit-bytes 0`. The wrapper emits and executes the same
+shell-quoted vector, beginning:
+
+```text
+env VMLX_FUSED_GATE_UP_CACHE_LIMIT_BYTES=0 /Users/tijs/projects/mei-lfm25/.build/release/mei
+```
+
+It sets the variable only for the executable, not globally or during source
+selection, build or metallib preparation. Omission preserves the old direct
+launch and inherited environment, including existing outer-env research configs.
+Validation accepts unsigned decimal integers including zero and leading zeros,
+up to `9223372036854775807`; rejects missing/empty, signed, fractional,
+boolean/null-like, whitespace, shell-expression and overflowing input before
+any build/launch; and forwards the original valid token without normalization.
+The range check prevents Swift `Int` parse failure silently restoring fusion.
+
+Read-only source verification found clean vMLX HEAD
+`22969e9555b5e86df862e43e3d7356575d3dd053` and clean Mei HEAD
+`57d87f52c3ce5b605882d06a8acf36def3bc27e7`:
+
+- `Libraries/MLXLMCommon/SwitchLayers.swift:249-258,291-369`: fusion enabled by
+  default; first-forward concat materialization and retained banks; env parsed
+  as `Int`; byte guard skips nonempty banks at zero; default **512 MiB per layer**.
+- `Libraries/MLXLLM/Models/LFM2MoE.swift:293-298`: LFM constructs `SwitchGLU`
+  without disabling fusion. No vMLX/Mei source or default is changed here.
+
+This predicts avoiding duplicate banks, **not measured savings, a safe fix,
+numerical/tool parity or performance**. Unfused projections may be slower.
+Preserved controls: vendor sampler, 65536 context, 4096 output, connect300,
+prefill512, allocator32000000000, cache-reuse true, mmap=false, and all model/
+source/build/runtime/profile identities. No cache/evidence deletion is involved.
+
+Current config SHA-256:
+**`137b34e01f9fe955487a910bf0446b752397b5b8631db4e6fb6c48fda2634b78`**
+(short identity **`137b34e01f9f`**). Keep e4 and all older attempts separate;
+no result snapshot or ledger row is created for this candidate.
+
+The real-path config launcher `--dry-run` exited **0**, displayed the exact env
+assignment and unchanged flags, and printed SwiftPM selection as **not applied**.
+It did not compile, invoke Mei, load weights, write runtime logs, or call an
+endpoint. Its output is retained outside Git at
+`/Users/tijs/.hermes/cache/scratch/lfm25-fused-cache-off-dry-run.log`.
+
+### Executed model-free checks for fusion-cache forwarding
+
+```bash
+env -u PYTHONPATH -u PYTHONHOME TMPDIR=/Users/tijs/.hermes/cache/scratch \
+  uv run --locked --offline python -m unittest runner.tests.test_lfm25_setup \
+  runner.tests.test_start_mei_server_sh runner.tests.test_mei_runtime \
+  runner.tests.test_run_bench runner.tests.test_run_prompt_suite \
+  runner.tests.test_bench_common -v
+# exit 0: 80 tests, 0 failures/errors/skips.
+bash -n runner/start_mei_server.sh runner/stop_mei_server.sh
+git diff --check
+# both exit 0.
+```
+
+The same **80 tests passed** a replay with Python audit hooks denying socket
+bind, connect and DNS. Two new regression checks first failed **2/2 as expected**
+against unchanged e4 (unknown option, missing launch env), then passed with the
+implementation. No broad discovery or HTTP-fixture suite was run.
+
+Coverage includes absence/default no injection, explicit zero, nonnegative/
+leading-zero/Int-max values, invalid/missing/overflow rejection, and exact real
+LFM config-to-dry-run argv. Inert shell recorders exercise the actual non-dry-run
+launch boundary: only the executable receives explicit zero; build/metallib
+helpers retain the original environment; absent options preserve inherited
+values. These are explicit test replacements, not a Swift build or Mei server.
+Metadata-only dry-runs also pass for all **51 other wrapper configs**, including
+research variants and their existing outer-env settings, with no new option,
+injected default, or path writes.
+
+A parsed base comparison confirms only `benchmark_launch_command`,
+`fused_gate_up_cache_limit_bytes`, `settings` and `known_gaps` differ; deleting
+the single new option/value pair restores the **exact e4 launch argv**. All
+previous settings and known gaps are preserved. All **123 other tracked config
+YAML files** are byte-identical to base. Results, tasks, fixtures, checks,
+staging/pre-load/profile evidence and manifests/lockfile are unchanged. SHA-256
+readback confirms the original worktree's **six** dirty/untracked result files,
+Git status and binary diff are unchanged; the prior memory-tuning worktree
+remains clean at the original base. Only the six files in this change are edited.
+
+### Current live gates remain pending
+
+No model/server/endpoint/acceptance/benchmark activity is part of this change.
+Before any separately authorized load, require a fresh sustained resource
+gate, bounded admission and an isolated chain-task/resource review before a full
+retry. Preserve all older evidence, normal sanity/speed gates and the 10 GiB
+disk reserve; no claim of completion or memory safety follows from offline tests.
+
+## Prefill/allocator candidate (historical e4 model-free verification)
 
 This follow-up is isolated at
 `/Users/tijs/projects/local-model-bench-lfm25-mem-tune`, branch

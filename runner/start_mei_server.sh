@@ -51,6 +51,14 @@ Options:
   --cache-limit-bytes N     MLX buffer-pool cache limit in bytes
                             (default: none -> not passed; Mei default 0 = use
                             the default limit)
+  --fused-gate-up-cache-limit-bytes N
+                            Per-layer vMLX gate/up fusion-cache limit, a
+                            nonnegative integer (0 disables nonempty caches).
+                            Sets VMLX_FUSED_GATE_UP_CACHE_LIMIT_BYTES only for
+                            the Mei executable, not build/helper processes.
+                            Default: no override; inherited env/vMLX defaults
+                            unchanged. Experimental LFM memory-relief control,
+                            distinct from the MLX buffer-pool/KV cache limits.
   --log-requests BOOL  Mei's own per-request stdout logging (prompt token
                        counts, and on research builds the chosen adaptive
                        stable boundary). Distinct from --request-log, which
@@ -102,6 +110,7 @@ KV_CACHE_DIR=""
 MODEL_PROFILE=""
 MEMORY_LIMIT_BYTES=""
 CACHE_LIMIT_BYTES=""
+FUSED_GATE_UP_CACHE_LIMIT_BYTES=""
 COMPILED_DECODE=""
 LOAD_MMAP=""
 SSM_ANCHOR_BOUNDARIES=""
@@ -136,6 +145,22 @@ while [[ $# -gt 0 ]]; do
     --model-profile) MODEL_PROFILE="${2:?missing value}"; shift 2 ;;
     --memory-limit-bytes) MEMORY_LIMIT_BYTES="${2:?missing value}"; shift 2 ;;
     --cache-limit-bytes) CACHE_LIMIT_BYTES="${2:?missing value}"; shift 2 ;;
+    --fused-gate-up-cache-limit-bytes)
+      FUSED_GATE_UP_CACHE_LIMIT_BYTES="${2-}"
+      # Match unsigned decimal digits only, including explicit 0. Compare the
+      # significant digits as text to avoid shell overflow; vMLX parses Int64
+      # on this platform and silently falls back to its default on overflow.
+      if [[ ! "$FUSED_GATE_UP_CACHE_LIMIT_BYTES" =~ ^0*([1-9][0-9]*|0)$ ]]; then
+        echo "FATAL: --fused-gate-up-cache-limit-bytes must be a nonnegative integer (0..9223372036854775807)" >&2
+        exit 2
+      fi
+      FUSED_CACHE_DIGITS="${BASH_REMATCH[1]}"
+      if (( ${#FUSED_CACHE_DIGITS} > 19 )) ||
+          { (( ${#FUSED_CACHE_DIGITS} == 19 )) && [[ "$FUSED_CACHE_DIGITS" > 9223372036854775807 ]]; }; then
+        echo "FATAL: --fused-gate-up-cache-limit-bytes must be a nonnegative integer (0..9223372036854775807)" >&2
+        exit 2
+      fi
+      shift 2 ;;
     --compiled-decode) COMPILED_DECODE="${2:?missing value}"; shift 2 ;;
     --load-mmap) LOAD_MMAP="${2:?missing value}"; shift 2 ;;
     --ssm-anchor-boundaries) SSM_ANCHOR_BOUNDARIES="${2:?missing value}"; shift 2 ;;
@@ -239,10 +264,19 @@ ARGS=(--model-dir "$MODEL_DIR" --served-model-id "$SERVED_MODEL_ID"
 # across runs to get a distribution.
 [[ -n "$SEED" ]] && ARGS+=(--seed "$SEED")
 
+# Only this executable receives an explicit fusion-cache override. Do not
+# export it into SwiftPM, source-selection/metallib helpers or the caller.
+# Omission preserves the old direct launch, including any inherited env.
+LAUNCH_COMMAND=("$BIN" "${ARGS[@]}")
+if [[ -n "$FUSED_GATE_UP_CACHE_LIMIT_BYTES" ]]; then
+  LAUNCH_COMMAND=(env "VMLX_FUSED_GATE_UP_CACHE_LIMIT_BYTES=$FUSED_GATE_UP_CACHE_LIMIT_BYTES"
+    "${LAUNCH_COMMAND[@]}")
+fi
+
 printf 'mei isolated runtime: %q (pid: %q; logs: %q)\n' \
   "$RUNTIME_BASE" "$RUNTIME_BASE/server.pid" "$RUNTIME_BASE/logs"
 printf 'mei isolated launch: '
-printf '%q ' "$BIN" "${ARGS[@]}"
+printf '%q ' "${LAUNCH_COMMAND[@]}"
 printf '\n'
 if (( DRY_RUN )); then
   exit 0
@@ -267,7 +301,7 @@ fi
 MEI_VMLX_CHECKOUT="${VMLX_REPO:-$BUILD_DIR/checkouts/vmlx-swift}" \
   bash "$MEI_REPO/scripts/prepare_metallib.sh" "$BUILD_DIR/release" || { echo "FATAL: missing Metal kernel library" >&2; exit 1; }
 
-"$BIN" "${ARGS[@]}" >> "$LOG_DIR/server.log" 2>&1 &
+"${LAUNCH_COMMAND[@]}" >> "$LOG_DIR/server.log" 2>&1 &
 SERVER_PID=$!
 printf '%s\n' "$SERVER_PID" > "$PID_FILE"
 trap 'rm -f "$PID_FILE"' EXIT INT TERM

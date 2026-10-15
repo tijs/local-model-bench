@@ -6,7 +6,51 @@ This lane uses the official MLX artifact at
 establish loadability, tool correctness, useful speed, or benchmark results.
 No model or Hermes profile is installed by these tests.
 
-## Current runtime candidate: experimental and unmeasured
+## Current memory-relief candidate: fusion cache off (experimental/unmeasured)
+
+The only execution change from **`e4f67e0554e2`** is
+**`--fused-gate-up-cache-limit-bytes 0`** in this LFM config's launch command.
+Matching top-level `fused_gate_up_cache_limit_bytes: 0` is provenance metadata,
+not an automatic override. The wrapper translates the CLI option into:
+
+```text
+env VMLX_FUSED_GATE_UP_CACHE_LIMIT_BYTES=0 /Users/tijs/projects/mei-lfm25/.build/release/mei
+```
+
+This is the start of the exact launch vector printed in both `--dry-run` and
+startup output, followed by the unchanged Mei flags. The assignment applies
+**only to the Mei executable**, not SwiftPM, source-selection/metallib helpers,
+the caller's environment, or any other config. The optional wrapper argument
+is **not a Mei CLI flag**. Omitting it preserves the original launch and any
+inherited environment; no default is injected or cleared. Existing configs
+that already use outer `env` assignments retain those assignments unchanged.
+
+The wrapper accepts only nonnegative decimal integers, **including zero**,
+within Swift's signed 64-bit `Int` range (`0..9223372036854775807`). Missing,
+empty, signed, fractional, boolean/null-like, whitespace, shell-expression and
+overflow values fail closed before build or launch. Leading zeros are accepted
+and forwarded literally. Do not confuse this per-layer fusion cache with
+`--cache-limit-bytes` (MLX buffer pool) or KV/prefix reuse.
+
+Pinned vMLX `SwitchLayers.swift:291-369` lazily concatenates and retains
+quantized gate/up weights/scales/biases on first forward. Its default is
+**512 MiB per layer**, not a global memory bound; zero skips every nonempty
+concat cache. `LFM2MoE.swift:293-298` constructs `SwitchGLU` with default fusion
+enabled. Both sources are at `22969e9555b5e86df862e43e3d7356575d3dd053`.
+Avoiding retained duplicate banks is a source-backed hypothesis, **not measured
+memory savings, a safe fix, numerical/tool parity, or a speedup**; unfused
+projections may reduce decode speed.
+
+Config identity is now **`137b34e01f9f`**; keep it separate from e4 and every
+earlier partial attempt. Prefill **512**, allocator **32000000000 bytes**,
+cache reuse **true**, **mmap=false**, vendor sampler, context/output/connect
+budgets and all source/build/runtime/artifact pins remain unchanged. No model
+or server is launched and no endpoint, acceptance or benchmark is run by this
+follow-up. A future authorized load still requires a fresh sustained resource
+gate, bounded native admission and isolated chain-task/resource review before
+considering the full battery. See `VERIFICATION.md` for executed offline checks.
+
+## Inherited prefill/allocator candidate (unchanged)
 
 `mei.yaml` now explicitly requests **`--prefill-step-size 512`** and
 **`--memory-limit-bytes 32000000000`**. Top-level `prefill_step_size`,
@@ -266,6 +310,10 @@ bash -n runner/start_mei_server.sh runner/stop_mei_server.sh
 git diff --check
 ```
 
-These focused suites use mocks and wrapper dry-runs only; no HTTP fixture
-server or live endpoint is needed. Do not substitute broad discovery for this
-restricted check: some adjacent suites start loopback HTTP fixtures.
+These focused suites use mocks, metadata-only wrapper dry-runs and inert shell
+recorders replacing the build, metallib helper and executable. The recorders
+prove actual child-environment forwarding without Swift, Mei, a model, a
+listener or endpoint calls. Dry-runs cover all other wrapper configs, including
+research variants and their inherited env prefixes. Do not substitute broad
+discovery for this restricted check: some adjacent suites start loopback HTTP
+fixtures.
