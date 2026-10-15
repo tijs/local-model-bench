@@ -52,6 +52,15 @@ benchmark_launch_command: |
     --model LiquidAI/LFM2.5-2.6B-MLX-bf16 \
     --host 127.0.0.1 --port 8012 --max-request-tokens 4096 --max-tokens 4096
 
+# OPTIONAL, Mei only — top-level, not in orchestration. Set this AND the
+# identical --runtime-base path in benchmark_launch_command to isolate logs
+# and server.pid. Both run_bench.py stop calls and run_mei_acceptance.py cleanup
+# pass it to stop_mei_server.sh. Use an absolute path (~/path also accepted;
+# shell variables are not expanded here). Omit the field to preserve existing
+# stop-script environment/default behavior. Explicit null/empty/relative paths
+# are rejected rather than falling back to a shared historical runtime.
+# mei_runtime_base: /absolute/path/to/dedicated-mei-runtime
+
 system_prompt_suffix: null   # optional — a model-specific operating
   # instruction appended (never replacing) the suite's fixed system prompt,
   # e.g. Muse-Glimmer's "Reasoning strength: high". NOT a way to hint at
@@ -114,8 +123,8 @@ hermes_ops_generation_profile: capability  # OPTIONAL — which profile the
 coding_reasoning_effort: xhigh   # validated against the vocabulary above;
   # an unknown level fails the run before any task launches.
 
-# Machine-readable — this is what runner/run_bench.py actually reads to
-# drive a run. Everything else in this file is human-facing documentation.
+# Machine-readable orchestration controls for runner/run_bench.py. Top-level
+# generation-policy fields and mei_runtime_base above are also consumed.
 orchestration:
   raw_port: 8012          # port benchmark_launch_command binds to; null for
                            # a hosted/API model with no local server at all

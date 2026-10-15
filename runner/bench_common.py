@@ -33,6 +33,25 @@ def resolve_hermes_profile(value: object = "bench") -> str:
         raise ValueError("hermes_profile must name an isolated profile (not default, null, or a path)")
     return value
 
+
+def mei_stop_command(cfg: dict, repo: Path) -> list[str]:
+    """Stop the same Mei runtime selected by the config, not a shared PID file.
+
+    Omission preserves stop_mei_server.sh's existing environment/default path.
+    An explicit invalid value must never silently fall back to that path.
+    Launch commands must carry the matching --runtime-base (see configs/README.md).
+    """
+    command = ["bash", str(repo / "runner" / "stop_mei_server.sh")]
+    if "mei_runtime_base" in cfg:
+        raw = cfg["mei_runtime_base"]
+        if not isinstance(raw, str) or not raw.strip():
+            raise ValueError("mei_runtime_base must be a non-empty absolute path")
+        runtime_base = Path(raw).expanduser()
+        if not runtime_base.is_absolute():
+            raise ValueError("mei_runtime_base must be an absolute path (or ~/path)")
+        command += ["--runtime-base", str(runtime_base)]
+    return command
+
 # Added 2026-08-22 (methodology review, finding F5): PASS carried no
 # latency signal at all — a task that took 3135s scored identically to
 # one that took 4.8s, and 5 hermes_ops rows already exceeded the suite's

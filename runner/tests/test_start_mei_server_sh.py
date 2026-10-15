@@ -25,6 +25,7 @@ config keeps Mei's own default exactly as before.
 
 Run: uv run --locked python -m unittest discover -s runner/tests -v
 """
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -113,6 +114,28 @@ def _dry_run(extra):
 
 
 class StartMeiServerForwardingTests(unittest.TestCase):
+    def test_dry_run_reports_runtime_override_without_creating_it(self):
+        base, model, repo, kv, build = _stub_env()
+        self.addCleanup(shutil.rmtree, base)
+        runtime = base / "runtime-lfm25"
+        argv = [a.format(model=model, kv=kv, build=build, repo=repo) for a in BASE_ARGS]
+        res = subprocess.run(
+            ["bash", str(START_MEI), *argv, "--runtime-base", str(runtime), "--dry-run"],
+            capture_output=True, text=True)
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertIn(f"mei isolated runtime: {runtime}", res.stdout)
+        self.assertIn(f"pid: {runtime / 'server.pid'}", res.stdout)
+        self.assertIn(f"logs: {runtime / 'logs'}", res.stdout)
+        self.assertFalse(runtime.exists())
+        self.assertFalse(Path(build).exists())
+
+    def test_dry_run_without_override_reports_unchanged_default_runtime(self):
+        base, res = _dry_run([])
+        self.addCleanup(shutil.rmtree, base)
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertIn(f"mei isolated runtime: {Path.home() / '.local/share/local-model-bench/mei-runtime'}",
+                      res.stdout)
+
     def test_local_vmlx_requires_path_and_revision_together(self):
         for extra in (["--vmlx-repo", "/not-used"],
                       ["--vmlx-revision", "a" * 40]):

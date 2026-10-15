@@ -23,6 +23,8 @@ from typing import Any
 
 import yaml
 
+from bench_common import mei_stop_command
+
 REPO = Path(__file__).resolve().parent.parent
 MEI_MODEL_ROOT = Path("~/.local/share/local-model-bench/mei-models").expanduser()
 
@@ -60,6 +62,9 @@ def run_config(config_path: Path, args: argparse.Namespace) -> dict[str, Any]:
     if cfg.get("inference_engine") != "mei" or not model:
         raise ValueError(f"not a Mei served-model config: {config_path}")
 
+    # Resolve before launching: an invalid explicit override must not fall
+    # back to the historical shared PID file during cleanup.
+    stop_command = mei_stop_command(cfg, REPO)
     command = split_launch_command(str(cfg["benchmark_launch_command"]))
     base_url = str(cfg.get("benchmark_endpoint", "http://127.0.0.1:8024/v1"))
     # The launch command's --model-dir is the authoritative tokenizer/model
@@ -124,7 +129,7 @@ def run_config(config_path: Path, args: argparse.Namespace) -> dict[str, Any]:
         # file, turning stop_mei_server.sh into a no-op and ORPHANING the Mei
         # server (observed live: leaked ~19-24 GB Metal heaps per run).
         subprocess.run(
-            ["bash", str(REPO / "runner" / "stop_mei_server.sh")], capture_output=True, text=True)
+            stop_command, capture_output=True, text=True)
         if process is not None:
             process.terminate()
             try:

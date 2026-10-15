@@ -94,7 +94,7 @@ from statistics import mean
 
 import yaml
 
-from bench_common import BACKEND_HEALTH_TIMEOUT_SECONDS, MIN_FREE_DISK_GB_BEFORE_LAUNCH, MIN_HERMES_OPS_TOKENS_PER_SECOND, resolve_hermes_profile
+from bench_common import BACKEND_HEALTH_TIMEOUT_SECONDS, MIN_FREE_DISK_GB_BEFORE_LAUNCH, MIN_HERMES_OPS_TOKENS_PER_SECOND, mei_stop_command, resolve_hermes_profile
 
 REPO = Path(__file__).resolve().parent.parent
 CODING_SPOTCHECK_SUITE = "kiem_mini"
@@ -526,7 +526,7 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
     if raw_port is not None:
         if cfg.get("inference_engine") == "mei":
             print("\n--- stop any prior isolated Mei server ---")
-            run(["bash", str(REPO / "runner" / "stop_mei_server.sh")])
+            run(mei_stop_command(cfg, REPO))
         print("\n--- unload any existing candidate backend ---")
         run(["bash", str(REPO / "runner" / "unload_all.sh")])
 
@@ -759,7 +759,7 @@ def run_one(config_path: Path, trials: int = 1, coding_suites=None, stage="all",
         except (OSError, yaml.YAMLError):
             cfg = {}
         if cfg.get("inference_engine") == "mei":
-            run(["bash", str(REPO / "runner" / "stop_mei_server.sh")])
+            run(mei_stop_command(cfg, REPO))
 
 
 def _leaderboard():

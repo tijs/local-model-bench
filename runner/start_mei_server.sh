@@ -239,6 +239,8 @@ ARGS=(--model-dir "$MODEL_DIR" --served-model-id "$SERVED_MODEL_ID"
 # across runs to get a distribution.
 [[ -n "$SEED" ]] && ARGS+=(--seed "$SEED")
 
+printf 'mei isolated runtime: %q (pid: %q; logs: %q)\n' \
+  "$RUNTIME_BASE" "$RUNTIME_BASE/server.pid" "$RUNTIME_BASE/logs"
 printf 'mei isolated launch: '
 printf '%q ' "$BIN" "${ARGS[@]}"
 printf '\n'

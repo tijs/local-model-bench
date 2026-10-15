@@ -20,9 +20,49 @@ provenance. A wrong revision or dirty tree fails before compilation/launch.
 The public `633fe166` lockfile pin remains the normal Mei default. It lacks the
 router fix and must not be mistaken for this lane's effective dependency.
 Keep `mei_commit`, `mei_source_commit`, launch argv and provenance notes in sync
-when promoting these worktrees. A release build and byte-level binary/metallib
-identity are still required before admission; the tested Swift debug executable
-is not a release-performance claim.
+when promoting these worktrees. The release build and byte-level binary/metallib
+identity are now verified in `VERIFICATION.md`; neither that build nor the
+historical debug executable establishes model loadability or performance.
+
+## Staged artifact and isolated runtime
+
+The authorized pinned artifact is **staged-complete, loadability-pending**.
+`staging-provenance.json` is a tracked metadata-only record of all **12 files**,
+including the **3 weight shards / 13,567,294,335 bytes**, their SHA-256 matches
+against pinned Hub LFS metadata, and the container/index verification. Weights
+and machine-local staging sidecars remain outside Git. No model load, canary,
+or benchmark result is claimed.
+
+The read-only dtype-alignment audit found **870/870 tensors** misaligned.
+`--load-mmap false` is explicit for this lane because the pinned mmap loader
+would allocate aligned copies for these tensors, increasing resident-storage/
+OOM risk. This is a source-backed memory-safety setting, **not vendor sampling
+or a measured optimization**. Do not repack, heal or edit the official shards;
+their original sizes and hashes remain the artifact identity. Exact per-shard
+audit and source references are in `staging-provenance.json` / `VERIFICATION.md`.
+
+The **11-sample sustained pre-load gate passed** at 15:31:16–15:35:48 UTC on
+2026-10-15: **21.151–21.546 GiB** reclaimable (10 GiB floor), zero swap, no
+inference owners and port 8029 free throughout. `preload-memory-gate.jsonl`
+preserves the original metadata-only evidence verbatim. This is a past gate,
+not a launch permit: **immediately recheck** memory/owners/disk/listener state
+before launch. Model load, canary and full-battery gates remain pending.
+
+`mei_runtime_base` and the launch command's `--runtime-base` both select:
+
+```text
+/Users/tijs/.local/share/local-model-bench/mei-runtime-lfm25
+```
+
+The wrapper writes `server.pid` there and build/server logs under its `logs/`.
+Both `run_bench.py` stop sites and `run_mei_acceptance.py` cleanup pass that same
+base to `stop_mei_server.sh`; acceptance still stops the server **before** the
+launcher wrapper. Never use or clean the historical sibling `mei-runtime` tree.
+Configs without the optional field keep the stop script's existing defaults.
+The launcher prints the selected runtime even in `--dry-run`, without creating
+it. The LFM command uses literal absolute model/build/runtime/source paths so it
+also works with acceptance's direct argv (which does not expand `$HOME`/`$PWD`).
+Commit the config and provenance before any launch.
 
 ## Isolated Hermes coding profile
 
@@ -123,17 +163,19 @@ selects every suite after normal sanity/speed gates pass. They produce **no real
 benchmark rows**. Sanity failure or the normal speed gate can still stop a real
 run; nothing here bypasses those policies. Results remain append-only.
 
-Remaining gates: recheck disk/memory headroom without further data deletion;
-explicitly authorized pinned model staging and integrity verification; release
-binary/metallib provenance; clean live admission with plain, streaming, tool,
-reasoning, multi-turn/cache and context canaries; then the full battery and
-independent row/provenance/teardown audit. Named-profile provisioning/readback
-is already verified separately, not by these tests. Do not run the remaining
-stages as part of model-free verification.
+Remaining gates: recheck clean-GPU/memory/disk headroom (10 GiB launch floor)
+without further data deletion; recheck the binary/metallib identity if the
+launcher rebuilds; clean live admission with plain, streaming, tool, reasoning,
+multi-turn/cache and context canaries; then measured tuning, the full battery,
+and independent row/provenance/teardown audit. Staging/integrity, release artifact
+provenance and named-profile provisioning/readback are complete, with no live
+inference evidence yet. Do not run the remaining stages as part of model-free
+verification.
 
 Model-free checks:
 
 ```bash
 uv run --locked python -m unittest discover -s runner/tests -p test_lfm25_setup.py -v
 uv run --locked python -m unittest discover -s runner/tests -p test_start_mei_server_sh.py -v
+uv run --locked python -m unittest discover -s runner/tests -p test_mei_runtime.py -v
 ```
