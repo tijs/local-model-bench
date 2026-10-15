@@ -43,6 +43,10 @@ repetition_penalty 1.05**, min_p 0), and explicit output budget **4096**.
 `reasoning_effort: null` supplies no invented effort level. It does not alter the
 thinking template. Generic Mei/Hermes defaults are unchanged.
 
+Even a fresh, non-cloned profile can inherit stale main-model routing defaults.
+Explicitly set `model.base_url` and `model.api_mode` to match the named provider's
+`api` and `transport`; setting only the provider leaves is not sufficient.
+
 Before a separately authorized live run, create a **fresh, non-cloned**
 `bench-lfm25` profile using `hermes profile create bench-lfm25` (do not run
 `profile use`), and apply the template's keys through
@@ -52,6 +56,8 @@ Before a separately authorized live run, create a **fresh, non-cloned**
 # Future provisioning only — NOT executed during model-free preparation.
 hermes --profile bench-lfm25 config set model.provider lfm25-mei
 hermes --profile bench-lfm25 config set model.default LiquidAI/LFM2.5-24B-A2B-MLX-4bit
+hermes --profile bench-lfm25 config set model.base_url http://127.0.0.1:8029/v1
+hermes --profile bench-lfm25 config set model.api_mode chat_completions
 hermes --profile bench-lfm25 config set model.context_length 65536
 hermes --profile bench-lfm25 config set providers.lfm25-mei.api http://127.0.0.1:8029/v1
 hermes --profile bench-lfm25 config set providers.lfm25-mei.transport chat_completions
@@ -59,8 +65,11 @@ hermes --profile bench-lfm25 config set providers.lfm25-mei.transport chat_compl
 hermes --profile bench-lfm25 config check
 ```
 
-Read back that exact named profile before a canary. No script in this preparation
-creates profiles, changes the sticky/global provider, or copies user credentials.
+Read back that exact named profile before a canary: verify `model.base_url`
+matches `providers.lfm25-mei.api` (`http://127.0.0.1:8029/v1`) and `model.api_mode`
+matches `providers.lfm25-mei.transport` (`chat_completions`). No script in this
+preparation creates profiles, changes the sticky/global provider, or copies user
+credentials.
 Provider/profile routing and sampler preservation still need a live wire canary;
 passing forwarding tests are not inference compatibility proof.
 

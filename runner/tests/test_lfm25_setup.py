@@ -67,6 +67,8 @@ class LFM25ConfigTests(unittest.TestCase):
         provider = template["providers"][orch["hermes_provider"]]
         self.assertEqual(provider["api"], c["benchmark_endpoint"])
         self.assertEqual(provider["transport"], "chat_completions")
+        self.assertEqual(template["model"]["base_url"], provider["api"])
+        self.assertEqual(template["model"]["api_mode"], provider["transport"])
         self.assertEqual(provider["default_model"], orch["served_model_id"])
         self.assertEqual(provider["context_length"], c["context_cap"])
         self.assertEqual(template["model"]["context_length"], c["context_cap"])
