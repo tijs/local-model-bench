@@ -1,8 +1,10 @@
-# Model-free verification — 2026-10-15
+# Model-free verification and current gates — 2026-10-15
 
-No model download, staging, inference-server launch, canary, or benchmark was
-performed. No global/named Hermes profile state was written. Existing results,
-tasks, fixtures, checks and ledger pins were preserved.
+The model-free checks recorded below performed no model download, staging,
+inference-server launch, canary, or benchmark, and wrote no global/named Hermes
+profile state. They preserved existing results, tasks, fixtures, checks and
+ledger pins. Separate parent/operator profile provisioning after those checks
+is recorded under the current gates below; it was not a test side effect.
 
 ## Exact source/build selection
 
@@ -24,7 +26,8 @@ tasks, fixtures, checks and ledger pins were preserved.
 
 ## Executed checks
 
-In the respective isolated worktree roots:
+Initial source/build checks, before the repository-only profile-policy
+follow-up, in the respective isolated worktree roots:
 
 ```bash
 # vMLX: install only a build-tree alias from the already-generated metallib.
@@ -68,6 +71,23 @@ The offline orchestration test mocks all side effects and proves suite inventory
 `lfm25-mei` to all four coding suites without resetting the shared bench profile.
 It does not produce or claim 25 actual result rows.
 
+## Repository-only profile-policy follow-up
+
+```bash
+env -u PYTHONPATH -u PYTHONHOME uv run --locked python -m unittest \
+  runner.tests.test_lfm25_setup runner.tests.test_start_mei_server_sh -v
+# exit 0: 18 tests, 0 failures/errors (10 LFM config/profile + 8 launcher dry-run).
+```
+
+The added regression checks pin all benchmark CLI controls, terminal cwd and
+memory flags in the repository template, and parse README provisioning arguments
+to verify every template leaf has the matching explicitly scoped CLI command.
+List arguments remain a single shell argument, and approvals mode remains the
+string `"off"`, not YAML's boolean `false`. These checks do not execute the
+provisioning recipe or access installed profile state. No inference/server or
+benchmark launch is involved. Full discovery was not rerun in this follow-up;
+the historical broader-suite caveat below is unchanged.
+
 ## Broader-suite caveat (not an LFM regression)
 
 An additional full model-free Python test discovery was attempted:
@@ -98,8 +118,50 @@ Full compatibility/full-suite-green is **not** claimed.
 
 ## Remaining gates
 
-Profile provisioning/readback, release binary/metallib identity, approved pinned
-model staging/integrity, clean disk/memory admission, text/SSE/tools/reasoning/
-cache/context canaries, and a real full 25-row battery plus teardown/provenance
-audit remain unperformed. Vendor sampler and 4096/65536 output/context policy are
-unchanged. No further storage cleanup is authorized or needed for this task.
+**Profile provisioning/readback is complete**, verified separately by the
+parent/operator, not by the model-free tests. A fresh, non-cloned `bench-lfm25`
+profile was provisioned outside this repository, and
+`hermes --profile bench-lfm25 config check` passed. Readback confirmed:
+
+- Main-model and named-provider routing agree on `lfm25-mei`,
+  `http://127.0.0.1:8029/v1`, `chat_completions`, the exact served model
+  `LiquidAI/LFM2.5-24B-A2B-MLX-4bit`, and context **65536**.
+- Vendor `extra_body` is temperature **0.1**, top_k **50**, top_p **0.0**,
+  min_p **0**, repetition_penalty **1.05**, max_tokens **4096**, and
+  reasoning_effort **null**; thinking-template behavior is unchanged.
+- Benchmark CLI policy matches the existing `bench` profile:
+  `agent.max_turns: 40`, `approvals.mode: "off"`, `platform_toolsets.cli:
+  [clarify, code_execution, connections, file, terminal, todo]`,
+  `skills.external_dirs: [/Users/tijs/.hermes/skills,
+  /Users/tijs/.hermes/shared-skills]`, `plugins.enabled: []`, and
+  `model.max_tokens: 4096`. `terminal.cwd` is `.`, and both
+  `memory.memory_enabled` and `memory.user_profile_enabled` are **false**.
+- The profile's `.env` has no non-comment entries. No history, channels, or
+  credentials were copied, and shared `bench` / `default` profiles are unchanged.
+
+The repository template and README now reproduce these explicit controls.
+Their model-free regression tests only read repository files and mock runner
+side effects; they neither provision nor alter any installed profile.
+
+**Model staging/integrity is pending/in-progress at the time of this note.**
+The parent reports an authorized official pinned-quant download is running
+separately; this repository-only follow-up does not start or interfere with it.
+Download/staging completion, verified final bytes/hashes, and model loadability
+are **not** claimed. The parent will append integrity evidence after independent
+verification.
+
+Still required, with no benchmark results claimed:
+
+1. Complete the separately authorized pinned model download/staging and verify
+   artifact integrity. Recheck clean disk/memory headroom (including the 10 GiB
+   launch floor) before loading, without further deletion.
+2. Build the release binary and record exact binary/metallib provenance;
+   establish a clean admission window before loading the model.
+3. Pass bounded text/SSE/native-tool/reasoning/multi-turn/cache/context canaries,
+   including live profile/provider routing and sampler preservation.
+4. Run the real full **25-row** battery through the normal sanity/speed gates,
+   then independently audit rows, provenance and teardown.
+
+Vendor sampler and **4096/65536** output/context policy are unchanged. No model
+download/staging, server, canary, or benchmark is part of this repository-only
+follow-up; no further storage cleanup is authorized or needed for this task.

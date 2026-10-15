@@ -69,14 +69,72 @@ class LFM25ConfigTests(unittest.TestCase):
         self.assertEqual(provider["transport"], "chat_completions")
         self.assertEqual(template["model"]["base_url"], provider["api"])
         self.assertEqual(template["model"]["api_mode"], provider["transport"])
+        self.assertEqual(template["model"]["default"], orch["served_model_id"])
         self.assertEqual(provider["default_model"], orch["served_model_id"])
         self.assertEqual(provider["context_length"], c["context_cap"])
         self.assertEqual(template["model"]["context_length"], c["context_cap"])
+        self.assertIs(provider["discover_models"], False)
         self.assertEqual(provider["extra_body"], {
             **c["generation_profiles"]["vendor"], "max_tokens": 4096,
             "reasoning_effort": None})
         self.assertNotIn("api_key", provider)
+
+    def test_profile_template_pins_benchmark_cli_policy(self):
+        # Read the repository template only, never an installed profile.
+        template = yaml.safe_load((LANE / "hermes-profile.example.yaml").read_text())
+        self.assertEqual(template["agent"]["max_turns"], 40)
+        # YAML 1.1 parses bare off as False; the mode must remain a string.
+        self.assertEqual(template["approvals"]["mode"], "off")
+        self.assertEqual(template["platform_toolsets"]["cli"], [
+            "clarify", "code_execution", "connections", "file", "terminal", "todo"])
+        self.assertEqual(template["skills"]["external_dirs"], [
+            "/Users/tijs/.hermes/skills", "/Users/tijs/.hermes/shared-skills"])
+        self.assertEqual(template["plugins"]["enabled"], [])
+        self.assertEqual(template["model"]["max_tokens"], 4096)
+        self.assertEqual(template["model"]["max_tokens"],
+                         template["providers"]["lfm25-mei"]["extra_body"]["max_tokens"])
         self.assertEqual(template["terminal"]["cwd"], ".")
+        self.assertIs(template["memory"]["memory_enabled"], False)
+        self.assertIs(template["memory"]["user_profile_enabled"], False)
+
+    def test_readme_provisioning_arguments_cover_every_template_leaf(self):
+        # Parse documentation only: do NOT execute Hermes or write profile state.
+        template = yaml.safe_load((LANE / "hermes-profile.example.yaml").read_text())
+        commands = [shlex.split(line, comments=True)
+                    for line in (LANE / "README.md").read_text().splitlines()
+                    if line.startswith("hermes ")]
+        self.assertIn(["hermes", "profile", "create", "bench-lfm25"], commands)
+        self.assertFalse(any("--clone" in arg or arg == "use"
+                             for cmd in commands for arg in cmd))
+        settings = {}
+        for cmd in commands:
+            if cmd == ["hermes", "profile", "create", "bench-lfm25"]:
+                continue
+            self.assertEqual(cmd[:4], ["hermes", "--profile", "bench-lfm25", "config"])
+            if cmd[4] == "set":
+                self.assertEqual(len(cmd), 7, cmd)
+                key, value = cmd[5:]
+                self.assertNotIn(key, settings, f"duplicate provisioning key: {key}")
+                settings[key] = value
+
+        def leaves(mapping, prefix=""):
+            for key, value in mapping.items():
+                path = f"{prefix}.{key}" if prefix else key
+                if isinstance(value, dict):
+                    yield from leaves(value, path)
+                else:
+                    yield path, value
+
+        expected = dict(leaves(template))
+        self.assertEqual(settings.keys(), expected.keys())
+        for key, value in expected.items():
+            with self.subTest(key=key):
+                # The recipe uses JSON syntax for non-string arguments, with
+                # lists shell-quoted as ONE argv value. This is a docs/template
+                # consistency gate, not an emulation of Hermes's config loader.
+                actual = settings[key] if isinstance(value, str) else json.loads(settings[key])
+                self.assertEqual(actual, value)
+        self.assertIn(["hermes", "--profile", "bench-lfm25", "config", "check"], commands)
 
     def test_default_cli_inventory_has_all_25_tasks(self):
         args = rb.build_arg_parser().parse_args(["--config", str(CONFIG)])
