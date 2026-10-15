@@ -78,6 +78,17 @@ class LFM25ConfigTests(unittest.TestCase):
             self.assertEqual(argv[argv.index(flag) + 1], expected)
         self.assertNotIn("$", c["benchmark_launch_command"])
 
+    def test_connect_watchdog_override_is_explicit_and_changes_attempt_identity(self):
+        self.assertEqual(self.cfg["hermes_ops_connect_timeout"], 300)
+        self.assertIs(type(self.cfg["hermes_ops_connect_timeout"]), int)
+        self.assertNotEqual(hashlib.sha256(CONFIG.read_bytes()).hexdigest()[:12],
+                            "0fb346ed9077")
+        setting = next(s for s in self.cfg["settings"]
+                       if s["name"] == "hermes_ops_connect_timeout")
+        self.assertIn("runner/run_prompt.py", setting["source"])
+        self.assertIn("0fb346ed9077", setting["source"])
+        self.assertIn("live recovery remains unverified", setting["value"])
+
     def test_tracked_staging_provenance_pins_integrity_not_loadability(self):
         c = self.cfg
         p = json.loads((REPO / c["staging_provenance"]).read_text())
@@ -310,6 +321,7 @@ class LFM25ConfigTests(unittest.TestCase):
             self.assertEqual(cmd[cmd.index("--hermes-provider") + 1], "lfm25-mei")
             self.assertEqual(cmd[cmd.index("--hermes-model") + 1], self.cfg["model"])
             self.assertNotIn("--only-task", cmd)
+            self.assertNotIn("--connect-timeout", cmd)
 
 
 class HermesProfileForwardingTests(unittest.TestCase):

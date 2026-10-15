@@ -8,6 +8,103 @@ provisioning after the initial checks are recorded below; they were not test
 side effects. This repository-only follow-up reads that evidence and updates
 config/provenance/runtime wiring without altering model or profile files.
 
+## Hermes Ops connect-watchdog correction (latest gate status)
+
+This section supersedes the pending-live status of the earlier staging/build
+records below. **Prior live evidence is parent/operator-reported**, supplied to
+this repository-only repair; it was not produced by these model-free tests:
+
+- Separate native admission passed **12/12**, including full context and tools.
+- The canonical attempt loaded **Mei 0.9.0**; exact model identity and plain
+  completion passed, then sanity passed **2/2**.
+- **Four Hermes Ops rows** repeatedly failed with `timeout_phase=connect`, no
+  prompt/completion token usage, and
+  `stream stalled (connect): no qualifying progress for 60.0s`.
+- **Four later Hermes Ops harness errors** followed the parent's server stop;
+  they are not additional evidence of the original watchdog failure.
+- The incomplete attempt's identity is config **`0fb346ed9077`** / runner
+  **`edda01df84c3`**. All raw rows, snapshots, speed-gate records and generated
+  leaderboard artifacts remain untouched. No completed battery is claimed.
+
+Source review establishes the harness boundary, not a measured prefill cause:
+`runner/run_prompt.py` keeps `DEFAULT_CONNECT_TIMEOUT = 60.0` and calls
+`urllib.request.urlopen(..., timeout=min(connect_timeout, timeout))`, which
+waits for response headers as well as TCP/request setup. A backend that delays
+headers during a long prompt cannot yet use the separate first-progress budget.
+`tasks/hermes_ops.yaml` keeps **1000s per turn**, **600s first progress**,
+**300s stream idle**, and **14400s per task**. The 1000s value is the turn budget,
+not the whole-task deadline.
+
+The only new execution setting is top-level **`hermes_ops_connect_timeout: 300`**:
+
+- Explicit bounded harness policy for this model, **not** vendor sampling,
+  vendor advice, a measured optimum, or proof that 300s is sufficient.
+- `run_prompt_suite.py` validates positive finite numeric seconds (int/float,
+  no bool; explicit null, strings, zero, negatives, infinity, NaN and integers
+  outside the client's float range fail closed before snapshots/tasks/rows).
+- Applies **only** to `--suite hermes_ops`, overriding an explicit suite connect
+  value if present, and uses the existing `--connect-timeout` forwarding path.
+  On other prompt suites a declared value is validated but never applied.
+- Without the field, suite-specific connect values and the client **60s default**
+  remain unchanged. Sanity/coding, sampler/effort, context, cache, mmap, launch
+  identity, turn/task budgets, other watchdogs and retries are unchanged.
+- The config's changed bytes give the corrected retry hash **`a4be8e840181`**
+  (`sha256(mei.yaml bytes)[:12]`, computed without creating a result snapshot),
+  distinct from **`0fb346ed9077`**. Commit it before a retry; never rewrite or
+  coalesce the incomplete old attempt.
+
+### Executed model-free regression checks
+
+In the isolated repair worktree, using its own locked uv environment:
+
+```bash
+env -u PYTHONPATH -u PYTHONHOME TMPDIR=/Users/tijs/.hermes/cache/scratch \
+  uv run --locked python -m unittest runner.tests.test_run_prompt_suite \
+  runner.tests.test_generation_overrides runner.tests.test_lfm25_setup -v
+# exit 0: 62 tests (11 connect/config, 36 generation overrides, 15 LFM setup).
+env -u PYTHONPATH -u PYTHONHOME TMPDIR=/Users/tijs/.hermes/cache/scratch \
+  uv run --locked python -m unittest runner.tests.test_run_prompt_timeouts \
+  runner.tests.test_generation_policy runner.tests.test_run_bench \
+  runner.tests.test_bench_common -v
+# exit 0: 72 tests (38 timeout/liveness, 11 generation policy, 20 orchestration,
+# 3 shared helpers). Combined: 134 tests, 0 failures/errors/skips.
+git diff --check
+# exit 0.
+```
+
+The new connect/config tests mock every child runner/grader/RSS call; they prove
+the real LFM override reaches the CLI, all **122 existing model configs without
+the field** omit the override, absent/no-config clients retain 60s, invalid
+values fail before snapshots/tasks/rows, explicit suite-budget precedence is
+preserved, and sanity/next-config invocations cannot inherit the override.
+LFM setup checks pin the new attempt identity and unchanged vendor/context/
+mmap/runtime/profile controls; coding invocations receive no connect flag.
+The adjacent existing SSE tests use only loopback **scripted HTTP fixtures**,
+not an inference backend; synthetic rows/snapshots stay under disposable roots.
+
+The new LFM-forwarding regression was also replayed against the original
+`edda01df84c36ad658d2ad4de839b5fd08e0f16c` source loaded in memory, with the same
+mocks. It produced the **expected single assertion failure** for the missing
+`--connect-timeout`; the verifier exited 0 after confirming that failure and no
+errors. The fixed source's regression passes in the 62-test group above.
+This is a model-free red/green check, not a failed live run or benchmark row.
+
+A parsed before/after config comparison confirmed that **only**
+`hermes_ops_connect_timeout`, `settings` and `known_gaps` changed: the sampler,
+context/cache/mmap/launch identity and other execution settings are identical.
+Full discovery was not rerun; the historical ledger-count caveat below is not
+resolved or hidden by these focused checks.
+
+### Current remaining gates
+
+**Live recovery remains unverified.** No inference/model-server/full-benchmark,
+launch/stop/unload, Hermes profile or CoCore change, external result-ledger write,
+or push is part of this repair. A future authorized retry must recheck resources
+and build identity, retain admission/sanity/speed gates, and independently verify
+the full 25-task inventory, new config hash/runner SHA, failure classes and
+exact-runtime teardown. Prior admission does not bypass those checks or establish
+performance; no sampler/cache/context/mmap/task-timeout tuning is included here.
+
 ## Exact source/build selection
 
 - vMLX: `22969e9555b5e86df862e43e3d7356575d3dd053`, based on router fix
@@ -312,7 +409,7 @@ No build, runtime directory, server, model load or benchmark was created by
 that dry-run. Full discovery was not rerun; the historical ledger caveat above
 is preserved, not resolved or hidden by this focused pass.
 
-## Remaining gates
+## Pre-live remaining gates (historical; superseded by latest status above)
 
 **Profile provisioning/readback is complete**, verified separately by the
 parent/operator, not by the model-free tests. A fresh, non-cloned `bench-lfm25`

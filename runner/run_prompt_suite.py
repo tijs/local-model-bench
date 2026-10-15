@@ -203,8 +203,25 @@ def main():
     # rows; the config block below resolves the actual name when present.
     selected_profile_name = None
     if args.config:
-        config_hash, config_path = snapshot_config(args.config)
         config_yaml = yaml.safe_load(Path(args.config).read_text())
+        # Opt-in, model-specific pre-header budget for Hermes Ops only.
+        # Validate even on other prompt suites, but never apply it there.
+        # Absent keeps the suite's connect_timeout_seconds (or run_prompt's
+        # unchanged 60s default when the suite also omits that field).
+        if "hermes_ops_connect_timeout" in config_yaml:
+            seconds = config_yaml["hermes_ops_connect_timeout"]
+            # The upper bound also rejects inf/nan and YAML integers too
+            # large for run_prompt.py's float-valued CLI/socket timeout.
+            if (isinstance(seconds, bool) or not isinstance(seconds, (int, float))
+                    or not 0 < seconds <= sys.float_info.max):
+                raise SystemExit(
+                    f"config {args.config}: hermes_ops_connect_timeout must be "
+                    "positive finite numeric seconds (no bool), "
+                    f"got {seconds!r}"
+                )
+            if args.suite == "hermes_ops":
+                connect_timeout = seconds
+        config_hash, config_path = snapshot_config(args.config)
         raw_port = (config_yaml.get("orchestration") or {}).get("raw_port")  # for
             # PeakRSSSampler (methodology review, finding F7) — the real
             # server's port, not the proxy's; None for a hosted/API config.

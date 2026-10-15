@@ -110,6 +110,22 @@ hermes_ops_generation_profile: capability  # OPTIONAL — which profile the
   # `run_prompt_suite.py --generation-profile <name>`. Selection is
   # explicit: an undeclared profile name fails the run.
 
+# OPTIONAL — top-level Hermes Ops client liveness override, NOT sampling or
+# a server-launch flag. Positive finite numeric seconds only (int or float;
+# bool, null, strings, zero, negative and non-finite values are rejected).
+# Validated before snapshotting/starting any prompt task; applied ONLY when
+# --suite hermes_ops, as run_prompt.py --connect-timeout SECONDS. Overrides
+# that suite's connect_timeout_seconds, if declared. Absent = preserve the
+# suite's value, or the existing run_prompt.py default of 60 seconds when
+# the suite also omits it. Sanity and coding suites are unaffected.
+# Covers TCP connect + request send + response headers: a backend may delay
+# headers during prefill, before first_progress_timeout_seconds even starts.
+# Does not change first-progress/stream-idle/turn/task budgets or retries;
+# run_prompt.py still clamps the connect budget to the total turn budget.
+# Cite the observed failure and source path in the model's settings. Commit
+# the changed config before rerunning, preserving the old attempt/snapshot.
+# hermes_ops_connect_timeout: 300
+
 # OPTIONAL — coding profile (2026-09-22), SEPARATE from the general/Hermes
 # Ops request profile above. `hermes chat` (the coding suites' agent loop)
 # exposes only ONE per-invocation generation control — `--reasoning LEVEL`

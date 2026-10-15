@@ -6,6 +6,33 @@ This lane uses the official MLX artifact at
 establish loadability, tool correctness, useful speed, or benchmark results.
 No model or Hermes profile is installed by these tests.
 
+## Current harness correction: Hermes Ops connect budget
+
+The parent reports that the separate native admission passed **12/12** (including
+full context/tools), and the first canonical attempt loaded Mei 0.9.0 with exact
+identity/plain completion and **sanity 2/2**. Hermes Ops then repeatedly failed
+at the **60-second pre-header/connect watchdog** with no token usage; later
+server-unreachable rows followed the operator's stop. This supersedes the
+earlier pending-live language in the staging/build sections below, but is **not
+a complete benchmark result**. The prior attempt remains append-only under
+config **`0fb346ed9077`** / runner **`edda01df84c3`**.
+
+`mei.yaml` now opts into **`hermes_ops_connect_timeout: 300`**. This is a bounded
+client harness policy, not vendor tuning or a measured optimum. The connect
+budget includes waiting for response headers, so the suite's 600-second
+first-progress budget cannot help until headers arrive. The model override is
+validated as positive finite numeric seconds (no bool) and forwarded only for
+Hermes Ops as `--connect-timeout 300`; absent fields retain the existing
+60-second client default (or a suite's own explicit connect budget). Sanity,
+coding, sampling, context/cache/mmap, all other liveness/turn/task budgets and
+retries are unchanged. See `configs/README.md` for precedence and validation.
+
+The corrected config has a distinct content hash and must be committed before
+any fresh gated retry. **Live recovery at 300 seconds is unverified**: this
+follow-up performs only model-free tests, no inference/server/full benchmark,
+and never alters the existing result artifacts. `VERIFICATION.md` distinguishes
+the parent's prior evidence from the harness tests and remaining retry gate.
+
 ## Build selection
 
 Run launch/dry-run commands from the benchmark worktree root. `mei.yaml` selects
@@ -26,7 +53,9 @@ historical debug executable establishes model loadability or performance.
 
 ## Staged artifact and isolated runtime
 
-The authorized pinned artifact is **staged-complete, loadability-pending**.
+At the earlier staging-only checkpoint the authorized pinned artifact was
+**staged-complete, loadability-pending** (the staging metadata retains that
+historical status; see the current parent-reported admission status above).
 `staging-provenance.json` is a tracked metadata-only record of all **12 files**,
 including the **3 weight shards / 13,567,294,335 bytes**, their SHA-256 matches
 against pinned Hub LFS metadata, and the container/index verification. Weights
@@ -163,18 +192,20 @@ selects every suite after normal sanity/speed gates pass. They produce **no real
 benchmark rows**. Sanity failure or the normal speed gate can still stop a real
 run; nothing here bypasses those policies. Results remain append-only.
 
-Remaining gates: recheck clean-GPU/memory/disk headroom (10 GiB launch floor)
-without further data deletion; recheck the binary/metallib identity if the
-launcher rebuilds; clean live admission with plain, streaming, tool, reasoning,
-multi-turn/cache and context canaries; then measured tuning, the full battery,
-and independent row/provenance/teardown audit. Staging/integrity, release artifact
-provenance and named-profile provisioning/readback are complete, with no live
-inference evidence yet. Do not run the remaining stages as part of model-free
-verification.
+Remaining retry gates: recheck clean-GPU/memory/disk headroom (10 GiB launch
+floor) without further deletion, and binary/metallib identity if rebuilt; retain
+native admission, sanity and speed gates; verify the corrected connect budget
+on a fresh complete battery with a distinct config/runner identity and independent
+row/provenance/teardown audit. Prior admission is parent-reported, not a new
+guarantee, measured tuning result, or proof of recovery. Do not run these live
+stages as part of model-free verification.
 
 Model-free checks:
 
 ```bash
+env -u PYTHONPATH -u PYTHONHOME TMPDIR=/Users/tijs/.hermes/cache/scratch \
+  uv run --locked python -m unittest runner.tests.test_run_prompt_suite \
+  runner.tests.test_generation_overrides runner.tests.test_lfm25_setup -v
 uv run --locked python -m unittest discover -s runner/tests -p test_lfm25_setup.py -v
 uv run --locked python -m unittest discover -s runner/tests -p test_start_mei_server_sh.py -v
 uv run --locked python -m unittest discover -s runner/tests -p test_mei_runtime.py -v
