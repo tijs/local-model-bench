@@ -3,7 +3,7 @@
 Regenerated from `log.jsonl` by `runner/build_leaderboard.py` — do not
 hand-edit rows below, edit the log and regenerate instead.
 
-> **⚠ 138/4347 rows below predate 2026-08-21
+> **⚠ 138/4424 rows below predate 2026-08-21
 > grading fixes** (no `runner_git_sha` — that field didn't exist yet).
 > **Do not treat any pre-2026-08-21 PASS/FAIL as final signal** until
 > re-run under current grading. Known-affected checks: `kiem_mini-feature`
@@ -178,6 +178,14 @@ means no usable timestamp was recoverable from that group's rows.
 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | omlx | — | 0.1 | n/a | n/a | 2/2 | [6be3287df228](configs/6be3287df228.yaml) — *config since changed* | e0571a8c6ad8 | 5 | 80% | 1 | 8.1 | 16.74 | 0 | — | 0 | 5.5 | BF16 | cold | off | 1942 |
 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | vllm-mlx | — | 0.1 | n/a | n/a | 2/2 | [c1a7fd5d3135](configs/c1a7fd5d3135.yaml) — *config since changed* | 937328228de2 | 1 | 100% | 0 | — | n/a (proxied — not real TTFT) | 0 | — | 0 | 5.7 | — | — | — | 159 |
 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | vllm-mlx | — | 0.1 | n/a | n/a | 2/2 | [c1a7fd5d3135](configs/c1a7fd5d3135.yaml) — *config since changed* | c32555007281 | 9 | 78% | 2 | — | n/a (proxied — not real TTFT) | 0 | — | 0 | 5.8 | — | — | — | 1942 |
+| LiquidAI/LFM2.5-24B-A2B-MLX-4bit | mei | — | 0.1 | thinking | n/a | — | [00812b8b7aa9](configs/00812b8b7aa9.yaml) | 0adc11bdec48 | 1 | 0% | 0 | 2.8 | 37.83 | 0 | — | 0 | 12.8 | MLX 4-bit affine g64 (official LiquidAI conversion with mlx-lm 0.32.0; token embedding/tied head 6-bit; MoE routing gates kept fp32 unquantized) | — | — | 1608 |
+| LiquidAI/LFM2.5-24B-A2B-MLX-4bit | mei | — | 0.1 | thinking | n/a | 2/2 | [0fb346ed9077](configs/0fb346ed9077.yaml) — *config since changed* | edda01df84c3 | 4 | 0% | 0 | 51.9 | 0.80 | 0 | — | 0 | 12.8 | MLX 4-bit affine g64 (official LiquidAI conversion with mlx-lm 0.32.0; token embedding/tied head 6-bit; MoE routing gates kept fp32 unquantized) | — | — | 542 |
+| LiquidAI/LFM2.5-24B-A2B-MLX-4bit | mei | — | 0.1 | thinking | n/a | — | [3375e6724ef8](configs/3375e6724ef8.yaml) | 81daaf5150d7 | 0 | n/a (all harness errors) | 0 | — | — | 0 | — | 0 | — | MLX 4-bit affine g64 (official LiquidAI conversion with mlx-lm 0.32.0; token embedding/tied head 6-bit; MoE routing gates kept fp32 unquantized) | — | — | — |
+| LiquidAI/LFM2.5-24B-A2B-MLX-4bit | mei | — | 0.1 | thinking | n/a | 2/2 | [3b818db1c96a](configs/3b818db1c96a.yaml) — *config since changed* | 0adc11bdec48 | 8 | 12% | 0 | 12.7 | 30.61 | 1 | — | 0 | 12.8 | MLX 4-bit affine g64 (official LiquidAI conversion with mlx-lm 0.32.0; token embedding/tied head 6-bit; MoE routing gates kept fp32 unquantized) | — | — | 8165 |
+| LiquidAI/LFM2.5-24B-A2B-MLX-4bit | mei | — | 0.1 | thinking | n/a | — | [63f2b2fa27ff](configs/63f2b2fa27ff.yaml) — *config since changed* | 0b68ce2d960e | 1 | 0% | 0 | 2.3 | 33.13 | 0 | — | 0 | 12.8 | MLX 4-bit affine g64 (official LiquidAI conversion with mlx-lm 0.32.0; token embedding/tied head 6-bit; MoE routing gates kept fp32 unquantized) | — | — | 1414 |
+| LiquidAI/LFM2.5-24B-A2B-MLX-4bit | mei | — | 0.1 | thinking | n/a | 2/2 | [a4be8e840181](configs/a4be8e840181.yaml) — *config since changed* | 8e17e3a33ec8 | 1 | 100% | 0 | 27.5 | 33.33 | 0 | — | 0 | 12.8 | MLX 4-bit affine g64 (official LiquidAI conversion with mlx-lm 0.32.0; token embedding/tied head 6-bit; MoE routing gates kept fp32 unquantized) | — | — | 145 |
+| LiquidAI/LFM2.5-24B-A2B-MLX-4bit | mei | — | 0.1 | thinking | n/a | 2/2 | [e6be308f5709](configs/e6be308f5709.yaml) | 83d06b397821 | 9 | 11% | 0 | 11.1 | 28.91 | 1 | — | 0 | 7.7 | MLX 4-bit affine g64 (official LiquidAI conversion with mlx-lm 0.32.0; token embedding/tied head 6-bit; MoE routing gates kept fp32 unquantized) | — | — | 10454 |
+| LiquidAI/LFM2.5-24B-A2B-MLX-4bit | mei | — | 0.1 | thinking | n/a | — | [e95f694ede91](configs/e95f694ede91.yaml) | 0adc11bdec48 | 15 | 40% | 3 | — | — | 0 | 23.4 | 46 | 12.8 | MLX 4-bit affine g64 (official LiquidAI conversion with mlx-lm 0.32.0; token embedding/tied head 6-bit; MoE routing gates kept fp32 unquantized) | — | — | 13927 |
 | LiquidAI/LFM2.5-8B-A1B-GGUF:BF16 | llama.cpp | — | 0.2 | n/a | n/a | 2/2 | [a148c29637e6](configs/a148c29637e6.yaml) | 1370f3a3609d | 9 | 56% | 0 | 92.6 | 4.17 | 0 | — | 0 | 17.1 | — | — | — | 285 |
 | LiquidAI/LFM2.5-8B-A1B-GGUF:BF16 | llama.cpp | — | 0.2 | n/a | n/a | 2/2 | [a148c29637e6](configs/a148c29637e6.yaml) | 6a6b4bcf6907 | 9 | 56% | 0 | 92.9 | 4.16 | 0 | — | 0 | 16.8 | — | — | — | 163 |
 | LiquidAI/LFM2.5-8B-A1B-GGUF:BF16 | llama.cpp | — | 0.2 | n/a | n/a | 2/2 | [a148c29637e6](configs/a148c29637e6.yaml) | a5743c4a242c | 19 | 32% | 0 | 92.7 | 4.16 | 0 | 12.1 | 36 | 18.8 | — | — | — | 790 |
@@ -271,6 +279,7 @@ means no usable timestamp was recoverable from that group's rows.
 | mlx-community/Devstral-Small-2507-4bit-DWQ | vllm-mlx | — | 0.15 | n/a | n/a | 1/2 | [8d60440a81e5](configs/8d60440a81e5.yaml) — *config since changed* | 8aec9f8f6135 | 0 | n/a (all harness errors) | 0 | 20.0 | 9.13 | 0 | — | 0 | 10.4 | — | — | — | 21 |
 | mlx-community/LFM2.5-2.6B-8bit | vllm-mlx | — | 0.1 | n/a | n/a | 0/2 | [662a015ba0e6](configs/662a015ba0e6.yaml) — *config since changed* | 4f0aad77c3ab | 0 | n/a (all harness errors) | 0 | — | n/a (proxied — not real TTFT) | 0 | — | 0 | 0.8 | — | — | — | 121 |
 | mlx-community/LFM2.5-2.6B-8bit | vllm-mlx | — | 0.1 | n/a | n/a | 0/2 | [662a015ba0e6](configs/662a015ba0e6.yaml) — *config since changed* | 6a6b4bcf6907 | 0 | n/a (all harness errors) | 0 | — | n/a (proxied — not real TTFT) | 0 | — | 0 | 0.8 | — | — | — | 120 |
+| mlx-community/LFM2.5-24B-A2B-OptiQ-4bit | mei | — | 0.1 | thinking | n/a | 2/2 | [00993a15f20e](configs/00993a15f20e.yaml) | 3f0e3d29ba54 | 23 | 48% | 3 | 30.9 | 27.54 | 0 | 15.4 | 20 | 11.4 | OptiQ MLX mixed precision 4/8-bit affine g64 (community quant; default 4-bit, 259 module overrides = 94 at 4-bit and 165 at 8-bit) | — | — | 14320 |
 | mlx-community/LFM2.5-8B-A1B-MLX-8bit | mlx | — | 0.2 | n/a | n/a | 1/2 | [509fe12b4b1a](configs/509fe12b4b1a.yaml) — *config since changed* | e155170f4c1d | 0 | n/a (all harness errors) | 0 | — | n/a (proxied — not real TTFT) | 0 | — | 0 | 9.1 | — | — | — | 7 |
 | mlx-community/LFM2.5-8B-A1B-MLX-8bit | vllm-mlx | — | 0.2 | n/a | n/a | 2/2 | [00878f13621f](configs/00878f13621f.yaml) — *config since changed* | 6a6b4bcf6907 | 9 | 56% | 0 | — | n/a (proxied — not real TTFT) | 0 | — | 0 | 9.1 | — | — | — | 986 |
 | mlx-community/LFM2.5-8B-A1B-MLX-8bit | vllm-mlx | — | 0.2 | n/a | n/a | 1/2 | [00878f13621f](configs/00878f13621f.yaml) — *config since changed* | dd3232d96137 | 0 | n/a (all harness errors) | 0 | — | n/a (proxied — not real TTFT) | 0 | — | 0 | 9.0 | — | — | — | 6 |
@@ -512,7 +521,8 @@ most total coding+hermes_ops evidence, then recency.
 | 18 | unsloth/Devstral-Small-2507-GGUF:Q4_K_M | llama.cpp | — | n/a | ffa862c18cff | PASS (75%, 8) | 0.415 | 60% (15) | 10.0 tok/s | 28.10s | 15872 | 27.9 |
 | 19 | poolside/Laguna-XS-2.1-GGUF:Q4_K_M | llama.cpp | — | thinking | 644ba3997136 | PASS (50%, 8) | 0.358 | 87% (15) | — | — | 2840 | 25.3 |
 | 20 | batiai/Gravity-30BA5B-RL-GGUF:Q4_K_M | llama.cpp | — | thinking | 34c266c25d9a | PASS (75%, 8) | 0.271 | 0% (15) | 17.5 tok/s | 26.45s | 47549 | 40.0 |
-| 21 | mlx-community/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit | mei | — | thinking | d9be6d0097ea | FAIL (12%, 8) | — | 27% (15) | — | — | 5440 | 11.3 |
+| 21 | mlx-community/LFM2.5-24B-A2B-OptiQ-4bit | mei | — | thinking | 00993a15f20e | FAIL (25%, 8) | — | 60% (15) | 30.9 tok/s | 27.54s | 14320 | 15.4 |
+| 22 | mlx-community/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit | mei | — | thinking | d9be6d0097ea | FAIL (12%, 8) | — | 27% (15) | — | — | 5440 | 11.3 |
 
 ![Best overall composite score by model](score_chart.png)
 
@@ -699,6 +709,20 @@ confirmed-stable, just untested for flakiness.
 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | vllm-mlx | c1a7fd5d3135 | c32555007281 | hermes_ops | 7/8 |
 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | vllm-mlx | c1a7fd5d3135 | c32555007281 | kiem_mini | 0/1 |
 | LiquidAI/LFM2.5-2.6B-MLX-bf16 | vllm-mlx | c1a7fd5d3135 | c32555007281 | sanity | 2/2 |
+| LiquidAI/LFM2.5-24B-A2B-MLX-4bit | mei | 00812b8b7aa9 | 0adc11bdec48 | hermes_ops | 0/1 |
+| LiquidAI/LFM2.5-24B-A2B-MLX-4bit | mei | 0fb346ed9077 | edda01df84c3 | hermes_ops | 0/4 |
+| LiquidAI/LFM2.5-24B-A2B-MLX-4bit | mei | 0fb346ed9077 | edda01df84c3 | sanity | 2/2 |
+| LiquidAI/LFM2.5-24B-A2B-MLX-4bit | mei | 3b818db1c96a | 0adc11bdec48 | hermes_ops | 1/8 |
+| LiquidAI/LFM2.5-24B-A2B-MLX-4bit | mei | 3b818db1c96a | 0adc11bdec48 | sanity | 2/2 |
+| LiquidAI/LFM2.5-24B-A2B-MLX-4bit | mei | 63f2b2fa27ff | 0b68ce2d960e | hermes_ops | 0/1 |
+| LiquidAI/LFM2.5-24B-A2B-MLX-4bit | mei | a4be8e840181 | 8e17e3a33ec8 | hermes_ops | 1/1 |
+| LiquidAI/LFM2.5-24B-A2B-MLX-4bit | mei | a4be8e840181 | 8e17e3a33ec8 | sanity | 2/2 |
+| LiquidAI/LFM2.5-24B-A2B-MLX-4bit | mei | e6be308f5709 | 83d06b397821 | hermes_ops | 1/9 |
+| LiquidAI/LFM2.5-24B-A2B-MLX-4bit | mei | e6be308f5709 | 83d06b397821 | sanity | 2/2 |
+| LiquidAI/LFM2.5-24B-A2B-MLX-4bit | mei | e95f694ede91 | 0adc11bdec48 | hearth_full | 0/3 |
+| LiquidAI/LFM2.5-24B-A2B-MLX-4bit | mei | e95f694ede91 | 0adc11bdec48 | hearth_mini | 2/3 |
+| LiquidAI/LFM2.5-24B-A2B-MLX-4bit | mei | e95f694ede91 | 0adc11bdec48 | kiem_mini | 0/5 |
+| LiquidAI/LFM2.5-24B-A2B-MLX-4bit | mei | e95f694ede91 | 0adc11bdec48 | kipclip_mini | 4/4 |
 | LiquidAI/LFM2.5-8B-A1B-GGUF:BF16 | llama.cpp | a148c29637e6 | 1370f3a3609d | hermes_ops | 5/8 |
 | LiquidAI/LFM2.5-8B-A1B-GGUF:BF16 | llama.cpp | a148c29637e6 | 1370f3a3609d | kiem_mini | 0/1 |
 | LiquidAI/LFM2.5-8B-A1B-GGUF:BF16 | llama.cpp | a148c29637e6 | 1370f3a3609d | sanity | 2/2 |
@@ -985,6 +1009,12 @@ confirmed-stable, just untested for flakiness.
 | mlx-community/Devstral-Small-2507-4bit-DWQ | vllm-mlx | 8d60440a81e5 | 8aec9f8f6135 | sanity | 1/2 |
 | mlx-community/LFM2.5-2.6B-8bit | vllm-mlx | 662a015ba0e6 | 4f0aad77c3ab | sanity | 0/2 |
 | mlx-community/LFM2.5-2.6B-8bit | vllm-mlx | 662a015ba0e6 | 6a6b4bcf6907 | sanity | 0/2 |
+| mlx-community/LFM2.5-24B-A2B-OptiQ-4bit | mei | 00993a15f20e | 3f0e3d29ba54 | hearth_full | 2/3 |
+| mlx-community/LFM2.5-24B-A2B-OptiQ-4bit | mei | 00993a15f20e | 3f0e3d29ba54 | hearth_mini | 2/3 |
+| mlx-community/LFM2.5-24B-A2B-OptiQ-4bit | mei | 00993a15f20e | 3f0e3d29ba54 | hermes_ops | 2/8 |
+| mlx-community/LFM2.5-24B-A2B-OptiQ-4bit | mei | 00993a15f20e | 3f0e3d29ba54 | kiem_mini | 1/5 |
+| mlx-community/LFM2.5-24B-A2B-OptiQ-4bit | mei | 00993a15f20e | 3f0e3d29ba54 | kipclip_mini | 4/4 |
+| mlx-community/LFM2.5-24B-A2B-OptiQ-4bit | mei | 00993a15f20e | 3f0e3d29ba54 | sanity | 2/2 |
 | mlx-community/LFM2.5-8B-A1B-MLX-8bit | mlx | 509fe12b4b1a | e155170f4c1d | sanity | 1/2 |
 | mlx-community/LFM2.5-8B-A1B-MLX-8bit | vllm-mlx | 00878f13621f | 6a6b4bcf6907 | hermes_ops | 5/8 |
 | mlx-community/LFM2.5-8B-A1B-MLX-8bit | vllm-mlx | 00878f13621f | 6a6b4bcf6907 | kiem_mini | 0/1 |
@@ -1625,7 +1655,7 @@ confirmed-stable, just untested for flakiness.
 
 ## Harness errors (excluded from every table above)
 
-53 row(s) where the harness itself crashed (e.g. a network blip during `npm ci`, a malformed task spec) rather than the model producing a graded result — shown separately so they don't deflate pass rates or masquerade as model flakiness.
+58 row(s) where the harness itself crashed (e.g. a network blip during `npm ci`, a malformed task spec) rather than the model producing a graded result — shown separately so they don't deflate pass rates or masquerade as model flakiness.
 
 | model | engine | suite | task | grade_output (truncated) |
 |---|---|---|---|---|
@@ -1640,6 +1670,11 @@ confirmed-stable, just untested for flakiness.
 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q4_K_M | llama.cpp | kiem_mini | kiem_mini-parse-note | [...truncated...] ✘ Test malformedInputThrowsRatherThanCrashingOrGuessing() failed after 0.001 seconds with 1 issue. ✘ T |
 | JonathanColetti/Qwen3.8-27B-Uncensored-GGUF:Q5_K_M | llama.cpp | kipclip_mini | kipclip_mini-debug | [...truncated...] [0m[32mCheck[0m src/types.ts [0m[32mCheck[0m src/url_utils.ts [0m[32mCheck[0m tests/bookmarks |
 | Jundot/Qwen3.8-27B-oQ4e-fp16-mtp | omlx | kiem_mini | kiem_mini-feature | HARNESS ERROR: child agent escaped the disposable workspace and modified the source fixture; result invalidated and sour |
+| LiquidAI/LFM2.5-24B-A2B-MLX-4bit | mei | hermes_ops | hermes_ops-chaining | HARNESS ERROR (not a graded model result): run_prompt.py produced no parseable output |
+| LiquidAI/LFM2.5-24B-A2B-MLX-4bit | mei | hermes_ops | hermes_ops-multi-step-chain | HARNESS ERROR (server unreachable, not a graded model result): request failed: <urlopen error [Errno 61] Connection refu |
+| LiquidAI/LFM2.5-24B-A2B-MLX-4bit | mei | hermes_ops | hermes_ops-no-tool-needed | HARNESS ERROR (server unreachable, not a graded model result): request failed: <urlopen error [Errno 61] Connection refu |
+| LiquidAI/LFM2.5-24B-A2B-MLX-4bit | mei | hermes_ops | hermes_ops-noisy-result | HARNESS ERROR (server unreachable, not a graded model result): connection error mid-request: RemoteDisconnected: Remote  |
+| LiquidAI/LFM2.5-24B-A2B-MLX-4bit | mei | hermes_ops | hermes_ops-persistent-failure | HARNESS ERROR (server unreachable, not a graded model result): request failed: <urlopen error [Errno 61] Connection refu |
 | RepublicOfKorokke/LFM2.5-8B-A1B-oQ4-fp16 | omlx | kiem_mini | kiem_mini-feature | HARNESS ERROR: child agent escaped the disposable workspace and created repository-root src/lib.rs; result invalidated a |
 | ggml-org/Qwen3.6-35B-A3B-GGUF:Q4_K_M | llama.cpp | kiem_mini | kiem_mini-debug | [...truncated...] [1/7] Write sources [4/7] Write swift-version--58304C5D6DBC2206.txt [6/9] Compiling NoteKit NoteKit.sw |
 | ggml-org/Qwen3.6-35B-A3B-GGUF:Q4_K_M | llama.cpp | kiem_mini | kiem_mini-feature | [...truncated...]      Running unittests src/lib.rs (target/debug/deps/notekeep-49d36e61ba6dd38e)      Running unittests |
@@ -1749,3 +1784,6 @@ has to infer from a config missing coding rows.
 | mlx-community/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit | mei | configs/NVIDIA-Nemotron-3.5-Lightning-30B-A3B/mei.yaml | 1.02 | 0.64, 0.31, 0.07, 0.27, 4.09, 0.27, 1.73, 0.78 | 4.0 | 2026-09-06T16:46:20Z |
 | AtomicChat/Laguna-XS-2.1-MLX-5bit | mei | configs/Laguna-XS-2.1/mei.yaml | 0.94 | 1.06, 1.00, 0.33, 0.78, 1.80, 0.64, 0.42, 1.49 | 4.0 | 2026-09-09T09:25:15Z |
 | mlx-community/Qwen3.8-27B-4bit | mei | configs/Qwen3.8-27B/mei-061.yaml | 1.22 | 0.89, 0.75, 1.95, 1.62, 0.72, 1.50, 0.98, 1.37 | 4.0 | 2026-09-27T18:55:09Z |
+| LiquidAI/LFM2.5-24B-A2B-MLX-4bit | mei | configs/LiquidAI-LFM2.5-24B-A2B-MLX-4bit/mei.yaml | 0.00 | 0.00, 0.00, 0.00, 0.00 | 4.0 | 2026-10-15T16:35:25Z |
+| LiquidAI/LFM2.5-24B-A2B-MLX-4bit | mei | configs/LiquidAI-LFM2.5-24B-A2B-MLX-4bit/mei.yaml | 2.90 | 2.37, 2.01, 1.22, 2.26, 1.62, 3.66, 0.92, 9.12 | 4.0 | 2026-10-16T01:10:25Z |
+| LiquidAI/LFM2.5-24B-A2B-MLX-4bit | mei | configs/LiquidAI-LFM2.5-24B-A2B-MLX-4bit/mei-cache-off-revalidation.yaml | 3.05 | 2.60, 2.94, 1.61, 1.97, 1.73, 1.85, 1.41, 10.32 | 4.0 | 2026-10-16T12:44:40Z |
