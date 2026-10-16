@@ -126,7 +126,7 @@ class LFM25OptiQConfigTests(unittest.TestCase):
         argv[argv.index("--served-model-id") + 1] = OLD_MODEL
         self.assertEqual(argv, fixture_normalized(old, old_paths))
 
-    def test_all_baseline_configs_are_byte_identical_and_only_three_named_files_added(self):
+    def test_all_baseline_configs_are_byte_identical_and_only_four_named_files_added(self):
         files = subprocess.check_output(
             ["git", "ls-tree", "-r", "--name-only", BASE, "--", "configs"],
             cwd=REPO, text=True).splitlines()
@@ -139,6 +139,7 @@ class LFM25OptiQConfigTests(unittest.TestCase):
             launches.OPTIQ_CONFIG_PATH,
             str((LANE / "README.md").relative_to(REPO)),
             str((LANE / "source-provenance.json").relative_to(REPO)),
+            str((LANE / "local-staging-verification.json").relative_to(REPO)),
         })
 
     def test_remote_inventory_and_lfs_expectations_are_not_local_verification(self):
@@ -148,11 +149,73 @@ class LFM25OptiQConfigTests(unittest.TestCase):
         self.assertEqual(p["upstream_base_model"], "LiquidAI/LFM2.5-24B-A2B")
         self.assertIsNone(p["upstream_conversion_input_revision"])
         self.assertIsNone(self.cfg["source_model_revision"])
-        self.assertNotIn("staging_provenance", self.cfg)
+        self.assertEqual(self.cfg["staging_status"], "local-integrity-verified-loadability-unverified")
+        self.assertEqual(self.cfg["staging_provenance"],
+                         "configs/LiquidAI-LFM2.5-24B-A2B-OptiQ-4bit/local-staging-verification.json")
+        # Verify the committed copy of the parent's staging evidence only.
+        # Do not inspect the staged model or reinterpret remote-only evidence.
+        source_raw = (REPO / self.cfg["source_provenance"]).read_bytes()
+        self.assertEqual(hashlib.sha256(source_raw).hexdigest(),
+                         "010347c5b824ad0d71d53e1dc42c47a1420c02cf86dc5c2597b9825c36c6f07f")
+        staged_raw = (REPO / self.cfg["staging_provenance"]).read_bytes()
+        self.assertEqual(len(staged_raw), 5347)
+        manifest_hash = "664f52331286087bf3057ecfc0b09374bf57d5a8ecf9fbdd5121d4dc7079a93a"
+        self.assertEqual(hashlib.sha256(staged_raw).hexdigest(), manifest_hash)
+        staged = json.loads(staged_raw)
+        self.assertEqual((staged["repo"], staged["pinned_revision"], staged["resolved_commit"]),
+                         (MODEL, REVISION, REVISION))
+        self.assertEqual(staged["base_model"], self.cfg["source_model"])
+        self.assertEqual(staged["loadability"], "NOT CHECKED (GPU-gated)")
         inventory = p["remote_inventory"]
         entries = inventory["entries"]
         files = [e for e in entries if e["type"] == "file"]
         shards = [e for e in files if e["path"].endswith(".safetensors")]
+        expected_shards = sorted(e["path"] for e in shards)
+        self.assertEqual(staged["verify"], {
+            "config_quantization_maps_identical": True, "containers_validated": True,
+            "incomplete_downloads": [], "index_payload_bytes": 16672595968,
+            "ok": True, "reasons": [], "shard_bytes": 16672710010,
+            "shards": expected_shards, "unexpected_safetensors": [],
+        })
+        self.assertEqual(staged["weight_files"], expected_shards)
+        self.assertEqual(staged["weight_bytes"], self.cfg["model_bytes"])
+        self.assertEqual((staged["tree_entries"], staged["tree_file_count"],
+                          staged["total_file_bytes"]), (16, 15, 16690854530))
+        self.assertEqual(staged["payload_bytes"], 16672595968)
+        self.assertEqual(staged["index_payload_bytes"], staged["payload_bytes"])
+        self.assertEqual(staged["header_overhead_bytes"], 114042)
+        self.assertEqual(staged["weight_bytes"] - staged["payload_bytes"],
+                         staged["header_overhead_bytes"])
+        staged_files = staged["files"]
+        self.assertEqual(len(staged_files), 15)
+        self.assertEqual(len({e["path"] for e in staged_files}), 15)
+        self.assertEqual(
+            [(e["path"], e["size_bytes"], e["hub_lfs_sha256"]) for e in staged_files],
+            [(e["path"], e["size"], e.get("lfs", {}).get("oid")) for e in files])
+        self.assertEqual(sum(e["size_bytes"] for e in staged_files), staged["total_file_bytes"])
+        by_path = {e["path"]: e for e in staged_files}
+        for entry in staged_files:
+            with self.subTest(local_manifest_path=entry["path"]):
+                self.assertRegex(entry["sha256"], r"^[0-9a-f]{64}$")
+                if entry["hub_lfs_sha256"] is not None:
+                    self.assertEqual(entry["sha256"], entry["hub_lfs_sha256"])
+        for retrieval in p["retrieval"]:
+            local = by_path.get(retrieval["path"].removeprefix("hf-").replace("optiq-", "optiq/"))
+            if local is not None:
+                self.assertEqual((local["sha256"], local["size_bytes"]),
+                                 (retrieval["sha256"], retrieval["bytes"]))
+        self.assertEqual(staged["default_quantization"], {"bits": 4, "group_size": 64, "mode": "affine"})
+        self.assertEqual(staged["per_layer_bits_counts"], {"4": 94, "8": 165})
+        self.assertEqual(staged["per_layer_quant_entries"], 259)
+        readme = (LANE / "README.md").read_text()
+        self.assertIn(manifest_hash, readme)
+        self.assertIn(hashlib.sha256(CONFIG.read_bytes()).hexdigest(), readme)
+        self.assertIn("no model load/admission yet", next(
+            s["value"] for s in self.cfg["settings"] if s["name"] == "fresh_live_gates_required"))
+        self.assertIn("live model admission remains pending", self.cfg["known_gaps"][-1])
+        for gate in ("loadability", "resource admission", "speed",
+                     "native streaming/non-streaming tool parsing"):
+            self.assertIn(gate, self.cfg["known_gaps"][0].split("Still unverified:", 1)[1])
         self.assertEqual((len(entries), len(files), len(shards)), (16, 15, 4))
         self.assertEqual(len({e["path"] for e in entries}), 16)
         self.assertEqual([(e["path"], e["size"], e["lfs"]["oid"]) for e in shards], [
