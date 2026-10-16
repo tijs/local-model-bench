@@ -58,7 +58,7 @@ class LFM25ConfigTests(unittest.TestCase):
                             "--prefill-step-size": str(c["prefill_step_size"]),
                             "--memory-limit-bytes": str(c["memory_limit_bytes"]),
                             "--fused-gate-up-cache-limit-bytes": "0",
-                            "--cache-reuse": "false", "--min-p": "0",
+                            "--cache-reuse": "true", "--max-cache-blocks": "4097", "--min-p": "0",
                             "--load-mmap": "false"}.items():
             self.assertEqual(argv[argv.index(flag) + 1], value)
         self.assertEqual(argv[argv.index("--vmlx-revision") + 1], c["mei_commit"])
@@ -103,7 +103,7 @@ class LFM25ConfigTests(unittest.TestCase):
         self.assertIs(type(self.cfg["memory_limit_bytes"]), int)
         current_hash = hashlib.sha256(CONFIG.read_bytes()).hexdigest()[:12]
         self.assertNotIn(current_hash, ("0fb346ed9077", "a4be8e840181", "e4f67e0554e2",
-                                       "137b34e01f9f", "3b818db1c96a", "e95f694ede91"))
+                                       "137b34e01f9f", "3b818db1c96a", "e95f694ede91", "63f2b2fa27ff"))
         settings = {s["name"]: s for s in self.cfg["settings"]}
         for name in ("prefill_chunking", "memory_limit"):
             with self.subTest(setting=name):
@@ -134,17 +134,22 @@ class LFM25ConfigTests(unittest.TestCase):
         # The wrapper, not an outer shell/global export, owns the assignment.
         self.assertNotIn("VMLX_FUSED_GATE_UP_CACHE_LIMIT_BYTES=0", argv)
 
-    def test_candidate3_retains_candidate2_prefix_reuse_opt_out_and_its_cost(self):
+    def test_candidate4_enables_only_bounded_paged_prefix_reuse(self):
         argv = acceptance.split_launch_command(self.cfg["benchmark_launch_command"])
         self.assertEqual(argv.count("--cache-reuse"), 1)
-        self.assertEqual(argv[argv.index("--cache-reuse") + 1], "false")
+        self.assertEqual(argv[argv.index("--cache-reuse") + 1], "true")
+        self.assertEqual(argv.count("--max-cache-blocks"), 1)
+        self.assertEqual(argv[argv.index("--max-cache-blocks") + 1], "4097")
+        self.assertIs(type(self.cfg["max_cache_blocks"]), int)
+        self.assertEqual(self.cfg["max_cache_blocks"], 4097)
         self.assertEqual(argv[argv.index("--fused-gate-up-cache-limit-bytes") + 1], "0")
         for flag in ("--cache-limit-bytes", "--kv-cache-dir", "--kv-bits",
                      "--ssm-anchor-boundaries"):
             self.assertNotIn(flag, argv)
         setting = next(s for s in self.cfg["settings"] if s["name"] == "kv_cache")
-        for text in ("EXPERIMENTAL/UNMEASURED", "137b34e01f9f", "--cache-reuse false",
-                     "much slower", "not a proven", "--skip-cache"):
+        for text in ("EXPERIMENTAL/UNMEASURED", "137b34e01f9f", "--cache-reuse true",
+                     "--max-cache-blocks 4097", "65536", "includes one null sentinel", "not per-generation",
+                     "much slower", "no --skip-cache"):
             self.assertIn(text, setting["value"])
         self.assertIn("Engine.swift", setting["source"])
         self.assertIn("ServerConfig.swift", setting["source"])
@@ -371,6 +376,9 @@ class LFM25ConfigTests(unittest.TestCase):
             result = rb._run_one_impl(CONFIG, coding_suites=rb.parse_coding_suites(args.coding_suites))
         self.assertTrue(result)
         launch.assert_called_once()  # mocked: no real server launch
+        launch_argv = acceptance.split_launch_command(launch.call_args.args[0])
+        self.assertEqual(launch_argv[launch_argv.index("--cache-reuse") + 1], "true")
+        self.assertEqual(launch_argv[launch_argv.index("--max-cache-blocks") + 1], "4097")
         self.assertFalse(any("reset_bench_profile.sh" in str(cmd) for cmd in calls))
         suites = [cmd[cmd.index("--suite") + 1] for cmd in calls if "--suite" in cmd]
         self.assertEqual(suites, list(EXPECTED_COUNTS))

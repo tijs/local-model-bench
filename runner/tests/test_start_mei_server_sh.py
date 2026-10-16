@@ -26,6 +26,7 @@ config keeps Mei's own default exactly as before.
 Run: uv run --locked python -m unittest discover -s runner/tests -v
 """
 import os
+import hashlib
 import shlex
 import shutil
 import subprocess
@@ -39,6 +40,13 @@ REPO = Path(__file__).resolve().parents[2]  # local-model-bench root
 START_MEI = REPO / "runner" / "start_mei_server.sh"
 FUSED_CACHE_FLAG = "--fused-gate-up-cache-limit-bytes"
 FUSED_CACHE_ENV = "VMLX_FUSED_GATE_UP_CACHE_LIMIT_BYTES"
+MAX_CACHE_BLOCKS_FLAG = "--max-cache-blocks"
+CANDIDATE3_COMMIT = "0b68ce2d960e8d6754a52ea780c8fec2c57cde3c"
+LFM_CONFIG_PATH = "configs/LiquidAI-LFM2.5-24B-A2B-MLX-4bit/mei.yaml"
+
+
+def _candidate3_file(path):
+    return subprocess.check_output(["git", "show", f"{CANDIDATE3_COMMIT}:{path}"], cwd=REPO)
 
 # Flat argv tokens so they can be concatenated with the base args.
 GATE_CONTROLS_FLAT = [
@@ -109,14 +117,14 @@ def _stub_env():
     return base, str(model), str(repo), str(kv), str(build)
 
 
-def _dry_run(extra, *, omit=(), env=None):
+def _dry_run(extra, *, omit=(), env=None, script=START_MEI):
     base, model, repo, kv, build = _stub_env()
     argv = []
     for flag, value in zip(BASE_ARGS[::2], BASE_ARGS[1::2]):
         if flag not in omit:
             argv += [flag, value.format(model=model, kv=kv, build=build, repo=repo)]
     res = subprocess.run(
-        ["bash", str(START_MEI), *argv, *extra, "--dry-run"],
+        ["bash", str(script), *argv, *extra, "--dry-run"],
         capture_output=True, text=True, timeout=30, env=env,
     )
     return base, res
@@ -237,6 +245,7 @@ class StartMeiServerForwardingTests(unittest.TestCase):
         self.assertEqual(res.returncode, 0, res.stderr)
         for flag, _ in GATE_CONTROLS_PAIRS + LOAD_MMAP_PAIRS + REPETITION_PENALTY_PAIRS:
             self.assertNotIn(flag, res.stdout)
+        self.assertNotIn(MAX_CACHE_BLOCKS_FLAG, _launch_argv(res))
 
     def test_prefill_and_memory_candidate_flags_are_explicit_and_independent(self):
         # Suppress BASE_ARGS' explicit prefill/max caps to exercise absence.
@@ -260,6 +269,62 @@ class StartMeiServerForwardingTests(unittest.TestCase):
                     else:
                         self.assertNotIn(flag, argv)
                 self.assertFalse((base / "build").exists())
+
+
+class MaxCacheBlocksForwardingTests(unittest.TestCase):
+    def test_explicit_limits_are_forwarded_exactly_once_without_changing_reuse(self):
+        for value in ("2", "4097", "0004097", "8192", "9223372036854775807"):
+            for reuse in (None, "false"):
+                with self.subTest(value=value, reuse=reuse):
+                    extra = [MAX_CACHE_BLOCKS_FLAG, value]
+                    if reuse is not None:
+                        extra += ["--cache-reuse", reuse]
+                    base, res = _dry_run(extra, omit=("--cache-reuse",))
+                    self.addCleanup(shutil.rmtree, base)
+                    self.assertEqual(res.returncode, 0, res.stderr)
+                    argv = _launch_argv(res)
+                    self.assertEqual(argv.count(MAX_CACHE_BLOCKS_FLAG), 1)
+                    self.assertEqual(argv[argv.index(MAX_CACHE_BLOCKS_FLAG) + 1], value)
+                    self.assertEqual(argv[argv.index("--cache-reuse") + 1], reuse or "true")
+                    self.assertFalse((base / "build").exists())
+                    self.assertFalse((base / "kv").exists())
+
+    def test_absent_option_preserves_the_entire_candidate3_default_vector(self):
+        with tempfile.TemporaryDirectory(prefix="mei-old-wrapper-") as td:
+            previous = Path(td) / "start_mei_server.sh"
+            previous.write_bytes(_candidate3_file("runner/start_mei_server.sh"))
+            old_base, old = _dry_run([], omit=("--cache-reuse",), script=previous)
+            base, res = _dry_run([], omit=("--cache-reuse",))
+            for root in (old_base, base):
+                self.addCleanup(shutil.rmtree, root)
+            self.assertEqual(old.returncode, 0, old.stderr)
+            self.assertEqual(res.returncode, 0, res.stderr)
+            self.assertEqual([x.replace(str(base), "{fixture}") for x in _launch_argv(res)],
+                             [x.replace(str(old_base), "{fixture}") for x in _launch_argv(old)])
+            self.assertNotIn(MAX_CACHE_BLOCKS_FLAG, _launch_argv(res))
+
+    def test_invalid_and_missing_values_fail_closed_before_any_preflight_or_build(self):
+        for value in (None, "", "0", "000", "1", "0001", "-1", "+2", "2.0", "2e3",
+                      "true", "false", "null", " 2", "2 ", "2\n", "0x10", "１２",
+                      "2;exit 0", "9223372036854775808", "9" * 100):
+            with self.subTest(value=value):
+                # Use no required paths: rejection must precede even preflight.
+                extra = [MAX_CACHE_BLOCKS_FLAG] + ([] if value is None else [value])
+                res = subprocess.run(["bash", str(START_MEI), *extra],
+                                     capture_output=True, text=True, timeout=30)
+                self.assertEqual(res.returncode, 2, res.stdout + res.stderr)
+                self.assertIn(f"{MAX_CACHE_BLOCKS_FLAG} must be an integer", res.stderr)
+                self.assertNotIn("mei isolated launch:", res.stdout)
+                self.assertNotIn("building", res.stdout)
+
+    def test_invalid_limit_is_not_ignored_with_cache_off_or_a_later_valid_limit(self):
+        for extra in (["--cache-reuse", "false", MAX_CACHE_BLOCKS_FLAG, "0"],
+                      [MAX_CACHE_BLOCKS_FLAG, "0", MAX_CACHE_BLOCKS_FLAG, "4097"]):
+            base, res = _dry_run(extra)
+            self.addCleanup(shutil.rmtree, base)
+            self.assertEqual(res.returncode, 2, res.stdout + res.stderr)
+            self.assertNotIn("mei isolated launch:", res.stdout)
+            self.assertFalse((base / "build").exists())
 
 
 class FusedGateUpEnvironmentTests(unittest.TestCase):
@@ -370,7 +435,7 @@ class MeiConfigDryRunTests(unittest.TestCase):
     explicit echo stub; it is not a source-identity or inference test.
     """
 
-    def _config_dry_run(self, cfg):
+    def _config_dry_run(self, cfg, *, script=START_MEI):
         base, model, repo, kv, build = _stub_env()
         self.addCleanup(shutil.rmtree, base)
         paths = {
@@ -406,7 +471,7 @@ class MeiConfigDryRunTests(unittest.TestCase):
             (scripts / "use_local_vmlx.sh").write_text(
                 "#!/bin/bash\nprintf 'override guard: '; printf '%q ' \"$@\"; printf '\\n'\n")
         before = {p.relative_to(base) for p in base.rglob("*")}
-        res = subprocess.run(["bash", str(START_MEI), *args, "--dry-run"],
+        res = subprocess.run(["bash", str(script), *args, "--dry-run"],
                              capture_output=True, text=True, timeout=30, env=env)
         self.assertEqual(res.returncode, 0, res.stderr)
         self.assertEqual({p.relative_to(base) for p in base.rglob("*")}, before)
@@ -424,8 +489,9 @@ class MeiConfigDryRunTests(unittest.TestCase):
             "--served-model-id", "LiquidAI/LFM2.5-24B-A2B-MLX-4bit",
             "--host", "127.0.0.1", "--port", "8029", "--context-cap", "65536",
             "--temperature", "0.1", "--top-p", "0", "--top-k", "50",
-            "--emit-reasoning", "true", "--cache-reuse", "false",
+            "--emit-reasoning", "true", "--cache-reuse", "true",
             "--max-tokens", "4096", "--prefill-step-size", "1024",
+            "--max-cache-blocks", "4097",
             "--min-p", "0", "--repetition-penalty", "1.05",
             "--model-profile", "lfm2.5-24b-a2b",
             "--memory-limit-bytes", "32000000000", "--load-mmap", "false",
@@ -434,6 +500,57 @@ class MeiConfigDryRunTests(unittest.TestCase):
             f"override guard: --path {paths['--vmlx-repo']} "
             "--revision 22969e9555b5e86df862e43e3d7356575d3dd053 "
             f"--build-dir {paths['--build-dir']} --dry-run", res.stdout)
+
+    def test_candidate4_differs_from_immutable_candidate3_only_in_cache_policy(self):
+        raw = _candidate3_file(LFM_CONFIG_PATH)
+        self.assertEqual(hashlib.sha256(raw).hexdigest()[:12], "63f2b2fa27ff")
+        predecessor = yaml.safe_load(raw)
+        candidate = yaml.safe_load((REPO / LFM_CONFIG_PATH).read_text())
+        documentary = {"mei_source_commit", "settings", "known_gaps"}
+        execution = {"benchmark_launch_command", "max_cache_blocks"}
+        self.assertEqual({k: v for k, v in candidate.items() if k not in documentary | execution},
+                         {k: v for k, v in predecessor.items() if k not in documentary | execution})
+        self.assertIs(type(candidate["max_cache_blocks"]), int)
+        self.assertEqual(candidate["max_cache_blocks"], 4097)
+        self.assertNotIn("max_cache_blocks", predecessor)
+        self.assertEqual(candidate["mei_source_commit"], "faf48a331b6bede352c334e0c6e3d4d4d7e10372")
+        launch = shlex.split(candidate["benchmark_launch_command"].replace("\\\n", " "))
+        self.assertEqual(launch.count(MAX_CACHE_BLOCKS_FLAG), 1)
+        i = launch.index(MAX_CACHE_BLOCKS_FLAG)
+        self.assertEqual(launch[i + 1], str(candidate["max_cache_blocks"]))
+        del launch[i:i + 2]
+        self.assertEqual(launch[launch.index("--cache-reuse") + 1], "true")
+        launch[launch.index("--cache-reuse") + 1] = "false"
+        self.assertEqual(launch, shlex.split(predecessor["benchmark_launch_command"].replace("\\\n", " ")))
+
+        # Compare actual wrapper output too, normalizing ONLY fixture paths.
+        old_res, old_paths = self._config_dry_run(predecessor)
+        res, paths = self._config_dry_run(candidate)
+        def normalized(result, fixture_paths):
+            argv = _launch_argv(result)
+            for flag, path in fixture_paths.items():
+                argv = [token.replace(path, "{" + flag + "}") for token in argv]
+            return argv
+        old_argv = normalized(old_res, old_paths)
+        argv = normalized(res, paths)
+        i = argv.index(MAX_CACHE_BLOCKS_FLAG)
+        self.assertEqual(argv[i:i + 2], [MAX_CACHE_BLOCKS_FLAG, "4097"])
+        del argv[i:i + 2]
+        argv[argv.index("--cache-reuse") + 1] = "false"
+        self.assertEqual(argv, old_argv)
+
+    def test_all_other_configs_are_byte_identical_to_immutable_candidate3(self):
+        files = subprocess.check_output(
+            ["git", "ls-tree", "-r", "--name-only", CANDIDATE3_COMMIT, "--", "configs"],
+            cwd=REPO, text=True).splitlines()
+        self.assertTrue(files)
+        for relative in files:
+            if relative == LFM_CONFIG_PATH:
+                continue
+            with self.subTest(path=relative):
+                self.assertEqual((REPO / relative).read_bytes(), _candidate3_file(relative))
+        self.assertEqual({str(p.relative_to(REPO)) for p in (REPO / "configs").rglob("*.yaml")},
+                         {p for p in files if p.endswith(".yaml")})
 
     def test_other_mei_configs_keep_explicit_values_and_absent_defaults(self):
         configs = [(p, cfg) for p in sorted((REPO / "configs").glob("*/*.yaml"))
@@ -449,6 +566,9 @@ class MeiConfigDryRunTests(unittest.TestCase):
                 argv = _launch_argv(res)
                 self.assertNotIn(FUSED_CACHE_FLAG, command)
                 self.assertNotIn("fused_gate_up_cache_limit_bytes", cfg)
+                self.assertNotIn("max_cache_blocks", cfg)
+                self.assertNotIn(MAX_CACHE_BLOCKS_FLAG, command)
+                self.assertNotIn(MAX_CACHE_BLOCKS_FLAG, argv)
                 self.assertNotIn(FUSED_CACHE_ENV, res.stdout)
                 self.assertNotEqual(argv[0], "env")
                 for flag in ("--prefill-step-size", "--memory-limit-bytes", "--max-tokens",
@@ -467,6 +587,26 @@ class MeiConfigDryRunTests(unittest.TestCase):
                 self.assertEqual(argv[argv.index("--cache-reuse") + 1], expected_cache)
         # Fail if the config inventory no longer exercises either absence path.
         self.assertTrue({"--prefill-step-size", "--memory-limit-bytes"} <= saw_absent)
+
+    def test_other_mei_configs_keep_entire_candidate3_wrapper_vectors(self):
+        with tempfile.TemporaryDirectory(prefix="mei-old-config-wrapper-") as td:
+            previous = Path(td) / "start_mei_server.sh"
+            previous.write_bytes(_candidate3_file("runner/start_mei_server.sh"))
+            for path in sorted((REPO / "configs").glob("*/*.yaml")):
+                if str(path.relative_to(REPO)) == LFM_CONFIG_PATH:
+                    continue
+                cfg = yaml.safe_load(path.read_text())
+                if "runner/start_mei_server.sh" not in cfg.get("benchmark_launch_command", ""):
+                    continue
+                with self.subTest(config=str(path.relative_to(REPO))):
+                    old_res, old_paths = self._config_dry_run(cfg, script=previous)
+                    res, paths = self._config_dry_run(cfg)
+                    def normalized(result, fixture_paths):
+                        argv = _launch_argv(result)
+                        for flag, value in fixture_paths.items():
+                            argv = [token.replace(value, "{" + flag + "}") for token in argv]
+                        return argv
+                    self.assertEqual(normalized(res, paths), normalized(old_res, old_paths))
 
 
 if __name__ == "__main__":

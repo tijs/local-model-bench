@@ -35,6 +35,10 @@ Options:
                             not passed; nil = template default, which for the
                             staged Laguna-XS-2.1 chat_template.jinja is FALSE)
   --cache-reuse BOOL        In-process KV/prefix reuse (default: true)
+  --max-cache-blocks N      Paged prefix-cache pool slots, including sentinel
+                            (integer >= 2; omitted -> Mei default 8192).
+                            Only explicit values are forwarded; not a total
+                            memory or per-generation KV limit.
   --kv-bits N               KV quantization bits (default: none)
   --kv-cache-dir DIR        On-disk KV cache dir for the prefix coordinator
                             (default: none -> in-memory paged tier only; the
@@ -105,6 +109,7 @@ REPETITION_PENALTY=""
 EMIT_REASONING="true"
 ENABLE_THINKING=""
 CACHE_REUSE="true"
+MAX_CACHE_BLOCKS=""
 KV_BITS=""
 KV_CACHE_DIR=""
 MODEL_PROFILE=""
@@ -140,6 +145,21 @@ while [[ $# -gt 0 ]]; do
     --emit-reasoning) EMIT_REASONING="${2:?missing value}"; shift 2 ;;
     --enable-thinking) ENABLE_THINKING="${2:?missing value}"; shift 2 ;;
     --cache-reuse) CACHE_REUSE="${2:?missing value}"; shift 2 ;;
+    --max-cache-blocks)
+      MAX_CACHE_BLOCKS="${2-}"
+      # Match Swift Int on this 64-bit host without shell arithmetic overflow.
+      # One pool slot is the null sentinel; at least one usable slot is needed.
+      if [[ ! "$MAX_CACHE_BLOCKS" =~ ^0*([1-9][0-9]*)$ ]]; then
+        echo "FATAL: --max-cache-blocks must be an integer in 2..9223372036854775807 (including sentinel)" >&2
+        exit 2
+      fi
+      CACHE_BLOCK_DIGITS="${BASH_REMATCH[1]}"
+      if [[ "$CACHE_BLOCK_DIGITS" == 1 ]] || (( ${#CACHE_BLOCK_DIGITS} > 19 )) ||
+          { (( ${#CACHE_BLOCK_DIGITS} == 19 )) && [[ "$CACHE_BLOCK_DIGITS" > 9223372036854775807 ]]; }; then
+        echo "FATAL: --max-cache-blocks must be an integer in 2..9223372036854775807 (including sentinel)" >&2
+        exit 2
+      fi
+      shift 2 ;;
     --kv-bits) KV_BITS="${2:?missing value}"; shift 2 ;;
     --kv-cache-dir) KV_CACHE_DIR="${2:?missing value}"; shift 2 ;;
     --model-profile) MODEL_PROFILE="${2:?missing value}"; shift 2 ;;
@@ -233,6 +253,7 @@ ARGS=(--model-dir "$MODEL_DIR" --served-model-id "$SERVED_MODEL_ID"
 # about. Mei resolves its own defaults when neither is given.
 [[ -n "$MAX_TOKENS" ]] && ARGS+=(--max-tokens "$MAX_TOKENS")
 [[ -n "$PREFILL_STEP_SIZE" ]] && ARGS+=(--prefill-step-size "$PREFILL_STEP_SIZE")
+[[ -n "$MAX_CACHE_BLOCKS" ]] && ARGS+=(--max-cache-blocks "$MAX_CACHE_BLOCKS")
 [[ -n "$MIN_P" ]] && ARGS+=(--min-p "$MIN_P")
 # Sampling penalty (Mei 0.9.0 supports --repetition-penalty; the wrapper
 # previously did not forward it). ONLY when the config asks for it — no
