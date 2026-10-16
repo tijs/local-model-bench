@@ -40,7 +40,7 @@ class LFM25ConfigTests(unittest.TestCase):
         self.assertEqual(c["source_revision"], "667408d494bde191c2cb9dd4f4549827816b9275")
         self.assertEqual(c["context_cap"], 65536)
         self.assertEqual(c["hermes_ops_max_tokens"], 4096)
-        self.assertEqual(c["prefill_step_size"], 512)
+        self.assertEqual(c["prefill_step_size"], 1024)
         self.assertEqual(c["memory_limit_bytes"], 32000000000)
         self.assertIs(type(c["fused_gate_up_cache_limit_bytes"]), int)
         self.assertEqual(c["fused_gate_up_cache_limit_bytes"], 0)
@@ -103,13 +103,15 @@ class LFM25ConfigTests(unittest.TestCase):
         self.assertIs(type(self.cfg["memory_limit_bytes"]), int)
         current_hash = hashlib.sha256(CONFIG.read_bytes()).hexdigest()[:12]
         self.assertNotIn(current_hash, ("0fb346ed9077", "a4be8e840181", "e4f67e0554e2",
-                                       "137b34e01f9f"))
+                                       "137b34e01f9f", "3b818db1c96a", "e95f694ede91"))
         settings = {s["name"]: s for s in self.cfg["settings"]}
         for name in ("prefill_chunking", "memory_limit"):
             with self.subTest(setting=name):
                 self.assertIn("EXPERIMENTAL/UNMEASURED", settings[name]["value"])
                 self.assertIn("a4be8e840181", settings[name]["value"])
-        self.assertIn("512", settings["prefill_chunking"]["value"])
+        self.assertIn("--prefill-step-size 1024", settings["prefill_chunking"]["value"])
+        self.assertIn("3b818db1c96a", settings["prefill_chunking"]["value"])
+        self.assertIn("peak scratch", settings["prefill_chunking"]["value"])
         self.assertIn("ModelTuning.swift", settings["prefill_chunking"]["source"])
         self.assertIn("32000000000", settings["memory_limit"]["value"])
         self.assertIn("28.712 GiB", settings["memory_limit"]["value"])
@@ -132,7 +134,7 @@ class LFM25ConfigTests(unittest.TestCase):
         # The wrapper, not an outer shell/global export, owns the assignment.
         self.assertNotIn("VMLX_FUSED_GATE_UP_CACHE_LIMIT_BYTES=0", argv)
 
-    def test_candidate2_disables_only_prefix_reuse_and_documents_its_cost(self):
+    def test_candidate3_retains_candidate2_prefix_reuse_opt_out_and_its_cost(self):
         argv = acceptance.split_launch_command(self.cfg["benchmark_launch_command"])
         self.assertEqual(argv.count("--cache-reuse"), 1)
         self.assertEqual(argv[argv.index("--cache-reuse") + 1], "false")

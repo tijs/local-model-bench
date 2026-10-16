@@ -6,31 +6,50 @@ This lane uses the official MLX artifact at
 establish loadability, tool correctness, useful speed, or benchmark results.
 No model or Hermes profile is installed by these tests.
 
-## Current candidate 2: prefix reuse off (experimental/unmeasured)
+## Current candidate 3: prefill 1024 (experimental/unmeasured)
 
-Config **`3b818db1c96a`** changes exactly one execution value from attempt 1
-(`137b34e01f9f`): **`--cache-reuse true` → `--cache-reuse false`**.
-**`VMLX_FUSED_GATE_UP_CACHE_LIMIT_BYTES=0` remains set for the Mei child only**.
-Prefill **512**, allocator **32000000000 bytes**, **mmap=false**, vendor sampler,
-65536 context, 4096 output, connect300 and all source/build/runtime/profile
-identities stay unchanged. No runtime code or other model config is changed.
+`mei.yaml` changes exactly one execution value from candidate 2
+(**`3b818db1c96a`**, commit **`0adc11bdec48ac2b4c0649a37c4b58b10fe0055a`**):
+**`--prefill-step-size 512` → `--prefill-step-size 1024`**. Matching metadata
+is `prefill_step_size: 1024`; the explicit launch flag is what Mei receives.
+Candidate 3's config hash is **`63f2b2fa27ff`**; full SHA-256 and executed checks
+are in `VERIFICATION.md`.
 
-The parent reports attempt 1 passed its **12/12 admission canary**, but its
-`hermes_ops-chaining` diagnostic (client `48943cd94769`) was stopped for host
-memory pressure after **29 request-log entries**, without a task summary or
-ledger row. This is incomplete evidence, not a task-correctness verdict.
-Preserve that bundle and every earlier partial attempt unchanged.
+Retain **`--cache-reuse false`**, child-only
+**`VMLX_FUSED_GATE_UP_CACHE_LIMIT_BYTES=0`**, allocator **32000000000 bytes**,
+**mmap=false**, vendor sampler, **65536 context**, **4096 output**, connect300,
+and all source/build/runtime/profile identities. No runtime code, generic/model
+profile default, threshold, task or other model config changes.
 
-**Hypothesis, not a proven fix:** retained/reused KV prefixes may contribute to
-the continuing allocator/memory-pressure climb. Pinned Mei `ServerConfig.swift`
-parses the existing switch; `Engine.swift:139-188` enables the cache coordinator
-only when reuse is true. Turning it off does not disable per-generation KV
-state, cap the MLX buffer pool, or prove safe completion. Repeated long prompts
-must be prefilled again and will likely be **much slower**; no latency/memory/
-correctness result is claimed for candidate 2.
+**Hypothesis, not a measured benefit:** larger chunks may reduce long-prompt
+prefill overhead and improve end-to-end agent-task speed while prefix reuse
+remains disabled. **Memory/latency benefit is unmeasured**; larger chunks can
+increase **peak scratch** and may change outputs. This is not vendor advice,
+a safe default, a proven fix, or evidence that quality failures will improve.
+Preparation is model-free only and does not count as a completed live attempt.
 
-After parent review/merge and fresh sustained resource gates, the separately
-authorized admission command is:
+### Prior attempts (parent-reported; preserve separately)
+
+- Candidate 1 **`137b34e01f9f`**, fusion off with prefix reuse on, passed
+  **12/12 admission probes**. Chain diagnostic **`48943cd94769`** was stopped
+  for memory pressure after **29 request-log entries**, with no task summary
+  or ledger row: incomplete evidence, not a task-correctness verdict.
+- Candidate 2 **`3b818db1c96a`** disabled prefix reuse and retained prefill512,
+  fusion off, mmap=false and allocator32e9. Its canonical run wrote **10 rows**:
+  sanity **2/2 pass**, Hermes Ops **1/8 pass**; mean **2.8975 tok/s** was below
+  the unchanged **4.0 tok/s** gate, so coding was skipped.
+- Separate quality-only **`e95f694ede91`**, identical parsed candidate-2 settings
+  with an attribution comment, completed **15/15 coding rows**, **6 pass / 9 fail**,
+  **zero harness errors**. This is not a speed-gate pass or one completed
+  single-config full25. Do not change tasks/thresholds or fold the two identities
+  into a single run.
+
+Disabling reuse still forces repeated prompts to prefill again; it does not
+disable per-generation KV state or cap the MLX buffer pool. Candidate 3 changes
+no cache control. Keep all prior rows, snapshots, transcripts and bundles intact.
+
+After parent review/merge preserving dirty result artifacts byte-for-byte and
+fresh sustained resource gates, the separately authorized admission command is:
 
 ```bash
 # Future live gate only — NOT executed by this model-free change.
@@ -58,9 +77,10 @@ env VMLX_FUSED_GATE_UP_CACHE_LIMIT_BYTES=0 /Users/tijs/projects/mei-lfm25/.build
 ```
 
 This remains the start of the exact launch vector printed in both `--dry-run`
-and startup output, now followed by the candidate-2 cache-off flags. The assignment
-applies **only to the Mei executable**, not SwiftPM, source-selection/metallib helpers,
-the caller's environment, or any other config. The optional wrapper argument
+and startup output, followed by candidate-3 prefill1024 and inherited cache-off
+flags. The assignment applies **only to the Mei executable**, not SwiftPM,
+source-selection/metallib helpers, the caller's environment, or any other config.
+The optional wrapper argument
 is **not a Mei CLI flag**. Omitting it preserves the original launch and any
 inherited environment; no default is injected or cleared. Existing configs
 that already use outer `env` assignments retain those assignments unchanged.
@@ -83,13 +103,13 @@ or a speedup. The parent's subsequent admission pass did not establish safe
 chain-task completion. Unfused projections may reduce decode speed.
 
 Attempt 1's config identity was **`137b34e01f9f`** with cache reuse **true**;
-keep its evidence separate from candidate 2, e4 and every earlier partial
-attempt. All other listed controls remain unchanged in candidate 2. No model,
+keep its evidence separate from candidates 2/3, e4 and every earlier partial
+attempt. Candidate 3 retains the fusion opt-out unchanged. No model,
 server, endpoint call, acceptance or benchmark is run by this follow-up.
 
-## Inherited prefill/allocator candidate (unchanged)
+## Candidate-3 prefill and inherited allocator control
 
-`mei.yaml` now explicitly requests **`--prefill-step-size 512`** and
+`mei.yaml` now explicitly requests **`--prefill-step-size 1024`** and
 **`--memory-limit-bytes 32000000000`**. Top-level `prefill_step_size`,
 `memory_limit_bytes` and `runtime_tuning_status: experimental-unmeasured` are
 matching provenance metadata, not automatic launch overrides: the flags in
@@ -133,7 +153,7 @@ metadata-only scratch fixtures and a stubbed local-vMLX guard.
 
 Vendor sampler, **65536 context**, **4096 output**, connect budget **300s**,
 **mmap=false**, runtime/build/source/artifact pins and all other models stay
-unchanged; only candidate 2 separately disables prefix reuse. Never fold the
+unchanged; candidate 3 retains candidate 2's disabled prefix reuse. Never fold the
 `a4be8e840181` or older `0fb346ed9077` partial rows into it. No model/server,
 endpoint call, admission probe or benchmark is part of this follow-up. Before
 any future authorized load: commit the candidate, pass a fresh sustained

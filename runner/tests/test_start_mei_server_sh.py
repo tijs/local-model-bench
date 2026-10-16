@@ -242,8 +242,10 @@ class StartMeiServerForwardingTests(unittest.TestCase):
         # Suppress BASE_ARGS' explicit prefill/max caps to exercise absence.
         # The wrapper must not turn an LFM candidate into a global default.
         for extra in ([], ["--prefill-step-size", "512"],
+                      ["--prefill-step-size", "1024"],
                       ["--memory-limit-bytes", "32000000000"],
-                      ["--prefill-step-size", "512", "--memory-limit-bytes", "32000000000"]):
+                      ["--prefill-step-size", "512", "--memory-limit-bytes", "32000000000"],
+                      ["--prefill-step-size", "1024", "--memory-limit-bytes", "32000000000"]):
             with self.subTest(extra=extra):
                 base, res = _dry_run(["--model-profile", "qwen3.6-35b-a3b-text", *extra],
                                      omit=("--prefill-step-size", "--max-tokens"))
@@ -423,7 +425,7 @@ class MeiConfigDryRunTests(unittest.TestCase):
             "--host", "127.0.0.1", "--port", "8029", "--context-cap", "65536",
             "--temperature", "0.1", "--top-p", "0", "--top-k", "50",
             "--emit-reasoning", "true", "--cache-reuse", "false",
-            "--max-tokens", "4096", "--prefill-step-size", "512",
+            "--max-tokens", "4096", "--prefill-step-size", "1024",
             "--min-p", "0", "--repetition-penalty", "1.05",
             "--model-profile", "lfm2.5-24b-a2b",
             "--memory-limit-bytes", "32000000000", "--load-mmap", "false",

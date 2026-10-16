@@ -1,4 +1,4 @@
-# Staged/build provenance, model-free verification and current gates — 2026-10-15
+# Staged/build provenance, model-free verification and current gates — 2026-10-16
 
 The model-free checks recorded below performed no model download, staging,
 inference-server launch, canary, or benchmark, and wrote no global/named Hermes
@@ -8,7 +8,127 @@ provisioning after the initial checks are recorded below; they were not test
 side effects. This repository-only follow-up reads that evidence and updates
 config/provenance/runtime wiring without altering model or profile files.
 
-## Candidate 2: prefix reuse disabled (current, experimental/unmeasured)
+## Candidate 3: prefill 1024 (current, experimental/unmeasured)
+
+Prepared in **`/Users/tijs/projects/local-model-bench-lfm25-prefill1024-candidate3`**,
+branch **`work/lfm25-candidate3-prefill1024-20261016`**, based exactly on
+**`0adc11bdec48ac2b4c0649a37c4b58b10fe0055a`**. Workspace/repository `AGENTS.md`,
+branch, full status and Kiem state were inspected first. Neither the dirty
+results worktree nor the clean candidate-2 worktree was edited or switched.
+
+Config SHA-256:
+**`63f2b2fa27ffbc18a895ae7bde8561f9f26bcf0fd4d2be2caaf2116b4976386d`**
+(short identity **`63f2b2fa27ff`**). This is distinct from candidates 1/2 and
+the candidate-2 coding-quality attribution identity `e95f694ede91`.
+
+The **only execution delta** from candidate 2 (`3b818db1c96a`) is
+**`--prefill-step-size 512` → `--prefill-step-size 1024`**, mirrored by
+`prefill_step_size: 1024`. Cache reuse remains **false**, child-only fused
+cache limit **0**, mmap **false**, allocator **32000000000 bytes**; sampler,
+context/output, connect300 and source/build/runtime/profile pins are unchanged.
+Only documentary `settings` values, `known_gaps` and date/comment provenance
+also change. No runtime code, other model config, task or benchmark gate changes.
+
+**Hypothesis only:** larger chunks may reduce long-prompt prefill overhead and
+improve end-to-end agent-task speed. **Memory/latency benefit is unmeasured**;
+larger chunks can raise peak scratch and change outputs. Parent-reported
+candidate-2 canonical speed (2.8975 tok/s below the unchanged 4.0 gate) and
+separate coding-quality coverage (15 rows, 6 pass / 9 fail, zero harness errors)
+motivate this candidate but establish neither a speedup nor a quality remedy.
+Model-free preparation is not a completed third live attempt.
+
+### Executed model-free checks (candidate 3)
+
+```bash
+env -u PYTHONPATH -u PYTHONHOME TMPDIR=/Users/tijs/.hermes/cache/scratch \
+  uv sync --locked --offline
+# exit 0; isolated .venv, no manifest/lockfile changes.
+env -u PYTHONPATH -u PYTHONHOME TMPDIR=/Users/tijs/.hermes/cache/scratch \
+  PYTHONDONTWRITEBYTECODE=1 uv run --locked --offline python -m unittest \
+  runner.tests.test_lfm25_setup runner.tests.test_start_mei_server_sh \
+  runner.tests.test_mei_runtime runner.tests.test_run_bench \
+  runner.tests.test_run_prompt_suite runner.tests.test_bench_common -v
+# exit 0: 82 tests, zero failures/errors/skips.
+bash -n runner/start_mei_server.sh runner/stop_mei_server.sh
+git diff --check
+# both exit 0.
+```
+
+The same **82 tests passed** with a Python audit hook denying socket
+bind/connect/DNS (exit **0**, **zero network attempts**):
+
+```bash
+env -u PYTHONPATH -u PYTHONHOME TMPDIR=/Users/tijs/.hermes/cache/scratch \
+  PYTHONDONTWRITEBYTECODE=1 uv run --locked --offline python \
+  /Users/tijs/.hermes/cache/scratch/lfm25-candidate3-prep/network_denied_tests.py \
+  runner.tests.test_lfm25_setup runner.tests.test_start_mei_server_sh \
+  runner.tests.test_mei_runtime runner.tests.test_run_bench \
+  runner.tests.test_run_prompt_suite runner.tests.test_bench_common -v
+```
+
+Before changing the config, the two strengthened config/exact-wrapper-argv
+regressions were run through this same audit hook: **2 expected failures**,
+exit **1**, both for the 512-versus-1024 mismatch, and **zero network attempts**.
+The final config passes both. Tests also retain 512 forwarding coverage, add
+1024 alone/with allocator32e9, cover independent option omission, and exercise
+all **51 other wrapper configs**. Launch/stop/health/probe operations are mocks
+or inert shell recorders; no real Mei executable or endpoint is called.
+No broad discovery or HTTP-fixture suite was run.
+
+### Actual config dry-run and one-control comparison
+
+```bash
+env -u PYTHONPATH -u PYTHONHOME TMPDIR=/Users/tijs/.hermes/cache/scratch \
+  PYTHONDONTWRITEBYTECODE=1 uv run --locked --offline python \
+  /Users/tijs/.hermes/cache/scratch/lfm25-candidate3-prep/verify_candidate3.py
+# exit 0; candidate-2 and candidate-3 wrapper --dry-run each exit 0.
+```
+
+The canonical `split_launch_command` parses each config; the unchanged wrapper
+receives **`--dry-run` only**, and the real local-vMLX guard verifies the pinned
+revision while printing SwiftPM selection **not applied**. The emitted
+candidate-3 vector is:
+
+```text
+env VMLX_FUSED_GATE_UP_CACHE_LIMIT_BYTES=0 /Users/tijs/projects/mei-lfm25/.build/release/mei --model-dir /Users/tijs/.local/share/local-model-bench/mei-models/LFM2.5-24B-A2B-MLX-4bit --served-model-id LiquidAI/LFM2.5-24B-A2B-MLX-4bit --host 127.0.0.1 --port 8029 --context-cap 65536 --temperature 0.1 --top-p 0 --top-k 50 --emit-reasoning true --cache-reuse false --max-tokens 4096 --prefill-step-size 1024 --min-p 0 --repetition-penalty 1.05 --model-profile lfm2.5-24b-a2b --memory-limit-bytes 32000000000 --load-mmap false
+```
+
+This printed vector was **not executed**. Replacing its single `1024` value
+with `512` reproduces the entire candidate-2 vector exactly, in order. The
+same assertion passes for the config's wrapper argv. All **123 other tracked
+config YAML files** are byte-identical to the base, including the profile
+template. Runner/thresholds, tasks/fixtures/checks, manifest/lockfile and
+staging/pre-load evidence are unchanged. Both selected and historical runtime
+trees retain exact file inventories/bytes/SHA-256/mtimes across the dry-runs.
+Logs and JSON assertions are outside Git under
+`/Users/tijs/.hermes/cache/scratch/lfm25-candidate3-prep/`:
+`candidate3-real-path-dry-run.log` and `config-verification.json`.
+
+Read-only before/after guards (exit **0**) also verified:
+
+- Dirty results worktree: **2908 tracked/nonignored files**, including
+  **2498 result artifacts**, unchanged bytes/SHA-256/modes and full Git status.
+- Clean candidate-2 worktree: **2862 files**, including **2452 result artifacts**,
+  plus HEAD/branch/full status unchanged.
+- Candidate-3 worktree: all **2452 result artifacts** unchanged.
+
+The guards include every file under `results/`, even ignored result artifacts.
+Their initial manifests are `protected-worktrees-before.json` and
+`candidate-results-before.json` in the same scratch directory; replay with
+`python3 .../guard_worktrees.py verify` and `results-verify`.
+
+### Live gates not executed
+
+No Mei/server/model load, port-8029 request, canary, benchmark, result-ledger
+write, cache/evidence deletion, profile/CoCore change, push or release occurred.
+Parent review/merge must preserve the dirty results worktree byte-for-byte.
+Fresh sustained resource/disk/swap/owner/listener gates precede any load;
+bounded exact-context/native admission uses **`--skip-cache` only**, never
+`--skip-context`. After admission, require fresh resource gates and isolated
+chain-task/resource review before considering a full retry. Keep the 10 GiB
+reserve, the **4.0 tok/s** gate and all task/checker definitions unchanged.
+
+## Candidate 2: prefix reuse disabled (historical model-free preparation)
 
 Isolated worktree **`/Users/tijs/projects/local-model-bench-lfm25-candidate2`**,
 branch **`work/lfm25-candidate2-no-prefix-reuse-20261015`**, created from exactly

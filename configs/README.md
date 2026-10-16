@@ -312,11 +312,17 @@ Notes:
   no-profile behavior exactly until their own lane policy is written
   (next-step work; no values are guessed for them).
 
-### LFM2.5-24B runtime candidate (experimental/unmeasured, 2026-10-15)
+### LFM2.5-24B candidate 3 (experimental/unmeasured, 2026-10-16)
 
 `LiquidAI-LFM2.5-24B-A2B-MLX-4bit/mei.yaml` alone now requests
-`--prefill-step-size 512 --memory-limit-bytes 32000000000`. Top-level
-`prefill_step_size` / `memory_limit_bytes` mirror those explicit launch flags;
+`--prefill-step-size 1024 --memory-limit-bytes 32000000000`. The only execution
+change from candidate 2 (`3b818db1c96a`) is **prefill 512 → 1024**; cache reuse
+stays false, fused gate/up cache stays disabled for the Mei child only, and
+mmap=false, sampler/context/output/source/build/runtime/profile controls stay
+unchanged. Candidate 2's canonical mean was parent-reported as 2.8975 tok/s,
+below the unchanged 4.0 gate; its separate coding-quality run is not a gate pass.
+Top-level `prefill_step_size` / `memory_limit_bytes` mirror those explicit launch
+flags;
 `runtime_tuning_status: experimental-unmeasured` records their evidence level.
 These are lane-specific provenance fields, not automatic runner flag injection.
 They are **not vendor sampling or proven safe/optimal defaults**. Other model
@@ -328,8 +334,10 @@ for resource pressure: connect300 recovered selection, but chaining remained
 in flight. Its observed active peak was 28.712 GiB against the default allocator
 limit of about 22.4 GiB. **32e9 bytes is about 29.802 GiB, not 32 GiB**: it is
 above that peak and below 32 GiB physical RAM, but does not guarantee OS/runtime
-headroom or cap total system/process memory. Prefill 512 may increase pressure;
-no LFM-specific sweep or candidate live measurement exists. Keep all baseline
+headroom or cap total system/process memory. Candidate 3 tests whether larger
+chunks reduce long-prompt prefill overhead, but **memory/latency benefit is
+unmeasured** and prefill1024 may increase peak scratch or alter outputs.
+No candidate-3 live measurement or LFM-specific sweep exists. Keep all baseline
 rows/snapshots/bundles intact and use a distinct committed candidate hash.
 Require fresh sustained resource and bounded admission/one-task review before
 any full retry; see the lane's README / VERIFICATION for source references,
