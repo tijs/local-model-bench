@@ -43,6 +43,9 @@ FUSED_CACHE_ENV = "VMLX_FUSED_GATE_UP_CACHE_LIMIT_BYTES"
 MAX_CACHE_BLOCKS_FLAG = "--max-cache-blocks"
 CANDIDATE3_COMMIT = "0b68ce2d960e8d6754a52ea780c8fec2c57cde3c"
 LFM_CONFIG_PATH = "configs/LiquidAI-LFM2.5-24B-A2B-MLX-4bit/mei.yaml"
+CACHE_OFF_REVALIDATION_CONFIG_PATH = (
+    "configs/LiquidAI-LFM2.5-24B-A2B-MLX-4bit/mei-cache-off-revalidation.yaml"
+)
 
 
 def _candidate3_file(path):
@@ -550,7 +553,39 @@ class MeiConfigDryRunTests(unittest.TestCase):
             with self.subTest(path=relative):
                 self.assertEqual((REPO / relative).read_bytes(), _candidate3_file(relative))
         self.assertEqual({str(p.relative_to(REPO)) for p in (REPO / "configs").rglob("*.yaml")},
-                         {p for p in files if p.endswith(".yaml")})
+                         {p for p in files if p.endswith(".yaml")} | {CACHE_OFF_REVALIDATION_CONFIG_PATH})
+
+        # Exactly one additive lane is allowed; it must recover candidate 3's
+        # entire execution contract, not inherit candidate 4's cache policy.
+        self.assertNotIn(CACHE_OFF_REVALIDATION_CONFIG_PATH, files)
+        raw = _candidate3_file(LFM_CONFIG_PATH)
+        self.assertEqual(hashlib.sha256(raw).hexdigest()[:12], "63f2b2fa27ff")
+        predecessor = yaml.safe_load(raw)
+        candidate = yaml.safe_load((REPO / CACHE_OFF_REVALIDATION_CONFIG_PATH).read_text())
+        documentary = {"mei_source_commit", "settings", "known_gaps"}
+        self.assertEqual({k: v for k, v in candidate.items() if k not in documentary},
+                         {k: v for k, v in predecessor.items() if k not in documentary})
+        self.assertEqual(candidate["mei_source_commit"], "faf48a331b6bede352c334e0c6e3d4d4d7e10372")
+        self.assertEqual(candidate["benchmark_launch_command"], predecessor["benchmark_launch_command"])
+        self.assertNotIn("max_cache_blocks", candidate)
+        command = shlex.split(candidate["benchmark_launch_command"].replace("\\\n", " "))
+        self.assertEqual(command.count("--cache-reuse"), 1)
+        self.assertEqual(command[command.index("--cache-reuse") + 1], "false")
+        self.assertNotIn(MAX_CACHE_BLOCKS_FLAG, command)
+
+        # Compare complete emitted vectors too, normalizing ONLY fixture paths.
+        old_res, old_paths = self._config_dry_run(predecessor)
+        res, paths = self._config_dry_run(candidate)
+        def normalized(result, fixture_paths):
+            argv = _launch_argv(result)
+            for flag, path in fixture_paths.items():
+                argv = [token.replace(path, "{" + flag + "}") for token in argv]
+            return argv
+        argv = _launch_argv(res)
+        self.assertEqual(argv.count("--cache-reuse"), 1)
+        self.assertEqual(argv[argv.index("--cache-reuse") + 1], "false")
+        self.assertNotIn(MAX_CACHE_BLOCKS_FLAG, argv)
+        self.assertEqual(normalized(res, paths), normalized(old_res, old_paths))
 
     def test_other_mei_configs_keep_explicit_values_and_absent_defaults(self):
         configs = [(p, cfg) for p in sorted((REPO / "configs").glob("*/*.yaml"))
