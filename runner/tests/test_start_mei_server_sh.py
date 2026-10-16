@@ -46,6 +46,7 @@ LFM_CONFIG_PATH = "configs/LiquidAI-LFM2.5-24B-A2B-MLX-4bit/mei.yaml"
 CACHE_OFF_REVALIDATION_CONFIG_PATH = (
     "configs/LiquidAI-LFM2.5-24B-A2B-MLX-4bit/mei-cache-off-revalidation.yaml"
 )
+OPTIQ_CONFIG_PATH = "configs/LiquidAI-LFM2.5-24B-A2B-OptiQ-4bit/mei.yaml"
 
 
 def _candidate3_file(path):
@@ -553,10 +554,13 @@ class MeiConfigDryRunTests(unittest.TestCase):
             with self.subTest(path=relative):
                 self.assertEqual((REPO / relative).read_bytes(), _candidate3_file(relative))
         self.assertEqual({str(p.relative_to(REPO)) for p in (REPO / "configs").rglob("*.yaml")},
-                         {p for p in files if p.endswith(".yaml")} | {CACHE_OFF_REVALIDATION_CONFIG_PATH})
+                         {p for p in files if p.endswith(".yaml")} |
+                         {CACHE_OFF_REVALIDATION_CONFIG_PATH, OPTIQ_CONFIG_PATH})
 
-        # Exactly one additive lane is allowed; it must recover candidate 3's
+        # The cache-off additive lane must still recover candidate 3's
         # entire execution contract, not inherit candidate 4's cache policy.
+        # The sole additional OptiQ path has full contract tests in
+        # test_lfm25_optiq_setup.py; no pre-existing byte/vector gate is relaxed.
         self.assertNotIn(CACHE_OFF_REVALIDATION_CONFIG_PATH, files)
         raw = _candidate3_file(LFM_CONFIG_PATH)
         self.assertEqual(hashlib.sha256(raw).hexdigest()[:12], "63f2b2fa27ff")
@@ -590,6 +594,7 @@ class MeiConfigDryRunTests(unittest.TestCase):
     def test_other_mei_configs_keep_explicit_values_and_absent_defaults(self):
         configs = [(p, cfg) for p in sorted((REPO / "configs").glob("*/*.yaml"))
                    if p.parent.name != "LiquidAI-LFM2.5-24B-A2B-MLX-4bit"
+                   and str(p.relative_to(REPO)) != OPTIQ_CONFIG_PATH
                    and "runner/start_mei_server.sh" in
                    (cfg := yaml.safe_load(p.read_text())).get("benchmark_launch_command", "")]
         self.assertTrue(configs)
