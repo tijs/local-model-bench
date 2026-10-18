@@ -193,6 +193,21 @@ class MiniCPMV47ConfigTests(unittest.TestCase):
             self.assertNotIn(forbidden, self.cfg["benchmark_launch_command"])
         self.assertIn("--offline", self.cfg["benchmark_launch_command"])
 
+    def test_corrected_bench_provider_route_is_explicit(self):
+        route = self.cfg["hermes_provider_route"]
+        self.assertEqual(route, {
+            "profile": "bench",
+            "provider": "minicpm-v47-gguf",
+            "endpoint": "http://127.0.0.1:8017/v1",
+            "transport": "chat_completions",
+            "model": "openbmb/MiniCPM-V-4.7-35B-A3B-gguf:Q4_K_M",
+            "context_length": 65536,
+        })
+        self.assertEqual(route["provider"], self.cfg["orchestration"]["hermes_provider"])
+        self.assertEqual(route["endpoint"], self.cfg["benchmark_endpoint"])
+        self.assertEqual(route["model"], self.cfg["model"])
+        self.assertEqual(route["context_length"], self.cfg["context_cap"])
+
     def test_per_model_sources_and_unrun_gates_remain_explicit(self):
         settings = {item["name"]: item for item in self.cfg["settings"]}
         required = {
