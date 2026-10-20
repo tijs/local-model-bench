@@ -36,6 +36,15 @@ section for models ruled out outright, and a "Speed-gated configs" section
 for models that didn't clear the minimum tokens/sec floor) — never
 hand-edit that file, it's rebuilt from [`results/log.jsonl`](results/log.jsonl)
 (append-only raw record, one row per task attempt) after every run.
+
+**Current front-runner snapshot (2026-10-20):** Ornith Q4_K_M remains #1
+(score 0.845); MiniCPM-V 4.7 Q4_K_M is now #2 (0.835). The MiniCPM run
+recorded all 25 tasks, including 13/15 coding passes, at 37.3 tok/s. It used
+`--no-mmproj`, so this is a text/tool/coding result only; the benchmark has no
+vision tasks and does not evaluate MiniCPM's visual ability. See
+[`results/SUMMARY.md`](results/SUMMARY.md) and the generated
+[`results/LEADERBOARD.md`](results/LEADERBOARD.md).
+
 Methodology-version boundaries are marked with annotated git tags
 (`git tag -l -n1`) — see AGENTS.md's "Best overall" leaderboard section
 for what each tag family means. Methodology and every non-obvious harness

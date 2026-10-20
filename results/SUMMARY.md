@@ -3,7 +3,7 @@
 **Hand-curated, not auto-regenerated** — unlike `LEADERBOARD.md` (rebuilt
 from `log.jsonl` after every run; never hand-edit it), this is a
 point-in-time reading of the saved benchmark rows. Last updated
-**2026-10-19**. Prior findings, superseded comparisons, and the full
+**2026-10-20**. Prior findings, superseded comparisons, and the full
 decision history are archived verbatim in [`results/HISTORY.md`](HISTORY.md).
 
 ## Mei 0.6.1 three-contender campaign (2026-09-27)
@@ -62,6 +62,12 @@ Ornith and Qwen3.6 text-only. Evidence:
 
 ## Current top picks
 
+**Current #2: MiniCPM-V 4.7.** It scores 0.835, just behind Ornith at 0.845;
+the full run recorded all 25 tasks, with 13/15 coding and 7/8 Hermes Ops
+passes, at 37.3 tok/s. This was a text/tool/coding run with `--no-mmproj`;
+there are no image/vision tasks in the current benchmark, so its visual
+capability remains untested. The row and the full ranking are below.
+
 Top rows of the "Best overall" table in [`LEADERBOARD.md`](LEADERBOARD.md)
 (gate: sanity + full hermes_ops + full coding suite, hermes_ops ≥50% pass;
 score is a weighted composite — pass rate 45%, speed 25%,
@@ -77,10 +83,6 @@ time to first token 20%, turns 10%):
 | 6 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly | mei | thinking | PASS (100%, 8) | 0.799 | 93% (15) | 51.8 tok/s | 35.20s | 3492 | 7.9 |
 | 7 | mudler/gemma-4-26B-A4B-it-APEX-GGUF:APEX-I-Quality | llama.cpp | unspecified | PASS (88%, 8) | 0.751 | 87% (15) | 42.9 tok/s | 10.67s | 5398 | 20.2 |
 | 8 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit | mei | unspecified | PASS (100%, 8) | 0.734 | 93% (15) | 42.6 tok/s | 33.97s | 2352 | 10.8 |
-
-**MiniCPM-V scope.** Its rank-2 row is **text/coding only**, run with
-`--no-mmproj`. The current benchmark has **no image/vision suite**;
-MiniCPM's vision capability was not tested.
 
 ![Best overall composite score by model](score_chart.png)
 
