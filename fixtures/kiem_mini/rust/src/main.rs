@@ -1,4 +1,4 @@
-use notekeep::{new_note, store};
+use notekeep::{filter_by_tag, new_note, store};
 use std::env;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -30,8 +30,24 @@ fn main() {
         }
         "list" => {
             let notes = store::load_all(&data_dir()).expect("load failed");
-            for n in notes {
-                println!("{} {}", n.id, n.title);
+            let tag_arg = args
+                .iter()
+                .enumerate()
+                .skip(2)
+                .find_map(|(idx, arg)| (arg == "--tag").then_some(idx));
+            match tag_arg {
+                Some(idx) => {
+                    let tag = args.get(idx + 1).map(|s| s.as_str()).unwrap_or("");
+                    let filtered = filter_by_tag(&notes, tag);
+                    for n in filtered {
+                        println!("{} {}", n.id, n.title);
+                    }
+                }
+                None => {
+                    for n in notes {
+                        println!("{} {}", n.id, n.title);
+                    }
+                }
             }
         }
         "tags" => {

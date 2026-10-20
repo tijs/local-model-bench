@@ -40,6 +40,15 @@ pub fn extract_tags(text: &str) -> Vec<String> {
         .collect()
 }
 
+/// Returns notes whose `tags` contain exactly `tag` (exact match, not
+/// substring), preserving their relative order.
+pub fn filter_by_tag<'a>(notes: &'a [Note], tag: &str) -> Vec<&'a Note> {
+    notes
+        .iter()
+        .filter(|n| n.tags.iter().any(|t| t == tag))
+        .collect()
+}
+
 pub fn new_note(id: &str, title: &str, body: &str) -> Note {
     Note {
         id: id.to_string(),
