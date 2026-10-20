@@ -1,57 +1,44 @@
-# Summary
+# Summary: choosing a model for Mei
 
-**As of 2026-10-20.** Hand-curated interpretation of saved benchmark evidence;
-[`LEADERBOARD.md`](LEADERBOARD.md#best-overall-gate-then-weighted-composite-score)
-is the generated source for scores, gates and the full ranking. This is not
-a working log or an implementation plan.
+**Choose Qwen3.6-35B-A3B 4-bit text-only for text/agentic coding with Mei.**
+`Tostibrown/Qwen3.6-35B-A3B-4bit-textonly` is the **best measured Mei option**,
+based on the latest full **Mei 0.6.1 campaign (2026-09-27)**.
+As of 2026-10-20, **no full Mei benchmark has been rerun on current Mei 0.9.0**;
+these saved 0.6.1 results are not a validation of 0.9.0.
 
-## Current front-runners
+## Why Qwen, rather than Ornith MLX?
 
-| rank | model / quant | engine | score | coding | Hermes Ops |
-|---|---|---|---:|---:|---:|
-| 1 | ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M | llama.cpp | 0.845 | 13/15 | 8/8 |
-| 2 | openbmb/MiniCPM-V-4.7-35B-A3B-gguf:Q4_K_M | llama.cpp | 0.835 | 13/15 | 7/8 |
+Both completed **25 task rows, with 24/25 passes, 14/15 coding, 8/8 Hermes Ops
+and zero harness errors**. Both failed only `kiem_mini-testwrite` (2/3 mutants
+killed). Quality is tied in this single-trial campaign.
 
-**Current #2: MiniCPM-V 4.7.** A serious contender, not the winner: Ornith
-remains #1. These are results for the current text/tool/coding suite, not
-proof of visual capability or a general engine winner.
+| Mei 0.6.1 model | Normalized composite | Decode tok/s | Avg coding turns | Avg TTFT (s) | Approx. total run (s) |
+|---|---:|---:|---:|---:|---:|
+| Qwen3.6 35B-A3B 4-bit text-only | 0.799 | 51.8 | 7.9 | 35.20 | 3,492 |
+| Ornith 1.5 35B-A3B MLX 4-bit | 0.734 | 42.6 | 10.8 | 33.97 | 2,352 |
 
-## MiniCPM: benchmark scope and failures
+Qwen has the better normalized composite, faster decode and fewer coding
+turns. **Ornith MLX had lower TTFT and a shorter total run time** — Qwen is
+not universally faster. Scores use the generated leaderboard's cross-engine
+normalization; decode and TTFT are sanity + Hermes Ops averages, not coding
+throughput. Total run time is displayed, not scored.
 
-Completed **2026-10-19**, config `cc13a6f07dcf`: **25/25 task rows**, **22/25
-passes** (sanity 2/2, Hermes Ops 7/8, coding 13/15), **zero harness errors**.
-The generated row reports **37.3 tok/s decode**, **6.45 s average TTFT** and
-**1,584 s total runtime**.
+## Scope and next candidate
 
-**No image/vision tasks exist in the current benchmark.** This run used
-`--no-mmproj`; projector, image and video behavior remain untested.
+Cross-engine context: MiniCPM-V 4.7 Q4_K_M is **#2 overall (0.835), llama.cpp only**, not a Mei result; see the generated [leaderboard](LEADERBOARD.md#best-overall-gate-then-weighted-composite-score).
 
-The three task/model failures, not infrastructure failures:
+**There is no image/vision suite and no image-based model recommendation.**
+The recommended Qwen text-only build cannot serve images; MiniCPM's llama.cpp
+run used `--no-mmproj` and does not establish visual ability.
 
-- `hermes_ops-multi-step-chain`: hit the 40-turn limit without a final answer.
-- `kiem_mini-testwrite`: killed 2/3 mutants; one survived.
-- `kipclip_mini-testwrite`: generated TypeScript failed type-checking (22 errors).
+MiniCPM needs native Mei support and a comparable Mei run before it can
+challenge this pick: Kiem `proj/mei`, plan `1659c325-9310-4796-a531-1d842c0fb354`.
 
-## Next meaningful direction
+## Evidence
 
-Establish native MiniCPM-V 4.7 support and correctness in Mei before
-optimization or a comparable scored run. Active steps, blockers and acceptance
-gates live in Kiem, not here:
-
-- `proj/mei`, plan `1659c325-9310-4796-a531-1d842c0fb354`.
-- `proj/local_model_bench`, benchmark record `0636081f-5fd5-4972-8e57-25271f9217e2`.
-
-Vision needs a separately defined and verified task suite; this text result
-is not vision evidence.
-
-## Where the detail lives
-
-- [`LEADERBOARD.md`](LEADERBOARD.md) — generated full ranking, scoring and gates;
-  never hand-edit it.
-- [`log.jsonl`](log.jsonl), [`configs/`](configs/) and
-  [`transcripts/`](transcripts/) — raw task rows, exact run-config snapshots and
-  coding transcripts; [`../configs/`](../configs/) holds launch configurations.
-- [`HISTORY.md`](HISTORY.md) — release campaigns and superseded comparisons,
-  including the [archived September Mei working log](HISTORY.md#archived-mei-optimization-working-log-2026-09-09-to-2026-09-17).
-- [`INFERENCE_ENGINES.md`](../docs/INFERENCE_ENGINES.md) — engine technical research;
-  [`OMLX_MODEL_MATRIX.md`](../docs/OMLX_MODEL_MATRIX.md) is retired oMLX research only.
+- [Full Mei 0.6.1 campaign and caveats](HISTORY.md#2026-09-27-mei-061-three-contender-campaign--ornith-and-qwen36-text-only-at-2425-qwen38-speed-gated).
+- Exact configs: [Qwen text-only `46f751ca4515`](configs/46f751ca4515.yaml)
+  and [Ornith MLX `18466a4917a8`](configs/18466a4917a8.yaml); Mei source
+  `ae7b3b4e` (v0.6.1), vmlx `fef563a5`.
+- [`log.jsonl`](log.jsonl) and [`transcripts/`](transcripts/) — raw task evidence;
+  [`HISTORY.md`](HISTORY.md) — release campaigns and the archived Mei working log.

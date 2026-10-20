@@ -27,9 +27,9 @@ and reviewed by a human. Treat generated numbers/code accordingly, and see
 [`AGENTS.md`](AGENTS.md) for the full history of what was found and fixed
 along the way.
 
-**Start here for the current pick**: [`results/SUMMARY.md`](results/SUMMARY.md)
-is a hand-curated, human-written snapshot of the top candidates and why —
-read this first if you just want an answer. [`results/LEADERBOARD.md`](results/LEADERBOARD.md)
+**Start here for the current Mei pick**: [`results/SUMMARY.md`](results/SUMMARY.md)
+is a hand-curated snapshot of which model to use with Mei and its tradeoffs —
+read this first for a Mei recommendation. [`results/LEADERBOARD.md`](results/LEADERBOARD.md)
 is the full, auto-regenerated detail behind it (every config's numbers,
 a "Best overall" gate-then-weighted-composite table, a "Blocked configs"
 section for models ruled out outright, and a "Speed-gated configs" section
@@ -37,13 +37,14 @@ for models that didn't clear the minimum tokens/sec floor) — never
 hand-edit that file, it's rebuilt from [`results/log.jsonl`](results/log.jsonl)
 (append-only raw record, one row per task attempt) after every run.
 
-**Current front-runner snapshot (2026-10-20):** Ornith Q4_K_M remains #1
-(score 0.845); MiniCPM-V 4.7 Q4_K_M is now #2 (0.835). The MiniCPM run
-recorded all 25 tasks, including 13/15 coding passes, at 37.3 tok/s. It used
-`--no-mmproj`, so this is a text/tool/coding result only; the benchmark has no
-vision tasks and does not evaluate MiniCPM's visual ability. See
-[`results/SUMMARY.md`](results/SUMMARY.md) and the generated
-[`results/LEADERBOARD.md`](results/LEADERBOARD.md).
+**Cross-engine ranking snapshot (2026-10-20):** Ornith Q4_K_M remains #1
+(score 0.845); MiniCPM-V 4.7 Q4_K_M is **#2 overall (0.835), using llama.cpp**,
+not Mei. The MiniCPM run recorded all 25 tasks, including 13/15 coding passes,
+at 37.3 tok/s. It used `--no-mmproj`, so this is a text/tool/coding result only;
+the benchmark has no vision tasks and does not evaluate MiniCPM's visual ability.
+For the recommended Mei model — **Qwen3.6-35B-A3B 4-bit text-only** — and its
+caveats, read the Mei-specific [`results/SUMMARY.md`](results/SUMMARY.md).
+All-engine ranks are in the generated [`results/LEADERBOARD.md`](results/LEADERBOARD.md).
 
 Methodology-version boundaries are marked with annotated git tags
 (`git tag -l -n1`) — see AGENTS.md's "Best overall" leaderboard section
