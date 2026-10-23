@@ -18,10 +18,13 @@ package or launching a server.
 
 Run: uv run --locked python -m unittest discover -s runner/tests -v
 """
+import os
+import shlex
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 REPO = Path(__file__).resolve().parents[2]  # local-model-bench root
 START_MEI = REPO / "runner" / "start_mei_server.sh"
@@ -66,6 +69,7 @@ BASE_ARGS = [
     "--emit-reasoning", "true", "--cache-reuse", "true",
     "--build-dir", "{build}",
     "--mei-repo", "{repo}",
+    "--runtime-base", "{runtime}",
 ]
 
 
@@ -85,14 +89,25 @@ def _stub_env():
     return base, str(model), str(repo), str(kv), str(build)
 
 
-def _dry_run(extra):
+def _run_launcher(extra, *, dry_run=True):
     base, model, repo, kv, build = _stub_env()
-    argv = [a.format(model=model, kv=kv, build=build, repo=repo) for a in BASE_ARGS]
+    argv = [
+        a.format(model=model, kv=kv, build=build, repo=repo, runtime=base / "runtime")
+        for a in BASE_ARGS
+    ]
     res = subprocess.run(
-        ["bash", str(START_MEI), *argv, *extra, "--dry-run"],
-        capture_output=True, text=True,
+        ["bash", str(START_MEI), *argv, *extra, *(["--dry-run"] if dry_run else [])],
+        # macOS Bash may put usage here-doc temporaries in its working dir.
+        cwd=base, capture_output=True, text=True,
+        # Fail closed even if a regression reaches the build: never run Swift
+        # or a real Mei binary from these launcher tests.
+        env={**os.environ, "MEI_SWIFT": "/usr/bin/false"},
     )
     return base, res
+
+
+def _dry_run(extra):
+    return _run_launcher(extra)
 
 
 class StartMeiServerForwardingTests(unittest.TestCase):
@@ -115,6 +130,46 @@ class StartMeiServerForwardingTests(unittest.TestCase):
             self.assertIn(flag, res.stdout)
             self.assertIn(val, res.stdout)
 
+    def test_dry_run_forwards_enable_flint_true_when_explicit(self):
+        self._assert_flint_forwarded("true")
+
+    def test_dry_run_forwards_enable_flint_false_when_explicit(self):
+        self._assert_flint_forwarded("false")
+
+    def _assert_flint_forwarded(self, value):
+        base, res = _dry_run([*GATE_CONTROLS_FLAT, "--enable-flint", value])
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertTrue(res.stdout.startswith("mei isolated launch: "), res.stdout)
+        argv = shlex.split(res.stdout.removeprefix("mei isolated launch: "))
+        self.assertEqual(argv.count("--enable-flint"), 1)
+        index = argv.index("--enable-flint")
+        self.assertEqual(argv[index:index + 2], ["--enable-flint", value])
+        self.assertNotIn("building", res.stdout)
+        for name in ("kv", "build", "runtime"):
+            self.assertFalse((base / name).exists(), name)
+
+    def test_enable_flint_is_not_inferred_from_model_or_environment(self):
+        with patch.dict(os.environ, {"ENABLE_FLINT": "true", "MEI_ENABLE_FLINT": "true"}):
+            _, res = _dry_run(["--served-model-id", "test-flint-model"])
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertNotIn("--enable-flint", shlex.split(res.stdout))
+
+    def test_invalid_enable_flint_fails_before_build_or_launch(self):
+        # Deliberately omit --dry-run: malformed input must fail before runtime
+        # setup or build/launch even on the normal launch path.
+        for values in (
+            ["TRUE"], ["False"], ["1"], ["0"], ["yes"], ["no"],
+            [" true"], ["true "], [""], [], ["--dry-run"],
+        ):
+            with self.subTest(values=values):
+                base, res = _run_launcher(["--enable-flint", *values], dry_run=False)
+                self.assertEqual(res.returncode, 2, res.stdout + res.stderr)
+                self.assertIn("--enable-flint must be true or false", res.stderr)
+                self.assertNotIn("mei isolated launch:", res.stdout)
+                self.assertNotIn("building", res.stdout)
+                for name in ("kv", "build", "runtime"):
+                    self.assertFalse((base / name).exists(), name)
+
     def test_dry_run_does_not_build_or_touch_runtime(self):
         base, res = _dry_run(GATE_CONTROLS_FLAT)
         self.assertEqual(res.returncode, 0, res.stderr)
@@ -123,6 +178,7 @@ class StartMeiServerForwardingTests(unittest.TestCase):
         self.assertNotIn("swift build", (res.stdout + res.stderr).lower())
         self.assertFalse(base.joinpath("kv").exists())
         self.assertFalse(base.joinpath("build").exists())
+        self.assertFalse(base.joinpath("runtime").exists())
 
     def test_legacy_optimization_profile_flag_is_rejected(self):
         # Mei 0.5.0 renamed --optimization-profile to --model-profile; the
@@ -135,12 +191,13 @@ class StartMeiServerForwardingTests(unittest.TestCase):
 
     def test_defaults_do_not_forward_gate_controls(self):
         # Backward compatibility: without the flags, none of the gate controls
-        # (nor the --load-mmap load-path override) appear in the launch line,
-        # so existing configs are unaffected.
+        # (nor --load-mmap or the default-off Flint gate) appear in the launch
+        # line, so existing configs are unaffected.
         _, res = _dry_run([])
         self.assertEqual(res.returncode, 0, res.stderr)
         for flag, _ in GATE_CONTROLS_PAIRS + LOAD_MMAP_PAIRS:
             self.assertNotIn(flag, res.stdout)
+        self.assertNotIn("--enable-flint", shlex.split(res.stdout))
 
 
 if __name__ == "__main__":

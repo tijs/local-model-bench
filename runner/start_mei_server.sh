@@ -63,6 +63,8 @@ Options:
                             boundaries.
   --compiled-decode BOOL    Graph-traced compiled decode (default: none -> not
                             passed; Mei default false)
+  --enable-flint BOOL       Explicit Flint gate (true or false; default: none
+                            -> not passed; Mei default false)
   --load-mmap BOOL          Safetensors load-path override (default: none ->
                             not passed; Mei decides). false materializes the
                             weights into RAM instead of mmap'ing the shards —
@@ -95,6 +97,7 @@ MODEL_PROFILE=""
 MEMORY_LIMIT_BYTES=""
 CACHE_LIMIT_BYTES=""
 COMPILED_DECODE=""
+ENABLE_FLINT=""
 LOAD_MMAP=""
 SSM_ANCHOR_BOUNDARIES=""
 REQUEST_LOG=""
@@ -126,6 +129,11 @@ while [[ $# -gt 0 ]]; do
     --memory-limit-bytes) MEMORY_LIMIT_BYTES="${2:?missing value}"; shift 2 ;;
     --cache-limit-bytes) CACHE_LIMIT_BYTES="${2:?missing value}"; shift 2 ;;
     --compiled-decode) COMPILED_DECODE="${2:?missing value}"; shift 2 ;;
+    --enable-flint)
+      case "${2-}" in
+        true|false) ENABLE_FLINT="$2"; shift 2 ;;
+        *) echo "FATAL: --enable-flint must be true or false" >&2; exit 2 ;;
+      esac ;;
     --load-mmap) LOAD_MMAP="${2:?missing value}"; shift 2 ;;
     --ssm-anchor-boundaries) SSM_ANCHOR_BOUNDARIES="${2:?missing value}"; shift 2 ;;
     --request-log) REQUEST_LOG="${2:?missing value}"; shift 2 ;;
@@ -191,6 +199,8 @@ ARGS=(--model-dir "$MODEL_DIR" --served-model-id "$SERVED_MODEL_ID"
 [[ -n "$MEMORY_LIMIT_BYTES" ]] && ARGS+=(--memory-limit-bytes "$MEMORY_LIMIT_BYTES")
 [[ -n "$CACHE_LIMIT_BYTES" ]] && ARGS+=(--cache-limit-bytes "$CACHE_LIMIT_BYTES")
 [[ -n "$COMPILED_DECODE" ]] && ARGS+=(--compiled-decode "$COMPILED_DECODE")
+# Flint remains Mei's default-off behavior unless the config opts in explicitly.
+[[ -n "$ENABLE_FLINT" ]] && ARGS+=(--enable-flint "$ENABLE_FLINT")
 # Safetensors load-path override (accepted by the Mei 0.5.0 binary though not
 # listed in its --help). Forwarded ONLY when the config asks for it. The OptiQ
 # Qwen3.6 bundle is 5/5-unaligned: the default mmap path realigned ~16.6 GiB
