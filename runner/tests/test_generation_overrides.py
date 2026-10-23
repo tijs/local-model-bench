@@ -557,8 +557,11 @@ class RunBenchProfileArgTests(unittest.TestCase):
 
     def test_run_one_forwards_the_profile_to_the_impl(self):
         import run_bench as rb
-        with unittest.mock.patch.object(rb, "_run_one_impl", return_value=True) as impl:
-            rb.run_one(Path("configs/x/y.yaml"), generation_profile="practical",
+        with tempfile.TemporaryDirectory() as td, \
+                unittest.mock.patch.object(rb, "_run_one_impl", return_value=True) as impl:
+            config_path = Path(td) / "config.yaml"
+            config_path.write_text("inference_engine: fake\n")
+            rb.run_one(config_path, generation_profile="practical",
                        reasoning="medium")
         _, kwargs = impl.call_args
         self.assertEqual(kwargs["generation_profile"], "practical")

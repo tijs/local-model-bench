@@ -30,7 +30,10 @@ from pathlib import Path
 
 import yaml
 
-from bench_common import INTERACTIVE_BUDGET_SECONDS, REPO, PeakRSSSampler, git_sha, snapshot_config
+from bench_common import (
+    INTERACTIVE_BUDGET_SECONDS, REPO, PeakRSSSampler, config_rank_eligible,
+    git_sha, snapshot_config,
+)
 
 HERMES_BIN = Path(os.environ.get(
     "BENCH_HERMES_BIN", str(Path.home() / ".hermes/hermes-agent/venv/bin/hermes")
@@ -939,6 +942,7 @@ def main():
 
     config_path = None
     config_hash = None
+    rank_eligible = True
     proxy_port = None
     raw_port = None
     system_prompt_suffix = None
@@ -955,6 +959,7 @@ def main():
     if args.config:
         config_hash, config_path = snapshot_config(args.config)
         cfg = yaml.safe_load(Path(args.config).read_text())
+        rank_eligible = config_rank_eligible(cfg)
         orch = cfg.get("orchestration") or {}
         if orch.get("needs_proxy"):
             proxy_port = orch.get("proxy_port", 8015)
@@ -1122,6 +1127,7 @@ def main():
                     "inference_engine": args.inference_engine,
                     "config_path": config_path,
                     "config_hash": config_hash,
+                    "rank_eligible": rank_eligible,
                     "runner_git_sha": git_sha(),
                     "quant": args.quant,
                     # Effective coding-profile reasoning effort (2026-09-22):

@@ -90,6 +90,26 @@ MIN_FREE_DISK_GB_BEFORE_LAUNCH = 10.0
 BACKEND_HEALTH_TIMEOUT_SECONDS = 1800
 
 
+def config_rank_eligible(cfg):
+    """Legacy configs rank by default; declared diagnostics never do.
+
+    Use literal booleans, not YAML truthiness. Both suite writers persist this
+    veto on raw rows, and report builders also check the immutable snapshot.
+    A partial/malformed diagnostic declaration must not become rankable.
+    """
+    if not isinstance(cfg, dict):
+        return False
+    orch = cfg.get("orchestration", {})
+    if orch is None:
+        orch = {}  # legacy configs may have an empty orchestration block
+    return (
+        isinstance(orch, dict)
+        and orch.get("rank_eligible", True) is True
+        and orch.get("forced_gate", False) is False
+        and orch.get("exploratory", False) is False
+    )
+
+
 def _find_listening_pid(port):
     """PID of whatever process is actually listening on *port*, or None.
     Deliberately identity-agnostic about how many shell/uv wrapper layers

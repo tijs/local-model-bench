@@ -24,7 +24,10 @@ from pathlib import Path
 
 import yaml
 
-from bench_common import INTERACTIVE_BUDGET_SECONDS, REPO, PeakRSSSampler, git_sha, snapshot_config
+from bench_common import (
+    INTERACTIVE_BUDGET_SECONDS, REPO, PeakRSSSampler, config_rank_eligible,
+    git_sha, snapshot_config,
+)
 
 # Shared by the request path (run_prompt.py) and this module's config
 # parsing: validates a generation-override mapping and fails loudly on an
@@ -186,6 +189,7 @@ def main():
     log_path = REPO / "results" / "log.jsonl"
 
     config_path = config_hash = None
+    rank_eligible = True
     system_prompt_suffix = None
     api_key_env = None
     ttft_measurable = True
@@ -205,6 +209,7 @@ def main():
     if args.config:
         config_hash, config_path = snapshot_config(args.config)
         config_yaml = yaml.safe_load(Path(args.config).read_text())
+        rank_eligible = config_rank_eligible(config_yaml)
         raw_port = (config_yaml.get("orchestration") or {}).get("raw_port")  # for
             # PeakRSSSampler (methodology review, finding F7) — the real
             # server's port, not the proxy's; None for a hosted/API config.
@@ -541,6 +546,7 @@ def main():
                 "quant": args.quant,
                 "config_path": config_path,
                 "config_hash": config_hash,
+                "rank_eligible": rank_eligible,
                 # Immutable resolved generation-lane metadata (2026-09-22):
                 # the named generation_profiles entry selected for THIS row
                 # (None = historic no-profile lane), plus the exact fields it

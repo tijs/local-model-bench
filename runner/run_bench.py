@@ -26,8 +26,9 @@ What it does per config, in order:
   4. if orchestration.needs_proxy: launch bench_local_proxy.py with the
      right BENCH_TOOL_PARSER, wait for its health
   5. sanity suite — fail-fast: if sanity-basic fails, stop here
-  6. hermes_ops suite (unless orchestration.viable says to skip it) —
-     followed by a speed gate: if this run's own avg tok/s across every
+  6. hermes_ops suite (unless orchestration.viable says to skip it) — stop
+     on subprocess/summary harness failures; otherwise apply a speed gate:
+     if this run's own avg tok/s across every
      hermes_ops task is below bench_common.MIN_HERMES_OPS_TOKENS_PER_SECOND,
      skip the coding suite (typically far more expensive: real builds +
      multi-turn agentic loops) rather than spend that time confirming an
@@ -79,6 +80,7 @@ steps 1-4 entirely.
 import argparse
 import hashlib
 import json
+import math
 import os
 import pathlib
 import re
@@ -94,7 +96,10 @@ from statistics import mean
 
 import yaml
 
-from bench_common import BACKEND_HEALTH_TIMEOUT_SECONDS, MIN_FREE_DISK_GB_BEFORE_LAUNCH, MIN_HERMES_OPS_TOKENS_PER_SECOND
+from bench_common import (
+    BACKEND_HEALTH_TIMEOUT_SECONDS, MIN_FREE_DISK_GB_BEFORE_LAUNCH,
+    MIN_HERMES_OPS_TOKENS_PER_SECOND, git_sha, snapshot_config,
+)
 
 REPO = Path(__file__).resolve().parent.parent
 CODING_SPOTCHECK_SUITE = "kiem_mini"
@@ -442,18 +447,25 @@ def _hermes_ops_tps_values(summary_path):
     task the suite actually ran, not one probe task — see
     MIN_HERMES_OPS_TOKENS_PER_SECOND's own comment for why a single-task
     probe was tried and rejected), excluding harness_error rows the same
-    way build_leaderboard.py's own avg-tok/s column does. None if the
-    summary is missing/unreadable — treated as "don't gate on nothing",
-    same discipline as the sanity gate above: a harness crash isn't
-    evidence the MODEL is slow."""
-    if not summary_path.exists():
-        return None
+    way build_leaderboard.py's own avg-tok/s column does. Only finite,
+    nonnegative numeric TPS values are usable (booleans are not metrics).
+    None means missing/unreadable/malformed summary or no usable rows:
+    stop as a harness failure, never infer model slowness or allow coding."""
     try:
         rows = json.loads(summary_path.read_text())
-    except (json.JSONDecodeError, OSError):
+    except (ValueError, OSError):
         return None
-    values = [r["tokens_per_second"] for r in rows
-              if not r.get("harness_error") and r.get("tokens_per_second") is not None]
+    if not isinstance(rows, list) or any(not isinstance(r, dict) for r in rows):
+        return None
+    values = []
+    for row in rows:
+        tps = row.get("tokens_per_second")
+        if not row.get("harness_error") and type(tps) in (int, float):
+            try:
+                if math.isfinite(tps) and tps >= 0:
+                    values.append(tps)
+            except OverflowError:
+                pass  # an out-of-range JSON integer is not a usable rate
     return values or None
 
 
@@ -481,12 +493,64 @@ def _record_speed_gate_failure(model, inference_engine, config_path, config_hash
         f.write(json.dumps(entry) + "\n")
 
 
-def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage="all",
-                  seed=None, generation_profile=None, reasoning=None):
-    cfg = yaml.safe_load(config_path.read_text())
+def _record_disk_preflight(config_path, config_hash, free_bytes):
+    """Persist explicit operator opt-in before launch, even if a later gate fails.
+
+    Never rewrite task rows or authored configs. The verbatim config snapshot
+    carries the diagnostic/ranking declaration; this separate append-only audit
+    records the actual disk observation and CLI authorization for this attempt.
+    A failed snapshot/audit write aborts the launch rather than losing evidence.
+    """
+    snap_hash, relative_path = snapshot_config(config_path)
+    snapshot = REPO / "results" / "configs" / f"{snap_hash}.yaml"
+    if (snap_hash != config_hash
+            or hashlib.sha256(snapshot.read_bytes()).hexdigest()[:12] != config_hash):
+        raise SystemExit("disk preflight refused: config changed or snapshot does not match")
+    floor_bytes = int(MIN_FREE_DISK_GB_BEFORE_LAUNCH * (1024 ** 3))
+    entry = {
+        "config_path": relative_path,
+        "config_hash": config_hash,
+        "runner_git_sha": git_sha(),
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "observed_free_bytes": free_bytes,
+        "floor_gib": MIN_FREE_DISK_GB_BEFORE_LAUNCH,
+        "floor_bytes": floor_bytes,
+        "shortfall_bytes": max(0, floor_bytes - free_bytes),
+        "force_disk_gate": True,
+        "disk_gate_overridden": free_bytes < floor_bytes,
+        "forced_gate": True,
+        "exploratory": True,
+        "rank_eligible": False,
+    }
+    with open(REPO / "results" / "disk_preflight.jsonl", "a") as f:
+        f.write(json.dumps(entry) + "\n")
+        f.flush()
+        os.fsync(f.fileno())
+    return snapshot
+
+
+def _run_one_impl(config_path: Path, cfg, config_hash, trials: int = 1, coding_suites=None, stage="all",
+                  seed=None, generation_profile=None, reasoning=None, force_disk_gate=False):
+    if not isinstance(cfg, dict):
+        sys.exit(f"{config_path} must contain a YAML config mapping")
     orch = cfg.get("orchestration")
-    if not orch:
-        sys.exit(f"{config_path} has no orchestration: block — see configs/README.md")
+    if not isinstance(orch, dict) or not orch:
+        sys.exit(f"{config_path} has no valid orchestration: mapping — see configs/README.md")
+
+    if force_disk_gate and not (
+        force_disk_gate is True
+        and orch.get("forced_gate") is True
+        and orch.get("exploratory") is True
+        and orch.get("rank_eligible") is False
+        and orch.get("raw_port") is not None
+        and not orch.get("api_base_url")
+        and orch.get("viable", "full") == "full"
+        and stage == "all"
+    ):
+        sys.exit("--force-disk-gate requires orchestration.forced_gate: true, "
+                 "orchestration.exploratory: true, orchestration.rank_eligible: false "
+                 "(literal YAML booleans), a local raw_port without api_base_url, "
+                 "viable: full and --stage all")
 
     model = cfg["model"]
     inference_engine = cfg["inference_engine"]
@@ -498,7 +562,6 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
     if cfg.get("inference_engine") == "mei" and not served_model_id:
         sys.exit(f"{config_path} is inference_engine: mei but has no orchestration.served_model_id")
     request_model = served_model_id or model
-    config_hash = hashlib.sha256(config_path.read_bytes()).hexdigest()[:12]
     viable = orch.get("viable", "full")
 
     print(f"\n{'=' * 70}\n{model} ({inference_engine}) — {config_path}\nviable={viable}\n{'=' * 70}")
@@ -510,6 +573,7 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
         return
 
     raw_port = orch.get("raw_port")
+    suite_config_path = config_path
     needs_proxy = orch.get("needs_proxy", False)
     proxy_port = orch.get("proxy_port", 8015)
     hermes_provider = orch.get("hermes_provider")
@@ -542,13 +606,23 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
 
         clear_kv_cache_dir(cfg)
 
-        free_gb = shutil.disk_usage(REPO).free / (1024 ** 3)
-        if free_gb < MIN_FREE_DISK_GB_BEFORE_LAUNCH:
+        free_bytes = shutil.disk_usage(REPO).free
+        free_gb = free_bytes / (1024 ** 3)
+        if free_gb < MIN_FREE_DISK_GB_BEFORE_LAUNCH and not force_disk_gate:
             print(f"FAILED: only {free_gb:.1f}GB free (need at least "
                   f"{MIN_FREE_DISK_GB_BEFORE_LAUNCH:.0f}GB) — refusing to launch "
                   f"onto a nearly-full filesystem. Free up space and rerun this "
                   f"config.")
             return
+
+        if force_disk_gate:
+            # Suites must keep the admitted diagnostic identity even if the
+            # authored config is edited while the server loads or tasks run.
+            suite_config_path = _record_disk_preflight(config_path, config_hash, free_bytes)
+            print(f"--- explicit exploratory disk opt-in: {free_gb:.3f} GiB free; "
+                  f"normal floor {MIN_FREE_DISK_GB_BEFORE_LAUNCH:.0f} GiB; "
+                  f"disk gate overridden={free_gb < MIN_FREE_DISK_GB_BEFORE_LAUNCH}; "
+                  "rank-ineligible (results/disk_preflight.jsonl) ---")
 
         print("\n--- launch candidate server ---")
         alias = f"bench-{config_hash}" if inference_engine.startswith("llama.cpp") else None
@@ -612,7 +686,7 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
             summary_path = Path(td) / "sanity_summary.json"
             proc = run([sys.executable, str(REPO / "runner" / "run_prompt_suite.py"),
                         "--suite", "sanity", "--base-url", base_url, "--model", model,
-                        "--request-model", request_model, "--inference-engine", inference_engine, "--config", str(config_path),
+                        "--request-model", request_model, "--inference-engine", inference_engine, "--config", str(suite_config_path),
                         "--trials", str(trials), "--summary-out", str(summary_path)])
             # Read THIS invocation's own rows, not "whatever's at the tail
             # of the shared log" — a crashed/misconfigured subprocess used
@@ -653,12 +727,24 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
         print("\n--- hermes_ops ---")
         with tempfile.TemporaryDirectory() as td:
             summary_path = Path(td) / "hermes_ops_summary.json"
-            run([sys.executable, str(REPO / "runner" / "run_prompt_suite.py"),
-                 "--suite", "hermes_ops", "--base-url", base_url, "--model", model,
-                 "--request-model", request_model, "--inference-engine", inference_engine, "--config", str(config_path),
-                 "--trials", str(trials), "--summary-out", str(summary_path)]
-                + (["--generation-profile", generation_profile] if generation_profile else []))
+            proc = run([sys.executable, str(REPO / "runner" / "run_prompt_suite.py"),
+                        "--suite", "hermes_ops", "--base-url", base_url, "--model", model,
+                        "--request-model", request_model, "--inference-engine", inference_engine, "--config", str(suite_config_path),
+                        "--trials", str(trials), "--summary-out", str(summary_path)]
+                       + (["--generation-profile", generation_profile] if generation_profile else []))
+            if proc.returncode != 0:
+                print(f"\n!!! hermes_ops infrastructure/harness failure: suite subprocess failed "
+                      f"(returncode={proc.returncode}) — stopping before coding. "
+                      "No model speed conclusion.")
+                _leaderboard()
+                return
             tps_values = _hermes_ops_tps_values(summary_path)
+            if not tps_values:
+                print("\n!!! hermes_ops infrastructure/harness failure: summary is missing, "
+                      "unreadable, malformed or has no usable numeric TPS rows — "
+                      "stopping before coding. No model speed conclusion.")
+                _leaderboard()
+                return
 
         # Speed gate (fail-fast, before the coding suite): a config whose
         # hermes_ops run averages under MIN_HERMES_OPS_TOKENS_PER_SECOND is
@@ -666,19 +752,17 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
         # correctness — skip the coding suite (typically far more
         # expensive: real builds + multi-turn agentic loops) rather than
         # spend that time confirming an outcome the hermes_ops data
-        # already answers. A missing/unreadable summary does NOT fail the
-        # gate (see _hermes_ops_tps_values) — a harness crash isn't
-        # evidence the model is slow.
-        if tps_values:
-            avg_tps = mean(tps_values)
-            if avg_tps < MIN_HERMES_OPS_TOKENS_PER_SECOND:
-                _record_speed_gate_failure(model, inference_engine, config_path, config_hash, tps_values, avg_tps)
-                print(f"\n!!! {model} ({inference_engine}) hermes_ops averaged {avg_tps:.2f} tok/s "
-                      f"({tps_values}) — below the {MIN_HERMES_OPS_TOKENS_PER_SECOND} tok/s "
-                      f"viability cutoff. Too slow to be practical. Skipping the coding suite. "
-                      f"Stopping here.")
-                _leaderboard()
-                return
+        # already answers. Infrastructure failures stopped above without
+        # appending a speed-gate result: they say nothing about model speed.
+        avg_tps = mean(tps_values)
+        if avg_tps < MIN_HERMES_OPS_TOKENS_PER_SECOND:
+            _record_speed_gate_failure(model, inference_engine, config_path, config_hash, tps_values, avg_tps)
+            print(f"\n!!! {model} ({inference_engine}) hermes_ops averaged {avg_tps:.2f} tok/s "
+                  f"({tps_values}) — below the {MIN_HERMES_OPS_TOKENS_PER_SECOND} tok/s "
+                  f"viability cutoff. Too slow to be practical. Skipping the coding suite. "
+                  f"Stopping here.")
+            _leaderboard()
+            return
 
     if stage in ("all", "coding") and viable in ("full", "coding_only") and hermes_provider:
         if coding_suites:
@@ -695,7 +779,7 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
                 run([sys.executable, str(REPO / "runner" / "run_fixture_suite.py"),
                      "--suite", suite,
                      "--hermes-provider", hermes_provider, "--hermes-model", request_model,
-                     "--log-model", model, "--inference-engine", inference_engine, "--config", str(config_path),
+                     "--log-model", model, "--inference-engine", inference_engine, "--config", str(suite_config_path),
                      "--trials", str(trials)]
                     + (["--reasoning", reasoning] if reasoning else []))
         else:
@@ -703,7 +787,7 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
             run([sys.executable, str(REPO / "runner" / "run_fixture_suite.py"),
                  "--suite", CODING_SPOTCHECK_SUITE, "--only-task", CODING_SPOTCHECK_TASK,
                  "--hermes-provider", hermes_provider, "--hermes-model", request_model,
-                 "--log-model", model, "--inference-engine", inference_engine, "--config", str(config_path),
+                 "--log-model", model, "--inference-engine", inference_engine, "--config", str(suite_config_path),
                  "--trials", str(trials)]
                 + (["--reasoning", reasoning] if reasoning else []))
     elif stage in ("all", "coding") and viable in ("full", "coding_only"):
@@ -730,7 +814,7 @@ def _run_one_impl(config_path: Path, trials: int = 1, coding_suites=None, stage=
 
 
 def run_one(config_path: Path, trials: int = 1, coding_suites=None, stage="all",
-            seed=None, generation_profile=None, reasoning=None):
+            seed=None, generation_profile=None, reasoning=None, force_disk_gate=False):
     """Run one config and always tear down the isolated Mei process.
 
     The implementation has many deliberate fail-fast returns.  Keeping cleanup
@@ -739,17 +823,20 @@ def run_one(config_path: Path, trials: int = 1, coding_suites=None, stage="all",
     (The oMLX lane was retired 2026-09-04; its isolated-server teardown was
     removed with it.)
     """
+    # Parse/hash once and retain that identity for cleanup. Re-reading the
+    # authored path in finally could skip teardown if it was edited or removed
+    # while loading, even though the suites correctly use the forced snapshot.
+    config_content = config_path.read_bytes()
+    cfg = yaml.safe_load(config_content)
+    config_hash = hashlib.sha256(config_content).hexdigest()[:12]
     try:
         return _run_one_impl(
-            config_path, trials=trials, coding_suites=coding_suites, stage=stage,
+            config_path, cfg, config_hash, trials=trials, coding_suites=coding_suites, stage=stage,
             seed=seed, generation_profile=generation_profile, reasoning=reasoning,
+            force_disk_gate=force_disk_gate,
         )
     finally:
-        try:
-            cfg = yaml.safe_load(config_path.read_text()) or {}
-        except (OSError, yaml.YAMLError):
-            cfg = {}
-        if cfg.get("inference_engine") == "mei":
+        if isinstance(cfg, dict) and cfg.get("inference_engine") == "mei":
             run(["bash", str(REPO / "runner" / "stop_mei_server.sh")])
 
 
@@ -815,6 +902,11 @@ def build_arg_parser():
     group = ap.add_mutually_exclusive_group(required=True)
     group.add_argument("--config", help="path to one configs/<model>/<backend>.yaml")
     group.add_argument("--all", action="store_true", help="run every configs/*/*.yaml in sequence")
+    ap.add_argument("--force-disk-gate", action="store_true", default=False,
+                    help="explicit disk-floor-only opt-in for one exploratory --config "
+                         "run (--stage all). Requires orchestration.forced_gate: true, "
+                         "exploratory: true and rank_eligible: false; records the disk "
+                         "observation, never skips identity/health/sanity/speed checks")
     ap.add_argument("--seed", type=int, default=None,
                     help="sampling seed passed to the Mei server. NOTE: this "
                          "benchmark runs GREEDY (temperature 0), so the seed is "
@@ -906,7 +998,10 @@ def _discover_ordered_configs(repo, inference_engine=None):
 
 
 def main():
-    args = build_arg_parser().parse_args()
+    ap = build_arg_parser()
+    args = ap.parse_args()
+    if args.force_disk_gate and (args.all or args.stage != "all"):
+        ap.error("--force-disk-gate requires a single --config with --stage all")
     coding_suites = parse_coding_suites(args.coding_suites)
 
     # After parse_args(), not before (adversarial review finding L-7) — this
@@ -939,6 +1034,7 @@ def main():
             Path(args.config), trials=args.trials, coding_suites=coding_suites,
             stage=args.stage, seed=args.seed, generation_profile=args.generation_profile,
             reasoning=args.reasoning,
+            force_disk_gate=args.force_disk_gate,
         ):
             sys.exit(1)
 

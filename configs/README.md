@@ -185,6 +185,62 @@ last_updated: 2026-08-20
 last_verified_against_docs: 2026-08-20   # bump when re-checked — configs go stale
 ```
 
+### Explicit exploratory disk-preflight exception
+
+Ordinary local launches still require **10 GiB free**
+(`bench_common.MIN_FREE_DISK_GB_BEFORE_LAUNCH = 10.0`). Neither a config
+annotation nor a CLI flag alone lowers that floor. For an individually
+authorized diagnostic (such as the Flint trial), commit a distinct config
+identity with these literal YAML booleans:
+
+```yaml
+orchestration:
+  # Keep the model's real port, served identity, provider, etc.
+  viable: full
+  forced_gate: true
+  exploratory: true
+  rank_eligible: false
+```
+
+The operator must also explicitly pass `--force-disk-gate` on that invocation:
+
+```bash
+uv run --locked python runner/run_bench.py \
+  --config configs/<model>/<diagnostic>.yaml --force-disk-gate
+```
+
+This opt-in is limited to a single local `--config`, `--stage all` run, not a
+sweep, hosted API run or coding-only retry. Missing, contradictory or wrongly
+typed config flags refuse the opt-in even when disk is above the floor.
+Without the CLI flag, the normal disk refusal still applies even to a
+diagnostic config. No model identity, endpoint health, completion, sanity,
+speed, harness or cleanup check is bypassed; the default full coding battery
+is unchanged.
+
+Before launch, the opt-in saves the exact config snapshot and appends an audit
+entry to `results/disk_preflight.jsonl` with the observed free bytes, normal
+floor (GiB and bytes), measured shortfall, whether the disk gate was actually
+overridden, operator opt-in, diagnostic flags, config identity, runner SHA and
+UTC timestamp. Failure to persist that evidence aborts the launch. Above the
+floor the same invocation records `disk_gate_overridden: false` and zero
+shortfall; its config is still exploratory and rank-ineligible.
+Forced suites read that immutable snapshot, not the editable authored path,
+so a mid-run config edit cannot drop the diagnostic declaration. The audit
+entry retains the original authored `config_path`; task rows link directly to
+the same content-addressed snapshot. Mei teardown retains the admitted engine
+identity too, so editing or removing the authored config cannot skip cleanup.
+
+Both suite writers append `rank_eligible: false` to diagnostic task rows;
+raw results and transcripts are retained, never rewritten or removed. The
+report builder also honors diagnostic declarations from the hash-verified
+immutable config snapshot (never a since-edited live config). A row veto,
+including a harness-error row, excludes its whole group **before** official
+ranking, fragment selection and score normalization. Per-group statistics stay
+visible with a **rank-ineligible (diagnostic)** label. The official score chart
+uses the same ranking, and curated summary-chart pins/combinations cannot
+re-admit diagnostics into headline charts. Legacy undeclared rows/configs
+retain their prior eligibility rules.
+
 ### Request-time generation profiles: policy and compatibility notes
 
 - **Request-time override, not a new baseline.** `generation_profiles` /

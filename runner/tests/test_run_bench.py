@@ -2,12 +2,16 @@
 
 Run: uv run --locked python -m unittest discover -s runner/tests -v
 """
+import io
 import json
 import shutil
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
+from types import SimpleNamespace
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -49,8 +53,8 @@ class HermesOpsTpsValuesTests(unittest.TestCase):
         self.assertEqual(rb._hermes_ops_tps_values(p), [5.0])
 
     def test_missing_summary_file_returns_none(self):
-        # Don't gate on nothing — a harness crash that prevented the
-        # summary from being written isn't evidence the model is slow.
+        # No speed evidence: the caller must stop as a harness failure,
+        # not classify the model as slow or proceed to coding.
         self.assertIsNone(rb._hermes_ops_tps_values(Path(self.tmp) / "missing.json"))
 
     def test_unparseable_summary_returns_none(self):
@@ -61,6 +65,182 @@ class HermesOpsTpsValuesTests(unittest.TestCase):
     def test_all_rows_missing_tokens_per_second_returns_none(self):
         p = self._summary([{"task_id": "hermes_ops-selection", "tokens_per_second": None}])
         self.assertIsNone(rb._hermes_ops_tps_values(p))
+
+    def test_empty_summary_returns_none(self):
+        self.assertIsNone(rb._hermes_ops_tps_values(self._summary([])))
+
+    def test_malformed_summary_shapes_return_none(self):
+        for rows in (None, {}, {"tokens_per_second": 5}, "rows", 5, True,
+                     [None], [5], [[{"tokens_per_second": 5}]],
+                     [{"tokens_per_second": 5}, None]):
+            with self.subTest(rows=rows):
+                self.assertIsNone(rb._hermes_ops_tps_values(self._summary(rows)))
+
+    def test_unreadable_summary_returns_none(self):
+        p = self._summary([{"tokens_per_second": 5}])
+        with mock.patch.object(Path, "read_text", side_effect=PermissionError("unreadable")):
+            self.assertIsNone(rb._hermes_ops_tps_values(p))
+
+    def test_invalid_utf8_summary_returns_none(self):
+        p = Path(self.tmp) / "summary.json"
+        p.write_bytes(b"\xff")
+        self.assertIsNone(rb._hermes_ops_tps_values(p))
+
+    def test_unusable_tps_values_return_none(self):
+        for tps in (None, "5", True, False, {}, [], float("nan"),
+                    float("inf"), float("-inf"), -1, 10 ** 400):
+            with self.subTest(tps=tps):
+                p = self._summary([{"tokens_per_second": tps}])
+                self.assertIsNone(rb._hermes_ops_tps_values(p))
+
+    def test_only_usable_numeric_tps_rows_are_read(self):
+        p = self._summary([
+            {"tokens_per_second": 0},
+            {"tokens_per_second": 5.5},
+            {"tokens_per_second": 7, "harness_error": True},
+            {"tokens_per_second": "20"},
+            {"tokens_per_second": True},
+            {"tokens_per_second": float("nan")},
+            {"tokens_per_second": float("inf")},
+            {"tokens_per_second": -1},
+            {},
+        ])
+        self.assertEqual(rb._hermes_ops_tps_values(p), [0, 5.5])
+
+
+class HermesOpsHarnessGateTests(unittest.TestCase):
+    """Exercise run_one without servers, weights or real append-only results."""
+
+    def setUp(self):
+        self.repo = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        (self.repo / "results").mkdir()
+        self.log = self.repo / "results" / "log.jsonl"
+        self.log.write_bytes(b'{"historical":"untouched"}\n')
+        self.speed_log = self.repo / "results" / "speed_gate.jsonl"
+        self.config = self.repo / "config.yaml"
+        # No raw_port: launch/unload paths are unnecessary for this gate.
+        self.config.write_text(
+            "model: test/model\ninference_engine: test\norchestration:\n"
+            "  viable: full\n  hermes_provider: offline-test\n")
+        self.enterContext(mock.patch.object(rb, "REPO", self.repo))
+        self.suite_run = self.enterContext(mock.patch.object(rb, "run", side_effect=self.fake_suite))
+        self.leaderboard = self.enterContext(mock.patch.object(rb, "_leaderboard"))
+        self.enterContext(mock.patch.object(rb.subprocess, "Popen", side_effect=AssertionError("no processes")))
+        self.enterContext(mock.patch.object(rb.urllib.request, "urlopen", side_effect=AssertionError("no network")))
+        self.ops_returncode = 0
+        self.ops_summary = json.dumps([{"tokens_per_second": 5}, {"tokens_per_second": 7.0}]).encode()
+
+    def fake_suite(self, cmd, **_kwargs):
+        suite = cmd[cmd.index("--suite") + 1]
+        if "--summary-out" in cmd:
+            summary = Path(cmd[cmd.index("--summary-out") + 1])
+            if suite == "sanity":
+                summary.write_text(json.dumps([
+                    {"task_id": "sanity-basic", "pass": True},
+                    {"task_id": "sanity-tool", "pass": True},
+                ]))
+            elif self.ops_summary is not None:
+                summary.write_bytes(self.ops_summary)
+        return SimpleNamespace(returncode=self.ops_returncode if suite == "hermes_ops" else 0)
+
+    def invoke(self):
+        self.suite_run.reset_mock()
+        self.leaderboard.reset_mock()
+        self.output = io.StringIO()
+        suites = rb.parse_coding_suites(rb.build_arg_parser().parse_args(
+            ["--config", str(self.config)]).coding_suites)
+        with redirect_stdout(self.output):
+            return rb.run_one(self.config, coding_suites=suites)
+
+    def assert_harness_failure(self):
+        self.assertFalse(self.invoke())
+        self.assertEqual([call.args[0][call.args[0].index("--suite") + 1]
+                          for call in self.suite_run.call_args_list], ["sanity", "hermes_ops"])
+        self.assertIn("infrastructure/harness failure", self.output.getvalue())
+        self.assertNotIn("Too slow", self.output.getvalue())
+        self.assertFalse(self.speed_log.exists())
+        self.assertEqual(self.log.read_bytes(), b'{"historical":"untouched"}\n')
+        self.leaderboard.assert_called_once_with()
+
+    def test_nonzero_subprocess_with_missing_summary_stops_before_coding(self):
+        self.ops_summary = None
+        for returncode in (1, -9):
+            with self.subTest(returncode=returncode):
+                self.ops_returncode = returncode
+                self.assert_harness_failure()
+                self.assertIn(f"returncode={returncode}", self.output.getvalue())
+
+    def test_nonzero_subprocess_with_usable_summary_still_stops(self):
+        self.ops_returncode = 1
+        self.assert_harness_failure()
+
+    def test_zero_return_missing_summary_stops_before_coding(self):
+        self.ops_summary = None
+        self.assert_harness_failure()
+
+    def test_zero_return_unusable_summary_stops_before_coding(self):
+        summaries = [b"not JSON", b"\xff", b"null", b"{}", b"[]", b"[null]",
+                     b'[{"tokens_per_second": 5}, null]',
+                     b'[{"tokens_per_second": 9, "harness_error": true}]',
+                     b'[{}, {"tokens_per_second": null}]',
+                     b'[{"tokens_per_second": "9"}, {"tokens_per_second": true}]',
+                     b'[{"tokens_per_second": NaN}, {"tokens_per_second": Infinity}]']
+        for summary in summaries:
+            with self.subTest(summary=summary):
+                self.ops_summary = summary
+                self.assert_harness_failure()
+
+    def test_zero_return_unreadable_summary_stops_before_coding(self):
+        read_text = Path.read_text
+
+        def unreadable_ops(path, *args, **kwargs):
+            if path.name == "hermes_ops_summary.json":
+                raise PermissionError("unreadable Ops summary")
+            return read_text(path, *args, **kwargs)
+
+        with mock.patch.object(Path, "read_text", unreadable_ops):
+            self.assert_harness_failure()
+
+    def test_valid_fast_and_threshold_summaries_continue_to_full_coding(self):
+        for values in ([5, 7.0], [rb.MIN_HERMES_OPS_TOKENS_PER_SECOND]):
+            with self.subTest(values=values):
+                self.ops_summary = json.dumps([{"tokens_per_second": tps} for tps in values]).encode()
+                self.assertTrue(self.invoke())
+                self.assertEqual([call.args[0][call.args[0].index("--suite") + 1]
+                                  for call in self.suite_run.call_args_list],
+                                 ["sanity", "hermes_ops", "kiem_mini", "hearth_mini", "kipclip_mini", "hearth_full"])
+                self.assertFalse(self.speed_log.exists())
+                self.assertNotIn("infrastructure/harness failure", self.output.getvalue())
+                self.leaderboard.assert_called_once_with()
+
+    def test_valid_slow_summary_still_records_speed_gate_and_skips_coding(self):
+        values = [0, rb.MIN_HERMES_OPS_TOKENS_PER_SECOND / 2]
+        self.ops_summary = json.dumps([{"tokens_per_second": tps} for tps in values]).encode()
+        self.assertFalse(self.invoke())
+        self.assertEqual([call.args[0][call.args[0].index("--suite") + 1]
+                          for call in self.suite_run.call_args_list], ["sanity", "hermes_ops"])
+        row, = [json.loads(line) for line in self.speed_log.read_text().splitlines()]
+        self.assertEqual(row["model"], "test/model")
+        self.assertEqual(row["inference_engine"], "test")
+        self.assertEqual(row["measured_tokens_per_second"], values)
+        self.assertEqual(row["avg_tokens_per_second"], sum(values) / len(values))
+        self.assertEqual(row["threshold_tokens_per_second"], rb.MIN_HERMES_OPS_TOKENS_PER_SECOND)
+        self.assertIn("Too slow", self.output.getvalue())
+        self.assertNotIn("infrastructure/harness failure", self.output.getvalue())
+        self.assertEqual(self.log.read_bytes(), b'{"historical":"untouched"}\n')
+        self.leaderboard.assert_called_once_with()
+
+    def test_cli_reports_harness_failure_as_nonzero_exit(self):
+        self.ops_summary = None
+        with mock.patch.object(sys, "argv", ["run_bench.py", "--config", str(self.config)]), \
+                mock.patch.object(rb, "sweep_stale_run_dirs"), \
+                redirect_stdout(io.StringIO()) as output, \
+                self.assertRaises(SystemExit) as raised:
+            rb.main()
+        self.assertEqual(raised.exception.code, 1)
+        self.assertIn("infrastructure/harness failure", output.getvalue())
+        self.assertFalse(self.speed_log.exists())
+        self.assertEqual(self.suite_run.call_count, 2)
 
 
 class SpeedGateFailureRecordTests(unittest.TestCase):

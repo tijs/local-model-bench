@@ -334,7 +334,7 @@ def _row_group_eligible(gs, rows):
         and gs["n_coding"] >= _bl.FULL_CODING_TASKS
     )
     zero_harness_errors = not any(r.get("harness_error") for r in rows)
-    return complete and zero_harness_errors
+    return complete and zero_harness_errors and gs.get("rank_eligible", True) is True
 
 
 def _combined_eligible(gs, combined_rows):
@@ -537,7 +537,9 @@ def compute_engine_deltas(selected, score_by_key=None):
     score_by_key = score_by_key or {}
     by_family = defaultdict(dict)  # family -> engine -> selected dict
     for s in selected:
-        if s["gs"] is None:
+        if s["gs"] is None or s["gs"].get("rank_eligible", True) is not True:
+            # Partial legacy selections stay visible, but diagnostic pins and
+            # curated combinations must never become headline comparisons.
             continue
         by_family[s["family"]][s["engine"].lower()] = s
 

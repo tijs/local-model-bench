@@ -11,6 +11,8 @@ from statistics import mean
 
 import yaml
 
+from bench_common import config_rank_eligible
+
 REPO = Path(__file__).resolve().parent.parent
 
 # "Best overall" eligibility, tightened 2026-08-29 after two real incidents
@@ -399,6 +401,40 @@ def _total_runtime_display(seconds):
     return f"{seconds:.0f}"
 
 
+def _group_rank_eligible(group):
+    """A row or its hash-verified config snapshot can veto headline ranking.
+
+    Check ALL rows (including harness errors) and ALL config identities, so a
+    curated combination cannot wash out a diagnostic fragment. New suite rows
+    preserve the veto even if a snapshot is later lost. Legacy rows with no
+    declaration keep the historical default; never infer permission from an
+    edited live config. A present but corrupt snapshot fails closed.
+    """
+    if any(r.get("rank_eligible", True) is not True
+           or r.get("forced_gate", False) is not False
+           or r.get("exploratory", False) is not False for r in group):
+        return False
+    identities = {(r.get("config_hash"), r.get("config_path")) for r in group}
+    for config_hash, config_path in identities:
+        if not config_hash:
+            continue
+        snapshot = REPO / "results" / "configs" / f"{config_hash}.yaml"
+        try:
+            if snapshot.exists():
+                content = snapshot.read_bytes()
+                if hashlib.sha256(content).hexdigest()[:12] != config_hash:
+                    return False
+            elif config_path and _current_config_hash(config_path) == config_hash:
+                content = (REPO / config_path).read_bytes()
+            else:
+                continue  # undeclared legacy rows, not a live-config guess
+            if not config_rank_eligible(yaml.safe_load(content)):
+                return False
+        except (OSError, yaml.YAMLError):
+            return False
+    return True
+
+
 def compute_group_stats(groups):
     """One row of the main leaderboard table (and the raw scoring inputs
     the composite "Best overall" ranking below needs) per (model,
@@ -507,6 +543,9 @@ def compute_group_stats(groups):
         peak_rss = f"{max(rss_values):.1f}" if rss_values else "—"
         config_path = next((r.get("config_path") for r in group if r.get("config_path")), None)
         config_label = _config_label(config_hash, config_path)
+        rank_eligible = _group_rank_eligible(group)
+        if not rank_eligible:
+            config_label += " — **rank-ineligible (diagnostic)**"
         temp, reasoning_mode, reasoning_effort = _fairness_fields(config_hash, config_path)
         quant_family, cache_mode, mtp_mode = _experiment_fields(config_hash, config_path)
         runner_label = runner_sha or "*(predates tracking)*"
@@ -537,6 +576,7 @@ def compute_group_stats(groups):
 
         group_stats.append({
             "key": (model, inference_engine, quant, config_hash, runner_sha),
+            "rank_eligible": rank_eligible,
             "line": (
                 f"| {model} | {inference_engine} | {quant or '—'} | {temp} | {reasoning_mode} | "
                 f"{reasoning_effort} | {sanity_gate} | {config_label} | {runner_label} | {n} | {pass_rate} | "
@@ -690,6 +730,10 @@ def rank_groups(group_stats):
 
     best_fragment = {}
     for gs in group_stats:
+        if gs.get("rank_eligible", True) is not True:
+            # Exclude BEFORE dedup and normalization: a diagnostic must neither
+            # displace a normal fragment nor change any official score.
+            continue
         model, inference_engine, quant, _config_hash, runner_sha = gs["key"]
         if not _is_v2_or_later(runner_sha):
             # Pre-benchmark-v2 data is excluded from "Best overall"
@@ -1003,6 +1047,10 @@ def main():
 
     lines.append("")
     lines.append("## Best overall (gate, then weighted composite score)")
+    lines.append("")
+    lines.append("**Diagnostic exclusion** — rank-ineligible/exploratory/forced-gate configs")
+    lines.append("and rows never enter this ranking or its score normalization, even with full")
+    lines.append("coverage. Their raw rows/transcripts and labeled per-group statistics remain.")
     lines.append("")
     lines.append("**Eligibility** — a group must have run sanity plus the FULL suite on both")
     lines.append(
