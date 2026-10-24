@@ -98,7 +98,7 @@ import yaml
 
 from bench_common import (
     BACKEND_HEALTH_TIMEOUT_SECONDS, MIN_FREE_DISK_GB_BEFORE_LAUNCH,
-    MIN_HERMES_OPS_TOKENS_PER_SECOND, git_sha, snapshot_config,
+    MIN_HERMES_OPS_TOKENS_PER_SECOND, config_rank_eligible, git_sha, snapshot_config,
 )
 
 REPO = Path(__file__).resolve().parent.parent
@@ -529,13 +529,84 @@ def _record_disk_preflight(config_path, config_hash, free_bytes):
     return snapshot
 
 
+def _record_authorized_disk_floor_override(config_path, config_content, config_hash, free_bytes):
+    """Persist a rank-eligible, per-invocation waiver before any server launch.
+
+    This is separate from the forced diagnostic path: a resource-floor waiver
+    does not change scoring eligibility. Write the admitted bytes exclusively,
+    fsync both files and their directories, and read back both artifacts. Any
+    failure propagates before Popen; an existing snapshot is never rewritten.
+    """
+    full_hash = hashlib.sha256(config_content).hexdigest()
+    if full_hash[:12] != config_hash or config_path.read_bytes() != config_content:
+        raise SystemExit("disk-floor override refused: config changed before preflight")
+    relative_path = str(config_path.resolve().relative_to(REPO))
+    snapshot = REPO / "results" / "configs" / f"{config_hash}.yaml"
+    snapshot.parent.mkdir(parents=True, exist_ok=True)
+    if snapshot.is_symlink():
+        raise SystemExit("disk-floor override refused: snapshot must not be a symlink")
+    try:
+        with open(snapshot, "xb") as f:
+            if f.write(config_content) != len(config_content):
+                raise OSError("incomplete disk-floor override config snapshot write")
+            f.flush()
+            os.fsync(f.fileno())
+    except FileExistsError:
+        pass  # verify, but never overwrite, a content-addressed snapshot
+    with open(snapshot, "rb") as f:
+        if f.read() != config_content:
+            raise SystemExit("disk-floor override refused: snapshot does not match admitted config")
+        os.fsync(f.fileno())
+
+    floor_bytes = int(MIN_FREE_DISK_GB_BEFORE_LAUNCH * (1024 ** 3))
+    entry = {
+        "config_path": relative_path,
+        "config_hash": config_hash,
+        "config_sha256": full_hash,
+        "config_snapshot": str(snapshot.relative_to(REPO)),
+        "runner_git_sha": git_sha(),
+        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "observed_free_bytes": free_bytes,
+        "floor_gib": MIN_FREE_DISK_GB_BEFORE_LAUNCH,
+        "floor_bytes": floor_bytes,
+        "shortfall_bytes": max(0, floor_bytes - free_bytes),
+        "allow_disk_floor_override": True,
+        "disk_floor_override_authorized": True,
+        "disk_gate_overridden": free_bytes < floor_bytes,
+        "rank_eligible": True,
+    }
+    audit = REPO / "results" / "disk_preflight.jsonl"
+    payload = (json.dumps(entry) + "\n").encode("utf-8")
+    with open(audit, "ab") as f:
+        offset = f.tell()
+        if f.write(payload) != len(payload):
+            raise OSError("incomplete disk-floor override audit write")
+        f.flush()
+        os.fsync(f.fileno())
+    with open(audit, "rb") as f:
+        f.seek(offset)
+        if f.read(len(payload)) != payload:
+            raise SystemExit("disk-floor override refused: audit readback does not match")
+    for directory in (snapshot.parent, audit.parent):
+        fd = os.open(directory, os.O_RDONLY)
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+    return snapshot
+
+
 def _run_one_impl(config_path: Path, cfg, config_hash, trials: int = 1, coding_suites=None, stage="all",
-                  seed=None, generation_profile=None, reasoning=None, force_disk_gate=False):
+                  seed=None, generation_profile=None, reasoning=None, force_disk_gate=False,
+                  allow_disk_floor_override=False, *, config_content=None):
     if not isinstance(cfg, dict):
         sys.exit(f"{config_path} must contain a YAML config mapping")
     orch = cfg.get("orchestration")
     if not isinstance(orch, dict) or not orch:
         sys.exit(f"{config_path} has no valid orchestration: mapping — see configs/README.md")
+
+    if force_disk_gate and allow_disk_floor_override:
+        sys.exit("--force-disk-gate and --allow-disk-floor-override are mutually exclusive")
 
     if force_disk_gate and not (
         force_disk_gate is True
@@ -551,6 +622,20 @@ def _run_one_impl(config_path: Path, cfg, config_hash, trials: int = 1, coding_s
                  "orchestration.exploratory: true, orchestration.rank_eligible: false "
                  "(literal YAML booleans), a local raw_port without api_base_url, "
                  "viable: full and --stage all")
+
+    if allow_disk_floor_override and not (
+        allow_disk_floor_override is True
+        and orch.get("disk_floor_override_authorized") is True
+        and config_rank_eligible(cfg)
+        and orch.get("raw_port") is not None
+        and not orch.get("api_base_url")
+        and orch.get("viable", "full") == "full"
+        and stage == "all"
+    ):
+        sys.exit("--allow-disk-floor-override requires "
+                 "orchestration.disk_floor_override_authorized: true (a literal YAML boolean), "
+                 "a rank-eligible config (no forced_gate/exploratory/rank veto), "
+                 "a local raw_port without api_base_url, viable: full and --stage all")
 
     model = cfg["model"]
     inference_engine = cfg["inference_engine"]
@@ -608,7 +693,8 @@ def _run_one_impl(config_path: Path, cfg, config_hash, trials: int = 1, coding_s
 
         free_bytes = shutil.disk_usage(REPO).free
         free_gb = free_bytes / (1024 ** 3)
-        if free_gb < MIN_FREE_DISK_GB_BEFORE_LAUNCH and not force_disk_gate:
+        if (free_gb < MIN_FREE_DISK_GB_BEFORE_LAUNCH
+                and not force_disk_gate and not allow_disk_floor_override):
             print(f"FAILED: only {free_gb:.1f}GB free (need at least "
                   f"{MIN_FREE_DISK_GB_BEFORE_LAUNCH:.0f}GB) — refusing to launch "
                   f"onto a nearly-full filesystem. Free up space and rerun this "
@@ -623,6 +709,14 @@ def _run_one_impl(config_path: Path, cfg, config_hash, trials: int = 1, coding_s
                   f"normal floor {MIN_FREE_DISK_GB_BEFORE_LAUNCH:.0f} GiB; "
                   f"disk gate overridden={free_gb < MIN_FREE_DISK_GB_BEFORE_LAUNCH}; "
                   "rank-ineligible (results/disk_preflight.jsonl) ---")
+
+        if allow_disk_floor_override:
+            suite_config_path = _record_authorized_disk_floor_override(
+                config_path, config_content, config_hash, free_bytes)
+            print(f"--- explicitly authorized one-run disk-floor waiver: {free_gb:.3f} GiB free; "
+                  f"normal floor {MIN_FREE_DISK_GB_BEFORE_LAUNCH:.0f} GiB; "
+                  f"disk gate overridden={free_gb < MIN_FREE_DISK_GB_BEFORE_LAUNCH}; "
+                  "ranking eligibility unchanged (results/disk_preflight.jsonl) ---")
 
         print("\n--- launch candidate server ---")
         alias = f"bench-{config_hash}" if inference_engine.startswith("llama.cpp") else None
@@ -814,7 +908,8 @@ def _run_one_impl(config_path: Path, cfg, config_hash, trials: int = 1, coding_s
 
 
 def run_one(config_path: Path, trials: int = 1, coding_suites=None, stage="all",
-            seed=None, generation_profile=None, reasoning=None, force_disk_gate=False):
+            seed=None, generation_profile=None, reasoning=None, force_disk_gate=False,
+            allow_disk_floor_override=False):
     """Run one config and always tear down the isolated Mei process.
 
     The implementation has many deliberate fail-fast returns.  Keeping cleanup
@@ -834,6 +929,8 @@ def run_one(config_path: Path, trials: int = 1, coding_suites=None, stage="all",
             config_path, cfg, config_hash, trials=trials, coding_suites=coding_suites, stage=stage,
             seed=seed, generation_profile=generation_profile, reasoning=reasoning,
             force_disk_gate=force_disk_gate,
+            allow_disk_floor_override=allow_disk_floor_override,
+            config_content=config_content,
         )
     finally:
         if isinstance(cfg, dict) and cfg.get("inference_engine") == "mei":
@@ -902,11 +999,17 @@ def build_arg_parser():
     group = ap.add_mutually_exclusive_group(required=True)
     group.add_argument("--config", help="path to one configs/<model>/<backend>.yaml")
     group.add_argument("--all", action="store_true", help="run every configs/*/*.yaml in sequence")
-    ap.add_argument("--force-disk-gate", action="store_true", default=False,
+    disk_options = ap.add_mutually_exclusive_group()
+    disk_options.add_argument("--force-disk-gate", action="store_true", default=False,
                     help="explicit disk-floor-only opt-in for one exploratory --config "
                          "run (--stage all). Requires orchestration.forced_gate: true, "
                          "exploratory: true and rank_eligible: false; records the disk "
                          "observation, never skips identity/health/sanity/speed checks")
+    disk_options.add_argument("--allow-disk-floor-override", action="store_true", default=False,
+                    help="explicitly authorized one-run disk-floor waiver for one local "
+                         "--config (--stage all). Requires orchestration."
+                         "disk_floor_override_authorized: true and a rank-eligible config; "
+                         "persists prelaunch evidence, preserves ranking eligibility and all other gates")
     ap.add_argument("--seed", type=int, default=None,
                     help="sampling seed passed to the Mei server. NOTE: this "
                          "benchmark runs GREEDY (temperature 0), so the seed is "
@@ -1002,6 +1105,8 @@ def main():
     args = ap.parse_args()
     if args.force_disk_gate and (args.all or args.stage != "all"):
         ap.error("--force-disk-gate requires a single --config with --stage all")
+    if args.allow_disk_floor_override and (args.all or args.stage != "all"):
+        ap.error("--allow-disk-floor-override requires a single --config with --stage all")
     coding_suites = parse_coding_suites(args.coding_suites)
 
     # After parse_args(), not before (adversarial review finding L-7) — this
@@ -1035,6 +1140,7 @@ def main():
             stage=args.stage, seed=args.seed, generation_profile=args.generation_profile,
             reasoning=args.reasoning,
             force_disk_gate=args.force_disk_gate,
+            allow_disk_floor_override=args.allow_disk_floor_override,
         ):
             sys.exit(1)
 

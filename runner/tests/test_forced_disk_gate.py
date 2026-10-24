@@ -60,7 +60,7 @@ class ScratchRepoTests(unittest.TestCase):
         return cfg
 
 
-class DiskGateTests(ScratchRepoTests):
+class DiskGateTestCase(ScratchRepoTests):
     def setUp(self):
         super().setUp()
         self.write_config()
@@ -108,6 +108,8 @@ class DiskGateTests(ScratchRepoTests):
     def coding_calls(self):
         return [c for c in self.suite_run.call_args_list if "--hermes-provider" in c.args[0]]
 
+
+class DiskGateTests(DiskGateTestCase):
     def test_default_ten_gib_refusal_and_boundary_unchanged(self):
         self.assertEqual(bc.MIN_FREE_DISK_GB_BEFORE_LAUNCH, 10.0)
         self.free_bytes = 10 * GIB - 1
@@ -436,6 +438,29 @@ class DiagnosticRankingTests(ScratchRepoTests):
         self.assertEqual([(gate, score, gs["key"]) for gate, score, gs in ranked],
                          [(gate, score, gs["key"]) for gate, score, gs in baseline])
 
+    def test_authorized_floor_waiver_ranks_normally_without_re_admitting_diagnostics(self):
+        normal, normal_rows = self.group("ordinary")
+        authorized, authorized_rows = self.group("authorized-Flint", {"disk_floor_override_authorized": True})
+        forced, forced_rows = self.group("diagnostic", {**DIAGNOSTIC, "disk_floor_override_authorized": True})
+        groups = {normal: normal_rows, authorized: authorized_rows, forced: forced_rows}
+        stats = bl.compute_group_stats(groups)
+        ranked_keys = {gs["key"] for _gate, _score, gs in bl.rank_groups(stats)}
+        self.assertEqual(ranked_keys, {normal, authorized})
+        self.assertIs(next(gs for gs in stats if gs["key"] == authorized)["rank_eligible"], True)
+        for row in normal_rows + authorized_rows + forced_rows:
+            with self.log.open("a") as f:
+                f.write(json.dumps(row) + "\n")
+        self.assertEqual({row["model"] for row in plot.build_ranked_rows(self.log)},
+                         {"ordinary", "authorized-Flint"})
+        record = {"family": "Flint", "engine": "mei", "model": "authorized-Flint",
+                  "config_hash": authorized[3]}
+        selected, = charts.resolve_selection([record], stats, ranked_keys, groups)
+        self.assertIs(selected["eligible"], True)
+        combined = {"family": "Flint", "engine": "mei", "fragments": [
+            {"model": key[0], "config_hash": key[3]} for key in (normal, authorized)]}
+        selected, = charts.resolve_selection([combined], stats, ranked_keys, groups)
+        self.assertIs(selected["eligible"], True)
+
     def test_single_false_row_veto_survives_missing_snapshot_and_harness_error(self):
         key, rows = self.group("forced-Flint", DIAGNOSTIC)
         (self.repo / "results" / "configs" / f"{key[3]}.yaml").unlink()
@@ -530,7 +555,16 @@ class AppendOnlySuiteMetadataTests(ScratchRepoTests):
         yield
 
     def test_both_suite_writers_append_rank_ineligible_rows_and_keep_transcripts(self):
-        self.write_config(DIAGNOSTIC)
+        self.assert_suite_metadata(DIAGNOSTIC, rank_eligible=False)
+
+    def test_both_suite_writers_keep_authorized_waiver_rows_rank_eligible(self):
+        self.assert_suite_metadata({"disk_floor_override_authorized": True}, rank_eligible=True)
+
+    def assert_suite_metadata(self, flags, rank_eligible):
+        self.write_config(flags)
+        # Both disk exceptions pass this exact content-addressed path to suites.
+        config_hash, _ = bc.snapshot_config(self.config)
+        snapshot = self.repo / "results" / "configs" / f"{config_hash}.yaml"
         (self.repo / "tasks").mkdir()
         prompt_task = {"id": "offline-task", "prompt_spec": {"user_prompt": "offline"}, "check": {}}
         (self.repo / "tasks" / "sanity.yaml").write_text(yaml.safe_dump({"runner": "prompt", "tasks": [prompt_task]}))
@@ -543,7 +577,7 @@ class AppendOnlySuiteMetadataTests(ScratchRepoTests):
             stack.enter_context(mock.patch.object(prompts, "PeakRSSSampler", return_value=SimpleNamespace(start=lambda: SimpleNamespace(stop=lambda: None))))
             stack.enter_context(mock.patch.object(prompts, "run_with_task_deadline", return_value=("{}", "", 0, False)))
             stack.enter_context(mock.patch.object(prompts.subprocess, "run", return_value=SimpleNamespace(returncode=0, stdout="PASS")))
-            stack.enter_context(mock.patch.object(sys, "argv", ["run_prompt_suite.py", "--suite", "sanity", "--base-url", "http://never.invalid/v1", "--model", "test/Flint", "--inference-engine", "mei", "--config", str(self.config)]))
+            stack.enter_context(mock.patch.object(sys, "argv", ["run_prompt_suite.py", "--suite", "sanity", "--base-url", "http://never.invalid/v1", "--model", "test/Flint", "--inference-engine", "mei", "--config", str(snapshot)]))
             prompts.main()
         after_prompt = self.log.read_bytes()
         self.assertTrue(after_prompt.startswith(sentinel))
@@ -555,13 +589,14 @@ class AppendOnlySuiteMetadataTests(ScratchRepoTests):
             stack.enter_context(mock.patch.object(fixtures, "run_hermes", return_value=("offline transcript", "", 0, 1.0, False)))
             stack.enter_context(mock.patch.object(fixtures, "extract_hermes_session_stats", return_value={}))
             stack.enter_context(mock.patch.object(fixtures, "grade_command", return_value=(True, "PASS", None)))
-            stack.enter_context(mock.patch.object(sys, "argv", ["run_fixture_suite.py", "--suite", "kiem_mini", "--hermes-provider", "test", "--hermes-model", "test/Flint", "--inference-engine", "mei", "--config", str(self.config)]))
+            stack.enter_context(mock.patch.object(sys, "argv", ["run_fixture_suite.py", "--suite", "kiem_mini", "--hermes-provider", "test", "--hermes-model", "test/Flint", "--inference-engine", "mei", "--config", str(snapshot)]))
             fixtures.main()
         raw = self.log.read_bytes()
         self.assertTrue(raw.startswith(after_prompt))
         rows = [json.loads(line) for line in raw[len(sentinel):].splitlines()]
         self.assertEqual(len(rows), 2)
-        self.assertTrue(all(row["rank_eligible"] is False for row in rows))
+        self.assertTrue(all(row["rank_eligible"] is rank_eligible for row in rows))
+        self.assertTrue(all("forced_gate" not in row and "exploratory" not in row for row in rows))
         self.assertTrue(all(row["pass"] for row in rows))
         self.assertIn("offline transcript", (self.repo / rows[1]["transcript_path"]).read_text())
         self.assertEqual(rows[0]["config_hash"], rows[1]["config_hash"])

@@ -185,13 +185,65 @@ last_updated: 2026-08-20
 last_verified_against_docs: 2026-08-20   # bump when re-checked — configs go stale
 ```
 
-### Explicit exploratory disk-preflight exception
+### Explicit one-run disk-floor waiver (ranking eligibility unchanged)
 
 Ordinary local launches still require **10 GiB free**
 (`bench_common.MIN_FREE_DISK_GB_BEFORE_LAUNCH = 10.0`). Neither a config
-annotation nor a CLI flag alone lowers that floor. For an individually
-authorized diagnostic (such as the Flint trial), commit a distinct config
-identity with these literal YAML booleans:
+annotation nor a CLI flag alone lowers that floor. An explicit user-authorized
+waiver of this resource floor is **not** a diagnostic or a ranking veto. For
+the individually authorized Flint run, commit its exact config identity with
+this literal YAML boolean (not a quoted string or numeric `1`):
+
+```yaml
+orchestration:
+  # Keep the model's real port, served identity, provider, etc.
+  viable: full
+  disk_floor_override_authorized: true
+```
+
+The operator must also pass the opt-in on that one invocation:
+
+```bash
+uv run --locked python runner/run_bench.py \
+  --config configs/<model>/<authorized-config>.yaml --stage all \
+  --allow-disk-floor-override
+```
+
+This is a **single local config, one-run waiver**, not a new default or sweep
+authorization; sweeps, hosted/API endpoints (even with a local port), and
+`--stage coding` are rejected. The config must be `viable: full` and retain
+normal ranking eligibility; forced/exploratory/rank-ineligible declarations
+cannot be laundered through this flag. Without the CLI opt-in, even an
+authorized config still encounters the normal disk refusal. The flag must be
+supplied anew for an independently authorized later attempt; the current user
+authorization covers **one Flint run only**, not other models or retries.
+
+Before server launch, the runner exclusively creates (or byte-verifies an
+existing) immutable `results/configs/<config_hash>.yaml` from the admitted
+config bytes, and appends `results/disk_preflight.jsonl`. It flushes/fsyncs the
+files and their directories and reads back both artifacts; any snapshot/audit
+write, sync, or readback failure aborts launch. The audit includes actual free
+bytes, the unchanged normal floor in GiB/bytes, measured shortfall, whether the
+floor was actually overridden, `disk_floor_override_authorized: true`, CLI
+consent, authored config path, short and full SHA-256, snapshot path, runner
+SHA, and UTC. Above the floor it records zero shortfall and
+`disk_gate_overridden: false`, not a fictitious exception.
+
+All suites consume that immutable snapshot and retain **`rank_eligible: true`**
+under the usual completeness/scoring rules. This waiver does **not** set
+`forced_gate`, `exploratory`, or `rank_eligible: false`; the linked prelaunch
+audit records the exception honestly without penalizing ranking. Exact model
+identity, health, plain completion, sanity/tool, Hermes Ops, speed, harness and
+teardown gates, plus the default full coding battery, remain unchanged. Retain
+the admitted engine identity for teardown even if the authored config changes;
+clean up the benchmark-owned server/payload after the authorized run under the
+normal cleanup policy, keeping configs, audit evidence, raw rows/transcripts.
+
+### Explicit exploratory disk-preflight exception (rank-ineligible diagnostic)
+
+The separate **diagnostic** lane remains unchanged. When an individually
+authorized attempt is intentionally exploratory and **not** eligible for
+ranking, commit a distinct config identity with these literal YAML booleans:
 
 ```yaml
 orchestration:
@@ -202,7 +254,8 @@ orchestration:
   rank_eligible: false
 ```
 
-The operator must also explicitly pass `--force-disk-gate` on that invocation:
+The operator must also explicitly pass `--force-disk-gate` on that invocation
+(mutually exclusive with `--allow-disk-floor-override`):
 
 ```bash
 uv run --locked python runner/run_bench.py \
