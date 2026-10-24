@@ -1,22 +1,30 @@
 #!/usr/bin/env bash
-# Resets the isolated "bench" hermes profile's session/memory state.
-# Run this before starting a new candidate model's test batch, so nothing
-# from a previous model's sessions can leak in. memory_enabled/
-# user_profile_enabled are already off in the profile's config.yaml, but
-# past session transcripts still accumulate on disk — clear those too for a
-# true fresh start (and to avoid growing disk usage over many benchmark
-# runs).
+# Compatibility preflight for the isolated "bench" Hermes profile.
+# run_fixture_suite.py starts a new `hermes chat` (no resume/continue) and
+# exports telemetry by that run's session ID. Deleting stored sessions is
+# not needed for isolation. Preserve all persisted profile state, including
+# memories, operational logs, and scheduled jobs; never create missing dirs.
 set -euo pipefail
 
-PROFILE_DIR="$HOME/.hermes/profiles/bench"
+PROFILE_DIR="${HOME:?HOME must be set}/.hermes/profiles/bench"
+
+# Refuse links before following any profile-path component or sessions target,
+# including dangling links. This helper must not operate on another profile.
+for path in "$HOME" "$HOME/.hermes" "$HOME/.hermes/profiles" "$PROFILE_DIR" "$PROFILE_DIR/sessions"; do
+  if [ -L "$path" ]; then
+    echo "Refusing symlinked bench profile path: $path" >&2
+    exit 1
+  fi
+done
 
 if [ ! -d "$PROFILE_DIR" ]; then
   echo "bench profile not found at $PROFILE_DIR" >&2
   exit 1
 fi
 
-echo "Clearing bench profile session/memory state..."
-rm -rf "$PROFILE_DIR/sessions" "$PROFILE_DIR/memories" "$PROFILE_DIR/logs" "$PROFILE_DIR/cron"
-mkdir -p "$PROFILE_DIR/sessions" "$PROFILE_DIR/memories" "$PROFILE_DIR/logs"
+if [ -e "$PROFILE_DIR/sessions" ] && [ ! -d "$PROFILE_DIR/sessions" ]; then
+  echo "bench sessions path is not a directory: $PROFILE_DIR/sessions" >&2
+  exit 1
+fi
 
-echo "Done. bench profile is fresh."
+echo "Bench profile checked; sessions, memories, logs, and cron preserved."
