@@ -1,0 +1,16 @@
+# Interrupted Flint full-benchmark attempt
+
+This is an incomplete, preserved run—not a benchmark result or quality verdict.
+
+- Model/config: `mlx-community/flint-mixed-3-4bit`, `configs/Flint-mixed-3-4bit-full-20261024/mei.yaml`, config SHA-256 `c754cda7b797b3613574f9c58c6716b2e23f6a3c29b4955ba73082352652add5` (12-char hash `c754cda7b797`).
+- Runner commit: `43512c4416703c35a94813f44904f0fe02439479` (`runner_git_sha=43512c441670`).
+- Start/audit: 2026-10-24 20:33:06 UTC; disk audit observed 66,974,838,784 B free vs 10 GiB floor, shortfall 0, `disk_gate_overridden=false`, `rank_eligible=true`. The explicitly permitted flag did not bypass the disk gate.
+- Admission/health: exact served model responded; plain completion passed. `sanity` passed 2/2 (`sanity-basic`, `sanity-tool`).
+- Incomplete `hermes_ops`: `hermes_ops-selection`, `hermes_ops-chaining`, and `hermes_ops-error-recovery` each failed before any tokens with `stream stalled (connect)`, phase `connect`, budget 60 s, wall about 122 s. Rows have `harness_error=false`; that field does not turn a connection/header deadline into a model-quality verdict.
+- During the failures, the owned Mei PID 66259 remained CPU-active (roughly 17–41% in repeated samples) with two established connections; no token/usage data arrived. Its model load was successful. This supports an undersized client connection/header budget, not an admission/load failure.
+- Cause identified: `tasks/hermes_ops.yaml` declares `first_progress_timeout_seconds: 600` for its large fixed prompt but omitted `connect_timeout_seconds`; `run_prompt_suite.py` then leaves the client default at 60 s. The documented connect budget includes response headers, which Mei does not emit until prefill completes. The first-token budget therefore could not help. Fix the suite's connect/header budget to 600 s, match the already-declared first-progress budget, and add a regression assertion before rerunning.
+- Parent stopped the owned runner after the third identical failure. Runner PID 65052, Python PID 65063, launcher PID 65129, and Mei PID 66259 exited; port 8024 was free. No coding suites ran; the run never reached leaderboard rebuild. `results/LEADERBOARD.md` was unchanged and was not regenerated from this partial attempt.
+- Preserve all five append-only rows, the immutable config snapshot, disk audit, and the five durable prompt-result JSONs. Do not rewrite/delete these. The corrected run will use the same config hash but a new clean runner SHA; the old partial group remains distinct.
+- Disk remains above the normal 10 GiB floor, so the corrected rerun should use the ordinary disk gate and omit `--allow-disk-floor-override`.
+
+Evidence copied beside this note: `runner.log` (captured process output), `launch-wrapper.log`, `build.log`, and `mei-server.log`. The append-only rows live in `../../log.jsonl`; the config snapshot and disk audit are in `../../configs/c754cda7b797.yaml` and `../../disk_preflight.jsonl`. The five prompt JSONs remain under `../../prompt_results/` (explicitly force-added in the results commit despite the default ignore rule).
