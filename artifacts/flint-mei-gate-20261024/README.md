@@ -16,6 +16,8 @@ ID, and remains rank-eligible under the normal completeness/scoring rules.
   `RecursiveSI/flint@2a247be0c0aec895ccb0ac7ca92229ec6df37288`.
 - Exact published tree: **16 files, 17,848,888,635 bytes**. Four safetensors
   shards: **17,837,740,282 bytes**; index tensor payload: **17,837,530,688 bytes**.
+  Config `model_bytes` and `weight_bytes` both count the complete safetensors
+  files; `hub_tree_bytes` counts the separate full Hub tree, not tensor payload.
   Mei verifier: `ok=true`, `model_type=flint`; 4-bit base/group 64 with per-layer
   3-bit routed-expert overrides. All 16 whole-file hashes/sizes match the
   pre-admission staging report in the fresh post-admission integrity check.
@@ -34,7 +36,10 @@ ID, and remains rank-eligible under the normal completeness/scoring rules.
   Colocated `mlx.metallib` and `default.metallib` match that library byte-for-byte.
   The old prebuilt Release binary in `mei-build-flint-c9-20261023` was **not** used.
   Only provenance/logs are archived, never executable/library/model payloads.
-- Runtime: `/Users/tijs/.local/share/local-model-bench/mei-runtime/flint-gate-20261024`.
+- Archived native-gate runtime: `/Users/tijs/.local/share/local-model-bench/mei-runtime/flint-gate-20261024`.
+  Full-run runtime: `/Users/tijs/.local/share/local-model-bench/mei-runtime/flint-full-20261024`.
+  The full-run path is fresh and separate so full-run build/server logs cannot
+  append to the gate logs. Archived native provenance retains the gate path.
   The canonical wrapper **builds on launch**; it is not a prebuilt/no-build mode.
   Parent must retain/recheck these clean source pins and artifact identity.
 
@@ -67,7 +72,13 @@ or a completed ranking result.
   and [generation_config.json](https://huggingface.co/mlx-community/flint-mixed-3-4bit/blob/b1c305855ae7c3464813815be4dbd544b22c36aa/generation_config.json).
   Config applies these to the server/coding baseline and explicitly selects the
   same Hermes Ops profile; sanity retains its deterministic harness settings.
-  No unsupported reasoning effort or extra vendor sampler is invented.
+  The card specifies no reasoning effort. The full-run config explicitly sets
+  `reasoning_effort: medium` in the selected Hermes Ops `model_card` profile and
+  `coding_reasoning_effort: medium` as **project policy, not vendor advice**:
+  [configs/README.md, Policy-enabled configs](../../configs/README.md#policy-enabled-configs-front-runners-2026-09-22)
+  records the vendor-silent medium default from established plan
+  `7f5c67e7-b564-4df3-8209-14f7443b56e2`. This does not relabel the archived gate's
+  request settings or add a vendor sampler recommendation.
 - Context **65,536**, generation cap **8,192** (also explicit for Hermes Ops),
   prefill step **64**, matching the gate's effective auto-profile prefill.
   The 8,192 runaway bound is a harness choice, not the card's 32,768-token example;
@@ -114,12 +125,14 @@ preparation receipt are not that future launch audit and do not consume consent.
 **Set `MEI_RUNTIME_BASE` on the `run_bench.py` process itself**, not just its
 server child, so stop scripts target the isolated runtime. The config also
 passes that exact `--runtime-base` and pins `MEI_VMLX_CHECKOUT` under its build.
+Use the fresh `flint-full-20261024` runtime for both runner and child; never reuse
+the archived `flint-gate-20261024` runtime for this full run.
 After reviewing/committing this config, parent may use the single authorized
 invocation from the repository root:
 
 ```sh
 env -u MLXPRESS -u JANGPRESS \
-  MEI_RUNTIME_BASE=/Users/tijs/.local/share/local-model-bench/mei-runtime/flint-gate-20261024 \
+  MEI_RUNTIME_BASE=/Users/tijs/.local/share/local-model-bench/mei-runtime/flint-full-20261024 \
   uv run --locked python runner/run_bench.py \
   --config configs/Flint-mixed-3-4bit-full-20261024/mei.yaml \
   --allow-disk-floor-override --stage all
@@ -144,19 +157,28 @@ immediately before launch; the unique slug prevents overwriting an older log.
 | [staging supervisor](staging/staging-supervisor-result-20261024.json), [disk samples](staging/staging-disk-samples-20261024.jsonl), [worker log](staging/staging-worker-20261024.log) | Historical staging process/disk evidence, not a new floor policy |
 | [clean window](resources/clean-window-20261024.json) | Twelve historical passing resource/owner/port samples; swap did not grow |
 | [runtime provenance](build/runtime-provenance.json), [metallib sidecar](build/mlx.metallib.provenance), [build log](build/build.log) | Actual binary/Cmlx hashes, pinned clean sources and build chain |
-| [verification receipt](validation/verification.json), [wrapper dry-run](validation/wrapper-dry-run.log), [focused tests](validation/focused-tests.log) | Locked preparation checks, exact emitted argv, safety assertions and 45 passing tests |
+| [verification receipt](validation/verification.json), [wrapper dry-run](validation/wrapper-dry-run.log), [focused tests](validation/focused-tests.log) | Locked corrected-config checks, exact emitted argv, safety assertions and 53 passing tests |
 | [evidence inventory](evidence-inventory.json) | Hash/size inventory of every other archive file and the exact config |
 
 Preparation used the worktree's Python 3.12 locked environment with
 `uv run --locked --offline --no-sync`; no dependency install or lockfile change.
-YAML identity/ranking/sampler checks passed. The **exact config's wrapper
+YAML identity/ranking/sampler/effort checks passed, including a parsed comparison
+against setup commit `399663dd57b811a9ea9f7148bbad94b396174cdb` limited to the
+reviewed byte-identity, fresh-runtime and explicit project-effort corrections.
+The **exact config's wrapper
 `--dry-run` exited 0** and matched the complete expected argv, including mmap,
 Flint, safe compilation controls, prefill and sampling. It did not bind a port,
-build, or change the existing build/runtime artifacts. **45 focused tests
+build, or change the existing build/runtime artifacts; the fresh full-run runtime
+directory and canonical log remain absent. **53 focused tests
 passed, 0 failures/errors/skips**, across launcher forwarding, authorized disk
-waivers, pure generation-body/validation helpers and config workflow checks.
+waivers, pure generation-body/validation helpers, config workflow checks and
+coding/profile reasoning-flag forwarding (the original 45 plus 8 focused checks).
 Server-backed tests were not selected. A macOS sandbox denied network, writes
 outside task scratch, and inference/Swift/Metal execution; Python's network audit
-recorded **0 attempts**. All **2,671 protected existing files** retained their
-bytes/modes/mtimes and results/runner inventories remained unchanged. Raw logs
+recorded **0 attempts**. All **2,898 protected existing files** retained their
+bytes/modes/mtimes and results/runner inventories remained unchanged. The 16 pinned
+model-file hashes were rechecked read-only, and all 31,404 external build,
+native-gate runtime and model metadata entries stayed unchanged. No native-gate
+operating point, raw artifact, ranking declaration or one-run waiver was changed
+or consumed. Raw logs
 retain their original whitespace; do not rewrite evidence to satisfy a linter.
