@@ -255,7 +255,7 @@ forever. Lowering it was not an option: a genuinely slow-but-progressing
 model produced a passing `hermes_ops-selection` row at 1277.383s, and
 passing `hermes_ops` rows reach 8839.930s.
 
-There are now four **explicit, separately meaningful** budgets, all
+There are now five **explicit, separately meaningful** budgets, all
 measured on `time.monotonic()`:
 
 | key | scope | enforced by |
@@ -265,6 +265,17 @@ measured on `time.monotonic()`:
 | `first_progress_timeout_seconds` | response headers → first *meaningful* SSE event | `run_prompt.py` |
 | `stream_idle_timeout_seconds` | gap between two *meaningful* SSE events | `run_prompt.py` |
 | `connect_timeout_seconds` | TCP connect + request send + response headers | `run_prompt.py` |
+
+`connect_timeout_seconds` includes waiting for **response headers**, not
+just establishing the TCP connection. Some backends, including Mei, withhold
+headers until prompt prefill completes. Give this budget enough time for the
+suite's large-prefill requests; when headers are delayed, align it with
+`first_progress_timeout_seconds`. That first-progress clock starts only
+after headers arrive, so raising it alone cannot prevent an earlier
+connect/header timeout. `hermes_ops` explicitly sets both to 600 seconds
+for its ~26-27K-token fixed prompt rather than inheriting the client's
+60-second connect default. The total turn and task budgets still cap the
+whole exchange; the stream-idle budget is unchanged.
 
 **"Meaningful"** means a content delta, a tool-call delta, a
 `finish_reason`, or the terminal `[DONE]`. It deliberately excludes blank

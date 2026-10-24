@@ -166,10 +166,11 @@ def main():
     if task_spec.get("runner") != "prompt":
         sys.exit(f"{task_file} is not a prompt-runner suite (runner: {task_spec.get('runner')!r})")
 
-    # Four EXPLICIT budgets rather than one number doing three jobs (see
+    # Five EXPLICIT budgets rather than one number doing three jobs (see
     # tasks/SCHEMA.md's "Timeout and liveness budgets" section):
     #   timeout_seconds                 — total budget for ONE HTTP turn
     #   task_timeout_seconds            — total budget for one suite task
+    #   connect_timeout_seconds         — TCP connect + request send + headers
     #   first_progress_timeout_seconds  — headers -> first meaningful event
     #   stream_idle_timeout_seconds     — between two meaningful events
     timeout = task_spec.get("timeout_seconds", 60)

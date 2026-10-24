@@ -805,19 +805,84 @@ class SuiteIntegrationTests(unittest.TestCase):
 
 
 class SuiteBudgetDefaultsTests(unittest.TestCase):
-    def test_hermes_ops_declares_all_four_budgets(self):
+    def _suite_spec(self, name):
         import yaml
-        spec = yaml.safe_load(
-            (Path(__file__).resolve().parents[2] / "tasks" / "hermes_ops.yaml").read_text()
+        return yaml.safe_load(
+            (Path(__file__).resolve().parents[2] / "tasks" / f"{name}.yaml").read_text()
         )
+
+    def _capture_suite_command(self, spec):
+        """Capture argv before any child runs or any result is written."""
+        import tempfile
+        import yaml
+
+        with tempfile.TemporaryDirectory() as td:
+            repo = Path(td)
+            (repo / "tasks").mkdir()
+            # Keep the suite's real budgets; only the task is a tiny stand-in.
+            spec = dict(spec, tasks=[{
+                "id": "budget-forwarding-only",
+                "prompt_spec": {"user_prompt": "not sent"},
+                "check": {},
+            }])
+            (repo / "tasks" / f"{spec['suite']}.yaml").write_text(yaml.safe_dump(spec))
+            argv = [
+                "run_prompt_suite.py", "--suite", spec["suite"],
+                "--base-url", "http://127.0.0.1:1/v1", "--model", "not-loaded",
+                "--inference-engine", "test",
+            ]
+            with unittest.mock.patch.object(run_prompt_suite, "REPO", repo), \
+                    unittest.mock.patch.object(sys, "argv", argv), \
+                    unittest.mock.patch.object(run_prompt_suite, "PeakRSSSampler"), \
+                    unittest.mock.patch.object(
+                        run_prompt_suite.subprocess, "Popen",
+                        side_effect=AssertionError("no subprocess may start")), \
+                    unittest.mock.patch.object(
+                        run_prompt_suite, "run_with_task_deadline",
+                        side_effect=SystemExit("captured before launch")) as run:
+                # SystemExit bypasses main()'s Exception handler, so it cannot
+                # persist even a synthetic result row in the scratch repo.
+                with self.assertRaisesRegex(SystemExit, "captured before launch"):
+                    run_prompt_suite.main()
+            run.assert_called_once()
+            self.assertFalse((repo / "results").exists())
+            return run.call_args
+
+    def test_hermes_ops_declares_all_five_budgets(self):
+        spec = self._suite_spec("hermes_ops")
         self.assertEqual(spec["timeout_seconds"], 1000)
         self.assertEqual(spec["task_timeout_seconds"], 14400)
         self.assertEqual(spec["first_progress_timeout_seconds"], 600)
+        # Large-prefill backends may withhold headers until prefill completes;
+        # a shorter connect/header budget defeats the first-progress budget.
+        self.assertEqual(spec["connect_timeout_seconds"], spec["first_progress_timeout_seconds"])
         self.assertEqual(spec["stream_idle_timeout_seconds"], 300)
         # The whole point: the task budget must be far below the derived
         # ceiling this suite silently had before (1000 * 40 + 60 ≈ 11h).
         derived = spec["timeout_seconds"] * spec["max_turns"] + 60
         self.assertLess(spec["task_timeout_seconds"], derived)
+
+    def test_suite_forwards_the_explicit_connect_budget(self):
+        spec = self._suite_spec("hermes_ops")
+        for connect_budget in (spec["connect_timeout_seconds"], 123):
+            with self.subTest(connect_budget=connect_budget):
+                call = self._capture_suite_command(dict(spec, connect_timeout_seconds=connect_budget))
+                cmd = call.args[0]
+                for flag, value in (
+                    ("--connect-timeout", connect_budget),
+                    ("--first-progress-timeout", spec["first_progress_timeout_seconds"]),
+                    ("--stream-idle-timeout", spec["stream_idle_timeout_seconds"]),
+                    ("--timeout", spec["timeout_seconds"]),
+                ):
+                    self.assertEqual(cmd.count(flag), 1)
+                    self.assertEqual(cmd[cmd.index(flag) + 1], str(value))
+                self.assertEqual(call.kwargs, {"timeout": spec["task_timeout_seconds"]})
+
+    def test_sanity_without_connect_budget_keeps_the_client_default(self):
+        spec = self._suite_spec("sanity")
+        self.assertNotIn("connect_timeout_seconds", spec)
+        call = self._capture_suite_command(spec)
+        self.assertNotIn("--connect-timeout", call.args[0])
 
     def test_default_task_timeout_is_capped(self):
         # A suite that declares no task_timeout_seconds must never inherit
