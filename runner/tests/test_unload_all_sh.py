@@ -119,12 +119,12 @@ class NoCoCoreContractTests(unittest.TestCase):
         self.assertNotIn("restore_all.sh", text)
         self.assertNotIn("bring everything back", text)
 
-    def test_unload_script_still_manages_fallback_and_ports(self):
+    def test_unload_script_manages_ports_without_retired_services(self):
         code = _code_lines(UNLOAD_ALL_SH.read_text())
-        self.assertIn("ai.hermes.mara-mlx", code)   # benchmark-owned fallback
-        self.assertIn("launchctl bootout", code)    # stop, never restart
-        self.assertIn("stop_port", code)            # port cleanup preserved
-        self.assertIn("BENCH_UNLOAD_FORCE", code)
+        self.assertNotIn("ai.hermes.mara-mlx", code)
+        self.assertNotIn("launchctl", code)
+        self.assertIn("stop_port", code)
+        self.assertNotIn("cocore_inference_server", code)
 
     def test_restore_script_never_starts_cocore(self):
         text = RESTORE_LOCAL_BACKENDS_SH.read_text()
@@ -132,13 +132,10 @@ class NoCoCoreContractTests(unittest.TestCase):
         self.assertNotIn("cocore", code)
         self.assertNotIn("dev.cocore.provider", text)
         self.assertNotIn("models set", code)
-        # ...but it must keep the manual, clearly-user-invoked Hermes
-        # fallback bootstrap AND say CoCore stays off / never automatic.
-        self.assertIn("ai.hermes.mara-mlx", code)
-        self.assertIn("launchctl bootstrap", code)
-        self.assertIn("intentionally off", text.lower())
-        self.assertIn("user-invoked", text.lower())
-        self.assertIn("automatically", text.lower())
+        self.assertNotIn("ai.hermes.mara-mlx", code)
+        self.assertNotIn("launchctl", code)
+        self.assertIn("retired", text.lower())
+        self.assertIn("exit 1", code)
 
 
 class StopPortBehaviourTests(unittest.TestCase):

@@ -1,3 +1,25 @@
+# Current scope — 2026-10-25
+
+Current `runner/run_bench.py` runs `sanity` and `model_tools` over the model's
+HTTP endpoint. Hermes profile, CLI and coding-agent stages are retired. The
+schema and policy history below describe archived campaigns where stated.
+No Peixinho app tests exist: that application is still a design.
+
+Use `benchmark_scope: model-only-v1`, `orchestration.viable: model_only`, and
+`orchestration.rank_eligible: false` for new model-only configs. Use
+`generation_profiles` plus `model_tools_generation_profile` to select the
+request sampler, and `model_max_tokens` for the per-response tool-suite cap.
+Sanity retains deterministic sampling. `model_tools` uses a neutral prompt,
+six simulated tools, eight cases, at most eight turns and a 600-second task
+budget. Mocked calls never execute shell, file or web operations.
+
+Commit the config before running it. A config's `required_runner_environment`
+supplies the isolated Mei runtime base for teardown; other entries remain documentary. Preserve
+exact served identity and source pins. Use the normal disk floor and one server.
+Current rows carry `benchmark_scope: model-only-v1`; `results/MODEL_ONLY.md`
+groups them by config, runner, suite and sampler. Historical composite reports
+exclude this scope. Do not infer an application score from these checks.
+
 # Run configs
 
 One file per model+inference-engine combo: `configs/<model-slug>/<name>.yaml`,

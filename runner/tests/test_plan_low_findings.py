@@ -19,7 +19,7 @@ import yaml
 
 import bench_common
 import build_leaderboard
-import run_bench
+import legacy_run_bench as run_bench
 import run_fixture_suite as rfs
 
 REPO = bench_common.REPO

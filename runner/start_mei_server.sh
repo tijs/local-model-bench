@@ -63,6 +63,7 @@ Options:
                             boundaries.
   --compiled-decode BOOL    Graph-traced compiled decode (default: none -> not
                             passed; Mei default false)
+  --enable-flint-jangh BOOL Separately enable the JANGH2 packed adapter
   --enable-flint BOOL       Explicit Flint gate (true or false; default: none
                             -> not passed; Mei default false)
   --load-mmap BOOL          Safetensors load-path override (default: none ->
@@ -98,6 +99,7 @@ MEMORY_LIMIT_BYTES=""
 CACHE_LIMIT_BYTES=""
 COMPILED_DECODE=""
 ENABLE_FLINT=""
+ENABLE_FLINT_JANGH=""
 LOAD_MMAP=""
 SSM_ANCHOR_BOUNDARIES=""
 REQUEST_LOG=""
@@ -129,6 +131,11 @@ while [[ $# -gt 0 ]]; do
     --memory-limit-bytes) MEMORY_LIMIT_BYTES="${2:?missing value}"; shift 2 ;;
     --cache-limit-bytes) CACHE_LIMIT_BYTES="${2:?missing value}"; shift 2 ;;
     --compiled-decode) COMPILED_DECODE="${2:?missing value}"; shift 2 ;;
+    --enable-flint-jangh)
+      case "${2-}" in
+        true|false) ENABLE_FLINT_JANGH="$2"; shift 2 ;;
+        *) echo "FATAL: --enable-flint-jangh must be true or false" >&2; exit 2 ;;
+      esac ;;
     --enable-flint)
       case "${2-}" in
         true|false) ENABLE_FLINT="$2"; shift 2 ;;
@@ -201,6 +208,7 @@ ARGS=(--model-dir "$MODEL_DIR" --served-model-id "$SERVED_MODEL_ID"
 [[ -n "$COMPILED_DECODE" ]] && ARGS+=(--compiled-decode "$COMPILED_DECODE")
 # Flint remains Mei's default-off behavior unless the config opts in explicitly.
 [[ -n "$ENABLE_FLINT" ]] && ARGS+=(--enable-flint "$ENABLE_FLINT")
+[[ -n "$ENABLE_FLINT_JANGH" ]] && ARGS+=(--enable-flint-jangh "$ENABLE_FLINT_JANGH")
 # Safetensors load-path override (accepted by the Mei 0.5.0 binary though not
 # listed in its --help). Forwarded ONLY when the config asks for it. The OptiQ
 # Qwen3.6 bundle is 5/5-unaligned: the default mmap path realigned ~16.6 GiB

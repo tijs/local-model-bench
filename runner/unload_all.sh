@@ -1,35 +1,7 @@
 #!/usr/bin/env bash
-# Properly stop the benchmark-owned local backends before loading a
-# benchmark candidate. Two jobs: (1) stop the Hermes local fallback
-# LaunchAgent — ai.hermes.mara-mlx, the fitness profile's local-model
-# fallback that binds a benchmark port — if present, and (2) free every
-# port this benchmark's configs bind.
-#
-# CoCore is INTENTIONALLY OFF while benchmark experiments continue: this
-# script must NOT invoke `cocore`, must NOT mutate its LaunchAgent plist
-# (dev.cocore.provider), must NOT boot or restart it, and must NOT claim
-# it will be restored. It also does not restore mara-mlx itself —
-# runner/restore_local_backends.sh is the counterpart for that, and it is
-# manual/user-invoked only: no benchmark run invokes it automatically.
-#
-# History (validated live 2026-08-19): pre-2026-09-14 versions of this
-# script ALSO unloaded cocore's own daemon (`cocore agent models set ""`,
-# launchd job dev.cocore.provider), and restore_local_backends.sh reloaded
-# LFM2.5-2.6B + re-bootstrapped that LaunchAgent. That unload/restore
-# cycle is RETIRED — CoCore stays off while experiments continue; the git
-# history and AGENTS.md keep the full record.
-#
-# Process termination is PORT-DERIVED, not name-derived (improvement plan,
-# M4). `pkill -9 -f "llama-server"` matches on a command-line substring
-# across the whole machine: another checkout's llama-server, an unrelated
-# vllm-mlx serving something that has nothing to do with this benchmark,
-# even a shell whose argv happens to contain the string. This script's
-# actual job is narrower — free the ports this benchmark's configs bind —
-# so it asks the OS which PID is listening on each configured port and
-# stops exactly those, with a command-line sanity check before killing.
-#
-# `BENCH_UNLOAD_FORCE=1` restores the old broad pattern sweep, for the
-# case a stale engine is holding GPU memory without listening anywhere.
+# Stop known candidate listeners on configured benchmark ports only.
+# No application runtime, profile, LaunchAgent, or CoCore lifecycle is managed.
+# The retired lifecycle source is preserved under runner/legacy/.
 set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -47,7 +19,7 @@ bench_ports() {
 }
 
 # Commands we are willing to kill when found bound to one of those ports.
-BACKEND_CMD_PATTERN='vllm_mlx\.server|vllm-mlx|llama-server|cocore_inference_server\.py|bench_local_proxy\.py|omlx'
+BACKEND_CMD_PATTERN='vllm_mlx\.server|vllm-mlx|llama-server|bench_local_proxy\.py|omlx'
 
 stop_port() {
   local port="$1" pid cmd
@@ -83,17 +55,6 @@ if [ "${BENCH_UNLOAD_DEFINE_ONLY:-0}" = "1" ]; then
   return 0 2>/dev/null || exit 0
 fi
 
-echo "--- Stopping hermes's mara-mlx LaunchAgent (fitness profile's local fallback) ---"
-# gui/$(id -u), not a hardcoded gui/501 (3rd adversarial review, low
-# finding): 501 happens to be this machine's uid, but nothing computed it —
-# a hardcoded launchctl domain target is exactly the kind of
-# machine-specific fragility M8 fixed elsewhere.
-launchctl bootout "gui/$(id -u)/ai.hermes.mara-mlx" 2>/dev/null || true
-sleep 1
-# CoCore is NOT touched here: it is intentionally off and this script
-# never invokes cocore, mutates its plist, or boots/restarts it. There is
-# no automatic restore — see restore_local_backends.sh (manual only).
-
 echo "--- Freeing this benchmark's configured ports ---"
 # The problem the old code solved (and must keep solving): a stale process
 # keeps answering on a port a new one cannot bind, silently serving the
@@ -113,7 +74,7 @@ if [ "${BENCH_UNLOAD_FORCE:-0}" = "1" ]; then
   # why it is no longer the default.
   echo "--- BENCH_UNLOAD_FORCE=1: broad pattern sweep (may hit unrelated processes) ---"
   for _ in 1 2 3; do
-    pids=$(pgrep -U "$(id -u)" -f "vllm_mlx.server|vllm-mlx serve|vllm-mlx|cocore_inference_server.py|llama-server|bench_local_proxy.py" || true)
+    pids=$(pgrep -U "$(id -u)" -f "vllm_mlx.server|vllm-mlx serve|vllm-mlx|llama-server|bench_local_proxy.py" || true)
     [ -z "$pids" ] && break
     echo "$pids" | xargs kill -9 2>/dev/null || true
     sleep 2
@@ -122,4 +83,4 @@ fi
 
 sleep 1
 echo "--- Remaining candidate-backend processes (should be empty) ---"
-ps aux | grep -iE "cocore_inference_server|vllm_mlx.server|vllm-mlx|llama-server|bench_local_proxy" | grep -v grep || echo "  (none)"
+ps aux | grep -iE "vllm_mlx.server|vllm-mlx|llama-server|bench_local_proxy" | grep -v grep || echo "  (none)"

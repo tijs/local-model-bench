@@ -308,7 +308,7 @@ _FAKE_PROFILES = {
 
 class SuiteProfileIntegrationTests(unittest.TestCase):
     """Config-driven profile selection end to end: drive
-    run_prompt_suite.main() against a recording backend and inspect the
+    run_prompt_suite.main(_allow_archived_suites=True) against a recording backend and inspect the
     request body each task actually sent. REPO is redirected to a throwaway
     tree, so the real results/log.jsonl is never opened."""
 
@@ -355,7 +355,7 @@ class SuiteProfileIntegrationTests(unittest.TestCase):
         with unittest.mock.patch.object(run_prompt_suite, "REPO", self.tmp), \
                 unittest.mock.patch.object(bench_common, "REPO", self.tmp), \
                 unittest.mock.patch.object(sys, "argv", argv):
-            run_prompt_suite.main()
+            run_prompt_suite.main(_allow_archived_suites=True)
         return json.loads((self.tmp / "summary.json").read_text())
 
     def _run_suite_expecting_failure(self, config, suite="hermes_ops",
@@ -519,7 +519,7 @@ class SuiteProfileIntegrationTests(unittest.TestCase):
                     sys, "argv",
                     self._argv_for(base_url, suite=suite,
                                    generation_profile=generation_profile)):
-            run_prompt_suite.main()
+            run_prompt_suite.main(_allow_archived_suites=True)
         return json.loads((self.tmp / "summary.json").read_text())
 
 
@@ -529,34 +529,34 @@ class RunBenchProfileArgTests(unittest.TestCase):
     (never sanity), coding reasoning effort to every coding suite."""
 
     def test_parser_accepts_a_generation_profile(self):
-        import run_bench as rb
+        import legacy_run_bench as rb
         args = rb.build_arg_parser().parse_args(
             ["--config", "configs/x/y.yaml", "--generation-profile", "capability"]
         )
         self.assertEqual(args.generation_profile, "capability")
 
     def test_parser_accepts_a_coding_reasoning_level(self):
-        import run_bench as rb
+        import legacy_run_bench as rb
         args = rb.build_arg_parser().parse_args(
             ["--config", "configs/x/y.yaml", "--reasoning", "xhigh"]
         )
         self.assertEqual(args.reasoning, "xhigh")
 
     def test_parser_rejects_an_unknown_reasoning_level(self):
-        import run_bench as rb
+        import legacy_run_bench as rb
         with self.assertRaises(SystemExit):
             rb.build_arg_parser().parse_args(
                 ["--config", "configs/x/y.yaml", "--reasoning", "turbo"]
             )
 
     def test_parser_defaults_to_no_profile(self):
-        import run_bench as rb
+        import legacy_run_bench as rb
         args = rb.build_arg_parser().parse_args(["--config", "configs/x/y.yaml"])
         self.assertIsNone(args.generation_profile)
         self.assertIsNone(args.reasoning)
 
     def test_run_one_forwards_the_profile_to_the_impl(self):
-        import run_bench as rb
+        import legacy_run_bench as rb
         with tempfile.TemporaryDirectory() as td, \
                 unittest.mock.patch.object(rb, "_run_one_impl", return_value=True) as impl:
             config_path = Path(td) / "config.yaml"

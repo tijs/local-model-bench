@@ -148,6 +148,18 @@ class StartMeiServerForwardingTests(unittest.TestCase):
         for name in ("kv", "build", "runtime"):
             self.assertFalse((base / name).exists(), name)
 
+    def test_jangh_flag_is_explicit_and_forwarded(self):
+        for value in ("true", "false"):
+            base, res = _dry_run(["--enable-flint", "true", "--enable-flint-jangh", value])
+            self.assertEqual(res.returncode, 0, res.stderr)
+            argv = shlex.split(res.stdout.removeprefix("mei isolated launch: "))
+            self.assertEqual(argv[argv.index("--enable-flint-jangh") + 1], value)
+            self.assertFalse((base / "runtime").exists())
+        _, res = _run_launcher(["--enable-flint-jangh", "yes"], dry_run=False)
+        self.assertEqual(res.returncode, 2)
+        _, res = _dry_run([])
+        self.assertNotIn("--enable-flint-jangh", shlex.split(res.stdout))
+
     def test_enable_flint_is_not_inferred_from_model_or_environment(self):
         with patch.dict(os.environ, {"ENABLE_FLINT": "true", "MEI_ENABLE_FLINT": "true"}):
             _, res = _dry_run(["--served-model-id", "test-flint-model"])

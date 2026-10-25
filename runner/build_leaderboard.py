@@ -876,7 +876,9 @@ def main():
     for line in log_path.read_text().splitlines():
         line = line.strip()
         if line:
-            rows.append(json.loads(line))
+            row = json.loads(line)
+            if row.get("benchmark_scope") != "model-only-v1":
+                rows.append(row)
 
     if not rows:
         Path(REPO / "results" / "LEADERBOARD.md").write_text(

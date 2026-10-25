@@ -81,7 +81,9 @@ def build_ranked_rows(log_path=None):
     for line in Path(log_path).read_text().splitlines():
         line = line.strip()
         if line:
-            rows.append(json.loads(line))
+            row = json.loads(line)
+            if row.get("benchmark_scope") != "model-only-v1":
+                rows.append(row)
     if not rows:
         return []
 

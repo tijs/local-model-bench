@@ -971,7 +971,8 @@ def main():
                     result_text = json.dumps({"error": f"{fn['name']}: service temporarily unavailable"})
 
                 args_key = json.dumps(fn_args, sort_keys=True)
-                warning = guardrail_warning(tool_history, fn["name"], args_key, guardrail_warned)
+                warning = (guardrail_warning(tool_history, fn["name"], args_key, guardrail_warned)
+                           if spec.get("tool_loop_warnings", True) else None)
                 tool_history.append(
                     {"name": fn["name"], "args_key": args_key, "result_text": result_text, "is_failure": is_failure}
                 )

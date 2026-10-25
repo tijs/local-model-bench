@@ -1,5 +1,9 @@
 # Summary: choosing a model for Mei
 
+**Historical application-runtime results.** Hermes is retired. These saved
+campaigns are not Peixinho app validation; current native-model checks are in
+[MODEL_ONLY.md](MODEL_ONLY.md).
+
 **Choose Qwen3.6-35B-A3B 4-bit text-only for text/agentic coding with Mei.**
 `Tostibrown/Qwen3.6-35B-A3B-4bit-textonly` is the **best measured Mei option**,
 based on the latest full **Mei 0.6.1 campaign (2026-09-27)**.
@@ -42,3 +46,15 @@ challenge this pick: Kiem `proj/mei`, plan `1659c325-9310-4796-a531-1d842c0fb354
   `ae7b3b4e` (v0.6.1), vmlx `fef563a5`.
 - [`log.jsonl`](log.jsonl) and [`transcripts/`](transcripts/) — raw task evidence;
   [`HISTORY.md`](HISTORY.md) — release campaigns and the archived Mei working log.
+
+## Historical ledger reconciliation — 2026-10-25
+
+Hermes is retired; the recommendations above describe historical campaigns,
+not Peixinho application validation. Current native model-only results are
+reported separately in [MODEL_ONLY.md](MODEL_ONLY.md).
+
+The all-time `kiem_mini-testwrite` audit was stale relative to six existing
+failed historical rows: stock Qwen +1, text-only Qwen +3 and Ornith +2. Recomputed
+from unchanged append-only records, the uniform 4-bit scope is **4/75** and
+all Mei quants **5/97**. The old 4/69 and 5/91 pins described the earlier scope;
+this reconciliation adds no task attempts and changes no historical rows.

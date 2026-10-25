@@ -625,7 +625,7 @@ class TaskDeadlineTests(unittest.TestCase):
 
 class SuiteIntegrationTests(unittest.TestCase):
     """The plan's verification step 5, scaled down: drive
-    run_prompt_suite.main() end to end against a fake backend and inspect
+    run_prompt_suite.main(_allow_archived_suites=True) end to end against a fake backend and inspect
     the RESULT ROWS it writes.
 
     REPO is redirected to a throwaway tree, so the real
@@ -676,7 +676,7 @@ class SuiteIntegrationTests(unittest.TestCase):
         with unittest.mock.patch.object(run_prompt_suite, "REPO", self.tmp), \
                 unittest.mock.patch.object(bench_common, "REPO", self.tmp), \
                 unittest.mock.patch.object(sys, "argv", argv):
-            run_prompt_suite.main()
+            run_prompt_suite.main(_allow_archived_suites=True)
         return json.loads((self.tmp / "summary.json").read_text())
 
     def test_a_healthy_run_produces_a_clean_row(self):
@@ -843,7 +843,7 @@ class SuiteBudgetDefaultsTests(unittest.TestCase):
                 # SystemExit bypasses main()'s Exception handler, so it cannot
                 # persist even a synthetic result row in the scratch repo.
                 with self.assertRaisesRegex(SystemExit, "captured before launch"):
-                    run_prompt_suite.main()
+                    run_prompt_suite.main(_allow_archived_suites=True)
             run.assert_called_once()
             self.assertFalse((repo / "results").exists())
             return run.call_args

@@ -23,7 +23,7 @@ import bench_common as bc
 import build_leaderboard as bl
 import build_summary_charts as charts
 import plot_leaderboard as plot
-import run_bench as rb
+import legacy_run_bench as rb
 import run_fixture_suite as fixtures
 import run_prompt_suite as prompts
 
@@ -560,7 +560,10 @@ class AppendOnlySuiteMetadataTests(ScratchRepoTests):
     def test_both_suite_writers_keep_authorized_waiver_rows_rank_eligible(self):
         self.assert_suite_metadata({"disk_floor_override_authorized": True}, rank_eligible=True)
 
-    def assert_suite_metadata(self, flags, rank_eligible):
+    def test_current_direct_sanity_rows_are_scoped_and_never_legacy_ranked(self):
+        self.assert_suite_metadata({}, rank_eligible=True, current=True)
+
+    def assert_suite_metadata(self, flags, rank_eligible, current=False):
         self.write_config(flags)
         # Both disk exceptions pass this exact content-addressed path to suites.
         config_hash, _ = bc.snapshot_config(self.config)
@@ -578,7 +581,7 @@ class AppendOnlySuiteMetadataTests(ScratchRepoTests):
             stack.enter_context(mock.patch.object(prompts, "run_with_task_deadline", return_value=("{}", "", 0, False)))
             stack.enter_context(mock.patch.object(prompts.subprocess, "run", return_value=SimpleNamespace(returncode=0, stdout="PASS")))
             stack.enter_context(mock.patch.object(sys, "argv", ["run_prompt_suite.py", "--suite", "sanity", "--base-url", "http://never.invalid/v1", "--model", "test/Flint", "--inference-engine", "mei", "--config", str(snapshot)]))
-            prompts.main()
+            prompts.main(_allow_archived_suites=not current)
         after_prompt = self.log.read_bytes()
         self.assertTrue(after_prompt.startswith(sentinel))
         with ExitStack() as stack:
@@ -595,7 +598,10 @@ class AppendOnlySuiteMetadataTests(ScratchRepoTests):
         self.assertTrue(raw.startswith(after_prompt))
         rows = [json.loads(line) for line in raw[len(sentinel):].splitlines()]
         self.assertEqual(len(rows), 2)
-        self.assertTrue(all(row["rank_eligible"] is rank_eligible for row in rows))
+        self.assertIs(rows[0]["rank_eligible"], False if current else rank_eligible)
+        self.assertIs(rows[1]["rank_eligible"], rank_eligible)
+        if current:
+            self.assertEqual(rows[0]["benchmark_scope"], "model-only-v1")
         self.assertTrue(all("forced_gate" not in row and "exploratory" not in row for row in rows))
         self.assertTrue(all(row["pass"] for row in rows))
         self.assertIn("offline transcript", (self.repo / rows[1]["transcript_path"]).read_text())

@@ -15,7 +15,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-import run_bench as rb
+import legacy_run_bench as rb
 
 
 class HermesOpsTpsValuesTests(unittest.TestCase):

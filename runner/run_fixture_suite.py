@@ -1200,4 +1200,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit("Hermes fixture execution is retired. No Peixinho application driver exists yet.")

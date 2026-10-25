@@ -15,7 +15,7 @@ import unittest
 from pathlib import Path
 
 
-RESET_SCRIPT = Path(__file__).resolve().parents[1] / "reset_bench_profile.sh"
+RESET_SCRIPT = Path(__file__).resolve().parents[1] / "legacy" / "reset_bench_profile.sh"
 STATE_DIRS = ("sessions", "memories", "logs", "cron")
 PROFILE_PATHS = (
     ".", ".hermes", ".hermes/profiles", ".hermes/profiles/bench",

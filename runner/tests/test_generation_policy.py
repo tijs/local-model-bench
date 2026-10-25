@@ -20,7 +20,7 @@ Contract invariants under test here (durable plan
   - every policy-enabled config carries a source-backed immutable citation in
     its own `settings` under a `generation_profiles_policy` name;
   - selection actually reaches the wire: a real front-runner config driving
-    run_prompt_suite.main() sends its resolved lane fields in the HTTP
+    run_prompt_suite.main(_allow_archived_suites=True) sends its resolved lane fields in the HTTP
     payload;
   - every result records the resolved lane immutably: the log row carries
     `generation_profile` / `generation_overrides` / `generation` and the
@@ -268,7 +268,7 @@ class RecordingSSEServer:
 
 
 class PolicyResolutionEndToEndTests(unittest.TestCase):
-    """A REAL front-runner config drives run_prompt_suite.main(): the selected
+    """A REAL front-runner config drives run_prompt_suite.main(_allow_archived_suites=True): the selected
     lane must (a) reach the HTTP payload and (b) be recorded immutably in the
     log row. REPO is redirected to a throwaway tree; the config file is copied
     in so snapshot_config() and the durable result paths stay inside the fake
@@ -316,7 +316,7 @@ class PolicyResolutionEndToEndTests(unittest.TestCase):
         with unittest.mock.patch.object(run_prompt_suite, "REPO", self.tmp), \
                 unittest.mock.patch.object(bench_common, "REPO", self.tmp), \
                 unittest.mock.patch.object(sys, "argv", argv):
-            run_prompt_suite.main()
+            run_prompt_suite.main(_allow_archived_suites=True)
         return json.loads((self.tmp / "summary.json").read_text())
 
     def test_capability_lane_reaches_payload_and_row(self):

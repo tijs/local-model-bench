@@ -130,9 +130,16 @@ def _is_transport_failure(error_text):
     return any(marker in text for marker in _TRANSPORT_FAILURE_MARKERS)
 
 
-def main():
+def active_suite_scope(suite):
+    if suite not in ("sanity", "model_tools"):
+        raise ValueError("application runtime suites are retired; use sanity/model_tools")
+    return "model-only-v1"
+
+
+def main(*, _allow_archived_suites=False):
     ap = argparse.ArgumentParser()
     ap.add_argument("--suite", required=True)
+    ap.add_argument("--benchmark-scope", choices=("model-only-v1",), default=None)
     ap.add_argument("--base-url", required=True)
     ap.add_argument("--model", required=True)
     ap.add_argument("--request-model", default=None,
@@ -161,8 +168,17 @@ def main():
                          "default profile.")
     args = ap.parse_args()
 
+    if not _allow_archived_suites:
+        try:
+            args.benchmark_scope = active_suite_scope(args.suite)
+        except ValueError as exc:
+            ap.error(str(exc))
+
     task_file = REPO / "tasks" / f"{args.suite}.yaml"
     task_spec = yaml.safe_load(task_file.read_text())
+    args.benchmark_scope = args.benchmark_scope or task_spec.get("benchmark_scope")
+    if args.benchmark_scope and args.suite not in ("sanity", "model_tools"):
+        ap.error("model-only scope accepts only sanity/model_tools; application runtime suites are retired")
     if task_spec.get("runner") != "prompt":
         sys.exit(f"{task_file} is not a prompt-runner suite (runner: {task_spec.get('runner')!r})")
 
@@ -239,7 +255,8 @@ def main():
         # run_prompt.py's own --max-tokens default (4096) matches hermes's
         # real fitness-profile default, so this is only set for thinking-mode
         # models that need more budget to reason AND answer in one turn.
-        hermes_ops_max_tokens = config_yaml.get("hermes_ops_max_tokens")
+        hermes_ops_max_tokens = (config_yaml.get("model_max_tokens", task_spec.get("max_tokens", 1024))
+                                  if args.benchmark_scope else config_yaml.get("hermes_ops_max_tokens"))
         # Named request-time generation profiles (2026-09-22, task-specific
         # generation settings — infrastructure only; schema + rationale in
         # configs/README.md "generation_profiles"). Each profile is an
@@ -281,7 +298,8 @@ def main():
         #     (how a run picks e.g. the capability/high vs practical/medium
         #     lane). A name that is not declared fails loudly — there is no
         #     implicit default profile.
-        hermes_ops_profile_name = config_yaml.get("hermes_ops_generation_profile")
+        hermes_ops_profile_name = (config_yaml.get("model_tools_generation_profile")
+                                   if args.benchmark_scope else config_yaml.get("hermes_ops_generation_profile"))
         if hermes_ops_profile_name is not None and hermes_ops_profile_name not in generation_profiles:
             raise SystemExit(
                 f"config {args.config}: hermes_ops_generation_profile "
@@ -292,7 +310,7 @@ def main():
         selected_profile_name = None
         if args.generation_profile:
             selected_profile_name = args.generation_profile
-        elif args.suite == "hermes_ops" and hermes_ops_profile_name is not None:
+        elif args.suite in ("hermes_ops", "model_tools") and hermes_ops_profile_name is not None:
             selected_profile_name = hermes_ops_profile_name
         if selected_profile_name is not None:
             if selected_profile_name not in generation_profiles:
@@ -539,6 +557,7 @@ def main():
                 grade_output = f"HARNESS ERROR: {type(exc).__name__}: {exc}"
 
             row = {
+                "benchmark_scope": args.benchmark_scope,
                 "suite": args.suite,
                 "task_id": task["id"],
                 "task_type": task.get("type"),
@@ -547,7 +566,7 @@ def main():
                 "quant": args.quant,
                 "config_path": config_path,
                 "config_hash": config_hash,
-                "rank_eligible": rank_eligible,
+                "rank_eligible": False if args.benchmark_scope else rank_eligible,
                 # Immutable resolved generation-lane metadata (2026-09-22):
                 # the named generation_profiles entry selected for THIS row
                 # (None = historic no-profile lane), plus the exact fields it

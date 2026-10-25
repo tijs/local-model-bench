@@ -1,81 +1,9 @@
 #!/usr/bin/env python3
-"""
-The single entry point for this whole benchmark: run one model+backend
-config, or every config in the repo, unattended.
+"""Current model-only benchmark: sanity plus neutral mocked tool behavior.
 
-Requires PyYAML. Run benchmark orchestration through the repository's locked
-uv environment:
-  uv run --locked python runner/run_bench.py --config configs/<model>/<backend>.yaml
-  uv run --locked python runner/run_bench.py --all
-  uv run --locked python runner/run_bench.py --all --trials 3
-  uv run --locked python runner/run_bench.py --config configs/<model>/<backend>.yaml --coding-suites none  # quick spot-check only
-
-Reads the `orchestration:` block each configs/<model>/<backend>.yaml file
-carries (see configs/README.md for the schema) — that block is the single
-source of truth this script drives off of, not anything re-derived from
-this conversation. Adding a new candidate model means: copy an existing
-config directory, adapt `benchmark_launch_command`/`settings`/
-`orchestration` to the new model, done — no code changes needed unless the
-new model needs a genuinely new mechanism (a new bench_local_proxy.py
-parser, a special build like the DFlash2 fork).
-
-What it does per config, in order:
-  1. runner/unload_all.sh           — kill any existing candidate backend
-  2. launch the server half of benchmark_launch_command (backgrounded)
-  3. wait for the raw backend to answer /v1/models
-  4. if orchestration.needs_proxy: launch bench_local_proxy.py with the
-     right BENCH_TOOL_PARSER, wait for its health
-  5. sanity suite — fail-fast: if sanity-basic fails, stop here
-  6. hermes_ops suite (unless orchestration.viable says to skip it) — stop
-     on subprocess/summary harness failures; otherwise apply a speed gate:
-     if this run's own avg tok/s across every
-     hermes_ops task is below bench_common.MIN_HERMES_OPS_TOKENS_PER_SECOND,
-     skip the coding suite (typically far more expensive: real builds +
-     multi-turn agentic loops) rather than spend that time confirming an
-     outcome hermes_ops already answered. The threshold's current value
-     and the reasoning behind it live with the constant itself in
-     bench_common.py — this docstring deliberately does NOT restate the
-     number (improvement plan, M5: it said "10" long after the active
-     value became 4.0, so a reader taking this file at its word got the
-     gate's behavior wrong)
-  7. every task in every coding suite (kiem_mini, hearth_mini, kipclip_mini,
-     hearth_full — see tasks/*.yaml), unless orchestration.viable says to skip it,
-     hermes_provider is unset, or the speed gate above tripped. This was
-     the single kiem_mini-feature spot-check by default until 2026-08-25:
-     "run all tests"/"full benchmark" kept getting asked for and getting
-     the quick spot-check instead, a recurring, easy-to-miss
-     miscommunication (see AGENTS.md) — the full battery is now the
-     default. Pass --coding-suites none for the old quick single-task
-     check (useful for a fast sanity pass on a big/slow model where the
-     full ~11-task battery would take hours).
-  8. regenerate results/LEADERBOARD.md
-  9. tear down (unload_all.sh again) before moving to the next config,
-     if running --all
-
-`orchestration.viable` controls which of steps 5-7 run (the speed gate
-inside step 6 only matters when the coding suite in step 7 would
-otherwise run — `full`):
-  full                       -> sanity, hermes_ops, coding
-  sanity_and_hermes_ops_only -> sanity, hermes_ops (coding structurally
-                                 blocked, e.g. hermes's 64K context
-                                 minimum not met by this config)
-  sanity_only                -> sanity only (a known sanity-tool failure,
-                                 or coding/hermes_ops not worth attempting)
-  coding_only                -> coding only (hosted/API models where
-                                 sanity/hermes_ops can't reach a raw
-                                 OpenAI-compatible endpoint, e.g. Luna)
-  blocked                    -> skip entirely, print why and move on
-                                 (e.g. Laguna-XS-2.1 MLX: mlx-lm doesn't
-                                 support the architecture at all)
-  retired                    -> skip entirely, same as blocked (added
-                                 2026-09-04): the lane (oMLX / vllm-mlx) is
-                                 no longer an active comparison path per user
-                                 decision; config kept only as historical
-                                 evidence. Active local engines: llama.cpp
-                                 variants + Mei.
-
-A `raw_port: null` config (api backend, no local server, e.g. Luna) skips
-steps 1-4 entirely.
+Hermes runtime/profile/coding work is retired. Historical orchestration remains
+in legacy_run_bench.py for source/evidence regression tests, not execution.
+No Peixinho application behavior is claimed by these native model tests.
 """
 import argparse
 import hashlib
@@ -92,18 +20,51 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
-from statistics import mean
 
 import yaml
 
 from bench_common import (
     BACKEND_HEALTH_TIMEOUT_SECONDS, MIN_FREE_DISK_GB_BEFORE_LAUNCH,
-    MIN_HERMES_OPS_TOKENS_PER_SECOND, config_rank_eligible, git_sha, snapshot_config,
+    config_rank_eligible, git_sha, snapshot_config,
 )
 
 REPO = Path(__file__).resolve().parent.parent
-CODING_SPOTCHECK_SUITE = "kiem_mini"
-CODING_SPOTCHECK_TASK = "kiem_mini-feature"
+MODEL_ONLY_SUITES = ("sanity", "model_tools")
+MODEL_ONLY_SCOPE = "model-only-v1"
+
+
+def validate_model_only_scope(stage, coding_suites=None, reasoning=None):
+    if stage not in ("all", "model") or coding_suites is not None or reasoning is not None:
+        raise ValueError("Hermes coding/stages are retired; current runs evaluate model-only suites")
+
+
+def complete_model_summary(rows, expected, trials):
+    from collections import Counter
+    return (isinstance(rows, list) and all(isinstance(row, dict)
+            and isinstance(row.get("pass"), bool) and not row.get("harness_error") for row in rows)
+            and Counter((row.get("task_id"), row.get("trial")) for row in rows)
+            == Counter({(key, trial): 1 for key in expected for trial in range(1, trials + 1)}))
+
+
+def admitted_config_snapshot(content, config_hash):
+    path = REPO / "results" / "configs" / f"{config_hash}.yaml"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.exists() and path.read_bytes() != content:
+        raise ValueError("config snapshot conflicts with admitted bytes")
+    path.write_bytes(content)
+    return path
+
+
+def mei_stop_command(cfg):
+    command = ["bash", str(REPO / "runner" / "stop_mei_server.sh")]
+    runtime = (cfg.get("required_runner_environment") or {}).get("MEI_RUNTIME_BASE")
+    if runtime:
+        command += ["--runtime-base", runtime]
+    return command
+
+
+def _model_report():
+    return run([sys.executable, str(REPO / "runner" / "build_model_report.py")]).returncode == 0
 
 
 def run(cmd, **kw):
@@ -154,17 +115,6 @@ def _base_repo_name(model_id):
     return model_id.split(":")[0]
 
 
-def parse_coding_suites(raw):
-    """--coding-suites' raw string -> a list of suite names, or None for
-    the old quick single-task kiem_mini-feature spot-check.
-
-    None in, and the literal string "none" (any case/whitespace) -> None:
-    both mean "just the quick check" — the CLI default is the full-battery
-    string, not None, so a caller invoking main()'s argument parsing
-    always gets the full battery unless they explicitly ask for less."""
-    if raw is None or raw.strip().lower() == "none":
-        return None
-    return [s.strip() for s in raw.split(",")]
 
 
 def assert_serving_expected_model(raw_port, expected_model, alias=None, served_model_id=None):
@@ -442,55 +392,8 @@ def server_command(cfg, alias=None):
     return text
 
 
-def _hermes_ops_tps_values(summary_path):
-    """tokens_per_second from THIS invocation's own hermes_ops rows (every
-    task the suite actually ran, not one probe task — see
-    MIN_HERMES_OPS_TOKENS_PER_SECOND's own comment for why a single-task
-    probe was tried and rejected), excluding harness_error rows the same
-    way build_leaderboard.py's own avg-tok/s column does. Only finite,
-    nonnegative numeric TPS values are usable (booleans are not metrics).
-    None means missing/unreadable/malformed summary or no usable rows:
-    stop as a harness failure, never infer model slowness or allow coding."""
-    try:
-        rows = json.loads(summary_path.read_text())
-    except (ValueError, OSError):
-        return None
-    if not isinstance(rows, list) or any(not isinstance(r, dict) for r in rows):
-        return None
-    values = []
-    for row in rows:
-        tps = row.get("tokens_per_second")
-        if not row.get("harness_error") and type(tps) in (int, float):
-            try:
-                if math.isfinite(tps) and tps >= 0:
-                    values.append(tps)
-            except OverflowError:
-                pass  # an out-of-range JSON integer is not a usable rate
-    return values or None
 
 
-def _record_speed_gate_failure(model, inference_engine, config_path, config_hash, measured, avg_tps):
-    """Append one row to results/speed_gate.jsonl — a dedicated, append-
-    only log kept separate from results/log.jsonl (whose task/suite-keyed
-    schema every other grouping/flakiness check in build_leaderboard.py
-    assumes) and separate from the config YAML files themselves (which
-    stay hand-authored/human-curated — see configs/README.md — not
-    something this script rewrites at run time). build_leaderboard.py
-    renders this as its own "Speed-gated configs" section."""
-    entry = {
-        "model": model,
-        "inference_engine": inference_engine,
-        "config_path": str(config_path),
-        "config_hash": config_hash,
-        "suite": "hermes_ops",
-        "measured_tokens_per_second": measured,
-        "avg_tokens_per_second": avg_tps,
-        "threshold_tokens_per_second": MIN_HERMES_OPS_TOKENS_PER_SECOND,
-        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-    }
-    path = REPO / "results" / "speed_gate.jsonl"
-    with open(path, "a") as f:
-        f.write(json.dumps(entry) + "\n")
 
 
 def _record_disk_preflight(config_path, config_hash, free_bytes):
@@ -599,6 +502,7 @@ def _record_authorized_disk_floor_override(config_path, config_content, config_h
 def _run_one_impl(config_path: Path, cfg, config_hash, trials: int = 1, coding_suites=None, stage="all",
                   seed=None, generation_profile=None, reasoning=None, force_disk_gate=False,
                   allow_disk_floor_override=False, *, config_content=None):
+    validate_model_only_scope(stage, coding_suites, reasoning)
     if not isinstance(cfg, dict):
         sys.exit(f"{config_path} must contain a YAML config mapping")
     orch = cfg.get("orchestration")
@@ -651,6 +555,9 @@ def _run_one_impl(config_path: Path, cfg, config_hash, trials: int = 1, coding_s
 
     print(f"\n{'=' * 70}\n{model} ({inference_engine}) — {config_path}\nviable={viable}\n{'=' * 70}")
 
+    if viable == "coding_only":
+        print("SKIPPED: coding_only depends on the retired application runtime")
+        return
     if viable in ("blocked", "retired"):
         reason = "config is blocked (see known_gaps)" if viable == "blocked" \
             else "lane is retired (historical evidence only — active local engines are llama.cpp variants + Mei)"
@@ -658,10 +565,9 @@ def _run_one_impl(config_path: Path, cfg, config_hash, trials: int = 1, coding_s
         return
 
     raw_port = orch.get("raw_port")
-    suite_config_path = config_path
+    suite_config_path = admitted_config_snapshot(config_content or config_path.read_bytes(), config_hash)
     needs_proxy = orch.get("needs_proxy", False)
     proxy_port = orch.get("proxy_port", 8015)
-    hermes_provider = orch.get("hermes_provider")
     api_base_url = orch.get("api_base_url")
 
     if api_base_url and not orch.get("api_key_env"):
@@ -674,20 +580,9 @@ def _run_one_impl(config_path: Path, cfg, config_hash, trials: int = 1, coding_s
     if raw_port is not None:
         if cfg.get("inference_engine") == "mei":
             print("\n--- stop any prior isolated Mei server ---")
-            run(["bash", str(REPO / "runner" / "stop_mei_server.sh")])
+            run(mei_stop_command(cfg))
         print("\n--- unload any existing candidate backend ---")
         run(["bash", str(REPO / "runner" / "unload_all.sh")])
-
-        # reset_bench_profile.sh exists specifically to prevent session/
-        # memory state leaking from one candidate model's test batch into
-        # the next, but was never actually called anywhere (3rd
-        # adversarial review, low finding) — the exact "starting a new
-        # candidate model's test batch" moment its own header describes.
-        # Best-effort like unload_all.sh above (not gating this run on its
-        # exit code) since a missing bench profile shouldn't abort an
-        # otherwise-working config.
-        print("\n--- reset bench hermes profile session/memory state ---")
-        run(["bash", str(REPO / "runner" / "reset_bench_profile.sh")])
 
         clear_kv_cache_dir(cfg)
 
@@ -774,137 +669,37 @@ def _run_one_impl(config_path: Path, cfg, config_hash, trials: int = 1, coding_s
 
     base_url = api_base_url or f"http://127.0.0.1:{proxy_port if needs_proxy else raw_port}/v1"
 
-    if stage == "all" and viable in ("full", "sanity_and_hermes_ops_only", "sanity_only"):
-        print("\n--- sanity (fail-fast gate) ---")
+    for suite in MODEL_ONLY_SUITES:
+        if suite != "sanity" and viable == "sanity_only":
+            break
+        print(f"\n--- {suite} ({MODEL_ONLY_SCOPE}) ---")
+        expected = {task["id"] for task in yaml.safe_load(
+            (REPO / "tasks" / f"{suite}.yaml").read_text())["tasks"]}
         with tempfile.TemporaryDirectory() as td:
-            summary_path = Path(td) / "sanity_summary.json"
-            proc = run([sys.executable, str(REPO / "runner" / "run_prompt_suite.py"),
-                        "--suite", "sanity", "--base-url", base_url, "--model", model,
-                        "--request-model", request_model, "--inference-engine", inference_engine, "--config", str(suite_config_path),
-                        "--trials", str(trials), "--summary-out", str(summary_path)])
-            # Read THIS invocation's own rows, not "whatever's at the tail
-            # of the shared log" — a crashed/misconfigured subprocess used
-            # to leave last_n_rows(2) silently reading the PREVIOUS
-            # config's rows, which could pass a gate for a model that
-            # never actually answered a prompt (adversarial review finding
-            # H3). A missing/unparseable summary is treated the same as a
-            # sanity-basic failure: stop, don't guess.
-            if proc.returncode != 0 or not summary_path.exists():
-                print(f"\n!!! sanity suite subprocess failed (returncode={proc.returncode}) "
-                      f"— not viable. Stopping here.")
-                _leaderboard()
-                return
+            summary_path = Path(td) / "summary.json"
+            command = [sys.executable, str(REPO / "runner" / "run_prompt_suite.py"),
+                       "--suite", suite, "--base-url", base_url, "--model", model,
+                       "--request-model", request_model, "--inference-engine", inference_engine,
+                       "--config", str(suite_config_path), "--trials", str(trials),
+                       "--benchmark-scope", MODEL_ONLY_SCOPE, "--summary-out", str(summary_path)]
+            if suite == "model_tools" and generation_profile:
+                command += ["--generation-profile", generation_profile]
+            proc = run(command)
             try:
-                sanity_rows = json.loads(summary_path.read_text())
-            except (json.JSONDecodeError, OSError) as e:
-                print(f"\n!!! could not read sanity summary ({e}) — not viable. Stopping here.")
-                _leaderboard()
+                rows = json.loads(summary_path.read_text())
+            except (OSError, ValueError):
+                rows = None
+            if proc.returncode != 0 or not complete_model_summary(rows, expected, trials):
+                print(f"FAILED: {suite} did not produce complete, usable model-only rows")
+                _model_report()
                 return
-        # harness_error rows excluded here (3rd adversarial review, finding
-        # CR3-6): a harness crash (e.g. an npm ci network blip) is not
-        # evidence about the MODEL at all, but before this fix it was
-        # indistinguishable from a genuine failed trial to _majority_pass —
-        # a flaky CI-adjacent hiccup could flip a viable model's gate to
-        # "not viable" for a reason that has nothing to do with it.
-        basic_rows = [r for r in sanity_rows if r["task_id"] == "sanity-basic" and not r.get("harness_error")]
-        if not basic_rows or not _majority_pass(basic_rows):
-            print(f"\n!!! {model} FAILED sanity-basic — not viable. Stopping here.")
-            _leaderboard()
-            return
-        tool_rows = [r for r in sanity_rows if r["task_id"] == "sanity-tool" and not r.get("harness_error")]
-        if viable == "sanity_only" or not tool_rows or not _majority_pass(tool_rows):
-            print("\nsanity-tool failed (or this config is sanity_only) — skipping hermes_ops/coding.")
-            _leaderboard()
-            return
-
-    if stage == "all" and viable in ("full", "sanity_and_hermes_ops_only"):
-        print("\n--- hermes_ops ---")
-        with tempfile.TemporaryDirectory() as td:
-            summary_path = Path(td) / "hermes_ops_summary.json"
-            proc = run([sys.executable, str(REPO / "runner" / "run_prompt_suite.py"),
-                        "--suite", "hermes_ops", "--base-url", base_url, "--model", model,
-                        "--request-model", request_model, "--inference-engine", inference_engine, "--config", str(suite_config_path),
-                        "--trials", str(trials), "--summary-out", str(summary_path)]
-                       + (["--generation-profile", generation_profile] if generation_profile else []))
-            if proc.returncode != 0:
-                print(f"\n!!! hermes_ops infrastructure/harness failure: suite subprocess failed "
-                      f"(returncode={proc.returncode}) — stopping before coding. "
-                      "No model speed conclusion.")
-                _leaderboard()
-                return
-            tps_values = _hermes_ops_tps_values(summary_path)
-            if not tps_values:
-                print("\n!!! hermes_ops infrastructure/harness failure: summary is missing, "
-                      "unreadable, malformed or has no usable numeric TPS rows — "
-                      "stopping before coding. No model speed conclusion.")
-                _leaderboard()
-                return
-
-        # Speed gate (fail-fast, before the coding suite): a config whose
-        # hermes_ops run averages under MIN_HERMES_OPS_TOKENS_PER_SECOND is
-        # too slow to be a practical Hermes backend regardless of
-        # correctness — skip the coding suite (typically far more
-        # expensive: real builds + multi-turn agentic loops) rather than
-        # spend that time confirming an outcome the hermes_ops data
-        # already answers. Infrastructure failures stopped above without
-        # appending a speed-gate result: they say nothing about model speed.
-        avg_tps = mean(tps_values)
-        if avg_tps < MIN_HERMES_OPS_TOKENS_PER_SECOND:
-            _record_speed_gate_failure(model, inference_engine, config_path, config_hash, tps_values, avg_tps)
-            print(f"\n!!! {model} ({inference_engine}) hermes_ops averaged {avg_tps:.2f} tok/s "
-                  f"({tps_values}) — below the {MIN_HERMES_OPS_TOKENS_PER_SECOND} tok/s "
-                  f"viability cutoff. Too slow to be practical. Skipping the coding suite. "
-                  f"Stopping here.")
-            _leaderboard()
-            return
-
-    if stage in ("all", "coding") and viable in ("full", "coding_only") and hermes_provider:
-        if coding_suites:
-            # Default since 2026-08-25 (see --coding-suites' own help and
-            # the top-of-file docstring for why: the coding "suite" was
-            # structurally just ONE task, kiem_mini-feature, until an
-            # adversarial review (finding H1) added the ability to run
-            # every suite/task — but left it opt-in, so "run all tests"/
-            # "full benchmark" kept getting asked for and getting the
-            # quick spot-check anyway. Pass --coding-suites none for that
-            # old quick behavior instead.
-            for suite in coding_suites:
-                print(f"\n--- coding suite: {suite} (every task) ---")
-                run([sys.executable, str(REPO / "runner" / "run_fixture_suite.py"),
-                     "--suite", suite,
-                     "--hermes-provider", hermes_provider, "--hermes-model", request_model,
-                     "--log-model", model, "--inference-engine", inference_engine, "--config", str(suite_config_path),
-                     "--trials", str(trials)]
-                    + (["--reasoning", reasoning] if reasoning else []))
-        else:
-            print(f"\n--- coding spot-check ({CODING_SPOTCHECK_TASK}) ---")
-            run([sys.executable, str(REPO / "runner" / "run_fixture_suite.py"),
-                 "--suite", CODING_SPOTCHECK_SUITE, "--only-task", CODING_SPOTCHECK_TASK,
-                 "--hermes-provider", hermes_provider, "--hermes-model", request_model,
-                 "--log-model", model, "--inference-engine", inference_engine, "--config", str(suite_config_path),
-                 "--trials", str(trials)]
-                + (["--reasoning", reasoning] if reasoning else []))
-    elif stage in ("all", "coding") and viable in ("full", "coding_only"):
-        print("\n(coding spot-check skipped — no hermes_provider registered for this config)")
-
-    # Deliberately no teardown here — the NEXT config's own run_one() (in
-    # --all mode) already calls unload_all.sh at its start, so a second
-    # call here is pure redundancy (and cocore's bounce mechanism errors
-    # noisily, if harmlessly, when called twice in a row with nothing
-    # restored in between). For a single --config run, leaving the server
-    # up matches this script's original behavior — useful if you want to
-    # keep poking at the same model afterward. Run
-    # runner/restore_local_backends.sh manually when you're done for the
-    # day to bring back cocore/hermes's own local fallback.
-    _leaderboard()
-    # Reached only when the run actually got as far as its suites. Every
-    # fail-fast path above returns None instead, so callers -- including
-    # unattended chains -- can tell a refusal from a completed run. This
-    # function used to return None either way, so `run_bench.py --config X`
-    # exited 0 after printing "FAILED: only 29.9GB free ... refusing to
-    # launch", and a four-config chain reported four successes in 24 seconds
-    # without starting a single server.
-    return True
+        if suite == "sanity":
+            for task_id in expected:
+                if not _majority_pass([row for row in rows if row["task_id"] == task_id]):
+                    print(f"FAILED: {task_id}; stopping at the sanity gate")
+                    _model_report()
+                    return
+    return _model_report()
 
 
 def run_one(config_path: Path, trials: int = 1, coding_suites=None, stage="all",
@@ -921,6 +716,7 @@ def run_one(config_path: Path, trials: int = 1, coding_suites=None, stage="all",
     # Parse/hash once and retain that identity for cleanup. Re-reading the
     # authored path in finally could skip teardown if it was edited or removed
     # while loading, even though the suites correctly use the forced snapshot.
+    validate_model_only_scope(stage, coding_suites, reasoning)
     config_content = config_path.read_bytes()
     cfg = yaml.safe_load(config_content)
     config_hash = hashlib.sha256(config_content).hexdigest()[:12]
@@ -934,7 +730,7 @@ def run_one(config_path: Path, trials: int = 1, coding_suites=None, stage="all",
         )
     finally:
         if isinstance(cfg, dict) and cfg.get("inference_engine") == "mei":
-            run(["bash", str(REPO / "runner" / "stop_mei_server.sh")])
+            run(mei_stop_command(cfg))
 
 
 def _leaderboard():
@@ -1022,43 +818,20 @@ def build_arg_parser():
                           "run_fixture_suite.py's --trials help (adversarial review "
                           "finding C5: single-trial temperature=0 results aren't reliably "
                           "reproducible on MLX/Metal)")
-    ap.add_argument("--coding-suites", default="kiem_mini,hearth_mini,kipclip_mini,hearth_full",
-                     help="comma-separated tasks/<suite>.yaml names to run EVERY task from "
-                          "(default: all four, benchmark-v3 — kiem_mini,hearth_mini,kipclip_mini,"
-                          "hearth_full). Pass "
-                          "'none' for the old quick single-task kiem_mini-feature spot-check "
-                          "instead — much cheaper, useful for a fast sanity pass on a big/"
-                          "slow model. Full-battery was opt-in until 2026-08-25 (adversarial "
-                          "review finding H1 added the capability; making it the default came "
-                          "later, after 'run all tests'/'full benchmark' repeatedly got asked "
-                          "for and got the single spot-check instead — see AGENTS.md). Changes "
-                          "--all's runtime substantially: budget for it.")
+    ap.add_argument("--coding-suites", default=None,
+                    help="retired; Hermes coding suites cannot run")
     ap.add_argument("--inference-engine", default=None,
                     help="with --all, run only configs whose top-level inference_engine "
                          "matches this value (for example: mei); keeps an engine sweep from "
                          "re-running every historical/retired llama.cpp/vllm-mlx/omlx "
                          "config. Note oMLX and vllm-mlx are retired active lanes "
                          "(2026-09-04) and are always skipped regardless of this flag.")
-    ap.add_argument("--stage", choices=("all", "coding"), default="all",
-                    help="run the normal full config matrix (all), or only the coding "
-                         "fixture stage after a harness repair (coding); identity, cold "
-                         "load, and plain-completion gates still run")
+    ap.add_argument("--stage", choices=("all", "model", "coding"), default="all",
+                    help="all/model run current model-only suites; coding is retired")
     ap.add_argument("--generation-profile", default=None,
-                    help="(2026-09-22) name of a generation_profiles entry in the config "
-                         "to carry as request-time overrides on the one-shot Hermes Ops "
-                         "suite only — how a run selects e.g. the capability/high vs "
-                         "practical/medium lane without editing the config. NOT applied "
-                         "to sanity (the determinism gate keeps the config defaults) nor "
-                         "to the coding suites (those run through `hermes chat` and "
-                         "inherit the server launch flags). Fails if the name is not "
-                         "declared in the config.")
-    ap.add_argument("--reasoning", default=None,
-                    choices=("none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"),
-                    help="(2026-09-22, coding profile) explicit reasoning effort for "
-                         "every coding-suite `hermes chat` invocation (the `hermes chat "
-                         "--reasoning` vocabulary). Overrides the config's own "
-                         "`coding_reasoning_effort`. Absent = hermes/server default — "
-                         "nothing is silently assumed.")
+                    help="named request sampling profile for model_tools; sanity remains deterministic")
+    ap.add_argument("--reasoning", default=None, help="retired coding option; current runs refuse it")
+
     return ap
 
 
@@ -1107,7 +880,11 @@ def main():
         ap.error("--force-disk-gate requires a single --config with --stage all")
     if args.allow_disk_floor_override and (args.all or args.stage != "all"):
         ap.error("--allow-disk-floor-override requires a single --config with --stage all")
-    coding_suites = parse_coding_suites(args.coding_suites)
+    try:
+        validate_model_only_scope(args.stage, args.coding_suites, args.reasoning)
+    except ValueError as exc:
+        ap.error(str(exc))
+    coding_suites = None
 
     # After parse_args(), not before (adversarial review finding L-7) — this
     # used to run before argument parsing at all, so it fired on --help and

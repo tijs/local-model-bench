@@ -92,31 +92,34 @@ def scope_rows(rows: list[dict], members: set[str], engine: str = "mei") -> list
 # without that qualifier overstates the scope, which is what this audit pins.
 # ---------------------------------------------------------------------------
 MLX_UNIFORM_4BIT = {
-    "ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit",                       # 0/40
+    "ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit",                       # 0/42
     "orcarouter/Qwen3.8-27B-Uncensored-MLX (subdir 4-bit)",        # 1/2
     "mlx-community/gemma-4-26b-a4b-it-4bit",                       # 0/1
     "mlx-community/Qwen3.8-27B-4bit",                              # 1/1
-    "mlx-community/Qwen3.6-35B-A3B-4bit",                          # 1/14
-    "Tostibrown/Qwen3.6-35B-A3B-4bit-textonly",                    # 1/10
+    "mlx-community/Qwen3.6-35B-A3B-4bit",                          # 1/15
+    "Tostibrown/Qwen3.6-35B-A3B-4bit-textonly",                    # 1/13
     "mlx-community/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit",    # 0/1
 }
 
 # Per-(model, engine) pins cited directly by SUMMARY.md's quantisation table.
 PINNED_GROUPS = {
-    ("mlx-community/Qwen3.6-35B-A3B-4bit", "mei"): (1, 14),                    # stock MLX
-    ("Tostibrown/Qwen3.6-35B-A3B-4bit-textonly", "mei"): (1, 10),              # text-only MLX
+    ("mlx-community/Qwen3.6-35B-A3B-4bit", "mei"): (1, 15),                    # stock MLX
+    ("Tostibrown/Qwen3.6-35B-A3B-4bit-textonly", "mei"): (1, 13),              # text-only MLX
     ("EigenLabs/Qwen3.6-35B-A3B-MLX-mixed-4bit", "mei"): (1, 13),              # mixed46 MLX
     ("mlx-community/Qwen3.6-35B-A3B-4bit-DWQ", "mei"): (0, 3),                 # DWQ MLX
     ("mlx-community/Qwen3.5-9B-8bit", "mei"): (0, 3),                          # 9B 8-bit MLX
-    ("ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit", "mei"): (0, 40),                 # Ornith MLX
+    ("ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit", "mei"): (0, 42),                 # Ornith MLX
     ("ornith-ai/Ornith-1.5-35B-A3B-GGUF:Q4_K_M", "llama.cpp"): (2, 6),         # Ornith GGUF arm
     ("bartowski/Qwen_Qwen3.5-9B-GGUF:Q8_0", "llama.cpp"): (3, 3),              # 9B GGUF arm
 }
 
+# 2026-10-25 reconciliation: six later historical failures were already in
+# the immutable log (stock +1, text-only +3, Ornith +2). No rows were added
+# or edited for this audit; the dated summary records the updated scope.
 # Aggregate pins: (passes, total).
 PINNED_AGGREGATES = {
-    "mlx_uniform_4bit": (4, 69),   # qualifies the SUMMARY.md "4/69" aggregate
-    "all_mei": (5, 91),            # every Mei row, any quant, all time (2026-09-17 AXQ 4-bit full-coding +1 row)
+    "mlx_uniform_4bit": (4, 75),   # current all-time uniform-4-bit scope
+    "all_mei": (5, 97),            # all historical Mei rows, any quant, as of 2026-10-25
 }
 
 
@@ -194,7 +197,7 @@ def main() -> int:
             print(f"  - {p}")
         return 1
     print()
-    print("OK: ledger reproduces every pinned count (including SUMMARY.md's 4/69 scope).")
+    print("OK: ledger reproduces every pinned count (including the 2026-10-25 4/75 uniform-4-bit scope).")
     return 0
 
 
