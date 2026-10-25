@@ -1,0 +1,13 @@
+Flint repeated-prefix duplication: exact paged hit rewinds only full KV layers — 2026-10-25
+
+User authorized researching and fixing the recorded JANGH2 cache failure. The numerical model/kernel gate had passed; cache reuse still returned ORANGE twice on repeated A/B/A.
+
+Instrumented the Mei-owned Flint forward boundary without changing sampling, template, model payload or cache policy. In the failing repeated request all 14 full-attention layers were byte-identical to the cold N-1 boundary (offset 653), but all 35 sliding layers restored offset 654 with a 513-entry ring instead of the cold offset-653 state. The final prompt token 150004 was then replayed into this mixed state. The original restore validation occurred before the later partial trim, so it missed the inconsistency.
+
+Root: CacheCoordinator.fetch honors skipExactDiskBoundary for L2, but its paged tier returns an exact 654-token hit. TokenIterator's full-hit replay trims only isTrimmable layers; wrapped RotatingKVCache is not trimmable. It therefore advances the sliding layers twice for the final prompt token. This is not quantization error, cache capacity, output parsing, or template text duplication.
+
+Candidate fix: for the paged rotating-companion topology, apply the requested replay-boundary exclusion to RAM too. Search through N-1 and reconstruct the remaining suffix from the original full request, so every layer restores a captured prefix at the same position. No guessed ring rollback, hidden sampling fix, or cache-disable fallback. Dense exact reuse stays unchanged; absent a safe earlier companion, return a miss and recompute. Both solo and batch callers already request this policy.
+
+Focused model-free regression RED: 4 tests, 61 assertion failures across repeated exact prompts, missing seed, window and block boundaries; dense control passes. Runtime fix isolated in /Users/tijs/projects/vmlx-flint-cache-20261025 on base 633fe166630ef04310aea7d5a1795555ab32970d. Original dependency checkout and primary vmlx checkout remain unchanged. Mei's existing build workspace uses an explicit SwiftPM editable dependency to test this worktree; Package.swift/Package.resolved remote pins remain unchanged. No commits/pushes/publication authorized or performed for this fix. Narrow cache correctness work follows the new user fix request, separate from the dependency's earlier Gemma-only lane.
+
+Artifacts: /Users/tijs/projects/local-model-bench-flint-gate-20261022/artifacts/flint-jangh2-cache-debug-20261025/. Source diff, build overrides and outcomes must remain explicit; a local editable override is not a released dependency pin. GREEN and native post-fix validation pending at note creation.

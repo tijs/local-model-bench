@@ -1,0 +1,221 @@
+diff --git a/Package.swift b/Package.swift
+index 42e5ea2..6afec89 100644
+--- a/Package.swift
++++ b/Package.swift
+@@ -28,6 +28,7 @@ let package = Package(
+             dependencies: [
+                 .product(name: "VMLX", package: "vmlx-swift"),
+                 .product(name: "MLX", package: "vmlx-swift"),
++                .product(name: "MLXFast", package: "vmlx-swift"),
+                 .product(name: "MLXNN", package: "vmlx-swift"),
+                 .product(name: "MLXLMCommon", package: "vmlx-swift"),
+                 .product(name: "MLXLLM", package: "vmlx-swift"),
+@@ -54,7 +55,8 @@ let package = Package(
+                 // `#huggingFaceTokenizerLoader()` bridge the Engine uses.
+                 .product(name: "MLXHuggingFace", package: "vmlx-swift"),
+                 .product(name: "VMLXTokenizers", package: "vmlx-swift"),
+-            ]
++            ],
++            exclude: ["Fixtures/JANGH2"]
+         ),
+     ]
+-)
+\ No newline at end of file
++)
+diff --git a/Sources/MeiCore/Engine.swift b/Sources/MeiCore/Engine.swift
+index ddad37e..8cb3c40 100644
+--- a/Sources/MeiCore/Engine.swift
++++ b/Sources/MeiCore/Engine.swift
+@@ -108,18 +108,13 @@ public actor Engine {
+             throw EngineError.modelDirectoryMissing(config.modelDirectory)
+         }
+         let modelConfiguration = try await FlintSupport.prepare(
+-            directory: directory, enabled: config.enableFlint)
++            directory: directory, enabled: config.enableFlint, janghEnabled: config.enableFlintJANGH)
+         try config.applyFlintGenerationDefaults()
+         // A reported memory limit below the model's working set makes MLX
+         // alloc calls wait on scheduled tasks instead of failing — the
+         // "hang" failure mode. If the operator configured an explicit limit
+         // (bytes), apply it before the allocator starts seeing load traffic.
+-        if config.memoryLimitBytes > 0 {
+-            Memory.memoryLimit = config.memoryLimitBytes
+-            if config.cacheLimitBytes > 0 {
+-                Memory.cacheLimit = config.cacheLimitBytes
+-            }
+-        }
++        applyExplicitMemoryLimits(config)
+         let container = try await loadModelContainer(
+             from: directory,
+             using: #huggingFaceTokenizerLoader(),
+@@ -202,15 +197,17 @@ public actor Engine {
+         // an explicit --memory-limit-bytes >= working set actually governs
+         // inference (otherwise the 35B at 24GB active would hang alloca on
+         // the 22.4GB default).
+-        if config.memoryLimitBytes > 0 {
+-            Memory.memoryLimit = config.memoryLimitBytes
+-            if config.cacheLimitBytes > 0 {
+-                Memory.cacheLimit = config.cacheLimitBytes
+-            }
+-        }
++        applyExplicitMemoryLimits(config)
+         return Engine(container: container, config: config, loadMemory: Memory.snapshot())
+     }
+ 
++    /// Model loading can reset allocator policy. Reapply each operator limit
++    /// independently; a cache-only cap must not require a memory-limit override.
++    static func applyExplicitMemoryLimits(_ config: ServerConfig) {
++        if config.memoryLimitBytes > 0 { Memory.memoryLimit = config.memoryLimitBytes }
++        if config.cacheLimitBytes > 0 { Memory.cacheLimit = config.cacheLimitBytes }
++    }
++
+     public var servedModelID: String { config.servedModelID }
+ 
+     /// MLX allocator snapshot immediately after the weights are resident.
+diff --git a/Sources/MeiCore/FlintModel.swift b/Sources/MeiCore/FlintModel.swift
+index 5382605..3e59899 100644
+--- a/Sources/MeiCore/FlintModel.swift
++++ b/Sources/MeiCore/FlintModel.swift
+@@ -118,10 +118,12 @@ final class FlintDecoderLayer: Module {
+     @ModuleInfo(key: "input_layernorm") var inputLayerNorm: RMSNorm
+     @ModuleInfo(key: "post_attention_layernorm") var postAttentionLayerNorm: RMSNorm
+ 
+-    init(_ c: FlintConfiguration, layer: Int) {
++    init(_ c: FlintConfiguration, layer: Int, jangh: JANGHFormatContract? = nil) {
+         _attention.wrappedValue = FlintAttention(c, layer: layer)
+-        mlp = c.mlpOnlyLayers.contains(layer)
+-            ? FlintDenseMLP(hiddenSize: c.hiddenSize, intermediateSize: c.intermediateSize) : FlintSparseMLP(c)
++        if c.mlpOnlyLayers.contains(layer) {
++            mlp = FlintDenseMLP(hiddenSize: c.hiddenSize, intermediateSize: c.intermediateSize)
++        } else if let jangh { mlp = FlintJANGHSparseMLP(c, layer: layer, contract: jangh) }
++        else { mlp = FlintSparseMLP(c) }
+         _inputLayerNorm.wrappedValue = RMSNorm(dimensions: c.hiddenSize, eps: c.rmsNormEps)
+         _postAttentionLayerNorm.wrappedValue = RMSNorm(dimensions: c.hiddenSize, eps: c.rmsNormEps)
+     }
+@@ -137,9 +139,9 @@ final class FlintModelInner: Module {
+     let layers: [FlintDecoderLayer]
+     let norm: RMSNorm
+ 
+-    init(_ c: FlintConfiguration) {
++    init(_ c: FlintConfiguration, jangh: JANGHFormatContract? = nil) {
+         _embedTokens.wrappedValue = Embedding(embeddingCount: c.vocabularySize, dimensions: c.hiddenSize)
+-        layers = (0..<c.hiddenLayers).map { FlintDecoderLayer(c, layer: $0) }
++        layers = (0..<c.hiddenLayers).map { FlintDecoderLayer(c, layer: $0, jangh: jangh) }
+         norm = RMSNorm(dimensions: c.hiddenSize, eps: c.rmsNormEps)
+     }
+ }
+@@ -157,10 +159,10 @@ final class FlintModel: Module, LLMModel {
+     var preservesCheckpointParameterDTypes: Bool { true }
+     var loraLayers: [Module] { model.layers }
+ 
+-    init(_ c: FlintConfiguration) {
++    init(_ c: FlintConfiguration, jangh: JANGHFormatContract? = nil) {
+         configuration = c
+         vocabularySize = c.vocabularySize
+-        model = FlintModelInner(c)
++        model = FlintModelInner(c, jangh: jangh)
+         _lmHead.wrappedValue = Linear(c.hiddenSize, c.vocabularySize, bias: false)
+     }
+ 
+diff --git a/Sources/MeiCore/FlintSupport.swift b/Sources/MeiCore/FlintSupport.swift
+index 952abfb..ace2880 100644
+--- a/Sources/MeiCore/FlintSupport.swift
++++ b/Sources/MeiCore/FlintSupport.swift
+@@ -14,12 +14,16 @@ enum FlintSupport {
+     }
+ 
+     static func prepare(
+-        directory: URL, enabled: Bool, registry: ModelTypeRegistry = LLMTypeRegistry.shared
++        directory: URL, enabled: Bool, janghEnabled: Bool = false, registry: ModelTypeRegistry = LLMTypeRegistry.shared
+     ) async throws -> ModelConfiguration {
+         let data = try Data(contentsOf: directory.appendingPathComponent("config.json"))
+         let type = try modelType(data: data)
+         guard type == "flint" else { return ModelConfiguration(directory: directory) }
+         guard enabled else { throw FlintError.disabled }
++        let object = try JSONSerialization.jsonObject(with: data) as? [String: Any]
++        let adapted = object?["mei_jangh_adapter_version"] != nil
++        if adapted && !janghEnabled { throw FlintError.unsupported("JANGH requires --enable-flint-jangh true") }
++        let jangh = adapted ? try FlintJANGHSupport.validate(directory: directory, ordinary: data) : nil
+         _ = try FlintConfiguration(data: data)
+         for name in jangConfigFileNames + ["jangtq_runtime.safetensors"] {
+             if FileManager.default.fileExists(atPath: directory.appendingPathComponent(name).path) {
+@@ -30,10 +34,10 @@ enum FlintSupport {
+         if FileManager.default.fileExists(atPath: index.path) {
+             struct Index: Decodable { let weight_map: [String: String] }
+             let keys = try JSONDecoder().decode(Index.self, from: Data(contentsOf: index)).weight_map.keys
+-            try validateWeightKeys(Array(keys))
++            if jangh == nil { try validateWeightKeys(Array(keys)) }
+         }
+         await registry.registerModelType("flint", creator: { (data: Data) in
+-            FlintModel(try FlintConfiguration(data: data))
++            FlintModel(try FlintConfiguration(data: data), jangh: jangh)
+         })
+         // The pinned Evaluate.generateTask uses ReasoningParser.forPrompt,
+         // not the stamp-only default: a template tail without <think> starts
+diff --git a/Sources/MeiCore/ServerConfig.swift b/Sources/MeiCore/ServerConfig.swift
+index 00e4777..e433a8b 100644
+--- a/Sources/MeiCore/ServerConfig.swift
++++ b/Sources/MeiCore/ServerConfig.swift
+@@ -10,6 +10,8 @@ public struct ServerConfig: Sendable {
+     public var servedModelID: String
+     /// Experimental app-owned Flint affine architecture. Never auto-enabled.
+     public var enableFlint: Bool = false
++    /// Separately gated, payload-preserving JANGH2 adapter.
++    public var enableFlintJANGH: Bool = false
+     /// Set when --served-model-id was omitted and defaulted from the
+     /// bundle directory name, so startup can report the chosen ID.
+     public var servedModelIDWasDefaulted: Bool = false
+@@ -232,6 +234,7 @@ public extension ServerConfig {
+             case "--model-dir": modelDirectory = try value()
+             case "--served-model-id": servedModelID = try value()
+             case "--enable-flint": config.enableFlint = try parseBool(flag, value())
++            case "--enable-flint-jangh": config.enableFlintJANGH = try parseBool(flag, value())
+             case "--host": config.host = try value()
+             case "--port":
+                 config.port = try parseInt(flag, value())
+@@ -482,8 +485,9 @@ public extension ServerConfig {
+                              config.json, which are safe but not tuned. Explicit
+                              flags always win over the profile.
+       --version               Print the Mei release version
++      --enable-flint-jangh BOOL  EXPERIMENTAL JANGH2 adapter (also enable Flint)
+       --enable-flint BOOL     EXPERIMENTAL standard MLX affine Flint support
+-                             (default false; no JANGH2/JANGTQ support)
++                             (default false; JANGH2 requires its separate adapter flag)
+ 
+     Network:
+       --host HOST            (default 127.0.0.1)
+diff --git a/THIRD-PARTY-NOTICES.md b/THIRD-PARTY-NOTICES.md
+index a450d1e..b3ddce6 100644
+--- a/THIRD-PARTY-NOTICES.md
++++ b/THIRD-PARTY-NOTICES.md
+@@ -36,3 +36,31 @@ The reference repository's license at that commit is:
+ 
+ This notice covers reference source, not model weights. Model artifacts have
+ separate licenses and admission requirements; no weights are distributed here.
++
++## JANGH projection/Hadamard reference
++
++The JANGHProjectionKernel in Sources/MeiCore is adapted from osaurus-ai/vmlx-swift
++commit 1a084b45d2496002673c11a8d849627a212db03d,
++Libraries/MLXLMCommon/JANGHProjectionKernel.swift (MIT).
++
++MIT License
++
++Copyright (c) 2023 ml-explore
++
++Permission is hereby granted, free of charge, to any person obtaining a copy
++of this software and associated documentation files (the "Software"), to deal
++in the Software without restriction, including without limitation the rights
++to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++copies of the Software, and to permit persons to whom the Software is
++furnished to do so, subject to the following conditions:
++
++The above copyright notice and this permission notice shall be included in all
++copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
++SOFTWARE.

@@ -1,0 +1,30 @@
+diff --git a/Libraries/MLXLMCommon/Cache/CacheCoordinator.swift b/Libraries/MLXLMCommon/Cache/CacheCoordinator.swift
+index 93c38737..049b5ddb 100644
+--- a/Libraries/MLXLMCommon/Cache/CacheCoordinator.swift
++++ b/Libraries/MLXLMCommon/Cache/CacheCoordinator.swift
+@@ -813,14 +813,23 @@ public final class CacheCoordinator: @unchecked Sendable {
+         // DSV4 via `LayerKind.deepseekV4` — would never get consulted.
+         let skipPaged = isPagedIncompatible
+ 
++        // A rotating companion is an exact state boundary, not a trimmable
++        // token slice. Honor the caller's replay-seed policy in RAM as well as
++        // on disk: an exact N-token hit would rewind only full-attention layers
++        // to N-1 and leave wrapped sliding layers at N before replaying token N.
++        // Query at most N-1, but retain the original request below so every
++        // unprocessed token (including its final token) remains in the suffix.
++        let pagedLookupTokens = skipExactDiskBoundary && requiresPagedBoundaryCompanion
++            ? Array(tokens.dropLast()) : tokens
++
+         // Tier 1: Paged cache (in-memory)
+         if !skipPaged,
+            let pagedCache,
+-           let result = pagedCache.fetchPrefix(tokens: tokens, mediaSalt: mediaSalt)
++           let result = pagedCache.fetchPrefix(tokens: pagedLookupTokens, mediaSalt: mediaSalt)
+         {
+             var matchedBlocks = result.blocks
+             var matchedTokens = result.matchedTokens
+-            var remainingTokens = result.remainingTokens
++            var remainingTokens = Array(tokens.dropFirst(matchedTokens))
+             var ssmStates: [MLXArray]? = nil
+             var canUsePagedHit = true
+ 
