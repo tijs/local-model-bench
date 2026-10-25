@@ -1,0 +1,11 @@
+# Flint Mei SwiftPM build-scratch cleanup
+
+- Time (UTC): 2026-10-23 13:09:36–13:09:43.
+- Authorization: User explicitly approved option 1, limited to deleting the exact task-created Swift build scratch below.
+- Deleted path: `/Users/tijs/.hermes/cache/scratch/flint-mei-source-20261022/build`.
+- Before deletion: realpath matched the allowlisted path; it was a directory, not a symlink; `du -sk` reported 7,675,840 KiB (7.320 GiB). It contained SwiftPM/Xcode build products and dependency checkouts. A metadata-only scan found five `.safetensors` test fixtures inside vmlx-swift dependency tests, but no Flint model weights and no `.gguf` files.
+- Live-state guard: no active `swift test`, `swift build`, or build process referencing the target; `lsof +D` returned exit 1 with empty stdout/stderr (no open handles). An installed Mei 0.9.0 process serving Qwen3.6 on port 8024 was observed at a separate Homebrew executable/model path and was left untouched. No benchmark or Flint server was running.
+- Post-delete verification: the exact target no longer exists; its parent `/Users/tijs/.hermes/cache/scratch/flint-mei-source-20261022` remains.
+- Filesystem accounting (`/System/Volumes/Data`, 1024-byte blocks): before available 20,383,932 KiB (20,873,146,368 bytes); after available 23,065,352 KiB (23,618,920,448 bytes); observed `df` increase 2,745,774,080 bytes (2.557 GiB). This differs from `du` for the deleted tree; APFS filesystem delta is reported separately, not inferred from tree size.
+- Resource implication: the selected pinned mixed-quant artifact's LFS total is 17,848,619,410 bytes. Subtracting that optimistic amount from the post-delete `df` availability leaves 5,770,301,038 bytes (5.374 GiB), 4,967,117,202 bytes below the normal 10 GiB runner floor, before non-LFS/download overhead. The 10 GiB default remains unchanged; any below-floor trial must use the separately tested explicit exploratory/rank-ineligible path. No weights have been staged.
+- The Mei source worktree and benchmark sources/results were not modified by this cleanup. No commit or push was made.

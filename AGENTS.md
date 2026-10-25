@@ -7,11 +7,18 @@ file into a project log.
 
 ## Project
 
-`local-model-bench` is a reproducible benchmark harness for comparing local LLM
-serving stacks as drivers for Hermes agentic coding. It measures automated task
+`local-model-bench` is a reproducible benchmark project for comparing local LLM
+serving stacks, with Peixinho as the primary harness focus. It measures automated task
 quality, speed, memory, cache behavior, and tool-use reliability across the
 active local engines: llama.cpp variants serving GGUF models and Mei serving
 Swift/MLX models.
+
+Hermes was retired as a runtime by user decision on 2026-10-25. Preserve the
+legacy Hermes-specific runner code, configurations, transcripts and results as
+historical evidence; do not reinstall Hermes, recreate its profiles, restore its
+services or run the legacy `hermes chat` fixture path. Peixinho integration and
+current benchmark work are governed by the latest Kiem plans. This cleanup does
+not claim that a replacement Peixinho driver is already implemented.
 
 Each run uses an isolated copy of a small fixture project. The model sees the
 task and normal tools; held-out checks in `checks/` are copied in only after the
@@ -52,10 +59,9 @@ port, context, sampling, cache, and build provenance.
 
 ## Backend unload rule
 
-`runner/unload_all.sh` may stop the benchmark-owned Hermes fallback and free
-benchmark ports, but it must not invoke, mutate, boot, restart, or restore
-CoCore. CoCore remains off during the current experiments. The restore script is
-manual and only concerns the Hermes fallback; no benchmark run automatically
-restores local backends.
+`runner/unload_all.sh` may free benchmark-owned ports, but it must not invoke,
+mutate, boot, restart, or restore CoCore. CoCore remains off during the current
+experiments. The legacy Hermes fallback and its restore script are retired;
+do not recreate them. No benchmark run automatically restores local backends.
 
 Do not publish GitHub activity or push changes without explicit permission.
