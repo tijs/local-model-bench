@@ -1,5 +1,8 @@
 # local-model-bench
 
+Current release: **benchmark-v5 — Hermes-free model evaluation**.
+See [release notes](docs/releases/benchmark-v5.md) for the methodology boundary.
+
 Compare local LLM serving stacks on affordable Apple Silicon Macs. The active
 engines are llama.cpp variants and Mei (Swift/MLX). Peixinho is the intended
 future application runtime; it is currently a design, so there are no Peixinho
