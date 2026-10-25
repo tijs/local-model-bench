@@ -36,7 +36,7 @@ def render(rows):
         "",
         "Hermes-specific workloads are retired. Historical rows remain in log.jsonl and the legacy leaderboard.",
         "",
-        "| Model | Engine | Config | Runner | Suite | Profile | Passed / rows | Harness errors | Median decode tok/s | Median TTFT s |",
+        "| Model | Engine | Config | Runner | Suite | Profile | Passed / rows | Harness errors | Median output tok/s (wall) | Median TTFT s |",
         "|---|---|---|---|---|---|---:|---:|---:|---:|",
     ]
     for key, data in sorted(
@@ -63,7 +63,7 @@ def render(rows):
         "",
         (
             "Groups retain configuration and runner identity. Sanity is a gate; model_tools uses a neutral "
-            "prompt and six simulated tools. Single trials and timing samples do not establish a front-runner."
+            "prompt and six simulated tools. Output rate divides completion tokens by total task wall time, including prefill and tool turns. Single trials and timing samples do not establish a front-runner."
         ),
         "",
     ]
