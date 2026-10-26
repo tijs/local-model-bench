@@ -27,6 +27,16 @@ identity and explicit `benchmark_scope: model-only-v1` result metadata.
 These checks measure model/API behavior. They do not establish real coding,
 application safety, Peixinho suitability, or a historical composite ranking.
 
+## Unreleased Peixinho stand-in track
+
+The `peixinho-standin-v1` scope adds twelve synthetic household workflow
+contracts: capture, grounded retrieval/privacy, previewed sharing/private copies,
+saved progress, routines and outage recovery. It uses bounded domain operations
+and held-out state/journal validators. These are simulator/model evaluations,
+not Peixinho app acceptance tests. See [the stand-in guide](docs/PEIXINHO_STANDIN.md)
+for the explicit config profile, smoke/full coverage and separate result log/report.
+Benchmark-v5 and its model-only results retain their original identities.
+
 ## Run
 
 Use the Astral toolchain and locked environment.

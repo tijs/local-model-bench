@@ -1,3 +1,14 @@
+# Unreleased Peixinho stand-in configs
+
+Use `benchmark_scope: peixinho-standin-v1` to select the separate stateful workflow
+runner through `run_bench.py`. A config must declare `standin_generation_profile`
+(an explicit `generation_profiles` entry), `standin_cache_policy` describing the
+actual runtime settings, `standin_partition: development` or `heldout`, and optional
+literal `standin_smoke: true` for four tasks instead of twelve. Commit exact config
+bytes before execution. No prior config/result is relabelled. The stand-in runner
+writes only `results/standin/` and `results/STANDIN.md`; it never regenerates old
+model-only or historical composite reports. Full guide: `docs/PEIXINHO_STANDIN.md`.
+
 # Current scope — 2026-10-25
 
 Current `runner/run_bench.py` runs `sanity` and `model_tools` over the model's

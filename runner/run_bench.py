@@ -669,6 +669,28 @@ def _run_one_impl(config_path: Path, cfg, config_hash, trials: int = 1, coding_s
 
     base_url = api_base_url or f"http://127.0.0.1:{proxy_port if needs_proxy else raw_port}/v1"
 
+    if cfg.get("benchmark_scope") == "peixinho-standin-v1":
+        from standin_tasks import SMOKE_IDS, TASK_IDS
+        expected = set(SMOKE_IDS if cfg.get("standin_smoke", False) else TASK_IDS)
+        with tempfile.TemporaryDirectory() as td:
+            summary_path = Path(td) / "summary.json"
+            command = [sys.executable, str(REPO / "runner" / "run_standin_suite.py"),
+                       "--config", str(suite_config_path), "--source-config", str(config_path),
+                       "--base-url", base_url, "--request-model", request_model,
+                       "--trials", str(trials), "--partition", cfg.get("standin_partition", "development"),
+                       "--summary-out", str(summary_path)]
+            if cfg.get("standin_smoke", False):
+                command.append("--smoke")
+            proc = run(command)
+            try:
+                rows = json.loads(summary_path.read_text())
+            except (OSError, ValueError):
+                rows = None
+            if proc.returncode != 0 or not complete_model_summary(rows, expected, trials):
+                print("FAILED: stand-in suite did not complete with usable task/trial coverage")
+                return
+        return True
+
     for suite in MODEL_ONLY_SUITES:
         if suite != "sanity" and viable == "sanity_only":
             break
@@ -720,6 +742,9 @@ def run_one(config_path: Path, trials: int = 1, coding_suites=None, stage="all",
     config_content = config_path.read_bytes()
     cfg = yaml.safe_load(config_content)
     config_hash = hashlib.sha256(config_content).hexdigest()[:12]
+    if cfg.get("benchmark_scope") == "peixinho-standin-v1":
+        from run_standin_suite import validate_config
+        validate_config(cfg)
     try:
         return _run_one_impl(
             config_path, cfg, config_hash, trials=trials, coding_suites=coding_suites, stage=stage,

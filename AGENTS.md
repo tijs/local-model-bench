@@ -20,10 +20,11 @@ services or run the legacy `hermes chat` fixture path. Peixinho integration and
 current benchmark work are governed by the latest Kiem plans. This cleanup does
 not claim that a replacement Peixinho driver is already implemented.
 
-Each run uses an isolated copy of a small fixture project. The model sees the
-task and normal tools; held-out checks in `checks/` are copied in only after the
-agent finishes. The benchmark never reads or modifies a real project during a
-fixture run. Results are append-only and are never hand-edited.
+Historical coding runs use isolated fixture projects. Current stand-in workflow
+runs use fresh synthetic household state and bounded domain tools. Held-out
+validators in `checks/` remain outside the model's tool boundary and run only
+after the agent finishes. The benchmark never reads or modifies a real project
+during a fixture run. Results are append-only and are never hand-edited.
 
 ## Layout and tools
 
@@ -33,7 +34,9 @@ fixture run. Results are append-only and are never hand-edited.
 - `checks/` — held-out grading checks and mutation tests.
 - `runner/` — launch, health, unload, fixture, grading, metrics, and leaderboard
   scripts; harness tests live in `runner/tests/`.
-- `results/log.jsonl` — raw task rows; `results/LEADERBOARD.md` — generated rollup.
+- `results/log.jsonl` — historical/model-only raw task rows; `results/LEADERBOARD.md` — historical rollup.
+- `results/standin/log.jsonl` and `results/STANDIN.md` — separate synthetic-workflow evidence/report.
+- `runner/run_standin_suite.py` — explicit `peixinho-standin-v1` loop; use `run_bench.py` for owned server lifecycle.
 - `docs/` and `configs/README.md` — benchmark and configuration documentation.
 
 Use the locked environment:
