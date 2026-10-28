@@ -40,3 +40,14 @@ isolated disk directory. The first attempt remains immutable; this tests a
 concrete changed policy under identical memory stop thresholds. MLXPress is a
 hypothesis for excess residency, not a confirmed cause. No global tuning,
 weaker memory gate, cache deletion or larger-weight launch.
+
+
+## Explicit-off smoke: also memory-gated
+
+Run20261028T220725Z-a81c5324 at c70158f/configbe087f8d712e also
+stopped sustained warning pressure before scoring (minimum12%free). Therefore
+MLXPress auto activation alone does not explain/remove the pressure. No clean
+baseline yet. Startup confirms explicit isolated disk tier and the same19.55GB
+active model allocation. New *-materialized.yaml controls only the mmap choice
+(false), keeping model, sampler, prefill and stop thresholds. This tests a
+possible file-page/Metal residency overlap; no global system setting is changed.
