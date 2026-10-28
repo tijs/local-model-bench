@@ -136,3 +136,19 @@ verification of cacheReuse. The original begin/verify/fresh-code/final condition
 remain unchanged; no gate bypass and no search for a passing seed. Each arm gets
 one attempt. These requests are separate from the final scored streaming pilot,
 which keeps native unseeded sampling and the original task budgets.
+
+## Extended independent numerical check
+
+The archived October25 final clean full-forward comparison matched all150144
+last-token logits exactly, but used only “The capital of France is” (five tokens).
+The preserved Python reference environment is still present; its independent
+jangq packed kernels and matched MLX backend hashes match the prior provenance.
+A new numerical input uses600 tokens of serialized synthetic workflow text,
+exceeding the513-token sliding window. The Python reference uses the same pinned
+external architecture/kernel sources, adds the config's explicit sliding-layer
+causal window mask and omits large intermediate trace dumps. It imports no Swift
+model code or inference outputs. The existing actual-pack Swift parity test reads
+those exact token IDs and compares all150144 last-token logits at0.05 tolerance.
+Both are cold full forwards, run sequentially under the same memory supervisor;
+no semantic score, generation rollout, cache reuse or higher-quant comparison is
+implied by this check. Source/input/backend hashes are committed before loading.
