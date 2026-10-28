@@ -743,8 +743,11 @@ def run_one(config_path: Path, trials: int = 1, coding_suites=None, stage="all",
     cfg = yaml.safe_load(config_content)
     config_hash = hashlib.sha256(config_content).hexdigest()[:12]
     if cfg.get("benchmark_scope") == "peixinho-standin-v1":
-        from run_standin_suite import validate_config
+        from run_standin_suite import committed_config, validate_config
         validate_config(cfg)
+        _, committed_bytes = committed_config(config_path)
+        if committed_bytes != config_content:
+            raise ValueError("stand-in config changed during admission")
     try:
         return _run_one_impl(
             config_path, cfg, config_hash, trials=trials, coding_suites=coding_suites, stage=stage,

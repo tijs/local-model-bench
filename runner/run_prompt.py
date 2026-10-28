@@ -636,6 +636,10 @@ def call_backend_streaming(base_url, model, messages, tools, temperature, timeou
                 if data == "[DONE]":
                     break
                 chunk = json.loads(data)
+                if not isinstance(chunk, dict):
+                    raise ValueError("malformed backend SSE event")
+                if chunk.get("error") is not None:
+                    raise OSError("backend returned an error event during streaming")
                 if chunk.get("usage"):
                     usage = chunk["usage"]
                 # llama-server reports its OWN prefill/decode split in a

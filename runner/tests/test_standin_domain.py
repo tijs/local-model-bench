@@ -12,7 +12,9 @@ from standin_domain import TOOLS, Domain
 from standin_tasks import TASK_IDS, cases
 
 
-def response(content=None, calls=None, finish="stop"):
+def response(content=None, calls=None, finish=None):
+    if finish is None:
+        finish = "tool_calls" if calls else "stop"
     message = {"role": "assistant", "content": content}
     if calls:
         message["tool_calls"] = [

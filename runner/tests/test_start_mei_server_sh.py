@@ -111,6 +111,27 @@ def _dry_run(extra):
 
 
 class StartMeiServerForwardingTests(unittest.TestCase):
+    def test_prefix_budget_forwarding_is_independent_and_explicit(self):
+        base, result = _dry_run(["--prefix-cache-limit-bytes", "536870912", "--cache-limit-bytes", "123"])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        argv = shlex.split(result.stdout.removeprefix("mei isolated launch: "))
+        self.assertEqual(argv[argv.index("--prefix-cache-limit-bytes") + 1], "536870912")
+        self.assertEqual(argv[argv.index("--cache-limit-bytes") + 1], "123")
+        self.assertFalse((base / "runtime").exists())
+        with patch.dict(os.environ, {"PREFIX_CACHE_LIMIT_BYTES": "1"}):
+            _, result = _dry_run([])
+        self.assertNotIn("--prefix-cache-limit-bytes", shlex.split(result.stdout))
+
+    def test_invalid_prefix_budget_refuses_before_build_or_launch(self):
+        for values in (["0"], ["-1"], ["1.5"], ["not-bytes"], [""], [], ["--dry-run"]):
+            with self.subTest(values=values):
+                base, result = _run_launcher(["--prefix-cache-limit-bytes", *values], dry_run=False)
+                self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                self.assertNotIn("building", result.stdout)
+                self.assertNotIn("mei isolated launch:", result.stdout)
+                for name in ("build", "runtime", "kv"):
+                    self.assertFalse((base / name).exists())
+
     def test_dry_run_prints_all_four_gate_controls(self):
         _, res = _dry_run(GATE_CONTROLS_FLAT)
         self.assertEqual(res.returncode, 0, res.stderr)

@@ -81,6 +81,24 @@ def committed_config(path: Path, source: Path | None = None) -> tuple[Json, byte
     return cfg, content
 
 
+def verify_endpoint_identity(base_url: str, expected: str) -> Json:
+    """Verify the endpoint itself, not merely the requested model alias."""
+    import urllib.request
+
+    with urllib.request.urlopen(
+        base_url.rstrip("/") + "/models", timeout=15
+    ) as response:
+        payload = json.load(response)
+    if not isinstance(payload, dict) or not isinstance(payload.get("data"), list):
+        raise TypeError("model endpoint returned malformed identity")
+    ids = [item.get("id") for item in payload["data"] if isinstance(item, dict)]
+    if expected not in ids:
+        raise ValueError(
+            f"model endpoint is not serving expected identity {expected!r}"
+        )
+    return payload
+
+
 def validate_config(cfg: Json) -> None:
     if cfg.get("benchmark_scope") != SCOPE:
         raise ValueError(f"config benchmark_scope must be {SCOPE}")
@@ -190,7 +208,14 @@ def conversation(
         if choice.get("finish_reason") == "length":
             raise EpisodeFailure("token_limit")
         calls = message.get("tool_calls")
+        if calls is not None and not isinstance(calls, list):
+            raise EpisodeFailure("malformed_tool_calls")
+        reason = choice.get("finish_reason")
+        if calls and reason != "tool_calls":
+            raise EpisodeFailure("unfinished_tool_calls")
         if not calls:
+            if reason != "stop":
+                raise EpisodeFailure(f"invalid_finish_reason:{reason}")
             final = message.get("content")
             if not isinstance(final, str) or not final.strip():
                 raise EpisodeFailure("empty_final")
@@ -455,6 +480,8 @@ def run_suite(
                     "standin_domain.py",
                     "standin_tasks.py",
                     "build_standin_report.py",
+                    "run_prompt.py",
+                    "bench_common.py",
                 )
             ],
         ]
@@ -609,6 +636,7 @@ def main() -> None:
         expected = (cfg.get("orchestration") or {}).get("served_model_id", cfg["model"])
         if args.request_model != expected:
             raise ValueError("request-model must match exact config served identity")
+        verify_endpoint_identity(args.base_url, expected)
     except (OSError, TypeError, ValueError) as exc:
         parser.error(str(exc))
 

@@ -47,7 +47,7 @@ class FailClient:
 
 
 @contextmanager
-def backend(replies):
+def backend(replies, *, truncate_final=False, final_error=False):
     observed = []
 
     class Handler(BaseHTTPRequestHandler):
@@ -71,7 +71,15 @@ def backend(replies):
                 ],
                 "usage": payload["usage"],
             }
-            body = f"data: {json.dumps(event)}\n\ndata: [DONE]\n\n".encode()
+            is_final = not message.get("tool_calls")
+            if is_final and truncate_final:
+                event["choices"][0]["finish_reason"] = None
+            events = f"data: {json.dumps(event)}\n\n"
+            if is_final and final_error:
+                events += 'data: {"error":{"message":"injected backend failure"}}\n\n'
+            if not (is_final and truncate_final):
+                events += "data: [DONE]\n\n"
+            body = events.encode()
             self.send_response(200)
             self.send_header("Content-Type", "text/event-stream")
             self.send_header("Content-Length", str(len(body)))
@@ -428,6 +436,10 @@ class StandinRunnerTests(unittest.TestCase):
                 patch.dict("os.environ", FAKE_KEY="test"),
                 patch.object(bench, "run", side_effect=run),
                 patch.object(bench, "admitted_config_snapshot", return_value=config),
+                patch(
+                    "run_standin_suite.committed_config",
+                    return_value=(cfg, config.read_bytes()),
+                ),
             ):
                 self.assertTrue(bench.run_one(config))
             self.assertFalse(any("run_prompt_suite.py" in str(c) for c in calls))

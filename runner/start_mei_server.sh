@@ -44,6 +44,8 @@ Options:
   --memory-limit-bytes N    Explicit MLX allocator limit in bytes
                             (default: none -> not passed; Mei uses its own
                             default, ~1.5x the Metal recommended working set)
+  --prefix-cache-limit-bytes N Retained prefix KV/rotating companion budget
+                            (strictly positive; default: unset -> Mei decides)
   --cache-limit-bytes N     MLX buffer-pool cache limit in bytes
                             (default: none -> not passed; Mei default 0 = use
                             the default limit)
@@ -97,6 +99,7 @@ KV_CACHE_DIR=""
 MODEL_PROFILE=""
 MEMORY_LIMIT_BYTES=""
 CACHE_LIMIT_BYTES=""
+PREFIX_CACHE_LIMIT_BYTES=""
 COMPILED_DECODE=""
 ENABLE_FLINT=""
 ENABLE_FLINT_JANGH=""
@@ -130,6 +133,12 @@ while [[ $# -gt 0 ]]; do
     --model-profile) MODEL_PROFILE="${2:?missing value}"; shift 2 ;;
     --memory-limit-bytes) MEMORY_LIMIT_BYTES="${2:?missing value}"; shift 2 ;;
     --cache-limit-bytes) CACHE_LIMIT_BYTES="${2:?missing value}"; shift 2 ;;
+    --prefix-cache-limit-bytes)
+      if [[ ! "${2-}" =~ ^[1-9][0-9]*$ ]]; then
+        echo "FATAL: --prefix-cache-limit-bytes must be a positive integer" >&2
+        exit 2
+      fi
+      PREFIX_CACHE_LIMIT_BYTES="$2"; shift 2 ;;
     --compiled-decode) COMPILED_DECODE="${2:?missing value}"; shift 2 ;;
     --enable-flint-jangh)
       case "${2-}" in
@@ -205,6 +214,7 @@ ARGS=(--model-dir "$MODEL_DIR" --served-model-id "$SERVED_MODEL_ID"
 [[ -n "$MODEL_PROFILE" ]] && ARGS+=(--model-profile "$MODEL_PROFILE")
 [[ -n "$MEMORY_LIMIT_BYTES" ]] && ARGS+=(--memory-limit-bytes "$MEMORY_LIMIT_BYTES")
 [[ -n "$CACHE_LIMIT_BYTES" ]] && ARGS+=(--cache-limit-bytes "$CACHE_LIMIT_BYTES")
+[[ -n "$PREFIX_CACHE_LIMIT_BYTES" ]] && ARGS+=(--prefix-cache-limit-bytes "$PREFIX_CACHE_LIMIT_BYTES")
 [[ -n "$COMPILED_DECODE" ]] && ARGS+=(--compiled-decode "$COMPILED_DECODE")
 # Flint remains Mei's default-off behavior unless the config opts in explicitly.
 [[ -n "$ENABLE_FLINT" ]] && ARGS+=(--enable-flint "$ENABLE_FLINT")
