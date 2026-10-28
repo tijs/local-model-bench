@@ -98,7 +98,7 @@ def _run_launcher(extra, *, dry_run=True):
     res = subprocess.run(
         ["bash", str(START_MEI), *argv, *extra, *(["--dry-run"] if dry_run else [])],
         # macOS Bash may put usage here-doc temporaries in its working dir.
-        cwd=base, capture_output=True, text=True,
+        cwd=base, capture_output=True, text=True, check=False,
         # Fail closed even if a regression reaches the build: never run Swift
         # or a real Mei binary from these launcher tests.
         env={**os.environ, "MEI_SWIFT": "/usr/bin/false"},
@@ -111,6 +111,28 @@ def _dry_run(extra):
 
 
 class StartMeiServerForwardingTests(unittest.TestCase):
+    def test_runtime_policies_are_forwarded_without_implicit_conflicting_reuse(self):
+        minimal = [value for i in range(0, len(BASE_ARGS), 2)
+                   if BASE_ARGS[i] not in {"--cache-reuse", "--kv-cache-dir"}
+                   for value in BASE_ARGS[i:i + 2]]
+        with patch.dict(globals(), {"BASE_ARGS": minimal}):
+            base, result = _dry_run(["--cache-mode", "off", "--mlxpress", "off"])
+        self.assertEqual(result.returncode, 0, result.stderr)
+        argv = shlex.split(result.stdout.removeprefix("mei isolated launch: "))
+        self.assertEqual(argv[argv.index("--cache-mode") + 1], "off")
+        self.assertEqual(argv[argv.index("--mlxpress") + 1], "off")
+        self.assertNotIn("--cache-reuse", argv)
+        self.assertFalse((base / "runtime").exists())
+        _, result = _dry_run([])
+        argv = shlex.split(result.stdout)
+        self.assertNotIn("--cache-mode", argv)
+        self.assertNotIn("--mlxpress", argv)
+
+    def test_invalid_cache_mode_refuses_before_build(self):
+        _, result = _run_launcher(["--cache-mode", "unknown"], dry_run=False)
+        self.assertEqual(result.returncode, 2)
+        self.assertNotIn("building", result.stdout)
+
     def test_prefix_budget_forwarding_is_independent_and_explicit(self):
         base, result = _dry_run(["--prefix-cache-limit-bytes", "536870912", "--cache-limit-bytes", "123"])
         self.assertEqual(result.returncode, 0, result.stderr)

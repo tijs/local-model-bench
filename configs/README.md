@@ -483,3 +483,13 @@ configs are marked `viable: full`; retired ones carry `viable: retired`:
 
 See the top-level `README.md` for how to run any/all of these, and
 `AGENTS.md` for the reasoning behind every non-obvious setting.
+
+Mei builds with the explicit runtime-policy API accept `--cache-mode
+auto|off|memory|disk` and `--mlxpress off|auto|1..95` in the launch command.
+The launcher forwards them only when requested. Prefer these selectors in new
+profiles; legacy `--cache-reuse` remains supported. Check the pinned Mei revision
+before using new flags. `--cache-limit-bytes 0` explicitly disables its allocator
+buffer pool on these builds; omission selects its backend default. Read
+`/v1/mei/status` for requested/effective policy and live allocator limits. Changes
+to policy or runtime pins require a new committed config and fresh admission;
+historical configs and scores are not updated in place.

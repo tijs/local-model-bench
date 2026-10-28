@@ -30,12 +30,13 @@ Options:
   --enable-thinking BOOL    Force template enable_thinking (default: none ->
                             not passed; nil = template default, which for the
                             staged Laguna-XS-2.1 chat_template.jinja is FALSE)
-  --cache-reuse BOOL        In-process KV/prefix reuse (default: true)
+  --cache-mode MODE         Prefix policy: auto/off/memory/disk (Mei policy API).
+  --mlxpress POLICY         Weight advice: off/auto/1..95 (Mei policy API).
+  --cache-reuse BOOL        Legacy KV/prefix reuse flag (default: true)
   --kv-bits N               KV quantization bits (default: none)
-  --kv-cache-dir DIR        On-disk KV cache dir for the prefix coordinator
-                            (default: none -> in-memory paged tier only; the
-                            qwen3_5_moe/Ornith hybrid requires this tier for
-                            cross-turn reuse — cached_tokens stays 0 without it)
+  --kv-cache-dir DIR        Explicit disk prefix-cache directory. When omitted,
+                            Mei's cache mode selects the tier; auto may use an
+                            instance-specific temporary disk tier for hybrids.
   --model-profile NAME   Mei model profile (Mei 0.5.0+): selects the measured
                        settings for a supported model — architecture, prefill
                        step, anchors and generation cap together.
@@ -43,12 +44,12 @@ Options:
                             generic is the Nemotron gate operating point)
   --memory-limit-bytes N    Explicit MLX allocator limit in bytes
                             (default: none -> not passed; Mei uses its own
-                            default, ~1.5x the Metal recommended working set)
+                            backend default, visible in /v1/mei/status)
   --prefix-cache-limit-bytes N Retained prefix KV/rotating companion budget
                             (strictly positive; default: unset -> Mei decides)
-  --cache-limit-bytes N     MLX buffer-pool cache limit in bytes
-                            (default: none -> not passed; Mei default 0 = use
-                            the default limit)
+  --cache-limit-bytes N     Freed allocator buffer-pool limit in bytes
+                            (omitted -> backend default; explicit 0 disables
+                            the pool on Mei builds with the policy API)
   --log-requests BOOL  Mei's own per-request stdout logging (prompt token
                        counts, and on research builds the chosen adaptive
                        stable boundary). Distinct from --request-log, which
@@ -93,7 +94,9 @@ TOP_K="20"
 MIN_P=""
 EMIT_REASONING="true"
 ENABLE_THINKING=""
-CACHE_REUSE="true"
+CACHE_REUSE=""
+CACHE_MODE=""
+MLXPRESS_POLICY=""
 KV_BITS=""
 KV_CACHE_DIR=""
 MODEL_PROFILE=""
@@ -128,6 +131,12 @@ while [[ $# -gt 0 ]]; do
     --emit-reasoning) EMIT_REASONING="${2:?missing value}"; shift 2 ;;
     --enable-thinking) ENABLE_THINKING="${2:?missing value}"; shift 2 ;;
     --cache-reuse) CACHE_REUSE="${2:?missing value}"; shift 2 ;;
+    --cache-mode)
+      case "${2-}" in
+        auto|off|memory|disk) CACHE_MODE="$2"; shift 2 ;;
+        *) echo "FATAL: --cache-mode expects auto, off, memory, or disk" >&2; exit 2 ;;
+      esac ;;
+    --mlxpress) MLXPRESS_POLICY="${2:?missing value}"; shift 2 ;;
     --kv-bits) KV_BITS="${2:?missing value}"; shift 2 ;;
     --kv-cache-dir) KV_CACHE_DIR="${2:?missing value}"; shift 2 ;;
     --model-profile) MODEL_PROFILE="${2:?missing value}"; shift 2 ;;
@@ -195,7 +204,7 @@ ARGS=(--model-dir "$MODEL_DIR" --served-model-id "$SERVED_MODEL_ID"
   --host 127.0.0.1 --port "$PORT"
   --context-cap "$CONTEXT_CAP"
   --temperature "$TEMPERATURE" --top-p "$TOP_P" --top-k "$TOP_K"
-  --emit-reasoning "$EMIT_REASONING" --cache-reuse "$CACHE_REUSE")
+  --emit-reasoning "$EMIT_REASONING")
 # Forwarded ONLY when the config asks for them. These two used to carry
 # hardcoded defaults (512 / 32768) that were always forwarded, which made them
 # explicit flags from Mei's point of view — and an explicit flag beats
@@ -205,6 +214,9 @@ ARGS=(--model-dir "$MODEL_DIR" --served-model-id "$SERVED_MODEL_ID"
 # both in its launch block, so leaving them unset here changes nothing for any
 # of them; it only stops the runner from overriding a profile it knows nothing
 # about. Mei resolves its own defaults when neither is given.
+[[ -n "$CACHE_REUSE" ]] && ARGS+=(--cache-reuse "$CACHE_REUSE")
+[[ -n "$CACHE_MODE" ]] && ARGS+=(--cache-mode "$CACHE_MODE")
+[[ -n "$MLXPRESS_POLICY" ]] && ARGS+=(--mlxpress "$MLXPRESS_POLICY")
 [[ -n "$MAX_TOKENS" ]] && ARGS+=(--max-tokens "$MAX_TOKENS")
 [[ -n "$PREFILL_STEP_SIZE" ]] && ARGS+=(--prefill-step-size "$PREFILL_STEP_SIZE")
 [[ -n "$MIN_P" ]] && ARGS+=(--min-p "$MIN_P")
