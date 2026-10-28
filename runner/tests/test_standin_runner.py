@@ -437,6 +437,7 @@ class StandinRunnerTests(unittest.TestCase):
             with (
                 patch.dict("os.environ", FAKE_KEY="test"),
                 patch.object(bench, "run", side_effect=run),
+                patch.object(bench, "verify_mei_runtime"),
                 patch.object(bench, "admitted_config_snapshot", return_value=config),
                 patch(
                     "run_standin_suite.committed_config",

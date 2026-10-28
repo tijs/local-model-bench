@@ -22,11 +22,14 @@ import urllib.request
 from pathlib import Path
 
 import yaml
-
 from bench_common import (
-    BACKEND_HEALTH_TIMEOUT_SECONDS, MIN_FREE_DISK_GB_BEFORE_LAUNCH,
-    config_rank_eligible, git_sha, snapshot_config,
+    BACKEND_HEALTH_TIMEOUT_SECONDS,
+    MIN_FREE_DISK_GB_BEFORE_LAUNCH,
+    config_rank_eligible,
+    git_sha,
+    snapshot_config,
 )
+from mei_provenance import verify_mei_runtime
 
 REPO = Path(__file__).resolve().parent.parent
 MODEL_ONLY_SUITES = ("sanity", "model_tools")
@@ -669,6 +672,10 @@ def _run_one_impl(config_path: Path, cfg, config_hash, trials: int = 1, coding_s
 
     base_url = api_base_url or f"http://127.0.0.1:{proxy_port if needs_proxy else raw_port}/v1"
 
+    if cfg.get("inference_engine") == "mei" and cfg.get("mei_source_commit"):
+        identity = verify_mei_runtime(cfg, base_url=base_url)
+        print("Mei runtime provenance: " + json.dumps(identity, sort_keys=True))
+
     if cfg.get("benchmark_scope") == "peixinho-standin-v1":
         from run_standin_suite import selected_task_ids
         expected = set(selected_task_ids(cfg, cfg.get("standin_smoke", False)))
@@ -748,6 +755,9 @@ def run_one(config_path: Path, trials: int = 1, coding_suites=None, stage="all",
         _, committed_bytes = committed_config(config_path)
         if committed_bytes != config_content:
             raise ValueError("stand-in config changed during admission")
+    # Fail before teardown/unload/build: an immutable YAML pin must not silently
+    # build the newer code now occupying its mutable checkout path.
+    verify_mei_runtime(cfg)
     try:
         return _run_one_impl(
             config_path, cfg, config_hash, trials=trials, coding_suites=coding_suites, stage=stage,

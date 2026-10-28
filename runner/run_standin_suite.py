@@ -18,6 +18,7 @@ from typing import Any
 
 import yaml
 from bench_common import REPO, git_sha
+from mei_provenance import verify_mei_runtime
 from run_prompt import (
     StreamStall,
     call_backend_streaming,
@@ -488,6 +489,7 @@ def run_suite(
         raise ValueError("test-only reference runs cannot write canonical results")
     if not 1 <= trials <= 20:
         raise ValueError("trials must be between 1 and 20")
+    runtime_identity = None if _test_skip_admission else verify_mei_runtime(cfg, base_url=base_url)
     selected_ids = selected_task_ids(cfg, smoke)
     selected = [case for case in cases(partition) if case.task_id in selected_ids]
     profile, sampler = generation(cfg)
@@ -510,6 +512,7 @@ def run_suite(
                     "build_standin_report.py",
                     "run_prompt.py",
                     "bench_common.py",
+                    "mei_provenance.py",
                 )
             ],
         ]
@@ -528,6 +531,7 @@ def run_suite(
         "inference_engine": cfg["inference_engine"],
         "config_hash": config_hash,
         "runner_git_sha": git_sha(),
+        "runtime_identity": runtime_identity,
         "versions": versions,
         "partition": partition,
         "generation_profile": profile,
@@ -578,6 +582,7 @@ def run_suite(
                         "generation_profile",
                         "versions",
                         "cache_policy",
+                        "runtime_identity",
                     )
                 }
                 row.update(

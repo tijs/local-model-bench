@@ -156,3 +156,20 @@ samples from a shared server/cache. All old rows and reports remain unchanged.
 When Peixinho exists, an adapter can replay the same scenario contracts. Those
 will be new runs with explicit tool/context/API identity and actual device,
 security and recovery evidence. Stand-in passes never convert into app passes.
+
+
+### Pinned Mei execution identity
+
+New Mei stand-in configurations require `mei_source_commit` and literal absolute
+`--mei-repo` and `--build-dir` launch paths. Admission refuses a different Git
+HEAD, modified/untracked build inputs, or a declared VMLX revision that differs
+from the committed Mei lockfile before model launch. After launch it checks the
+resolved dependency checkout and the local listener executable, and stores the
+verified revisions plus binary/Metal SHA-256 in the run manifest and task rows.
+
+A historical configuration pointing to a checkout that has since advanced must
+use its pinned checkout or a new committed configuration; old evidence/configs
+are not rewritten. Legacy model-only configurations without source pins remain
+explicitly unverified. Runtime hashes identify files at admission; they do not
+attest hardware, protect against concurrent external rebuilds, or qualify model
+quality. Keep the owned single-server lifecycle and resource supervisor.
