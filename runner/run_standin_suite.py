@@ -23,7 +23,7 @@ from run_prompt import (
     call_backend_streaming,
     normalize_generation_overrides,
 )
-from standin_domain import SCOPE, TOOLS, Json, dumps, tool
+from standin_domain import SCOPE, TOOLS, DomainError, Json, dumps, tool, validate
 from standin_tasks import SMOKE_IDS, SYSTEM, Case, cases, event_before
 
 Client = Callable[..., tuple[Json, float | None, float | None]]
@@ -271,7 +271,11 @@ def admission(client: Client, base_url: str, model: str, sampler: Json) -> Json:
     def execute(name: str, args: Any) -> Json:
         if name != "admission_probe" or not isinstance(args, dict):
             return {"error": "unknown probe"}
-        if args == {"stage": "begin"} and not stages:
+        try:
+            validate(tools[0]["function"]["parameters"], args)
+        except DomainError:
+            return {"error": "invalid probe arguments"}
+        if args["stage"] == "begin" and not stages:
             stages.append("begin")
             return {
                 "code": code,
@@ -288,7 +292,10 @@ def admission(client: Client, base_url: str, model: str, sampler: Json) -> Json:
             "Begin, then verify using the code returned by begin.",
             {
                 "stage": {"type": "string", "enum": ["begin", "verify"]},
-                "code": {"type": "string"},
+                "code": {
+                    "type": "string",
+                    "description": "Code returned by begin, required for verify; ignored during begin.",
+                },
             },
             ["stage"],
         )

@@ -21,6 +21,49 @@ def selected(task_id, partition="development"):
 
 
 class ParentReviewTests(unittest.TestCase):
+    def test_admission_honors_declared_optional_field_and_requires_fresh_code(self):
+        from run_standin_suite import admission
+        from test_standin_domain import response
+
+        class Probe:
+            def __init__(self, begin, wrong_code=False):
+                self.begin = begin
+                self.wrong_code = wrong_code
+
+            def __call__(self, _url, _model, messages, *_args, **_kwargs):
+                outputs = [
+                    json.loads(m["content"]) for m in messages if m["role"] == "tool"
+                ]
+                if not outputs:
+                    reply = response(calls=[("admission_probe", self.begin)])
+                elif len(outputs) == 1 and "code" in outputs[0]:
+                    code = "fabricated" if self.wrong_code else outputs[0]["code"]
+                    reply = response(
+                        calls=[("admission_probe", {"stage": "verify", "code": code})]
+                    )
+                else:
+                    reply = response(
+                        content=outputs[-1].get("verified", "Not verified")
+                    )
+                return reply, 0.01, 0.02
+
+        self.assertEqual(
+            admission(
+                Probe({"stage": "begin", "code": "unused"}), "unused", "test", {}
+            )["status"],
+            "passed",
+        )
+        for begin, wrong in [
+            ({"stage": "begin", "code": []}, False),
+            ({"stage": "begin", "extra": True}, False),
+            ({"stage": "begin"}, True),
+        ]:
+            with self.subTest(begin=begin, wrong=wrong):
+                self.assertEqual(
+                    admission(Probe(begin, wrong), "unused", "test", {})["status"],
+                    "failed",
+                )
+
     def test_real_sse_truncation_or_error_never_passes(self):
         from run_prompt import call_backend_streaming
         from test_standin_domain import response
