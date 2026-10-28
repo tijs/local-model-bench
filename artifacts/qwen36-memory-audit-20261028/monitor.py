@@ -16,7 +16,7 @@ started = time.monotonic()
 mapped = False
 with (root / 'vm-and-status.jsonl').open('a', buffering=1) as log:
     while not (root / 'outcome.json').exists() and time.monotonic() - started < 4000:
-        row = {'time': datetime.datetime.now(datetime.timezone.utc).isoformat()}
+        row = {'time': datetime.datetime.now(datetime.UTC).isoformat()}
         for label, argv in [('vm_stat', ['vm_stat']), ('swap', ['sysctl', 'vm.swapusage'])]:
             row[label] = subprocess.run(argv, capture_output=True, text=True, timeout=3, check=False).stdout
         try:
