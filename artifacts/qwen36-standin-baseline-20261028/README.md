@@ -22,3 +22,21 @@ stopped after each invocation. No Hermes/CoCore lifecycle, real household state
 or old-result rewriting. Same pilot budgets as Flint:12turns,1536tokens/turn,
 300s/task. Initial trajectories are calibration, not independent samples or
 real Peixinho acceptance. Post-run results and source hashes will be appended.
+
+
+## First smoke attempt: memory-gated interruption
+
+Run20261028T220421Z-372ddb39 at source192a031/confige78ce600e1a9.
+Health/plain probe passed, first admission tool call succeeded, then supervisor
+stopped sustained warning pressure before any scored row. Free reached11%,
+swap1217.38->1384.38MiB. Port8024 closed and free recovered76%. This is no score.
+Startup resolved an implicit disk tier, contradicting the authored no-disk
+policy; actual logs preserve the mismatch rather than rewriting the config.
+
+Source inspection found qwen3_5_moe in needsDiskKVTier and automatic MLXPress
+activation for routed bundles exceeding half RAM. Unsetting MLXPRESS does not
+disable it. Fresh *-explicit.yaml profiles set MLXPRESS=0/JANGPRESS=0 and a new
+isolated disk directory. The first attempt remains immutable; this tests a
+concrete changed policy under identical memory stop thresholds. MLXPress is a
+hypothesis for excess residency, not a confirmed cause. No global tuning,
+weaker memory gate, cache deletion or larger-weight launch.
