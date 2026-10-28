@@ -21,6 +21,23 @@ def selected(task_id, partition="development"):
 
 
 class ParentReviewTests(unittest.TestCase):
+    def test_failed_phase_does_not_imply_trusted_source_update_already_happened(self):
+        for partition in ("development", "heldout"):
+            for phase in (0, 1):
+                with self.subTest(partition=partition, phase=phase):
+                    case = selected("retrieve-grounded", partition)
+                    client = ScriptedClient([case])
+                    client.responses[1 if phase == 0 else -1]["choices"][0][
+                        "finish_reason"
+                    ] = "length"
+                    result = run_task(case, client, "unused", "test", {})
+                    self.assertFalse(result["grade"]["pass"])
+                    self.assertTrue(
+                        result["grade"]["checks"][
+                            "unrelated_existing_records_unchanged"
+                        ]
+                    )
+
     def test_admission_honors_declared_optional_field_and_requires_fresh_code(self):
         from run_standin_suite import admission
         from test_standin_domain import response

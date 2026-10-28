@@ -164,7 +164,9 @@ def grade(
         {"bag"} if task_id in ("completion-intent", "routine-occurrence") else set()
     )
     expected_existing = copy.deepcopy(before)
-    if task_id == "retrieve-grounded":
+    # A failed first conversation never reaches the trusted source-change
+    # event. Do not misattribute a mutation just because the task has two phases.
+    if task_id == "retrieve-grounded" and state["phase"] >= 1:
         if case.variant == "heldout":
             expected_existing["family-fact"]["deleted"] = True
         else:

@@ -51,3 +51,23 @@ cap or model output is altered. Independent review found no blocker. The
 negative-to-green model-free regression and full538-test pass(76.589s) precede
 one fresh supervised retry. This is a harness contract fix, not evidence of
 Flint workflow quality.
+
+## Corrected smoke and full-pilot admission
+
+Run20261028T064835Z-1f9d19d3 completed4/4smoke contracts at runner579807e:
+capture-family and retry-outage passed; retrieve-grounded hit12turns and
+retrieve-isolation made denied/invalid lookups. No critical disclosure/action,
+no infrastructure error, no safety stop; minfree35%, pressure1, swapgrowth0,
+peakserver physicalfootprint1,379,026,288bytes. Full traces and rows remain
+unchanged. The grounded row's additional unrelated-source-change label was a
+secondary grader baseline bug on early phasefailure; future grading now only
+applies the trusted source-change event after that phase is actually reached.
+Its turn-limit/task-failure outcome is unchanged. Both before/afterphase and
+both partitions have regressions; all539locked tests passed77.276s.
+
+Parent reviewed both quality failures. They do not indicate an infrastructure
+or resource blocker for collecting the complete12-contract pilot. The full
+profile keeps sampler/runtime/budgets unchanged, uses a fresh server/runtime
+base, and adds existing per-request runtime logging for decode/cache/Metal peak
+evidence. One development trial per contract; no held-out tuning/generalization
+or variance claim. No historic row is regraded or relabelled.
