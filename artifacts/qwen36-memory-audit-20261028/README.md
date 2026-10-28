@@ -50,3 +50,40 @@ Pure guard regressions retain all independent stops. Runtime, weights, sampler,
 task budgets and quality graders are identical; only supervisor floor changes.
 A pass cannot be attributed to runtime memory improvement solely from this
 changed policy. This does not prove long-run headroom or product safety.
+
+
+## Bounded smoke review
+
+Run20261028T224206Z-c197a849 at6e1962d/config2807654bf340 passed native
+structured-tool/continuation admission, then hit the retained sustained-warning
+stop on the first workflow request. MLXpeak21.302GB, active<=20.570GB, allocator
+pool<=512MiB; swap2024.25MiB unchanged. This is genuine warning pressure, unlike
+the prior free-only stop. One interrupted/harness row is preserved, not a model
+quality verdict; three planned smoke rows are missing. Full12 not launched.
+
+After teardown wired pages returned~2.55GiB from~22.6GiB. Most model residency
+was therefore released with the process; no orphan whole-model retention was
+identified. Reclaimable file cache remains and is distinct from active GPU
+working set. All15 model files rehashed unchanged.
+
+Source inspection found an avoidable startup path: VLM factory built/read
+text-only Qwen language weights before failing absent processor metadata, then
+LLM fallback repeated loading. VMLXf6510fc3 refuses text-only Qwen early and
+preflights mandatory processor metadata/registration before model allocation.
+Mei entry-point regressions first failed5/8 on5b2ffe15; all8 pass onf6510fc3,
+with configuration tests totaling52/52. This does not prove lower steady-state
+memory. A new low-buffer profile will prospectively declare256-token prefill and
+128MiB freed-buffer pool, same weights/sampler/context/task budgets and same
+bounded pressure/swap/disk safeguards. No user app closure is needed to attempt
+that control; pending app-closure preference is not treated as approval.
+
+
+## Lower-buffer retry, no app closure
+
+Meid431492 pins VMLXf6510fc3 and fixes the discarded-VLM-startup path plus
+zero-load-peak reporting. Final offline regression suite443 tests,2 opt-in
+skips,0 failures; native model evidence remains separate. New *-lowbuffer.yaml
+uses prefill256 and allocator128MiB, retaining context65536,prefix512MiB,
+native sampler, weights and suite budgets. This tests reduced transient state
+instead of closing Safari/Mail. No app-closure approval has been received or
+assumed. Same calibrated10%floor and all real-pressure/swap/disk stops.
