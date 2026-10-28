@@ -28,3 +28,25 @@ monitor.py is read-only and cannot override those stops. It records VM counters,
 status requested/effective/live allocator values and one server vmmap summary.
 Four-task smoke precedes full12 development tasks. Review every interruption or
 failure before another attempt. No old score rewrite or real-app claim.
+
+
+## First explicit-policy retry and bounded follow-up
+
+At source73a5b88, smoke config271fc2a783bc: health/plain probe passed; no scored
+row before supervisor stopped on sustained free<=20%. Kernel pressure remained1
+(normal), swap2024.25MiB unchanged throughout. Live status confirmed allocator
+request/effective536870912, MLXPressdisabled, active20.38GB,peak20.73GB. Global
+wired pages rose~2.58->22.62GiB; compressor~3.37->4.11GiB. No double20GB model
+allocation or increasing multi-task cache was observed in this short interval.
+Vmmap's process footprint excludes much of this GPU/mmap wired accounting.
+The corrected loader cap and cleanup did not establish a complete memory fix.
+
+This particular stop was the conservative20%reported-free rule, not a kernel
+pressure/swap stop. The first attempt remains unchanged. New *-bounded.yaml
+profiles explicitly record a bounded resource-policy calibration:10%floor
+(two5-second samples), with identical sustained-warning, immediate-critical,
+2GiBswapgrowth,16GiBswap and10GiBdisk stops. Preflight remains>=70%free/normal.
+Pure guard regressions retain all independent stops. Runtime, weights, sampler,
+task budgets and quality graders are identical; only supervisor floor changes.
+A pass cannot be attributed to runtime memory improvement solely from this
+changed policy. This does not prove long-run headroom or product safety.
