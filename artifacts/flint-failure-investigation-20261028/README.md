@@ -76,3 +76,16 @@ Validation before rerun: full locked harness 542/542 passed after transport/sear
 fixes; final stand-in tests 42/42 and failure regressions 4/4 passed after the
 safety-label correction. Ruff and ty passed for changed standalone typed modules.
 All sixteen original model files match prior hashes; runtime repositories clean.
+
+## Seeded cache comparison protocol
+
+After full-suite teardown, run `seeded_replay.py` under the same supervisor,
+once per committed replay-on/replay-off config. Two identical archived workflow
+prefixes (multipart continuation and private-copy initial request) use native
+sampling with explicit seed173 and1536 output tokens. Each prefix is repeated
+after the other prefix to exercise cache restoration. Raw nonstreaming responses
+include reasoning; inputs and exact hashes are retained. Fresh native tool
+admission precedes each arm. No tools are executed and no scored rows are written.
+Only cache reuse changes between arms. Exact output parity would provide bounded
+evidence against cache corruption on these prefixes; it does not prove general
+cache correctness or separate base-model behavior from quantization loss.
