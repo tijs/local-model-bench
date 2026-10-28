@@ -51,3 +51,19 @@ baseline yet. Startup confirms explicit isolated disk tier and the same19.55GB
 active model allocation. New *-materialized.yaml controls only the mmap choice
 (false), keeping model, sampler, prefill and stop thresholds. This tests a
 possible file-page/Metal residency overlap; no global system setting is changed.
+
+
+## Materialized control: stopped during load
+
+Sourceb803969 materialized smoke hit critical pressure during loading at the
+5-second sample (free26%, swap1974.88MiB; post-stop2048.25MiB). No endpoint or
+suite admission, hence no scored rows/manifest. No unchanged retry is allowed.
+
+Next control uses isolated Mei0.6.1 sourceae7b3b4e and existing scratch dependency
+fef563a5, exactly the historical pinned released lane. Existing primary Mei
+checkout and its untracked files are untouched. Historical native sampler,
+1024prefill,32768servermax and unsafecompile1 retained; compileddecodefalse,
+allocatorcache512MiB, explicit isolated disk KV,MLXPRESS=0. Older Mei has no strict
+live prefix quota flag. Same external memory guard and smoke-before-full gate.
+This is a different runtime/configuration from Flint, not a causal A/B proving
+which code caused pressure. No working-set/sysctl changes or weakened gates.
