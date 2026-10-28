@@ -1,7 +1,7 @@
 # local-model-bench
 
-Current release: **benchmark-v5 — Hermes-free model evaluation**.
-See [release notes](docs/releases/benchmark-v5.md) for the methodology boundary.
+Current release: **benchmark-v6 — synthetic Peixinho workflow evaluation**.
+See [release notes](docs/releases/benchmark-v6.md) for the methodology boundary.
 
 Compare local LLM serving stacks on affordable Apple Silicon Macs. The active
 engines are llama.cpp variants and Mei (Swift/MLX). Peixinho is the intended
@@ -27,7 +27,7 @@ identity and explicit `benchmark_scope: model-only-v1` result metadata.
 These checks measure model/API behavior. They do not establish real coding,
 application safety, Peixinho suitability, or a historical composite ranking.
 
-## Unreleased Peixinho stand-in track
+## Peixinho stand-in track (benchmark-v6)
 
 The `peixinho-standin-v1` scope adds twelve synthetic household workflow
 contracts: capture, grounded retrieval/privacy, previewed sharing/private copies,
