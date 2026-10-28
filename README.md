@@ -1,7 +1,8 @@
 # local-model-bench
 
-Current release: **benchmark-v6 — synthetic Peixinho workflow evaluation**.
-See [release notes](docs/releases/benchmark-v6.md) for the methodology boundary.
+Current release: **benchmark-v6.1 — pinned runtime admission and resource evidence**.
+See [release notes](docs/releases/benchmark-v6.1.md) and the unchanged
+[v6 methodology boundary](docs/releases/benchmark-v6.md).
 
 Compare local LLM serving stacks on affordable Apple Silicon Macs. The active
 engines are llama.cpp variants and Mei (Swift/MLX). Peixinho is the intended
