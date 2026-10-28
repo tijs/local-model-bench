@@ -670,8 +670,8 @@ def _run_one_impl(config_path: Path, cfg, config_hash, trials: int = 1, coding_s
     base_url = api_base_url or f"http://127.0.0.1:{proxy_port if needs_proxy else raw_port}/v1"
 
     if cfg.get("benchmark_scope") == "peixinho-standin-v1":
-        from standin_tasks import SMOKE_IDS, TASK_IDS
-        expected = set(SMOKE_IDS if cfg.get("standin_smoke", False) else TASK_IDS)
+        from run_standin_suite import selected_task_ids
+        expected = set(selected_task_ids(cfg, cfg.get("standin_smoke", False)))
         with tempfile.TemporaryDirectory() as td:
             summary_path = Path(td) / "summary.json"
             command = [sys.executable, str(REPO / "runner" / "run_standin_suite.py"),

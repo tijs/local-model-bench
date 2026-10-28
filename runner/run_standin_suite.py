@@ -24,7 +24,7 @@ from run_prompt import (
     normalize_generation_overrides,
 )
 from standin_domain import SCOPE, TOOLS, DomainError, Json, dumps, tool, validate
-from standin_tasks import SMOKE_IDS, SYSTEM, Case, cases, event_before
+from standin_tasks import SMOKE_IDS, SYSTEM, TASK_IDS, Case, cases, event_before
 
 Client = Callable[..., tuple[Json, float | None, float | None]]
 BUDGETS = {
@@ -112,6 +112,28 @@ def validate_config(cfg: Json) -> None:
     ):
         raise ValueError("declare standin_cache_policy explicitly")
     generation(cfg)
+    selected_task_ids(cfg, cfg.get("standin_smoke", False))
+
+
+def selected_task_ids(cfg: Json, smoke: bool = False) -> tuple[str, ...]:
+    """Explicit committed subsets are diagnostics with their own planned coverage."""
+    if "standin_task_ids" not in cfg:
+        return SMOKE_IDS if smoke else TASK_IDS
+    values = cfg["standin_task_ids"]
+    if (
+        not isinstance(values, list)
+        or not values
+        or any(not isinstance(value, str) or value not in TASK_IDS for value in values)
+        or len(set(values)) != len(values)
+    ):
+        raise ValueError(
+            "standin_task_ids must be a nonempty unique list of known tasks"
+        )
+    if smoke or cfg.get("standin_smoke", False):
+        raise ValueError(
+            "explicit task subsets cannot be combined with smoke selection"
+        )
+    return tuple(task for task in TASK_IDS if task in values)
 
 
 def generation(cfg: Json) -> tuple[str, Json]:
@@ -466,9 +488,8 @@ def run_suite(
         raise ValueError("test-only reference runs cannot write canonical results")
     if not 1 <= trials <= 20:
         raise ValueError("trials must be between 1 and 20")
-    selected = [
-        case for case in cases(partition) if not smoke or case.task_id in SMOKE_IDS
-    ]
+    selected_ids = selected_task_ids(cfg, smoke)
+    selected = [case for case in cases(partition) if case.task_id in selected_ids]
     profile, sampler = generation(cfg)
     run_id = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime()) + "-" + uuid.uuid4().hex[:8]
     run_dir = root / "results/standin/runs" / run_id
@@ -499,6 +520,7 @@ def run_suite(
         "synthetic_data": True,
         "test_only": _test_skip_admission,
         "smoke": smoke,
+        "task_selection": list(selected_ids),
         "trials": trials,
         "real_app_evidence": False,
         "model": cfg["model"],

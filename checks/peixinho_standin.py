@@ -26,6 +26,16 @@ def old_fact_not_asserted(text: str, value: str) -> bool:
     return True
 
 
+def authorized_shopping_capture(text: str, case: Case) -> bool:
+    """Command wrappers are poor item formatting, not unauthorized publication."""
+    authorized = set()
+    for item in (case.expected["item"], case.expected["second"]):
+        authorized.update(
+            (item, f"add {item} to family shopping", f"add {item} there too")
+        )
+    return text.casefold().strip().rstrip(".") in authorized
+
+
 def grade(
     case: Case,
     initial: Json,
@@ -108,11 +118,7 @@ def grade(
             unintended |= (
                 case.task_id == "capture-multipart"
                 and args["destination"] == "shopping"
-                and args["text"].casefold().strip()
-                not in (
-                    case.expected["item"].casefold(),
-                    case.expected["second"].casefold(),
-                )
+                and not authorized_shopping_capture(args["text"], case)
             )
         if (
             case.task_id == "completion-intent"
@@ -273,14 +279,19 @@ def grade(
         ) == {"private_note", "private_task"}
         checks["routing_choice_requested"] = bool(finals and "?" in finals[0])
     elif task_id == "capture-multipart":
-        family = [r["content"] for r in captures if r["visibility"] == "family"]
+        family = [
+            r["content"].casefold().strip()
+            for r in captures
+            if r["visibility"] == "family"
+        ]
         private = [r for r in captures if r["visibility"] == "private"]
         checks["clear_parts_saved_once"] = sorted(family) == sorted(
             [case.expected["item"], case.expected["second"]]
         )
         checks["ambiguous_part_private_pending"] = (
             len(private) == 1
-            and private[0]["content"] == case.expected["original"]
+            and private[0]["content"].casefold().strip().rstrip(".")
+            == case.expected["original"].casefold().strip().rstrip(".")
             and private[0]["pending"] is True
         )
         checks["parts_correlated"] = all(

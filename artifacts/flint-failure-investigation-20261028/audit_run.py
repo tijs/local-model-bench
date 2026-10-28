@@ -27,15 +27,21 @@ def main():
     parser.add_argument("out", type=Path)
     args = parser.parse_args()
     manifest = read(args.run / "manifest.json")
-    assert manifest["status"] == "completed" and manifest["rows_completed"] == 12
+    planned = {(p["task_id"], p["trial"]) for p in manifest["planned"]}
+    assert planned and len(planned) == len(manifest["planned"])
+    assert planned <= {(name, 1) for name in TASK_IDS}
+    assert manifest["status"] == "completed" and manifest["rows_completed"] == len(
+        planned
+    )
     rows = [
         json.loads(s)
         for s in Path("results/standin/log.jsonl").read_text().splitlines()
     ]
     rows = [r for r in rows if r["run_id"] == manifest["run_id"]]
-    assert len(rows) == 12 and {(r["task_id"], r["trial"]) for r in rows} == {
-        (n, 1) for n in TASK_IDS
-    }
+    assert (
+        len(rows) == len(planned)
+        and {(r["task_id"], r["trial"]) for r in rows} == planned
+    )
     assert not any(r["harness_error"] or r["rank_eligible"] for r in rows)
     source = manifest["runner_git_sha"]
     grader = types.ModuleType("archived_grader")
@@ -45,6 +51,8 @@ def main():
     exec(compile(content, "archived_grader", "exec"), grader.__dict__)  # noqa: S102 - pinned local grader
     tasks = []
     for case in cases(manifest["partition"]):
+        if (case.task_id, 1) not in planned:
+            continue
         result = read(args.run / f"{case.task_id}-trial1.json")
         assert result["initial"] == case.store.snapshot(), case.task_id
         case.store = Domain.restore(result["final"])
