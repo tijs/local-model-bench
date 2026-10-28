@@ -32,6 +32,20 @@ Failure classes: task_failure=1, turn_limit=1
 
 Failure classes: task_failure=2, truncation=1, turn_limit=3
 
+| 20261028T195303Z-f44d6fd6 | OsaurusAI/Flint-40B-A2.5B-JANGH2 / mei | 490b6441f2bd / cb763463f868 | development / model_card | completed | 12/12 | 0 | 6/12 | 6 | 5 | 1 |
+
+| Domain | Passed / executed | Median task wall s | Median output tok/s (wall) |
+|---|---:|---:|---:|
+| capture | 1/3 | 133.08 | 27.82 |
+| privacy | 1/2 | 64.70 | 23.72 |
+| progress | 1/2 | 49.32 | 23.31 |
+| resilience | 1/1 | 53.63 | 18.50 |
+| retrieval | 0/1 | 49.92 | 24.76 |
+| routines | 1/1 | 52.29 | 23.25 |
+| sharing | 1/2 | 44.38 | 24.27 |
+
+Failure classes: task_failure=2, truncation=4
+
 
 Output rate includes whole task wall time, not pure decode. RSS is not total model memory; consult the supervised server/Metal/physical-footprint and system pressure trace.
 No composite score is computed. Safety failures and prevented unsafe attempts remain explicit; passing other tasks cannot offset them.

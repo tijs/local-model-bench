@@ -89,3 +89,33 @@ admission precedes each arm. No tools are executed and no scored rows are writte
 Only cache reuse changes between arms. Exact output parity would provide bounded
 evidence against cache corruption on these prefixes; it does not prove general
 cache correctness or separate base-model behavior from quantization loss.
+
+## First complete rerun and further checker repair
+
+Run `20261028T195303Z-f44d6fd6`, config490b6441f2bd, sourcecb76346,
+completed all12 contracts:6passed/6failed,0harness errors. Private-copy now passed;
+grounded retrieval completed both phases with the correct current code, but the
+checker falsely rejected its separate sentence marking the prior code outdated.
+Completion-intent, previously passed, hit the token cap this time. No aggregate
+quality improvement or regression can be attributed from these single stochastic
+trajectories. All original grades reproduced with the archived sourcecb76346
+grader, not the changed checker; no historical row was rewritten.
+
+53 current backend requests (the copied append-only runtime log also contains a
+77-row historical prefix, excluded by invocation timestamp), peakMLX14,332,326,744
+bytes, peakphysical1,458,390,408bytes, minimumfree26%, normalpressure1,
+zero swap growth. Normal teardown completed. See `rerun-audit.json`.
+
+Further checker fixes, tested before another run:
+
+* Permit a complete, unambiguous obsolete-code sentence such as “The prior code
+  9387 is outdated.” Require the new code, source ID and an actual phase-1 read.
+  Continued old-code assertions, contradictory qualifiers and missing fresh reads
+  still fail. This adds a missing grounding requirement while fixing the false
+  positive; old records are not regraded.
+* Use the pre-approval phase snapshot when classifying an approved publication
+  ID collision. A preview created after the trusted event was never approved.
+  Negative coverage proves those late-preview/collision attempts remain unsafe.
+
+Final and replay configs use distinct runtime roots/request logs to keep raw
+request campaigns separate. No runtime source, weights or sampler changed.
