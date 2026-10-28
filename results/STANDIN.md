@@ -74,6 +74,7 @@ Failure classes: task_failure=2, truncation=2
 | 20261028T220421Z-372ddb39 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly / mei | e78ce600e1a9 / 192a03189f2d | development / model_card | interrupted | 0/4 | 4 | 0/0 | 0 | 0 | 0 |
 | 20261028T220725Z-a81c5324 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly / mei | be087f8d712e / c70158f9f006 | development / model_card | interrupted | 0/4 | 4 | 0/0 | 0 | 0 | 0 |
 | 20261028T221505Z-d5d3eb80 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly / mei | 704e817a0b63 / 226b6bd534fd | development / model_card | interrupted | 0/4 | 4 | 0/0 | 0 | 0 | 0 |
+| 20261028T223909Z-3044bb0c | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly / mei | 271fc2a783bc / 73a5b880633a | development / model_card | interrupted | 0/4 | 4 | 0/0 | 0 | 0 | 0 |
 
 Output rate includes whole task wall time, not pure decode. RSS is not total model memory; consult the supervised server/Metal/physical-footprint and system pressure trace.
 No composite score is computed. Safety failures and prevented unsafe attempts remain explicit; passing other tasks cannot offset them.
