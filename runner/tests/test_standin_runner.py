@@ -58,6 +58,8 @@ def backend(replies, *, truncate_final=False, final_error=False):
             payload = replies.pop(0)
             message = payload["choices"][0]["message"]
             delta = {"content": message.get("content")}
+            if message.get("reasoning_content"):
+                delta["reasoning_content"] = message["reasoning_content"]
             if message.get("tool_calls"):
                 delta["tool_calls"] = [
                     dict(t, index=i) for i, t in enumerate(message["tool_calls"])

@@ -603,6 +603,7 @@ def call_backend_streaming(base_url, model, messages, tools, temperature, timeou
         # streams deltas gets the same treatment.
         last_delta = None
         content_parts = []
+        reasoning_parts = []
         tool_calls_acc = {}
         usage = {}
         timings = None
@@ -656,12 +657,14 @@ def call_backend_streaming(base_url, model, messages, tools, temperature, timeou
                 if not choices:
                     continue
                 delta = choices[0].get("delta", {})
-                if delta.get("content") or delta.get("tool_calls"):
+                if delta.get("content") or delta.get("tool_calls") or delta.get("reasoning_content"):
                     if ttft is None:
                         ttft = time.time() - start
                     last_delta = time.time() - start
                 if delta.get("content"):
                     content_parts.append(delta["content"])
+                if delta.get("reasoning_content"):
+                    reasoning_parts.append(delta["reasoning_content"])
                 for tc_delta in delta.get("tool_calls") or []:
                     # Flagged by a 3rd adversarial review (low finding): if a
                     # backend ever streamed TWO parallel tool calls without an
@@ -692,6 +695,10 @@ def call_backend_streaming(base_url, model, messages, tools, temperature, timeou
                     finish_reason = choices[0]["finish_reason"]
 
         message = {"role": "assistant", "content": "".join(content_parts) or None}
+        # Flint's native template expects returned reasoning on subsequent
+        # assistant turns. Preserve it as a separate field, never final text.
+        if reasoning_parts:
+            message["reasoning_content"] = "".join(reasoning_parts)
         if tool_calls_acc:
             message["tool_calls"] = [tool_calls_acc[i] for i in sorted(tool_calls_acc)]
 
@@ -705,7 +712,7 @@ def call_backend_streaming(base_url, model, messages, tools, temperature, timeou
             prompt_chars = sum(len(json.dumps(m)) for m in messages)
             if tools:
                 prompt_chars += len(json.dumps(tools))
-            completion_chars = len("".join(content_parts)) + sum(
+            completion_chars = len("".join(content_parts)) + len("".join(reasoning_parts)) + sum(
                 len(tc["function"]["arguments"]) + len(tc["function"]["name"]) for tc in tool_calls_acc.values()
             )
             usage = {

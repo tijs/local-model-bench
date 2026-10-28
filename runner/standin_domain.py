@@ -32,7 +32,7 @@ STRING = {"type": "string", "minLength": 1}
 TOOLS = [
     tool(
         "search_records",
-        "Search records authorized for this account; empty query lists all accessible records.",
+        "Case-insensitive substring search over authorized record IDs, titles and visible content. This is not semantic search; use short queries. Empty query lists all accessible records.",
         {"query": {"type": "string"}},
         ["query"],
     ),
@@ -297,7 +297,7 @@ class Domain:
                     and not r.get("deleted")
                     and query
                     in (
-                        r["title"] + " " + self.projection(r).get("content", "")
+                        key + " " + r["title"] + " " + self.projection(r).get("content", "")
                     ).casefold()
                 ]
             }
