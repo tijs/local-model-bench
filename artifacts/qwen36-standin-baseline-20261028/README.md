@@ -67,3 +67,35 @@ allocatorcache512MiB, explicit isolated disk KV,MLXPRESS=0. Older Mei has no str
 live prefix quota flag. Same external memory guard and smoke-before-full gate.
 This is a different runtime/configuration from Flint, not a causal A/B proving
 which code caused pressure. No working-set/sysctl changes or weakened gates.
+
+
+## Final outcome
+
+The released-runtime smoke20261028T221505Z-d5d3eb80 also stopped before scoring:
+minimum12%free, sustained<=20%free, with warningpressure in the final sample.
+Its startup reported a32,641,751,449-byte allocator cache limit despite the
+512MiB requested flag. Current-runtime logs correctly reported536,870,912;
+therefore do not describe the effective allocator caps as matched. The older
+lane is not a tightly isolated runtime-only comparison.
+
+Final resource-summary.json supersedes preliminary observations: explicit-off
+minimum free was10%, not the earlier12% observation. All four controls were
+interrupted, none produced a scored task row, none completed the four-task smoke,
+and no full12-task baseline was launched. Three interrupted suite manifests and
+one pre-endpoint load interruption remain preserved. Results/STANDIN.md records
+missing coverage; no pass rate is inferred from zero completed rows.
+
+At22:15:40Z the host recovered78%free,swap2032.25MiB and ports8024/8017wereclosed.
+All15 staged model files rehashed unchanged. The current runtime executable and
+metallib retain their previous Flint hashes (7fd875e0/0f6bdc29), so no production
+runtime code patch was made during these controls. Ordinary file/RSS counters
+underreport the mmap/GPU residency: retain global pressure and MLX counters too.
+The measured model active set is19.55GB, but these observations do not isolate
+the complete cause of the pressure. No unchanged retries, global memory tuning,
+unrelated process termination or weakened gates. A verified resource plan is
+required before the baseline can continue; Kiem plan dd93dbc9 todo3 remains open.
+
+Benchmark-v6 release is independently complete and read back at192a031. This
+resource blocker does not undo publication or turn interrupted trials into
+model-quality failures. The optional diagnostic-only Mei test commit5c4b2c9
+and all current benchmark changes are published on their existing work branches.
