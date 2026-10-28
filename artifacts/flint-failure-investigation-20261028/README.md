@@ -119,3 +119,20 @@ Further checker fixes, tested before another run:
 
 Final and replay configs use distinct runtime roots/request logs to keep raw
 request campaigns separate. No runtime source, weights or sampler changed.
+
+## Diagnostic admission limitations and prospective control
+
+The initial streaming replay-on and replay-off attempts both failed the unscored
+native admission: `verify` omitted the fresh returned `code`. Cache-on repeated
+the incomplete call to the12-turn cap; cache-off stopped honestly after three
+turns without claiming verification. No seeded workflow request ran, no scored
+row was added, and both servers stopped normally. Full traces and admission
+review are retained. The same omission without cache demonstrates that disabling
+reuse alone does not eliminate this failure; it is not a seeded parity proof.
+
+A final controlled pair uses the already prospectively selected seed173 for
+both admission and replay, with nonstreaming HTTP in both arms and actual status
+verification of cacheReuse. The original begin/verify/fresh-code/final conditions
+remain unchanged; no gate bypass and no search for a passing seed. Each arm gets
+one attempt. These requests are separate from the final scored streaming pilot,
+which keeps native unseeded sampling and the original task budgets.

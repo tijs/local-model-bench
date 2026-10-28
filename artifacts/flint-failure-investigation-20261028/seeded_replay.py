@@ -17,7 +17,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "runner"))
 from bench_common import MIN_FREE_DISK_GB_BEFORE_LAUNCH, REPO
 from run_bench import mei_stop_command, server_command, wait_for_health
-from run_prompt import call_backend_streaming
 from run_standin_suite import admission, committed_config, verify_endpoint_identity
 from standin_domain import TOOLS
 
@@ -28,14 +27,58 @@ def main():
     parser.add_argument("--out", required=True, type=Path)
     args = parser.parse_args()
     cfg, config_bytes = committed_config(args.config)
+    assert cfg.get("diagnostic_only") is True
+    assert cfg.get("diagnostic_admission") == "seeded-nonstream-v1"
     assert shutil.disk_usage(REPO).free >= MIN_FREE_DISK_GB_BEFORE_LAUNCH * 1024**3
     for port in (8024, 8017):
         with socket.socket() as sock:
             assert sock.connect_ex(("127.0.0.1", port)) != 0, f"port {port} occupied"
     args.out.mkdir(parents=True, exist_ok=False)
     (args.out / "config.yaml").write_bytes(config_bytes)
+    (args.out / "provenance.json").write_text(
+        json.dumps(
+            {
+                "runner_git_sha": subprocess.check_output(
+                    ["git", "rev-parse", "HEAD"], text=True
+                ).strip(),
+                "script_sha256": hashlib.sha256(
+                    Path(__file__).read_bytes()
+                ).hexdigest(),
+                "config_sha256": hashlib.sha256(config_bytes).hexdigest(),
+            },
+            indent=2,
+        )
+        + "\n"
+    )
     base = cfg["benchmark_endpoint"]
     model = cfg["orchestration"]["served_model_id"]
+
+    def seeded_client(base_url, model, messages, tools, **kwargs):
+        # The diagnostic uses one prospectively chosen seed and HTTP mode for
+        # both admission and replay. All stage/code/final checks still apply.
+        body = json.dumps(
+            {
+                "model": model,
+                "messages": messages,
+                "tools": tools,
+                "temperature": 1.0,
+                "top_p": 0.95,
+                "top_k": 20,
+                "seed": 173,
+                "max_tokens": kwargs["max_tokens"],
+                "stream": False,
+            }
+        ).encode()
+        request = urllib.request.Request(
+            base_url + "/chat/completions",
+            data=body,
+            headers={"Content-Type": "application/json"},
+        )
+        start = time.monotonic()
+        with urllib.request.urlopen(request, timeout=kwargs["timeout"]) as reply:
+            response = json.load(reply)
+        return response, None, time.monotonic() - start
+
     original = REPO / "results/standin/runs/20261028T065739Z-cce13341"
     inputs = {}
     for name in ("capture-multipart", "private-copy"):
@@ -69,8 +112,12 @@ def main():
             )
             assert wait_for_health(base + "/models", timeout=300, proc=server)
             verify_endpoint_identity(base, model)
+            with urllib.request.urlopen(base + "/mei/status", timeout=10) as reply:
+                status = json.load(reply)
+            (args.out / "status.json").write_text(json.dumps(status, indent=2) + "\n")
+            assert status["cacheReuse"] is cfg["diagnostic_cache_reuse"]
             gate = admission(
-                call_backend_streaming,
+                seeded_client,
                 base,
                 model,
                 cfg["generation_profiles"]["model_card"],
