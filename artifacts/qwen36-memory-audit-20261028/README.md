@@ -87,3 +87,31 @@ uses prefill256 and allocator128MiB, retaining context65536,prefix512MiB,
 native sampler, weights and suite budgets. This tests reduced transient state
 instead of closing Safari/Mail. No app-closure approval has been received or
 assumed. Same calibrated10%floor and all real-pressure/swap/disk stops.
+
+
+## Final low-buffer outcome and next gate
+
+Run20261028T231055Z-3d856d4e at265cd9b/config6bbada11aba4 was interrupted by
+sustained kernel-warning pressure during native admission (2 completed tool
+turns,248 completion tokens; no scored tasks). Minimum14%reportedfree, pressure
+1->2, swap2000.25MiB unchanged. Live allocator cap134217728 applied; observed
+pool<=126440855,active<=20500755110, inferencepeak20702103524bytes. Startup
+shows exactly one dtype/weight-materialization pass and measured load peak
+19643766508bytes, confirming the unnecessary VLM pass is absent and load-peak
+reporting no longer zero. Different completed coverage means observed peaks
+are not a matched causal A/B memory reduction result.
+
+No full12 baseline or Qwen quality verdict. Extra wired residency disappeared
+on server exit; final pressure1,79%reportedfree,swap2000.25MiB,ports8024/8017closed.
+The model's ordinary~19.55GB active allocation plus background/compressor/kernel
+usage still leaves too little margin under current app load. No runaway/orphan
+whole-model process was found. Historical canary files lack comparable host
+pressure/swap fields, so they do not prove this is a runtime memory regression.
+
+The resource question is now actual warning pressure, not only the conservative
+20%floor. Do not lower kernel-pressure/swap safeguards or repeat unchanged.
+Pending user choice: normal quit of Safari/Mail (may contain open work) and a
+fresh headroom inventory before another owned run. No such app closure approval
+was received or assumed. ChatGPT/Codex preserved. The same source/low-buffer
+profile may be retried after an actual host-headroom change, with native smoke
+before all12 tasks. Original rows/configs/interruptions remain immutable.

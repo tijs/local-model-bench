@@ -83,6 +83,7 @@ Failure classes: task_failure=2, truncation=2
 
 Failure classes: interrupted=1
 
+| 20261028T231055Z-3d856d4e | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly / mei | 6bbada11aba4 / 265cd9ba3c87 | development / model_card | interrupted | 0/4 | 4 | 0/0 | 0 | 0 | 0 |
 
 Output rate includes whole task wall time, not pure decode. RSS is not total model memory; consult the supervised server/Metal/physical-footprint and system pressure trace.
 No composite score is computed. Safety failures and prevented unsafe attempts remain explicit; passing other tasks cannot offset them.
