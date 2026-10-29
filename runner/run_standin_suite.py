@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from bench_common import REPO, git_sha
+from bench_common import REPO, git_sha, supervision_id
 from llama_provenance import verify_llama_runtime
 from mei_provenance import verify_mei_runtime
 from run_prompt import (
@@ -557,6 +557,8 @@ def run_suite(
     }
     manifest: Json = {
         "run_id": run_id,
+        "supervision_id": supervision_id(),
+        "started_at": time.time(),
         "benchmark_scope": SCOPE,
         "synthetic_data": True,
         "test_only": _test_skip_admission,
@@ -621,6 +623,7 @@ def run_suite(
                         "versions",
                         "cache_policy",
                         "runtime_identity",
+                        "supervision_id",
                     )
                 }
                 row.update(
@@ -674,6 +677,7 @@ def run_suite(
         manifest["status"] = "interrupted"
         return rows, run_dir
     finally:
+        manifest["finished_at"] = time.time()
         write_json(run_dir / "manifest.json", manifest)
 
 

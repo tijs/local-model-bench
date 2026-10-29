@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from automation_tasks import SCOPE, SYSTEM, TASK_IDS, Task, tasks, visible_input
-from bench_common import REPO, git_sha
+from bench_common import REPO, git_sha, supervision_id
 from llama_provenance import verify_llama_runtime
 from mei_provenance import verify_mei_runtime
 from run_prompt import StreamStall, call_backend_streaming
@@ -421,6 +421,8 @@ def run_suite(
     ]
     manifest = {
         "run_id": rid,
+        "supervision_id": supervision_id(),
+        "started_at": time.time(),
         "benchmark_scope": SCOPE,
         "model": cfg["model"],
         "inference_engine": cfg["inference_engine"],
@@ -488,6 +490,7 @@ def run_suite(
                         "generation_profile",
                         "cache_policy",
                         "isolation",
+                        "supervision_id",
                     )
                 }
                 row.update(
@@ -530,6 +533,7 @@ def run_suite(
         manifest["status"] = "interrupted"
         return rows, run_dir
     finally:
+        manifest["finished_at"] = time.time()
         write_json(run_dir / "manifest.json", manifest)
 
 

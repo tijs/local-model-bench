@@ -132,7 +132,10 @@ class AutomationIntegrationTests(unittest.TestCase):
         return self.script_client(_url, _model, messages, tools, **kwargs)
 
     def test_real_suite_persists_complete_separate_rows_and_report(self):
-        with tempfile.TemporaryDirectory() as directory:
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch.dict("os.environ", BENCH_SUPERVISION_ID="a" * 32),
+        ):
             root = Path(directory)
             cfg = self.suite_config()
             rows, path = suite.run_suite(
@@ -151,6 +154,9 @@ class AutomationIntegrationTests(unittest.TestCase):
             manifest = json.loads((path / "manifest.json").read_text())
             self.assertEqual(manifest["status"], "completed")
             self.assertEqual(manifest["rows_completed"], 3)
+            self.assertTrue(all(row["supervision_id"] == "a" * 32 for row in rows))
+            self.assertEqual(manifest["supervision_id"], "a" * 32)
+            self.assertGreaterEqual(manifest["finished_at"], manifest["started_at"])
             self.assertEqual(
                 len((root / "results/automation/log.jsonl").read_text().splitlines()), 3
             )
@@ -302,6 +308,18 @@ class AutomationIntegrationTests(unittest.TestCase):
             )
             with self.assertRaisesRegex(ValueError, "requires the household"):
                 bench.run_one(path)
+
+    def test_changed_config_after_resource_admission_is_rejected_before_launch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "config.yaml"
+            path.write_text(yaml.safe_dump(self.suite_config()))
+            with (
+                patch.dict("os.environ", BENCH_ADMITTED_CONFIG_SHA256="0" * 64),
+                patch.object(bench, "_run_one_impl") as launch,
+                self.assertRaisesRegex(ValueError, "after resource admission"),
+            ):
+                bench.run_one(path)
+            launch.assert_not_called()
 
     def test_requires_explicit_literal_opt_in(self):
         validate_automation_config(config())

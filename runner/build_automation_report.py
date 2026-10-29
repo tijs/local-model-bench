@@ -48,6 +48,7 @@ def render(rows: list[dict[str, Any]], manifests: list[dict[str, Any]]) -> str:
                     "cache_policy",
                     "runtime_identity",
                     "isolation",
+                    "supervision_id",
                 )
             ):
                 raise ValueError("row/manifest provenance mismatch")

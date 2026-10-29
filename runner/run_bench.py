@@ -73,10 +73,27 @@ def _model_report():
     return run([sys.executable, str(REPO / "runner" / "build_model_report.py")]).returncode == 0
 
 
-def run(cmd, **kw):
+def run(cmd, *, graceful_interrupt=False, **kw):
     printable = cmd if isinstance(cmd, str) else " ".join(str(c) for c in cmd)
     print(f"$ {printable}")
-    return subprocess.run(cmd, shell=isinstance(cmd, str), cwd=str(REPO), **kw)
+    if not graceful_interrupt:
+        return subprocess.run(cmd, shell=isinstance(cmd, str), cwd=str(REPO), **kw)
+    # subprocess.run kills its child immediately on KeyboardInterrupt. Suite
+    # runners need a short grace period to persist their interrupted task/manifest.
+    process = subprocess.Popen(cmd, shell=isinstance(cmd, str), cwd=str(REPO), **kw)
+    try:
+        return subprocess.CompletedProcess(cmd, process.wait())
+    except KeyboardInterrupt:
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.terminate()
+            try:
+                process.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=3)
+        raise
 
 
 def wait_for_health(url, timeout=BACKEND_HEALTH_TIMEOUT_SECONDS, proc=None):
@@ -704,7 +721,7 @@ def _run_one_impl(config_path: Path, cfg, config_hash, trials: int = 1, coding_s
                        "--summary-out", str(summary_path)]
             if cfg.get("standin_smoke", False):
                 command.append("--smoke")
-            proc = run(command)
+            proc = run(command, graceful_interrupt=True)
             try:
                 rows = json.loads(summary_path.read_text())
             except (OSError, ValueError):
@@ -721,7 +738,7 @@ def _run_one_impl(config_path: Path, cfg, config_hash, trials: int = 1, coding_s
                            "--base-url", base_url, "--request-model", request_model,
                            "--trials", str(trials), "--partition", cfg.get("standin_partition", "development"),
                            "--summary-out", str(summary_path)]
-                proc = run(command)
+                proc = run(command, graceful_interrupt=True)
                 try:
                     rows = json.loads(summary_path.read_text())
                 except (OSError, ValueError):
@@ -792,6 +809,9 @@ def run_one(config_path: Path, trials: int = 1, coding_suites=None, stage="all",
     # while loading, even though the suites correctly use the forced snapshot.
     validate_model_only_scope(stage, coding_suites, reasoning)
     config_content = config_path.read_bytes()
+    admitted = os.environ.get('BENCH_ADMITTED_CONFIG_SHA256')
+    if admitted is not None and hashlib.sha256(config_content).hexdigest() != admitted:
+        raise ValueError('config bytes changed after resource admission')
     cfg = yaml.safe_load(config_content)
     config_hash = hashlib.sha256(config_content).hexdigest()[:12]
     if "python_automation" in cfg:

@@ -29,7 +29,11 @@ The next benchmark adds three real isolated Python CLI tasks: shopping CSV
 normalization, decimal-safe expense aggregation, and reminder-export repair.
 It uses a bounded write/run/repair loop and unseen post-agent inputs, with a
 separate score/report. See [the automation guide](docs/PYTHON_AUTOMATION.md).
-Implementation tests/review are complete; live Qwen calibration precedes release.
+Implementation tests/review are complete. The first Qwen calibration passed all
+12 household tasks and the first Python task before its resource guard stopped
+a concurrent-host-pressure run; [evidence](artifacts/automation-benchmark-20261029/README.md).
+Full quiet-window calibration still precedes release. Use the documented
+supervisor for the new profiles; it injects their required runner environment.
 For exact v6.3 reproduction, check out the `benchmark-v6.3` tag; current main
 also contains versioned household budget and instruction improvements.
 

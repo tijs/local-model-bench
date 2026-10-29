@@ -146,6 +146,20 @@ Failure classes: task_failure=1
 
 Failure classes: task_failure=1, truncation=1
 
+| 20261029T202600Z-5d6812c4 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly / mei | 3f6c0d34e1a8 / c1af468a36fd | development / model_card | completed | 12/12 | 0 | 12/12 | 0 | 0 | 0 |
+
+| Domain | Passed / executed | Median task wall s | Median output tok/s (wall) |
+|---|---:|---:|---:|
+| capture | 3/3 | 25.65 | 37.82 |
+| privacy | 2/2 | 22.77 | 35.32 |
+| progress | 2/2 | 28.95 | 30.79 |
+| resilience | 1/1 | 25.16 | 28.10 |
+| retrieval | 1/1 | 25.72 | 34.75 |
+| routines | 1/1 | 11.79 | 27.38 |
+| sharing | 2/2 | 20.99 | 33.52 |
+
+Failure classes: none
+
 
 Output rate includes whole task wall time, not pure decode. RSS is not total model memory; consult the supervised server/Metal/physical-footprint and system pressure trace.
 No composite score is computed. Safety failures and prevented unsafe attempts remain explicit; passing other tasks cannot offset them.

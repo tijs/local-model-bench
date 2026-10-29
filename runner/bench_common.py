@@ -17,11 +17,20 @@ run time (so a runner-code change naturally starts a new leaderboard group,
 the same way a config change already did).
 """
 import hashlib
+import os
+import re
 import subprocess
 import threading
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
+
+
+def supervision_id():
+    value = os.environ.get("BENCH_SUPERVISION_ID")
+    if value is not None and not re.fullmatch("[0-9a-f]{32}", value):
+        raise ValueError("invalid benchmark supervision identity")
+    return value
 
 # Added 2026-08-22 (methodology review, finding F5): PASS carried no
 # latency signal at all — a task that took 3135s scored identically to

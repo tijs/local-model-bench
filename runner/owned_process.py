@@ -46,7 +46,7 @@ class OwnedSession:
             for line in result.stdout.splitlines()
         )
 
-    def stop(self) -> None:
+    def stop(self, grace_seconds: float = 3) -> None:
         if self.process.returncode is not None:
             raise RuntimeError("cannot signal an already reaped owned session")
         try:
@@ -54,7 +54,7 @@ class OwnedSession:
                 os.killpg(self.pid, signal.SIGTERM)
             except ProcessLookupError:
                 pass
-            deadline = time.monotonic() + 3
+            deadline = time.monotonic() + grace_seconds
             while self.running_members() and time.monotonic() < deadline:
                 time.sleep(0.05)
             if self.running_members():

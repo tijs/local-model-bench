@@ -47,6 +47,7 @@ def render(rows: list[Json], manifests: list[Json]) -> str:
                     "partition",
                     "generation_profile",
                     "cache_policy",
+                    "supervision_id",
                 )
             ):
                 raise ValueError("row/manifest provenance mismatch")

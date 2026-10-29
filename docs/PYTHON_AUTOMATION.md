@@ -25,3 +25,17 @@ The automation loop uses up to eight model turns, 4096 tokens per turn (includin
 `results/automation/log.jsonl` is append-only. Per-run config snapshots, native responses, tool journal, submitted source, script hash, isolated execution identity and validation outcomes live under `results/automation/runs/`. `runner/build_automation_report.py` generates `results/AUTOMATION.md` with planned/executed coverage and provenance checks. Reports distinguish development/held-out partitions and keep tool, fixture, validator and runtime identities. Shared model-server cache does not establish independent trials.
 
 Before live runs: pass the reference/intentional-wrong-script tests, containment tests and harness regressions; review the implementation; commit the exact launch config; then use the normal disk and monitored memory/swap gates. A model-quality attribution must inspect raw calls/source and reproduce suspected owned failures rather than treating every failed grade as a model defect.
+
+## Supervised runs and released comparison
+
+Use the packaged supervisor for the current full two-track profiles. Choose a new output directory for every attempt; existing evidence is never overwritten:
+
+```bash
+uv run --locked python runner/supervise_bench.py --config configs/agent-automation-v7-20261029/qwen-calibration-retry.yaml --output artifacts/qwen-calibration-example --trials 1
+```
+
+The supervisor checks committed source/config bytes, normal pressure, disk space and the profile's launch headroom before starting the runner. Current profiles require85%reported free memory for Qwen/Ornith/MiniCPM and75%for Flint. Fixed independent stops remain: critical pressure immediately, two warning samples, two samples at or below10%free,2GiB swap growth,16GiB absolute swap and10GiB disk floor. It samples every5seconds, records owned process footprints, and gives an interrupted suite time to persist evidence before bounded teardown. These are measured guards, not a hard total-memory allocation ceiling. Wait for a quiet host; the supervisor does not stop unrelated work.
+
+Each supervision has a unique ID, exact admitted config snapshot/hash, source fingerprints and registered track run IDs. The parent rejects config changes after resource admission. Both track manifests/rows retain the same supervision ID. Final comparison additionally verifies the same serving runtime across tracks, time windows, exact released config/method fingerprints, raw artifact grades/counters and full coverage. A successful monitor from a different attempt of the same config cannot be reused.
+
+`runner/build_agent_leaderboard.py --campaign <selection.json>` generates the final comparison from explicit run selections after a release exists. It keeps household and Python scores separate and uses no weighted composite. Partial, critical-boundary, uncommitted-source or pressure-tainted evidence receives no order. Exact selected runs, runtime/quant/config details and failure classes remain available for review; a single trial cannot establish statistical superiority.
