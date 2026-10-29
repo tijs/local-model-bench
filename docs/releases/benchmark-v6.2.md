@@ -15,11 +15,14 @@ negative passive/negated/unrelated requests and a missing persisted-choice guard
 in both development and held-out variants. Prior raw rows are preserved; updated
 grader hashes separate new results. No previous model score is rewritten.
 
-Qwen3.6 completed its first full12-contract stand-in run after a host-headroom
-change, with normal memory pressure and no swap growth. Its original raw8/12
+Qwen3.6 completed its first full 12-contract stand-in run after a host-headroom
+change, with normal memory pressure and no swap growth. Its original raw 8/12
 includes the confirmed validator false negative plus three tool/protocol/budget
-failures. A fresh full rerun uses the corrected grader and identical model,
-sampler and task-budget settings. Current results and resource evidence live in
+failures. A fresh full rerun with the corrected grader completed 12/12 tasks with 8/12
+passing, zero critical safety failures, normal pressure and no swap growth. It
+used identical model, sampler and task-budget settings. Its failures concern
+operation-ID reuse, preserving uncertain capture text and completion-state
+handling; this is not an all-contracts-pass verdict. Current results and resource evidence live in
 `artifacts/qwen36-appclosure-retry-20261029/` and `results/STANDIN.md`.
 
 Synthetic workflow evidence does not establish real Peixinho app behavior,
