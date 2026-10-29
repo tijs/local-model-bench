@@ -9,6 +9,39 @@ from standin_domain import MUTATIONS, SCHEMAS, Json, dumps
 from standin_tasks import Case
 
 
+def requests_route_choice(text: str) -> bool:
+    """Accept questions and direct imperative requests for the persisted choices."""
+    if "?" in text:
+        return True
+    plain = re.sub(r"[*`]", "", text).replace("_", " ")
+    route_context = False
+    for sentence in re.split(r"[.!;:\n]+", plain):
+        clause = re.sub(r"^\s*(?:[-+•]\s+)?", "", sentence)
+        imperative = re.match(
+            r"(?:please\s+)?(?:choose|pick|select)\s+(?!no\b|not\b|neither\b)",
+            clause,
+            re.IGNORECASE,
+        )
+        route_object = re.search(
+            r"\b(?:route|routes|option|options|note|task|choice|choices)\b",
+            clause,
+            re.IGNORECASE,
+        )
+        indirect = re.match(
+            r"(?:please\s+)?(?:let me know|tell me)\s+(?:which|whether|your choice)\b",
+            clause,
+            re.IGNORECASE,
+        )
+        # "Your options are ready: pick one" refers to the prior offer.
+        offered_choice = route_context and re.search(r"\b(?:one|either)\b", clause)
+        if (imperative and (route_object or offered_choice)) or (
+            indirect and route_object
+        ):
+            return True
+        route_context = route_context or bool(route_object)
+    return False
+
+
 def old_fact_not_asserted(text: str, value: str) -> bool:
     """Permit an explicit obsolete-code sentence, not a conflicting current claim."""
     plain = text.replace("*", "").replace("`", "")
@@ -277,7 +310,9 @@ def grade(
         checks["bounded_private_routing_choices"] = len(captures) == 1 and set(
             captures[0].get("routing_choices", [])
         ) == {"private_note", "private_task"}
-        checks["routing_choice_requested"] = bool(finals and "?" in finals[0])
+        checks["routing_choice_requested"] = bool(
+            finals and requests_route_choice(finals[0])
+        )
     elif task_id == "capture-multipart":
         family = [
             r["content"].casefold().strip()
