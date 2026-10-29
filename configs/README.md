@@ -1,5 +1,7 @@
-# Unreleased Peixinho stand-in configs
+# Current Peixinho stand-in configs
 
+Released in benchmark-v6 and maintained in [the current release](../README.md),
+the synthetic stand-in track is the primary workflow evaluation.
 Use `benchmark_scope: peixinho-standin-v1` to select the separate stateful workflow
 runner through `run_bench.py`. A config must declare `standin_generation_profile`
 (an explicit `generation_profiles` entry), `standin_cache_policy` describing the
@@ -9,11 +11,11 @@ bytes before execution. No prior config/result is relabelled. The stand-in runne
 writes only `results/standin/` and `results/STANDIN.md`; it never regenerates old
 model-only or historical composite reports. Full guide: `docs/PEIXINHO_STANDIN.md`.
 
-# Current scope — 2026-10-25
+# Secondary model-only configs
 
-Current `runner/run_bench.py` runs `sanity` and `model_tools` over the model's
-HTTP endpoint. Hermes profile, CLI and coding-agent stages are retired. The
-schema and policy history below describe archived campaigns where stated.
+The `model-only-v1` scope runs `sanity` and `model_tools` over the model's HTTP
+endpoint. The `peixinho-standin-v1` scope above runs the separate synthetic
+workflow suite. Hermes profile, CLI and broad coding-agent stages are retired.
 No Peixinho app tests exist: that application is still a design.
 
 Use `benchmark_scope: model-only-v1`, `orchestration.viable: model_only`, and
@@ -31,7 +33,12 @@ Current rows carry `benchmark_scope: model-only-v1`; `results/MODEL_ONLY.md`
 groups them by config, runner, suite and sampler. Historical composite reports
 exclude this scope. Do not infer an application score from these checks.
 
-# Run configs
+# Historical config schema and policy
+
+The following schema and policy notes are preserved for archived campaigns.
+Their Hermes profiles, coding stages and retired serving engines are not current
+launch instructions. For new runs use the explicit stand-in or model-only scope
+above, the active engine adapters and a committed config.
 
 One file per model+inference-engine combo: `configs/<model-slug>/<name>.yaml`,
 where the filename (`mlx`, `gguf`, `omlx`, or a variant like `gguf-dflash2`)

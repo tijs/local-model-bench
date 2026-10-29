@@ -13,7 +13,17 @@ Hermes was retired on 2026-10-25. Its drivers, task definitions, transcripts and
 results remain historical evidence. Current commands never reset its profiles,
 launch it, or run its coding workloads. Do not reinstall or restore it.
 
-## Current evaluation: model-only v1
+## Primary track: synthetic Peixinho workflows
+
+The `peixinho-standin-v1` scope adds twelve synthetic household workflow
+contracts: capture, grounded retrieval/privacy, previewed sharing/private copies,
+saved progress, routines and outage recovery. It uses bounded domain operations
+and held-out state/journal validators. These are simulator/model evaluations,
+not Peixinho app acceptance tests. See [the stand-in guide](docs/PEIXINHO_STANDIN.md)
+for the explicit config profile, smoke/full coverage and separate result log/report.
+Benchmark-v5 and its model-only results retain their original identities.
+
+## Secondary track: model-only v1
 
 - `sanity`: arithmetic and a minimal native tool call.
 - `model_tools`: eight neutral tool-selection, chaining, targeted-edit,
@@ -27,16 +37,7 @@ identity and explicit `benchmark_scope: model-only-v1` result metadata.
 
 These checks measure model/API behavior. They do not establish real coding,
 application safety, Peixinho suitability, or a historical composite ranking.
-
-## Peixinho stand-in track (benchmark-v6)
-
-The `peixinho-standin-v1` scope adds twelve synthetic household workflow
-contracts: capture, grounded retrieval/privacy, previewed sharing/private copies,
-saved progress, routines and outage recovery. It uses bounded domain operations
-and held-out state/journal validators. These are simulator/model evaluations,
-not Peixinho app acceptance tests. See [the stand-in guide](docs/PEIXINHO_STANDIN.md)
-for the explicit config profile, smoke/full coverage and separate result log/report.
-Benchmark-v5 and its model-only results retain their original identities.
+Mocked tool calls do not test writing and executing Python automation scripts.
 
 ## Run
 
@@ -47,7 +48,7 @@ Run `uv sync --locked` to install all project dependencies.
 ```bash
 uv sync --locked
 uv run --locked python -m unittest discover -s runner/tests -v
-uv run --locked python runner/run_bench.py --config configs/Flint-JANGH2-model-only-20261025/mei.yaml --trials 3
+uv run --locked python runner/run_bench.py --config configs/runtime-attribution-fixturefix-20261029/qwen-full.yaml --trials 1
 ```
 
 Commit the exact config before starting. Run one model server at a time under
@@ -55,10 +56,13 @@ the normal disk gate, preserve source/artifact identities and monitor host
 memory pressure and swap. Stop owned servers after completion. CoCore remains
 off and is never restored automatically.
 
-Rows append to `results/log.jsonl`; raw prompts/responses and immutable config
-snapshots are retained by the runner. The current generated report is
-[results/MODEL_ONLY.md](results/MODEL_ONLY.md). It keeps configuration, runner,
-suite and sampling-profile identities separate, with no composite score.
+Stand-in rows append to `results/standin/log.jsonl`; the generated report is
+[results/STANDIN.md](results/STANDIN.md). Raw prompts/responses, state/journal
+evidence and immutable config snapshots are retained by the runner.
+
+The secondary `model-only-v1` scope appends to `results/log.jsonl` and generates
+[results/MODEL_ONLY.md](results/MODEL_ONLY.md). Each track keeps configuration,
+runner, suite and sampling-profile identities separate, with no composite score.
 
 Historical application results stay in [results/LEADERBOARD.md](results/LEADERBOARD.md)
 and its charts. The historical report generators exclude model-only rows.
