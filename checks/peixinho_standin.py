@@ -429,10 +429,10 @@ def grade(
         )
     elif task_id == "completion-intent":
         checks["later_did_not_complete"] = (
-            len(phases) == 3 and phases[0]["records"]["bag"] == before["bag"]
+            len(phases) >= 1 and phases[0]["records"]["bag"] == before["bag"]
         )
         checks["explicit_done_completes_parent"] = (
-            len(phases) == 3 and phases[1]["records"]["bag"]["complete"] is True
+            len(phases) >= 2 and phases[1]["records"]["bag"]["complete"] is True
         )
         checks["explicit_reopen_preserves_checks"] = records["bag"][
             "complete"

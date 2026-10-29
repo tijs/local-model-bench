@@ -29,6 +29,15 @@ def tool(name: str, description: str, properties: Json, required: list[str]) -> 
 
 
 STRING = {"type": "string", "minLength": 1}
+OPERATION_ID = {
+    **STRING,
+    "description": (
+        "Idempotency key for one mutating tool name and its exact arguments. "
+        "Choose a fresh currently assigned ID for every new mutation, even on the "
+        "same record. Only retrying that identical tool and arguments reuses its ID. "
+        "This is not a record, source or whole-workflow identity."
+    ),
+}
 TOOLS = [
     tool(
         "search_records",
@@ -44,11 +53,11 @@ TOOLS = [
     ),
     tool(
         "capture",
-        "Save one capture. Shopping is family-visible; Inbox is private and pending. Use the supplied operation ID and source ID, one operation per part.",
+        "Save one capture. Shopping is family-visible; Inbox is private and pending. Use the supplied source ID and a fresh operation ID for each part capture. A routing proposal is a separate mutation and needs another fresh operation ID.",
         {
             "text": STRING,
             "destination": {"type": "string", "enum": ["shopping", "inbox"]},
-            "operation_id": STRING,
+            "operation_id": OPERATION_ID,
             "source_id": STRING,
         },
         ["text", "destination", "operation_id", "source_id"],
@@ -64,14 +73,19 @@ TOOLS = [
                 "minItems": 1,
                 "uniqueItems": True,
             },
-            "operation_id": STRING,
+            "operation_id": OPERATION_ID,
         },
         ["record_id", "choices", "operation_id"],
     ),
     tool(
         "operation_status",
         "Look up a durable receipt by supplied operation ID after an ambiguous timeout.",
-        {"operation_id": STRING},
+        {
+            "operation_id": {
+                **STRING,
+                "description": "The previously assigned operation ID whose durable receipt is being queried.",
+            }
+        },
         ["operation_id"],
     ),
     tool(
@@ -80,26 +94,26 @@ TOOLS = [
         {
             "record_id": STRING,
             "action": {"type": "string", "enum": ["done", "later", "help", "reopen"]},
-            "operation_id": STRING,
+            "operation_id": OPERATION_ID,
         },
         ["record_id", "action", "operation_id"],
     ),
     tool(
         "preview_share",
         "Create a private exact preview of a selected passage for family publication. This is not approval or publication.",
-        {"record_id": STRING, "text": STRING, "operation_id": STRING},
+        {"record_id": STRING, "text": STRING, "operation_id": OPERATION_ID},
         ["record_id", "text", "operation_id"],
     ),
     tool(
         "publish_preview",
         "Publish only a preview explicitly approved by the trusted user event. No model-supplied approval is accepted.",
-        {"preview_id": STRING, "operation_id": STRING},
+        {"preview_id": STRING, "operation_id": OPERATION_ID},
         ["preview_id", "operation_id"],
     ),
     tool(
         "private_copy",
         "Create a separate caller-owned private copy; keep the family original intact.",
-        {"record_id": STRING, "operation_id": STRING},
+        {"record_id": STRING, "operation_id": OPERATION_ID},
         ["record_id", "operation_id"],
     ),
     tool(
@@ -114,7 +128,7 @@ TOOLS = [
                 "uniqueItems": True,
             },
             "time": STRING,
-            "operation_id": STRING,
+            "operation_id": OPERATION_ID,
         },
         ["record_id", "days", "time", "operation_id"],
     ),
@@ -297,7 +311,11 @@ class Domain:
                     and not r.get("deleted")
                     and query
                     in (
-                        key + " " + r["title"] + " " + self.projection(r).get("content", "")
+                        key
+                        + " "
+                        + r["title"]
+                        + " "
+                        + self.projection(r).get("content", "")
                     ).casefold()
                 ]
             }
