@@ -124,11 +124,21 @@ private func digest(_ values: [Float]) -> String {
         Memory.cacheLimit = 134217728
         Memory.memoryLimit = 24051816857
         let configuration = try await FlintSupport.prepare(directory: modelDir, enabled: true, janghEnabled: true)
-        let context = try await LLMModelFactory.shared.load(from: modelDir, using: loader, configuration: configuration)
-        Memory.cacheLimit = 134217728
+        let loadConfig = try ServerConfig.parse(arguments: [
+            "--model-dir", modelDir.path, "--served-model-id", "runtime-attribution",
+            "--load-mmap", "true", "--mlxpress", "off", "--cache-mode", "off",
+            "--cache-limit-bytes", "134217728", "--enable-flint", "true", "--enable-flint-jangh", "true"])
+        precondition(loadConfig.useMmapSafetensors && loadConfig.cacheLimitBytes == 134217728 && loadConfig.mlxPressPolicy == .off)
+        let (context, runtime) = try await loadModel(from: modelDir, using: loader,
+            configuration: configuration, loadConfiguration: loadConfig.modelLoadConfiguration)
+        defer { withExtendedLifetime(runtime) {} }
+        Engine.applyExplicitMemoryLimits(loadConfig)
+        try writeJSON(["mmap_requested": true, "mlxpress_requested": "off",
+                       "allocator_limit_bytes": 134217728, "load_peak_bytes": Memory.snapshot().peakMemory],
+                      output.appendingPathComponent("loader.json"))
         let trace = PreparationTrace()
         let model = TracedModel(context.model, trace)
-        var parameters = GenerateParameters(maxTokens: 1, maxKVSize: 65536, temperature: 0,
+        var parameters = GenerateParameters(maxTokens: 1, maxKVSize: loadConfig.maxKVSize, temperature: 0,
             topP: 1, topK: 0, randomSeed: 173, prefillStepSize: prefill)
         parameters.enableCompiledDecode = false
         for item in inputs {

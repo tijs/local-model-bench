@@ -41,7 +41,7 @@ for case in inputs:
     comparisons = {}
 
     def start(split):
-        cache = make_prompt_cache(model, max_kv_size=65536)
+        cache = make_prompt_cache(model, max_kv_size=69632)
         mode = "cache_off_matching_split" if split else "cache_off"
         lengths = swift["prefill_segments"][mode]
         assert sum(lengths) == len(tokens)
