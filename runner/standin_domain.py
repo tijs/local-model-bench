@@ -53,7 +53,7 @@ TOOLS = [
     ),
     tool(
         "capture",
-        "Save one capture. Shopping is family-visible; Inbox is private and pending. Use the supplied source ID and a fresh operation ID for each part capture. A routing proposal is a separate mutation and needs another fresh operation ID.",
+        "Save one capture. Shopping is family-visible: text must contain only the item name, not the user's add command. Inbox is private and pending: preserve the original utterance. Use the supplied source ID and a fresh operation ID for each part capture. A routing proposal is a separate mutation and needs another fresh operation ID.",
         {
             "text": STRING,
             "destination": {"type": "string", "enum": ["shopping", "inbox"]},

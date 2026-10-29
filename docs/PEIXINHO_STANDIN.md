@@ -126,8 +126,12 @@ code and a grounded final answer. There is no public admission bypass.
 
 The standalone suite CLI uses an already-owned endpoint; it does not launch or
 stop a server it did not create. Use the orchestrator for owned lifecycle.
-The initial 12-turn/1536-token-per-turn/300-second task bounds are conservative
-pilot bounds, not vendor settings or evidence of calibrated usability. Native
+The v6 releases used initial 12-turn/1536-token-per-turn/300-second pilot bounds.
+The new automation benchmark raises household generation to 4096 tokens per turn,
+180 seconds per HTTP turn and600 seconds per task, retaining12 turns. This removes
+a known short-reasoning-budget confound; these remain explicit benchmark budgets,
+not vendor capability ceilings or evidence of calibrated usability. Token, turn and
+task-budget exhaustion are reported separately from incorrect completed outputs. Native
 sampler/effort fields come only from the named committed profile; no hidden
 thinking/repetition changes are added. Reference trajectories fit within these
 bounds. Live budget calibration and variance estimation remain separate work.

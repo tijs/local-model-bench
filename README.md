@@ -23,6 +23,16 @@ not Peixinho app acceptance tests. See [the stand-in guide](docs/PEIXINHO_STANDI
 for the explicit config profile, smoke/full coverage and separate result log/report.
 Benchmark-v5 and its model-only results retain their original identities.
 
+## Development track: Python automation
+
+The next benchmark adds three real isolated Python CLI tasks: shopping CSV
+normalization, decimal-safe expense aggregation, and reminder-export repair.
+It uses a bounded write/run/repair loop and unseen post-agent inputs, with a
+separate score/report. See [the automation guide](docs/PYTHON_AUTOMATION.md).
+Implementation tests/review are complete; live Qwen calibration precedes release.
+For exact v6.3 reproduction, check out the `benchmark-v6.3` tag; current main
+also contains versioned household budget and instruction improvements.
+
 ## Secondary track: model-only v1
 
 - `sanity`: arithmetic and a minimal native tool call.

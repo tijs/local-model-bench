@@ -18,6 +18,7 @@ from typing import Any
 
 import yaml
 from bench_common import REPO, git_sha
+from llama_provenance import verify_llama_runtime
 from mei_provenance import verify_mei_runtime
 from run_prompt import (
     StreamStall,
@@ -30,9 +31,9 @@ from standin_tasks import SMOKE_IDS, SYSTEM, TASK_IDS, Case, cases, event_before
 Client = Callable[..., tuple[Json, float | None, float | None]]
 BUDGETS = {
     "max_turns": 12,
-    "max_tokens": 1536,
-    "task_seconds": 300,
-    "turn_seconds": 120,
+    "max_tokens": 4096,
+    "task_seconds": 600,
+    "turn_seconds": 180,
     "connect_seconds": 30,
     "first_progress_seconds": 90,
     "idle_seconds": 30,
@@ -46,7 +47,8 @@ def digest(path: Path) -> str:
 def write_json(path: Path, value: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temp = path.with_suffix(path.suffix + ".tmp")
-    temp.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n")
+    # Escape even malformed model Unicode so evidence survives protocol errors.
+    temp.write_text(json.dumps(value, ensure_ascii=True, indent=2) + "\n")
     temp.replace(path)
 
 
@@ -80,6 +82,12 @@ def committed_config(path: Path, source: Path | None = None) -> tuple[Json, byte
     if not isinstance(cfg, dict) or cfg.get("benchmark_scope") != SCOPE:
         raise ValueError(f"config benchmark_scope must be {SCOPE}")
     return cfg, content
+
+
+def expected_request_model(cfg: Json, content: bytes) -> str:
+    if cfg.get("inference_engine", "").startswith("llama.cpp"):
+        return "bench-" + hashlib.sha256(content).hexdigest()[:12]
+    return (cfg.get("orchestration") or {}).get("served_model_id", cfg["model"])
 
 
 def verify_endpoint_identity(base_url: str, expected: str) -> Json:
@@ -155,17 +163,19 @@ def request(
     tools: list[Json],
     sampler: Json,
     remaining: float,
+    budgets: Json | None = None,
 ) -> tuple[Json, float | None, float | None]:
+    budgets = BUDGETS if budgets is None else budgets
     return client(
         base_url,
         model,
         messages,
         tools,
-        timeout=min(BUDGETS["turn_seconds"], remaining),
-        max_tokens=BUDGETS["max_tokens"],
-        connect_timeout=BUDGETS["connect_seconds"],
-        first_progress_timeout=BUDGETS["first_progress_seconds"],
-        stream_idle_timeout=BUDGETS["idle_seconds"],
+        timeout=min(budgets["turn_seconds"], remaining),
+        max_tokens=budgets["max_tokens"],
+        connect_timeout=budgets["connect_seconds"],
+        first_progress_timeout=budgets["first_progress_seconds"],
+        stream_idle_timeout=budgets["idle_seconds"],
         no_response_retries=0,
         temperature=sampler.get("temperature"),
         **{key: value for key, value in sampler.items() if key != "temperature"},
@@ -174,6 +184,21 @@ def request(
 
 class EpisodeFailure(ValueError):
     pass
+
+
+def tool_arguments(raw: str) -> Any:
+    """Keep malformed nesting out of schema errors, journals and deep copies."""
+    value = json.loads(raw)
+    pending = [(value, 0)]
+    while pending:
+        item, depth = pending.pop()
+        if depth > 32:
+            raise ValueError("tool arguments exceed 32 nesting levels")
+        if isinstance(item, dict):
+            pending.extend((child, depth + 1) for child in item.values())
+        elif isinstance(item, list):
+            pending.extend((child, depth + 1) for child in item)
+    return value
 
 
 def conversation(
@@ -186,14 +211,21 @@ def conversation(
     sampler: Json,
     deadline: float,
     trace: Json,
+    budgets: Json | None = None,
 ) -> str:
-    while trace["turns"] < BUDGETS["max_turns"]:
+    budgets = BUDGETS if budgets is None else budgets
+    while trace["turns"] < budgets["max_turns"]:
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             raise EpisodeFailure("task_timeout")
-        response, ttft, decode = request(
-            client, base_url, model, messages, tools, sampler, remaining
-        )
+        try:
+            response, ttft, decode = request(
+                client, base_url, model, messages, tools, sampler, remaining, budgets
+            )
+        except StreamStall as exc:
+            if exc.phase == "turn_total" and time.monotonic() >= deadline:
+                raise EpisodeFailure("task_timeout") from exc
+            raise
         if not isinstance(response, dict):
             raise EpisodeFailure("malformed_response")
         usage_value = response.get("usage", {})
@@ -256,10 +288,10 @@ def conversation(
             try:
                 function = call["function"]
                 name = function["name"]
-                args = json.loads(function["arguments"])
+                args = tool_arguments(function["arguments"])
                 if not isinstance(name, str):
                     raise TypeError("invalid name")
-            except (KeyError, TypeError, ValueError) as exc:
+            except (KeyError, TypeError, ValueError, RecursionError) as exc:
                 raise EpisodeFailure("malformed_tool_arguments") from exc
             result = execute(name, args)
             tool_message = {
@@ -430,7 +462,7 @@ def run_task(
         classification = {
             "token_limit": "truncation",
             "turn_limit": "turn_limit",
-            "task_timeout": "timeout",
+            "task_timeout": "task_budget",
         }.get(
             error, "protocol_error" if error.startswith("malformed") else "task_failure"
         )
@@ -489,7 +521,11 @@ def run_suite(
         raise ValueError("test-only reference runs cannot write canonical results")
     if not 1 <= trials <= 20:
         raise ValueError("trials must be between 1 and 20")
-    runtime_identity = None if _test_skip_admission else verify_mei_runtime(cfg, base_url=base_url)
+    runtime_identity = (
+        None if _test_skip_admission else verify_mei_runtime(cfg, base_url=base_url)
+    )
+    if not _test_skip_admission and cfg.get("inference_engine") == "llama.cpp":
+        runtime_identity = verify_llama_runtime(cfg, base_url=base_url)
     selected_ids = selected_task_ids(cfg, smoke)
     selected = [case for case in cases(partition) if case.task_id in selected_ids]
     profile, sampler = generation(cfg)
@@ -513,6 +549,8 @@ def run_suite(
                     "run_prompt.py",
                     "bench_common.py",
                     "mei_provenance.py",
+                    "llama_provenance.py",
+                    "owned_process.py",
                 )
             ],
         ]
@@ -667,7 +705,7 @@ def main() -> None:
             raise ValueError(
                 "stand-in v1 supports only local HTTP model endpoints without embedded credentials"
             )
-        expected = (cfg.get("orchestration") or {}).get("served_model_id", cfg["model"])
+        expected = expected_request_model(cfg, config_content)
         if args.request_model != expected:
             raise ValueError("request-model must match exact config served identity")
         verify_endpoint_identity(args.base_url, expected)

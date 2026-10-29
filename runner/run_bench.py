@@ -13,6 +13,7 @@ import os
 import pathlib
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -30,6 +31,8 @@ from bench_common import (
     snapshot_config,
 )
 from mei_provenance import verify_mei_runtime
+from llama_provenance import verify_llama_runtime
+from owned_process import OwnedSession
 
 REPO = Path(__file__).resolve().parent.parent
 MODEL_ONLY_SUITES = ("sanity", "model_tools")
@@ -86,7 +89,10 @@ def wait_for_health(url, timeout=BACKEND_HEALTH_TIMEOUT_SECONDS, proc=None):
     print(f"Waiting for {url} to respond (timeout {timeout}s)...")
     start = time.time()
     while time.time() - start < timeout:
-        if proc is not None and proc.poll() is not None:
+        if isinstance(proc, OwnedSession) and proc.leader_exited():
+            print('  server leader exited early; owned session cleanup will reap it')
+            return False
+        if proc is not None and not isinstance(proc, OwnedSession) and proc.poll() is not None:
             print(f"  server process exited early (returncode={proc.returncode}) — not waiting further")
             return False
         try:
@@ -504,7 +510,7 @@ def _record_authorized_disk_floor_override(config_path, config_content, config_h
 
 def _run_one_impl(config_path: Path, cfg, config_hash, trials: int = 1, coding_suites=None, stage="all",
                   seed=None, generation_profile=None, reasoning=None, force_disk_gate=False,
-                  allow_disk_floor_override=False, *, config_content=None):
+                  allow_disk_floor_override=False, *, config_content=None, owned_processes=None):
     validate_model_only_scope(stage, coding_suites, reasoning)
     if not isinstance(cfg, dict):
         sys.exit(f"{config_path} must contain a YAML config mapping")
@@ -554,6 +560,8 @@ def _run_one_impl(config_path: Path, cfg, config_hash, trials: int = 1, coding_s
     if cfg.get("inference_engine") == "mei" and not served_model_id:
         sys.exit(f"{config_path} is inference_engine: mei but has no orchestration.served_model_id")
     request_model = served_model_id or model
+    if cfg.get('benchmark_scope') == 'peixinho-standin-v1' and inference_engine.startswith('llama.cpp'):
+        request_model = f'bench-{config_hash}'
     viable = orch.get("viable", "full")
 
     print(f"\n{'=' * 70}\n{model} ({inference_engine}) — {config_path}\nviable={viable}\n{'=' * 70}")
@@ -631,7 +639,11 @@ def _run_one_impl(config_path: Path, cfg, config_hash, trials: int = 1, coding_s
             server_proc = subprocess.Popen(
                 cmd, shell=True, cwd=str(REPO),
                 stdout=f, stderr=subprocess.STDOUT,
+                **({'start_new_session': True} if inference_engine.startswith('llama.cpp') else {}),
             )
+        if owned_processes is not None and inference_engine.startswith('llama.cpp'):
+            server_proc = OwnedSession(server_proc)
+            owned_processes.append(server_proc)
 
         if not wait_for_health(f"http://127.0.0.1:{raw_port}/v1/models", proc=server_proc):
             print(f"FAILED: backend never became healthy — check {log_file}")
@@ -660,7 +672,11 @@ def _run_one_impl(config_path: Path, cfg, config_hash, trials: int = 1, coding_s
                     [sys.executable, str(REPO / "runner" / "bench_local_proxy.py")],
                     cwd=str(REPO), env=proxy_env,
                     stdout=f, stderr=subprocess.STDOUT,
+                    **({'start_new_session': True} if inference_engine.startswith('llama.cpp') else {}),
                 )
+            if owned_processes is not None and inference_engine.startswith('llama.cpp'):
+                proxy_proc = OwnedSession(proxy_proc)
+                owned_processes.append(proxy_proc)
             if not wait_for_health(f"http://127.0.0.1:{proxy_port}/healthz", timeout=30, proc=proxy_proc):
                 print(f"FAILED: proxy never became healthy — check {proxy_log}")
                 return
@@ -696,6 +712,23 @@ def _run_one_impl(config_path: Path, cfg, config_hash, trials: int = 1, coding_s
             if proc.returncode != 0 or not complete_model_summary(rows, expected, trials):
                 print("FAILED: stand-in suite did not complete with usable task/trial coverage")
                 return
+        if cfg.get("python_automation", False):
+            from automation_tasks import TASK_IDS as AUTOMATION_TASK_IDS
+            with tempfile.TemporaryDirectory() as td:
+                summary_path = Path(td) / "summary.json"
+                command = [sys.executable, str(REPO / "runner" / "run_automation_suite.py"),
+                           "--config", str(suite_config_path), "--source-config", str(config_path),
+                           "--base-url", base_url, "--request-model", request_model,
+                           "--trials", str(trials), "--partition", cfg.get("standin_partition", "development"),
+                           "--summary-out", str(summary_path)]
+                proc = run(command)
+                try:
+                    rows = json.loads(summary_path.read_text())
+                except (OSError, ValueError):
+                    rows = None
+                if proc.returncode != 0 or not complete_model_summary(rows, set(AUTOMATION_TASK_IDS), trials):
+                    print("FAILED: automation suite did not complete with usable task/trial coverage")
+                    return
         return True
 
     for suite in MODEL_ONLY_SUITES:
@@ -731,6 +764,18 @@ def _run_one_impl(config_path: Path, cfg, config_hash, trials: int = 1, coding_s
     return _model_report()
 
 
+def stop_owned_processes(processes):
+    """Stop only session groups created by this runner, including failed loads."""
+    failures = []
+    for process in reversed(processes):
+        try:
+            process.stop()
+        except Exception as exc:
+            failures.append(exc)
+    if failures:
+        raise ExceptionGroup('owned session cleanup failed', failures)
+
+
 def run_one(config_path: Path, trials: int = 1, coding_suites=None, stage="all",
             seed=None, generation_profile=None, reasoning=None, force_disk_gate=False,
             allow_disk_floor_override=False):
@@ -749,15 +794,26 @@ def run_one(config_path: Path, trials: int = 1, coding_suites=None, stage="all",
     config_content = config_path.read_bytes()
     cfg = yaml.safe_load(config_content)
     config_hash = hashlib.sha256(config_content).hexdigest()[:12]
+    if "python_automation" in cfg:
+        if not isinstance(cfg["python_automation"], bool):
+            raise ValueError("python_automation must be a literal boolean")
+        if cfg["python_automation"] and cfg.get("benchmark_scope") != "peixinho-standin-v1":
+            raise ValueError("python_automation requires the household workflow scope")
     if cfg.get("benchmark_scope") == "peixinho-standin-v1":
         from run_standin_suite import committed_config, validate_config
         validate_config(cfg)
+        if "python_automation" in cfg:
+            if cfg["python_automation"] and (cfg.get("standin_smoke", False) or "standin_task_ids" in cfg):
+                raise ValueError("combined automation runs require full household coverage")
         _, committed_bytes = committed_config(config_path)
         if committed_bytes != config_content:
             raise ValueError("stand-in config changed during admission")
     # Fail before teardown/unload/build: an immutable YAML pin must not silently
     # build the newer code now occupying its mutable checkout path.
     verify_mei_runtime(cfg)
+    if cfg.get("benchmark_scope") == "peixinho-standin-v1":
+        verify_llama_runtime(cfg)
+    owned_processes = []
     try:
         return _run_one_impl(
             config_path, cfg, config_hash, trials=trials, coding_suites=coding_suites, stage=stage,
@@ -765,10 +821,12 @@ def run_one(config_path: Path, trials: int = 1, coding_suites=None, stage="all",
             force_disk_gate=force_disk_gate,
             allow_disk_floor_override=allow_disk_floor_override,
             config_content=config_content,
+            owned_processes=owned_processes,
         )
     finally:
         if isinstance(cfg, dict) and cfg.get("inference_engine") == "mei":
             run(mei_stop_command(cfg))
+        stop_owned_processes(owned_processes)
 
 
 def _leaderboard():
@@ -914,6 +972,9 @@ def _discover_ordered_configs(repo, inference_engine=None):
 def main():
     ap = build_arg_parser()
     args = ap.parse_args()
+    def interrupt(_signum, _frame):
+        raise KeyboardInterrupt
+    signal.signal(signal.SIGTERM, interrupt)
     if args.force_disk_gate and (args.all or args.stage != "all"):
         ap.error("--force-disk-gate requires a single --config with --stage all")
     if args.allow_disk_floor_override and (args.all or args.stage != "all"):

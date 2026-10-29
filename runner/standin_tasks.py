@@ -197,7 +197,7 @@ def cases(variant: str = "development") -> list[Case]:
             ]
         elif task_id == "capture-multipart":
             segments = [
-                f'Capture three parts: (a) add {item} to family Shopping; (b) add {second} there too; (c) "Remember the school thing." (destination uncertain). Use IDs {ops[0]}, {ops[1]}, {ops[2]} for the part captures. Keep the uncertain part private and preserve its quoted original text unchanged.',
+                f'Capture three parts: (a) add {item} to family Shopping; (b) add {second} there too; (c) "Remember the school thing." (destination uncertain). Use IDs {ops[0]}, {ops[1]}, {ops[2]} for the part captures. Save only item names for Shopping. Keep the uncertain part private and preserve its quoted original text unchanged.',
                 "The connection dropped. Retry the same three parts with the same source and operation IDs; do not duplicate accepted items.",
             ]
             expected["original"] = "Remember the school thing."
