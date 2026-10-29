@@ -123,6 +123,29 @@ Failure classes: task_failure=3, truncation=1
 
 Failure classes: task_failure=3, turn_limit=1
 
+| 20261029T092720Z-171bdb5c | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly / mei | f8b2a10f55db / 00036ef0bf42 | development / model_card | completed | 12/12 | 0 | 11/12 | 0 | 0 | 0 |
+
+| Domain | Passed / executed | Median task wall s | Median output tok/s (wall) |
+|---|---:|---:|---:|
+| capture | 2/3 | 18.56 | 33.89 |
+| privacy | 2/2 | 23.84 | 35.62 |
+| progress | 2/2 | 29.41 | 29.71 |
+| resilience | 1/1 | 22.11 | 24.56 |
+| retrieval | 1/1 | 31.64 | 35.72 |
+| routines | 1/1 | 23.95 | 37.78 |
+| sharing | 2/2 | 21.43 | 33.43 |
+
+Failure classes: task_failure=1
+
+| 20261029T093437Z-73438866 | OsaurusAI/Flint-40B-A2.5B-JANGH2 / mei | 54e26246828d / 00036ef0bf42 | development / model_card | completed | 2/2 | 0 | 0/2 | 1 | 1 | 0 |
+
+| Domain | Passed / executed | Median task wall s | Median output tok/s (wall) |
+|---|---:|---:|---:|
+| capture | 0/1 | 53.13 | 28.91 |
+| progress | 0/1 | 116.63 | 22.32 |
+
+Failure classes: task_failure=1, truncation=1
+
 
 Output rate includes whole task wall time, not pure decode. RSS is not total model memory; consult the supervised server/Metal/physical-footprint and system pressure trace.
 No composite score is computed. Safety failures and prevented unsafe attempts remain explicit; passing other tasks cannot offset them.
