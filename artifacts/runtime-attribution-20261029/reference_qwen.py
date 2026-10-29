@@ -21,7 +21,11 @@ args = parser.parse_args()
 args.out.mkdir(parents=True, exist_ok=False)
 mx.set_cache_limit(128 * 1024**2)
 mx.set_memory_limit(24051816857)
-model, config = load_model(args.model, lazy=False, strict=True)
+model, config = load_model(args.model, lazy=True, strict=True)
+# Production Swift loading materializes floating checkpoint parameters as BF16;
+# retain packed integer weights and match that declared compute-weight contract.
+model.set_dtype(mx.bfloat16)
+mx.eval(model.parameters())
 mx.set_cache_limit(128 * 1024**2)
 tokenizer = Tokenizer.from_file(str(args.model / "tokenizer.json"))
 inputs = json.loads((args.swift_output / "native-inputs.json").read_text())

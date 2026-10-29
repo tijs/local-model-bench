@@ -128,13 +128,19 @@ private func digest(_ values: [Float]) -> String {
             "--model-dir", modelDir.path, "--served-model-id", "runtime-attribution",
             "--load-mmap", "true", "--mlxpress", "off", "--cache-mode", "off",
             "--cache-limit-bytes", "134217728", "--enable-flint", "true", "--enable-flint-jangh", "true"])
+        loadConfig.optimizationProfile.applyRuntimeEnvironment(
+            force: loadConfig.requestedOptimizationProfile == .ornith, modelDirectory: loadConfig.modelDirectory)
         precondition(loadConfig.useMmapSafetensors && loadConfig.cacheLimitBytes == 134217728 && loadConfig.mlxPressPolicy == .off)
         let (context, runtime) = try await loadModel(from: modelDir, using: loader,
             configuration: configuration, loadConfiguration: loadConfig.modelLoadConfiguration)
         defer { withExtendedLifetime(runtime) {} }
         Engine.applyExplicitMemoryLimits(loadConfig)
-        try writeJSON(["mmap_requested": true, "mlxpress_requested": "off",
-                       "allocator_limit_bytes": 134217728, "load_peak_bytes": Memory.snapshot().peakMemory],
+        let dtypes = Dictionary(grouping: context.model.parameters().flattened(), by: { String(describing: $0.1.dtype) }).mapValues { $0.count }
+        let flagNames = ["VMLX_ENABLE_UNSAFE_COMPILE", "VMLX_FUSED_GATE_UP_CACHE_LIMIT_BYTES",
+                         "VMLX_QWEN35_COMPILE_DECODE_REGIONS", "VMLX_QWEN4_EXP_COMPILE_ROUTED_MOE"]
+        let flags = ProcessInfo.processInfo.environment.filter { flagNames.contains($0.key) }
+        try writeJSON(["mmap_requested": true, "mlxpress_requested": "off", "runtime_flags": flags,
+                       "parameter_dtypes": dtypes, "allocator_limit_bytes": 134217728, "load_peak_bytes": Memory.snapshot().peakMemory],
                       output.appendingPathComponent("loader.json"))
         let trace = PreparationTrace()
         let model = TracedModel(context.model, trace)
