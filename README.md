@@ -1,8 +1,8 @@
 # local-model-bench
 
-Current release: **benchmark-v6.3 — completion fixture and failure attribution**.
-See [release notes](docs/releases/benchmark-v6.3.md) and the unchanged
-[v6 methodology boundary](docs/releases/benchmark-v6.md).
+Current release: **benchmark-v7 — household workflows and Python automation**.
+See [release notes](docs/releases/benchmark-v7.md). Historical v6 results retain
+their original method identities and are not directly comparable with v7.
 
 Compare local LLM serving stacks on affordable Apple Silicon Macs. The active
 engines are llama.cpp variants and Mei (Swift/MLX). Peixinho is the intended
@@ -23,19 +23,19 @@ not Peixinho app acceptance tests. See [the stand-in guide](docs/PEIXINHO_STANDI
 for the explicit config profile, smoke/full coverage and separate result log/report.
 Benchmark-v5 and its model-only results retain their original identities.
 
-## Development track: Python automation
+## Python automation track
 
-The next benchmark adds three real isolated Python CLI tasks: shopping CSV
+The benchmark includes three real isolated Python CLI tasks: shopping CSV
 normalization, decimal-safe expense aggregation, and reminder-export repair.
 It uses a bounded write/run/repair loop and unseen post-agent inputs, with a
 separate score/report. See [the automation guide](docs/PYTHON_AUTOMATION.md).
-Implementation tests/review are complete. The first Qwen calibration passed all
-12 household tasks and the first Python task before its resource guard stopped
-a concurrent-host-pressure run; [evidence](artifacts/automation-benchmark-20261029/README.md).
-Full quiet-window calibration still precedes release. Use the documented
-supervisor for the new profiles; it injects their required runner environment.
-For exact v6.3 reproduction, check out the `benchmark-v6.3` tag; current main
-also contains versioned household budget and instruction improvements.
+The complete Qwen development calibration scored **10/12 household** and
+**3/3 Python** with normal memory pressure and no swap growth;
+[evidence and attribution limits](artifacts/automation-benchmark-20261029/README.md).
+These are separate scores from one development trial, not a held-out ranking.
+Use the documented supervisor for the new profiles; it injects their required
+runner environment. Version7 also increases household generation budgets and
+clarifies shopping-item text. Use the historical tags for older baselines.
 
 ## Secondary track: model-only v1
 
