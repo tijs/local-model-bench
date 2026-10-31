@@ -1,7 +1,8 @@
 # local-model-bench
 
-Current release: **benchmark-v7.1 — first-progress header timeout correction**.
-See [patch notes](docs/releases/benchmark-v7.1.md) and the
+Current release: **benchmark-v7.1.1 — admission and coverage reporting**.
+See [report patch notes](docs/releases/benchmark-v7.1.1.md), the
+[transport patch](docs/releases/benchmark-v7.1.md), and the
 [v7 methodology](docs/releases/benchmark-v7.md). Historical v6 results retain
 their original method identities and are not directly comparable with v7.
 
