@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 import unittest
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -18,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import run_bench as bench
 from build_standin_report import build_report, render
 from run_standin_suite import (
+    BUDGETS,
     admission,
     committed_config,
     generation,
@@ -47,7 +49,7 @@ class FailClient:
 
 
 @contextmanager
-def backend(replies, *, truncate_final=False, final_error=False):
+def backend(replies, *, truncate_final=False, final_error=False, header_delay=0):
     observed = []
 
     class Handler(BaseHTTPRequestHandler):
@@ -82,6 +84,7 @@ def backend(replies, *, truncate_final=False, final_error=False):
             if not (is_final and truncate_final):
                 events += "data: [DONE]\n\n"
             body = events.encode()
+            time.sleep(header_delay)
             self.send_response(200)
             self.send_header("Content-Type", "text/event-stream")
             self.send_header("Content-Length", str(len(body)))
@@ -103,6 +106,35 @@ def backend(replies, *, truncate_final=False, final_error=False):
 
 
 class StandinRunnerTests(unittest.TestCase):
+    def test_response_headers_get_the_full_first_progress_budget(self):
+        from run_automation_suite import BUDGETS as automation_budgets
+        from run_prompt import call_backend_streaming
+
+        case = cases()[0]
+        replies = [
+            response(calls=case.reference_actions[0]),
+            response(content="Saved once to family Shopping."),
+        ]
+        # Scale production limits: the former 30s head limit becomes0.3s,
+        # while a valid0.5s prefill fits the0.9s first-progress allowance.
+        scaled = {
+            key: value / 100
+            for key, value in BUDGETS.items()
+            if key.endswith("seconds")
+        }
+        with (
+            patch.dict(BUDGETS, scaled),
+            backend(replies, header_delay=0.5) as (base, observed),
+        ):
+            got = run_task(case, call_backend_streaming, base, "served-exact", {})
+        self.assertIsNone(got["error"], got["error"])
+        self.assertTrue(got["grade"]["pass"], got["grade"])
+        self.assertEqual(len(observed), 2)
+        self.assertGreaterEqual(
+            automation_budgets["connect_seconds"],
+            automation_budgets["first_progress_seconds"],
+        )
+
     def test_real_http_stream_reaches_domain_and_native_sampler_without_policy_overrides(
         self,
     ):

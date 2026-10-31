@@ -1,7 +1,8 @@
 # local-model-bench
 
-Current release: **benchmark-v7 — household workflows and Python automation**.
-See [release notes](docs/releases/benchmark-v7.md). Historical v6 results retain
+Current release: **benchmark-v7.1 — first-progress header timeout correction**.
+See [patch notes](docs/releases/benchmark-v7.1.md) and the
+[v7 methodology](docs/releases/benchmark-v7.md). Historical v6 results retain
 their original method identities and are not directly comparable with v7.
 
 Compare local LLM serving stacks on affordable Apple Silicon Macs. The active
@@ -29,7 +30,7 @@ The benchmark includes three real isolated Python CLI tasks: shopping CSV
 normalization, decimal-safe expense aggregation, and reminder-export repair.
 It uses a bounded write/run/repair loop and unseen post-agent inputs, with a
 separate score/report. See [the automation guide](docs/PYTHON_AUTOMATION.md).
-The complete Qwen development calibration scored **10/12 household** and
+The complete v7 Qwen development calibration scored **10/12 household** and
 **3/3 Python** with normal memory pressure and no swap growth;
 [evidence and attribution limits](artifacts/automation-benchmark-20261029/README.md).
 These are separate scores from one development trial, not a held-out ranking.

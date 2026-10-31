@@ -34,7 +34,9 @@ BUDGETS = {
     "max_tokens": 4096,
     "task_seconds": 600,
     "turn_seconds": 180,
-    "connect_seconds": 30,
+    # Mei sends headers with its first engine event, after prompt preparation.
+    # The HTTP response-head deadline must cover the first-progress allowance.
+    "connect_seconds": 90,
     "first_progress_seconds": 90,
     "idle_seconds": 30,
 }

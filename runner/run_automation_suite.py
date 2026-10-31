@@ -43,7 +43,7 @@ BUDGETS = {
     "max_tokens": 4096,
     "task_seconds": 480,
     "turn_seconds": 180,
-    "connect_seconds": 30,
+    "connect_seconds": 90,
     "first_progress_seconds": 90,
     "idle_seconds": 30,
 }
