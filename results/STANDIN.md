@@ -182,6 +182,7 @@ Failure classes: task_failure=2
 
 Failure classes: timeout=1
 
+| 20261031T080023Z-ed900f1e | OsaurusAI/Flint-40B-A2.5B-JANGH2 / mei | f8bfbac30789 / f141ba37a122 | heldout / model_card | admission_failed | 0/12 | 12 | 0/0 | 0 | 0 | 0 |
 
 Output rate includes whole task wall time, not pure decode. RSS is not total model memory; consult the supervised server/Metal/physical-footprint and system pressure trace.
 No composite score is computed. Safety failures and prevented unsafe attempts remain explicit; passing other tasks cannot offset them.
