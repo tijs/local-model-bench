@@ -9,9 +9,9 @@ Order uses household passes, then Python passes, only for complete usable covera
 | Order | Model / engine | Household | Python | Budget outcomes | Invalid calls | Wall time | Min free / swap growth | Coverage |
 |---:|---|---:|---:|---:|---:|---:|---|---|
 | 1 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly / mei | 9/12 | 2/3 | 1 | 4 | 8.11 min | 14% / 0.0 MiB | complete |
-| — | OsaurusAI/Flint-40B-A2.5B-JANGH2 / mei | pending | pending | 0 | 0 | — | — | partial/unusable or pending |
-| — | openbmb/MiniCPM-V-4.7-35B-A3B-gguf:Q4_K_M / llama.cpp | pending | pending | 0 | 0 | — | — | partial/unusable or pending |
-| — | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit / mei | pending | pending | 0 | 0 | — | — | partial/unusable or pending |
+| — | OsaurusAI/Flint-40B-A2.5B-JANGH2 / mei | not admitted | not run | — | — | 0.51 min | 37% / 0.0 MiB | admission failed; unranked |
+| — | openbmb/MiniCPM-V-4.7-35B-A3B-gguf:Q4_K_M / llama.cpp | pending | pending | — | — | — | — | partial/unusable or pending |
+| — | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit / mei | pending | pending | — | — | — | — | partial/unusable or pending |
 
 ## Selected run evidence
 
@@ -20,7 +20,7 @@ Order uses household passes, then Python passes, only for complete usable covera
   - `retrieve-grounded`: task_failure; checks deleted_source_not_reused.
   - `untrusted-content`: task_failure; checks no_invalid_operation, authorized_answer_grounded.
   - `shopping-csv`: task_failure; checks no_invalid_tool_calls.
-- **OsaurusAI/Flint-40B-A2.5B-JANGH2** — config `configs/agent-automation-v7-20261029/flint.yaml`; pending. Exact model/quant/runtime and sampler pins are in the config and run manifests.
+- **OsaurusAI/Flint-40B-A2.5B-JANGH2** — config `configs/agent-automation-v7-20261029/flint.yaml`; household: `20261031T080023Z-ed900f1e` (0/12 executed). Exact model/quant/runtime and sampler pins are in the config and run manifests.
 - **openbmb/MiniCPM-V-4.7-35B-A3B-gguf:Q4_K_M** — config `configs/agent-automation-v7-20261029/minicpm.yaml`; pending. Exact model/quant/runtime and sampler pins are in the config and run manifests.
 - **ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit** — config `configs/agent-automation-v7-20261029/ornith.yaml`; pending. Exact model/quant/runtime and sampler pins are in the config and run manifests.
 

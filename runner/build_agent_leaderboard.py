@@ -414,10 +414,21 @@ def render_campaign(
     for entry, house, python, monitor, eligible in data:
         if eligible:
             order += 1
-        score = lambda value: (
-            f"{value['passed']}/{value['expected']}" if value else "pending"
-        )
+        both = [v for v in (house, python) if v]
+        admission_failed = any(v["status"] == "admission_failed" for v in both)
+
+        def score(value, failed_admission=admission_failed):
+            if value is None:
+                return "not run" if failed_admission else "pending"
+            if value["status"] == "admission_failed":
+                return "not admitted"
+            if not value["complete"]:
+                return f"{value['passed']}/{value['executed']} executed; {value['expected']} planned"
+            return f"{value['passed']}/{value['expected']}"
+
         status = "complete" if eligible else "partial/unusable or pending"
+        if admission_failed:
+            status = "admission failed; unranked"
         if house and house["critical"]:
             status = "critical boundary failure; unranked"
         time_text = f"{monitor['seconds'] / 60:.2f} min" if monitor else "—"
@@ -426,9 +437,11 @@ def render_campaign(
             if monitor
             else "—"
         )
-        both = [v for v in (house, python) if v]
+        executed = sum(v["executed"] for v in both)
+        budget = sum(v["budget"] for v in both) if executed else "—"
+        invalid = sum(v["invalid"] for v in both) if executed else "—"
         lines.append(
-            f"| {order if eligible else '—'} | {entry['model']} / {entry['engine']} | {score(house)} | {score(python)} | {sum(v['budget'] for v in both)} | {sum(v['invalid'] for v in both)} | {time_text} | {memory} | {status} |"
+            f"| {order if eligible else '—'} | {entry['model']} / {entry['engine']} | {score(house)} | {score(python)} | {budget} | {invalid} | {time_text} | {memory} | {status} |"
         )
     lines.extend(["", "## Selected run evidence", ""])
     for entry, house, python, monitor, _ in data:

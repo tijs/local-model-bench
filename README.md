@@ -36,7 +36,8 @@ The complete v7 Qwen development calibration scored **10/12 household** and
 These are separate scores from one development trial, not a held-out ranking.
 The v7.1 held-out campaign is in progress: Qwen completed **9/12 household** and
 **2/3 Python**. See the [coverage-aware comparison](results/AGENT_LEADERBOARD.md);
-the other models remain pending, so no overall winner is established.
+Flint failed admission, while Ornith and MiniCPM remain pending. No overall
+winner is established.
 Use the documented supervisor for the new profiles; it injects their required
 runner environment. Version7 also increases household generation budgets and
 clarifies shopping-item text. Use the historical tags for older baselines.

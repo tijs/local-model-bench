@@ -223,6 +223,23 @@ class AgentLeaderboardTests(unittest.TestCase):
         text = self.report()
         self.assertIn("partial/unusable", text)
         self.assertNotIn("| 1 |", text)
+        self.assertIn("11/11 executed; 12 planned", text)
+
+    def test_admission_failure_is_not_a_zero_task_score(self):
+        self.rows["household"] = []
+        self.manifests["household"].update(status="admission_failed", rows_completed=0)
+        self.save("household")
+        self.selection["python_run"] = None
+        path = self.root / "artifacts/supervision/outcome.json"
+        outcome = json.loads(path.read_text())
+        outcome["returncode"] = 1
+        outcome["run_ids"]["python-automation-v1"] = []
+        path.write_text(json.dumps(outcome))
+        text = self.report()
+        self.assertIn("| not admitted | not run | — | — |", text)
+        self.assertIn("admission failed; unranked", text)
+        self.assertNotIn("| 0/12 |", text)
+        self.assertNotIn("| 1 | fixture-model", text)
 
     def test_method_change_is_rejected_even_when_row_and_manifest_agree(self):
         name = next(iter(self.manifests["python"]["versions"]))
