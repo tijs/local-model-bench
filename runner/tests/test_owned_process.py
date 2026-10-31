@@ -7,6 +7,7 @@ import sys
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from owned_process import OwnedSession
@@ -73,6 +74,27 @@ class OwnedProcessTests(unittest.TestCase):
         session = OwnedSession(process)
         process.wait(timeout=3)
         with self.assertRaisesRegex(RuntimeError, "already reaped"):
+            session.stop()
+
+    def test_exited_leader_without_descendants_is_reaped(self):
+        process = subprocess.Popen(
+            [sys.executable, "-I", "-S", "-c", "pass"], start_new_session=True
+        )
+        session = OwnedSession(process)
+        deadline = time.monotonic() + 3
+        while not session.leader_exited() and time.monotonic() < deadline:
+            time.sleep(0.02)
+        self.assertTrue(session.leader_exited())
+        session.stop()
+        self.assertEqual(process.returncode, 0)
+
+    def test_permission_denied_is_not_hidden_for_live_members(self):
+        session, _ = self.launch(False, False)
+        with (
+            patch("owned_process.os.killpg", side_effect=PermissionError),
+            patch.object(session.process, "wait"),
+            self.assertRaises(PermissionError),
+        ):
             session.stop()
 
 

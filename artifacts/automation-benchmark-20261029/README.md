@@ -25,3 +25,9 @@ The initial household manifest is from clean c1af468; the Python manifest record
 ## Validated post-interruption changes
 
 All652 currently discovered locked tests pass (123.59s full run), with targeted supervisor/leaderboard rechecks after the source-marker fixture update. Ruff and ty pass for new modules. Core correctness/tests/simplicity review reports no remaining blockers in supervision binding, interruption grace, released-method comparison and grade-counter validation. Release7 remains pending a complete quiet-window calibration.
+
+## October 31 toolchain recovery
+
+After the user authorized shutting down unused simulators and quitting Safari, reported free memory recovered from52% to85%, with normal kernel pressure. The supervised retry in `qwen-calibration-retry-20261031/` passed preflight, but Mei failed to build: the updated Xcode installation lacked its separately installed Metal toolchain. No model task ran. Original build/launch logs, exact config/source identity and telemetry are preserved. Metal Toolchain27B47 was installed; its compiler reports metalfe-32023.922.4.
+
+This early exit reproduced Darwin returning EPERM when signaling a process group containing only its unreaped zombie leader. The shared owned-session cleanup now tolerates that denial only when a fresh process inventory confirms no live member; live-member permission failures still propagate. The leader remains unreaped until cleanup ends. Both the real exited-leader regression and live-member-denial regression pass. All654 locked tests pass in95.21s; focused lifecycle/supervisor13 tests, Ruff and ty pass. See `full-tests-darwin-cleanup-20261031.log`. A fresh committed-source supervised calibration is still required before release; these setup failures do not add model scores.

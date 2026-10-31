@@ -49,19 +49,26 @@ class OwnedSession:
     def stop(self, grace_seconds: float = 3) -> None:
         if self.process.returncode is not None:
             raise RuntimeError("cannot signal an already reaped owned session")
-        try:
+
+        def signal_members(signum: int) -> None:
+            # Darwin can return EPERM for a group containing only zombies.
+            # The unreaped leader still reserves the identity, but there is
+            # nothing left to signal. Never hide denial for a live member.
             try:
-                os.killpg(self.pid, signal.SIGTERM)
+                os.killpg(self.pid, signum)
             except ProcessLookupError:
                 pass
+            except PermissionError:
+                if self.running_members():
+                    raise
+
+        try:
+            signal_members(signal.SIGTERM)
             deadline = time.monotonic() + grace_seconds
             while self.running_members() and time.monotonic() < deadline:
                 time.sleep(0.05)
             if self.running_members():
-                try:
-                    os.killpg(self.pid, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
+                signal_members(signal.SIGKILL)
                 deadline = time.monotonic() + 3
                 while self.running_members() and time.monotonic() < deadline:
                     time.sleep(0.05)
