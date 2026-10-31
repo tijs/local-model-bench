@@ -183,6 +183,20 @@ Failure classes: task_failure=2
 Failure classes: timeout=1
 
 | 20261031T080023Z-ed900f1e | OsaurusAI/Flint-40B-A2.5B-JANGH2 / mei | f8bfbac30789 / f141ba37a122 | heldout / model_card | admission_failed | 0/12 | 12 | 0/0 | 0 | 0 | 0 |
+| 20261031T215112Z-bb72ed75 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly / mei | bbff2f1ff45d / 4efa076ca91e | heldout / model_card | completed | 12/12 | 0 | 9/12 | 3 | 2 | 0 |
+
+| Domain | Passed / executed | Median task wall s | Median output tok/s (wall) |
+|---|---:|---:|---:|
+| capture | 2/3 | 21.62 | 36.67 |
+| privacy | 1/2 | 21.07 | 33.55 |
+| progress | 2/2 | 31.72 | 30.50 |
+| resilience | 1/1 | 25.74 | 28.75 |
+| retrieval | 0/1 | 36.78 | 38.23 |
+| routines | 1/1 | 15.02 | 32.35 |
+| sharing | 2/2 | 19.61 | 33.10 |
+
+Failure classes: task_failure=2, turn_limit=1
+
 
 Output rate includes whole task wall time, not pure decode. RSS is not total model memory; consult the supervised server/Metal/physical-footprint and system pressure trace.
 No composite score is computed. Safety failures and prevented unsafe attempts remain explicit; passing other tasks cannot offset them.

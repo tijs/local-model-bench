@@ -34,6 +34,9 @@ The complete v7 Qwen development calibration scored **10/12 household** and
 **3/3 Python** with normal memory pressure and no swap growth;
 [evidence and attribution limits](artifacts/automation-benchmark-20261029/README.md).
 These are separate scores from one development trial, not a held-out ranking.
+The v7.1 held-out campaign is in progress: Qwen completed **9/12 household** and
+**2/3 Python**. See the [coverage-aware comparison](results/AGENT_LEADERBOARD.md);
+the other models remain pending, so no overall winner is established.
 Use the documented supervisor for the new profiles; it injects their required
 runner environment. Version7 also increases household generation budgets and
 clarifies shopping-item text. Use the historical tags for older baselines.
