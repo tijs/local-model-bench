@@ -67,5 +67,12 @@ output is `artifacts/clover-cache-diffusion-recovery-20261101`.
 The [recovery-profile attempt](../artifacts/clover-cache-diffusion-recovery-20261101/README.md)
 also stopped: the recovery condition passed, then the next load hit sustained
 warning pressure. Recovery alone is insufficient. Both incomplete attempts
-remain unranked. An isolated early-weight-residency loader candidate is being
-built and must pass live controls before any fix or full-score claim.
+remain unranked. An isolated early-weight-residency loader candidate built successfully and
+passed basic native tools. Repeated-load/cache controls remain before any
+memory-fix or full-score claim.
+
+The candidate [passed all five basic native checks](../artifacts/clover-native-diffusion-early-residency-20261101/README.md)
+with normal pressure and no swap growth. The next committed profile,
+`clover-kapitsa-diffusion-cache-early-residency.yaml`, uses the unchanged cache
+controls and recovery observations on that candidate. Its fresh output is
+`artifacts/clover-cache-diffusion-early-residency-20261101`.

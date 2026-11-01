@@ -264,3 +264,11 @@ loading/output/cache controls complete.
 
 [First interruption](../artifacts/clover-cache-diffusion-20261101/README.md) ·
 [Recovery attempt](../artifacts/clover-cache-diffusion-recovery-20261101/README.md)
+
+The isolated early-residency candidate now builds, passes seven selected CPU
+tests and upstream lint, and passed all five native tool checks in 25.683 seconds
+with normal pressure and no swap growth. Its source patch/base/tree and binary
+identity are published. That is basic admission only; the same cold-load/cache
+experiment is next, and the original runtime/evidence remain intact.
+
+[Candidate native evidence](../artifacts/clover-native-diffusion-early-residency-20261101/README.md)

@@ -1,7 +1,7 @@
 # local-model-bench
 
-Current release: **benchmark-v9.4 — native Clover diffusion tools**.
-See the [current release notes](docs/releases/benchmark-v9.4.md) and
+Current release: **benchmark-v9.5 — Clover cache and loading controls**.
+See the [current release notes](docs/releases/benchmark-v9.5.md) and
 [release history](docs/releases/).
 
 Compare local LLM serving stacks on affordable Apple Silicon Macs. The active

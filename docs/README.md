@@ -14,7 +14,7 @@ automation tasks. Peixinho is still a design; these are not application tests.
 - [Candidate campaign](CANDIDATE_CAMPAIGN.md): Groot, ThinkingCap, Logics-SWE,
   Clover and reference retests, with evidence links and open qualification work.
 - [Release history](releases/): method and tooling changes. Current release:
-  [benchmark-v9.4](releases/benchmark-v9.4.md).
+  [benchmark-v9.5](releases/benchmark-v9.5.md).
 
 ## Running and understanding the benchmark
 
