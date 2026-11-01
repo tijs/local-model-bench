@@ -15,14 +15,16 @@ application tests or product scores.
 |---|---:|---:|---:|
 | ThinkingCap Q4_K_M, two checkpoints | 11/12 | 3/3 | 8m 47s |
 | MiniCPM Q4_K_M, CPU8, q8 KV, no repacking, two checkpoints | 11/12 | 3/3 | 9m 38s |
+| Qwen3.6 4-bit MLX / Mei | 7/12 | 3/3 | 13m 22s |
 
-Both completed with normal pressure throughout and no swap growth. All grades
-and tool journals matched on audit; every submitted script passed independent
-replay on four fixture variants. ThinkingCap omitted a required record citation.
-MiniCPM reused operation IDs for different retry arguments, which were denied.
+All three completed with normal pressure throughout and no swap growth. All
+grades and tool journals matched on audit; every submitted script passed
+independent replay on four fixture variants. ThinkingCap omitted a required
+record citation. MiniCPM reused operation IDs for different retry arguments.
+Qwen made invalid calls and repeated a deleted code; see the detailed reviews.
 
 See the [v9 comparison](results/AGENT_V9.md) for exact run IDs and profiles.
-Qwen, Ornith and Groot v9 retests are pending. Earlier results below remain
+Ornith and Groot v9 retests are pending. Earlier results below remain
 historical references; they are not relabeled v9 scores. The new MiniCPM runtime
 profile is a memory/speed tradeoff, not a controlled model-quality comparison.
 

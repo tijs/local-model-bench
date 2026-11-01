@@ -81,3 +81,20 @@ prevent attributing the score/time differences to a single cause. CPU kernel
 speed/numerics may differ.
 
 [Startup evidence and review](../artifacts/candidate-system-campaign-20261101/minicpm-heldout-v9-cpu8-20261101/)
+
+## Qwen matched v9 reference result
+
+Qwen completed 7/12 household and 3/3 Python in 801.874 seconds, including its
+243.8-second startup/build wait. All 158 pressure samples were normal, with zero
+swap growth. Its config, runtime source, binary and Metal library exactly match
+the earlier v8 trial (10/12 + 3/3); the validator method and random trajectory
+differ. Preserve both results rather than selecting the better score.
+
+The failures are visible in emitted calls/answers: whitespace-padded enum values,
+unassigned operation IDs, an invalid progress update after declining a share,
+repeating a deleted code, and confusing the untrusted record ID with a source ID.
+All state grades and API/journal arguments matched. All Python scripts passed
+independent four-variant replay. No API transformation mismatch was found; this
+does not exclude every numerical/runtime cause of variation.
+
+[Full evidence and audit](../artifacts/candidate-system-campaign-20261101/qwen-heldout-v9-20261101/)
