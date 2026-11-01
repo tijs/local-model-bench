@@ -11,7 +11,7 @@ Order uses household passes, then Python passes, only for complete usable covera
 | 1 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly / mei | 10/12 | 3/3 | 0 | 3 | 7.11 min | 17% / 0.0 MiB | complete |
 | 2 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit / mei | 9/12 | 2/3 | 2 | 0 | 10.15 min | 16% / 0.0 MiB | complete |
 | — | OsaurusAI/Flint-40B-A2.5B-JANGH2 / mei | not admitted | not run | — | — | 0.59 min | 36% / 0.0 MiB | admission failed; unranked |
-| — | openbmb/MiniCPM-V-4.7-35B-A3B-gguf:Q4_K_M / llama.cpp | pending | pending | — | — | — | — | partial/unusable or pending |
+| — | openbmb/MiniCPM-V-4.7-35B-A3B-gguf:Q4_K_M / llama.cpp | 0/1 executed; 12 planned | pending | 0 | 0 | 0.54 min | 10% / 0.0 MiB | partial/unusable or pending |
 
 ## Selected run evidence
 
@@ -24,6 +24,7 @@ Order uses household passes, then Python passes, only for complete usable covera
   - `routine-occurrence`: task_failure; checks correct_explicit_schedule.
   - `shopping-csv`: truncation; checks finished_with_final_answer, submitted_script, final_script_executed_successfully, visible_output_correct, unseen_outputs_correct.
 - **OsaurusAI/Flint-40B-A2.5B-JANGH2** — config `configs/capacity-v8-20261101/flint.yaml`; household: `20261101T104306Z-118ab6ab` (0/12 executed). Exact model/quant/runtime and sampler pins are in the config and run manifests.
-- **openbmb/MiniCPM-V-4.7-35B-A3B-gguf:Q4_K_M** — config `configs/capacity-v8-20261101/minicpm.yaml`; pending. Exact model/quant/runtime and sampler pins are in the config and run manifests.
+- **openbmb/MiniCPM-V-4.7-35B-A3B-gguf:Q4_K_M** — config `configs/capacity-v8-20261101/minicpm.yaml`; household: `20261101T114024Z-40412a41` (1/12 executed). Exact model/quant/runtime and sampler pins are in the config and run manifests.
+  - `capture-family`: interrupted; checks finished_with_final_answer, no_missing_or_extraneous_records, one_correct_family_item, capture_provenance.
 
 Historical versions, calibration runs and partial attempts remain append-only in their own reports. These selected runs are never inferred from the newest timestamp alone.

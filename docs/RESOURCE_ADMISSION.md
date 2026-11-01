@@ -80,3 +80,14 @@ still stands; capacity feasibility does not override tool admission.
 The old review and all rejected preflights remain in the campaign artifacts.
 Kernel counter definitions come from [Apple's VM statistics declarations](https://github.com/apple-oss-distributions/xnu/blob/main/osfmk/mach/vm_statistics.h)
 and [host counter implementation](https://github.com/apple-oss-distributions/xnu/blob/main/osfmk/kern/host.c).
+
+## MiniCPM q8 cache profile (v8.2)
+
+The first f16-KV/ubatch128 run reached native admission but was pressure-stopped
+during its first task. `minicpm-q8kv.yaml` retains Q4_K_M weights, context65536
+and native sampling while usingq8_0 K/V and ubatch64. Q8_0 blocks include scale
+overhead: dense K/V is680MiB, saving600MiB, with recurrent f32 state unchanged.
+Metal conversion workspace remains part of the runtime budget. This is a
+separate serving profile requiring fresh admission and full monitored tasks.
+The static budget allows a guarded attempt; only measured runtime behavior can
+qualify it. Original profiles/results are preserved.
