@@ -221,3 +221,12 @@ Remaining campaign work: Clover native tools and faithful diffusion evaluation,
 independent finalist repeats and final roster/system review. Stable Mei promotion
 and loaded-status responsiveness remain explicit open work; the preview release
 does not close them.
+
+## Clover native admission preparation
+
+The [guarded diffusion diagnostic](CLOVER_NATIVE.md) pins Kapitsa70fb555 and
+publisher pack5eb76824, with one local/private slot, no drafter/disk cache and
+actual32-row diffusion. The27.57GB byte plan includes retained checkpoints and
+workspace; actual pressure/swap guards remain. Automatic tools and dependent
+continuation are next. Named/required/strict grammar tools are unsupported in
+this engine's Clover path; no causal/speculative fallback is used.

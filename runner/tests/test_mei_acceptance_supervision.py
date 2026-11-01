@@ -177,6 +177,31 @@ class NativeAcceptanceSupervisionTests(unittest.TestCase):
                 ]
             )
 
+    def test_backend_diagnostic_never_claims_full_native_and_fails_closed(self):
+        for verdict in (True, False, "exception"):
+            with (
+                self.subTest(verdict=verdict),
+                tempfile.TemporaryDirectory() as folder,
+                patch.object(acceptance, "sample", return_value=point()),
+                patch.object(acceptance.time, "sleep"),
+            ):
+                output = Path(folder) / "attempt"
+
+                def check(path, output=output, verdict=verdict):
+                    self.assertEqual(path, output)
+                    if verdict == "exception":
+                        raise ValueError("missing backend evidence")
+                    return verdict
+
+                rc = acceptance.monitor_child(
+                    native_config(), b"fixture", args(output),
+                    [sys.executable, "-c", "pass"], diagnostic_check=check,
+                )
+                outcome = json.loads((output / "outcome.json").read_text())
+                self.assertEqual(rc, 0 if verdict is True else 1)
+                self.assertFalse(outcome["full_native_admission"])
+                self.assertTrue(outcome["diagnostic_only"])
+
     def test_missing_or_failed_native_probe_cannot_qualify(self):
         with tempfile.TemporaryDirectory() as folder:
             output = Path(folder)

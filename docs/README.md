@@ -23,6 +23,8 @@ automation tasks. Peixinho is still a design; these are not application tests.
   containment and budgets.
 - [Resource admission](RESOURCE_ADMISSION.md): capacity estimates, pressure,
   swap and disk stop rules. Free-memory percentage is telemetry.
+- [Clover native diffusion](CLOVER_NATIVE.md): pinned Kapitsa/Metal, automatic
+  tools and dependent continuation, separate from scored runs.
 - [Native Mei acceptance](MEI_NATIVE_ACCEPTANCE.md): guarded release checks,
   independent of scored household and Python runs.
 - [Configurations](../configs/README.md): serving profiles and provenance.

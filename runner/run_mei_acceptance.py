@@ -22,6 +22,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -294,7 +295,8 @@ def probe_succeeded(output: Path, *, skip_context: bool, skip_cache: bool) -> bo
 
 
 def monitor_child(
-    cfg: dict[str, Any], content: bytes, args: argparse.Namespace, command: list[str]
+    cfg: dict[str, Any], content: bytes, args: argparse.Namespace, command: list[str],
+    *, diagnostic_check: Callable[[Path], bool] | None = None,
 ) -> int:
     """Supervise one unreaped session with the benchmark's actual resource policy."""
     if not 30 <= args.deadline <= 3600:
@@ -318,6 +320,7 @@ def monitor_child(
             "skip_context": args.skip_context,
             "skip_cache": args.skip_cache,
             "runner_git_sha": git_sha(),
+            "diagnostic_only": diagnostic_check is not None,
         },
     )
     baseline = []
@@ -421,13 +424,19 @@ def monitor_child(
                     process.wait(timeout=3)
         except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
             reason = f"{reason or 'cleanup'}: {exc}"
+        try:
+            evidence_passed = (
+                diagnostic_check(output) if diagnostic_check is not None else
+                probe_succeeded(output, skip_context=args.skip_context, skip_cache=args.skip_cache)
+            )
+        except (OSError, ValueError, KeyError, TypeError, RuntimeError) as exc:
+            reason = f"{reason or 'qualification'}: evidence error: {exc}"
+            evidence_passed = False
         passed = bool(
             process is not None
             and process.returncode == 0
             and reason is None
-            and probe_succeeded(
-                output, skip_context=args.skip_context, skip_cache=args.skip_cache
-            )
+            and evidence_passed
         )
         write_json(
             output / "outcome.json",
@@ -437,8 +446,10 @@ def monitor_child(
                 "returncode": process.returncode if process is not None else None,
                 "elapsed_seconds": time.monotonic() - started,
                 "full_native_admission": passed
+                and diagnostic_check is None
                 and not args.skip_context
                 and not args.skip_cache,
+                "diagnostic_only": diagnostic_check is not None,
             },
         )
     return 0 if passed else 1
