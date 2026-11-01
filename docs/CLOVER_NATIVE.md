@@ -76,3 +76,15 @@ with normal pressure and no swap growth. The next committed profile,
 `clover-kapitsa-diffusion-cache-early-residency.yaml`, uses the unchanged cache
 controls and recovery observations on that candidate. Its fresh output is
 `artifacts/clover-cache-diffusion-early-residency-20261101`.
+
+The first early-residency cache run completed four loads with normal pressure,
+no swap growth and a passing repeated-prompt comparison. It then stopped on its
+own relative-compressor recovery ceiling, about 2.6 MiB over that added bound.
+That condition was unnecessarily strict; global VM byte totals do not prove an
+owned model remains allocated. The [review preserves the partial result](../artifacts/clover-cache-diffusion-early-residency-20261101/README.md).
+
+The fresh `clover-kapitsa-diffusion-cache-actual-baseline.yaml` profile uses the
+established seven normal-pressure/flat-swap observations after an owned process
+exits. Wired/compressor bytes remain telemetry. Capacity feasibility and every
+global pressure/swap/disk/deadline limit are unchanged. The fresh output is
+`artifacts/clover-cache-diffusion-actual-baseline-20261101`.

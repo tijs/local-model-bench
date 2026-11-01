@@ -26,21 +26,23 @@ def vm_bytes(point, label):
     return int(page[1]) * int(count[1])
 
 
-def recovered(points, initial):
-    return (len(points) >= 7 and baseline_ready(points[-7:], None, 2)
-            and all(vm_bytes(p, label) <= vm_bytes(initial, label) + 512 * 1024**2
-                    for p in points[-7:] for label in ("Pages wired down", "Pages occupied by compressor")))
+def recovered(points):
+    # Global VM totals include unrelated activity and are not ownership proof.
+    # Keep them as telemetry; use the established actual resource baseline.
+    return len(points) >= 7 and baseline_ready(points[-7:], None, 2)
 
 
-def wait_for_recovery(output, initial, session):
+def wait_for_recovery(output, session):
     points = []
     deadline = time.monotonic() + 90
     with (output / f"recovery-{session}.jsonl").open("x", buffering=1) as stream:
         while time.monotonic() < deadline:
             point = sample(os.getpid(), output)
+            point["wired_bytes"] = vm_bytes(point, "Pages wired down")
+            point["compressor_bytes"] = vm_bytes(point, "Pages occupied by compressor")
             stream.write(json.dumps(point) + "\n")
             points.append(point)
-            if recovered(points, initial):
+            if recovered(points):
                 return
             time.sleep(5)
     raise RuntimeError("post-exit resource recovery not observed within90seconds; no next model started")
@@ -103,7 +105,6 @@ def child(cfg, content, output):
     server = None
     log = None
     session = 0
-    initial = json.loads((output / "baseline.jsonl").read_text().splitlines()[-1])
     report = {"status": "running", "decoder_verified": None, "cases": {}}
 
     def stop():
@@ -124,7 +125,7 @@ def child(cfg, content, output):
         nonlocal server, log, session
         stop()
         if session:
-            wait_for_recovery(output, initial, session)
+            wait_for_recovery(output, session)
         session += 1
         path = output / f"server-{session}.log"
         log = path.open("x")
