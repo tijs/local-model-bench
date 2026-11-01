@@ -93,3 +93,17 @@ This is a separate MiniCPM assessment, not an inference run, allocation cap or
 proof that the Qwen threshold applies. MiniCPM's85% launch gate is unchanged;
 its own bounded live calibration remains pending. The full four-model campaign,
 matched latest-version coverage and final summary remain unfinished.
+
+`benchmark-v7.2.1` at `a977442` adds the separate MiniCPM resource-probe profile
+with its original85% launch gate, seven-sample baseline and900-second bound.
+Static config/schema and exact source/binary/library provenance passed; model,
+workload, launch command and all runtime stops match the existing MiniCPM
+profile (`minicpm-probe-config-verification-20261101.json`). The published release
+and remote main/peeled-tag identity were verified.
+
+`minicpm-resource-probe-20261101/` subsequently declined before runner/model
+launch: seven samples at83%, normal pressure, flat960.19MiB swap. No inference,
+model score or new cache resulted. This preserves a separate MiniCPM resource
+admission outcome rather than assuming the Qwen-class threshold applies.
+Remaining live calibration requires a passing baseline; neither failed preflight
+counts as benchmark coverage. Servers remain off and the full campaign is open.
