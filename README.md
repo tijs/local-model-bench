@@ -1,7 +1,7 @@
 # local-model-bench
 
-Current release: **benchmark-v9.2 — pinned Logics-SWE candidate profile**.
-See the [current release notes](docs/releases/benchmark-v9.2.md) and
+Current release: **benchmark-v9.3 — guarded native Mei acceptance**.
+See the [current release notes](docs/releases/benchmark-v9.3.md) and
 [release history](docs/releases/).
 
 Compare local LLM serving stacks on affordable Apple Silicon Macs. The active
@@ -53,8 +53,8 @@ or quantization quality. Independent repeats remain pending.
 The [candidate campaign](docs/CANDIDATE_CAMPAIGN.md) is testing Groot,
 ThinkingCap, Logics-SWE and Clover. Groot and Logics-SWE passed every task in their latest trials; both are provisional contenders.
 ThinkingCap's first
-attempt stopped for memory pressure; its bounded-checkpoint retry completed on v9. Logics-SWE completed its first full trial. Clover has a pinned runtime build and
-passing CPU/API tests, but no model admission or score yet. The v9 routing-validator correction requires fresh comparisons;
+attempt stopped for memory pressure; its bounded-checkpoint retry completed on v9. Logics-SWE completed its first full trial. Clover is hash-verified, with passing CPU/API and diffusion kernel checks;
+native model admission and workflow quality are pending. The v9 routing-validator correction requires fresh comparisons;
 existing grades remain historical and will not be rewritten.
 
 The active roster is **Groot and Logics-SWE (provisional contenders), ThinkingCap,
@@ -152,3 +152,8 @@ regression tests and is not an executable current benchmark path.
 Project state and execution plans live in Kiem (`proj/local_model_bench`); see
 [AGENTS.md](AGENTS.md). Preserve append-only results and provenance. Use `uv`,
 `ruff` and `ty` for Python work.
+
+Native Mei release gates use the [guarded acceptance launcher](docs/MEI_NATIVE_ACCEPTANCE.md).
+It preserves partial checks and applies the same actual resource limits as scored
+runs. The [prepared Groot text pack](https://huggingface.co/Tostibrown/Groot-19B-A3B-261023-rco-role-4.5bpw-textonly)
+is public and verified; the next Mei preview's native qualification remains open.

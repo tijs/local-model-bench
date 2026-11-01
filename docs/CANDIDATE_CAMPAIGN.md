@@ -12,7 +12,7 @@ an immutable config and fresh owned server, with native admission before the
 | Groot | v9: 12/12 household, 3/3 Python; normal pressure, no swap growth | Provisional front-runner; finish remaining candidates and runtime release |
 | ThinkingCap | v9: 11/12 household, 3/3 Python; normal pressure, no swap growth | Retain as a provisional contender and repeat |
 | Logics-SWE | v9.2: 12/12 household, 3/3 Python; normal pressure, no swap growth | Provisional contender; independent repeat pending |
-| Clover | Custom MLX architecture and genuine diffusion path identified | Validate implementation and tool semantics; keep causal and diffusion modes distinct |
+| Clover | MLX-format pack verified; native Metal kernel checks pass on M1 Max | Admit native tools and test genuine diffusion with separate provenance |
 
 [Current v9 comparison](../results/AGENT_V9.md) ·
 [Previous v8 comparison](../results/CANDIDATES.md) ·
@@ -175,3 +175,25 @@ An independent Logics repeat and Clover evaluation remain pending, along with
 Mei release qualification. No pure model/quant or real-app conclusion follows.
 
 [Full Logics-SWE evidence and reproducible audit](../artifacts/candidate-system-campaign-20261101/logics-swe-heldout-v9p2-20261101/)
+
+## Release tooling and prepared artifacts
+
+The guarded native Mei launcher now uses capacity admission and owns its entire
+process group through teardown. It records the exact source/tool program and
+retains partial probe evidence; skipped checks cannot qualify as full admission.
+Eight focused tests and all 679 runner tests pass. See the native acceptance guide.
+
+Mei work branch `526204b` prepares 0.10.0-rc.2 with the Groot pull/profile entry,
+accurate architecture labels, verified export tooling and checkpointed probes.
+All 449 Swift tests pass (two explicit skips), as do 23 Python exporter/probe
+tests. Native admission, packaging, release and Homebrew readback are still open;
+stable remains 0.9.0. The public Groot artifact's 16 files were independently
+verified by anonymous hash/size readback at `53f52e0e`. Historical local source
+and export files remain unchanged.
+
+Clover's 15 staged publisher files match; metadata contains 1,877 tensors. Kernel
+checks at 8/32 rows match CPU references, including bidirectional attention; the
+non-attention suite also passes under shader validation. This is kernel evidence
+on this Mac, not native model or tool acceptance. Kapitsa consumes MLX-format
+weights with its own Metal runtime. No silent causal/speculative fallback will
+be labeled diffusion.
