@@ -27,6 +27,10 @@ class RoutingChoiceRequestTests(unittest.TestCase):
                 "- Please choose which route you prefer.",
                 "Your options are ready: pick one.",
                 "Choose a private_note or private_task.",
+                (
+                    "Saved privately. Would you like to save this as a:\n"
+                    "1. Private note\n2. Private task"
+                ),
             ):
                 with self.subTest(partition=partition, answer=answer):
                     grade = self.grade_answer(answer, partition)
@@ -43,6 +47,8 @@ class RoutingChoiceRequestTests(unittest.TestCase):
                 "Please let me know whether the weather is nice.",
                 "Choose whichever day works.",
                 "Your options are ready: please tell me whether it is sunny.",
+                "Saved as a private note. Available routes:\n1. Private note\n2. Private task",
+                "Would you like to save this as a:\n1. Public note\n2. Private task",
             ):
                 with self.subTest(partition=partition, answer=answer):
                     grade = self.grade_answer(answer, partition)

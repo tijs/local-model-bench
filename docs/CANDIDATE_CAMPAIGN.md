@@ -34,8 +34,8 @@ memory. Actual pressure, swap, disk and deadline guards remain in force.
 
 The ambiguous-capture response explicitly invited the user to choose between a
 private note and private task, introducing a numbered list with a colon. The
-validator rejected that valid wording. The correction requires a benchmark
-release and fresh affected comparisons. It does not retroactively change the old
+validator rejected that valid wording. The correction ships in [benchmark-v9](releases/benchmark-v9.md) and requires
+fresh affected comparisons. It does not retroactively change the old
 row or turn this interrupted attempt into a qualified score.
 
 ## Publication policy

@@ -1,7 +1,7 @@
 # local-model-bench
 
-Current release: **benchmark-v8.5 — ThinkingCap candidate profile**.
-See the [current release notes](docs/releases/benchmark-v8.5.md) and
+Current release: **benchmark-v9 — routing validator correction and bounded ThinkingCap cache profile**.
+See the [current release notes](docs/releases/benchmark-v9.md) and
 [release history](docs/releases/).
 
 Compare local LLM serving stacks on affordable Apple Silicon Macs. The active
@@ -9,7 +9,7 @@ engines are llama.cpp variants and Mei (Swift/MLX). Peixinho is the intended
 future application runtime; it is currently a design, so there are no Peixinho
 application tests or product scores.
 
-## Latest completed results
+## Latest completed results (v8 method)
 
 One held-out trial per task on the v8.1-equivalent task method. Times include
 startup and native admission, excluding the 30-second host baseline.
@@ -29,7 +29,7 @@ or quantization quality. Independent repeats remain pending.
 The [candidate campaign](docs/CANDIDATE_CAMPAIGN.md) is testing Groot,
 ThinkingCap, Logics-SWE and Clover. Groot is provisional. ThinkingCap's first
 attempt stopped for memory pressure and has no full score. Logics-SWE and Clover
-have not run. A routing-validator correction and fresh comparisons are pending;
+have not run. The v9 routing-validator correction requires fresh comparisons;
 existing grades remain historical and will not be rewritten.
 
 The active roster is **MiniCPM, Groot (provisional), Qwen3.6 and Ornith1.5**.

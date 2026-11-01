@@ -14,6 +14,17 @@ def requests_route_choice(text: str) -> bool:
     if "?" in text:
         return True
     plain = re.sub(r"[*`]", "", text).replace("_", " ")
+    # A routing question can introduce a numbered list with a colon rather
+    # than end in a question mark. Require both explicit invitation language
+    # and the two private destinations, not merely a list of available routes.
+    if re.search(
+        r"\bwould you like to (?:save|store|capture) (?:this|it) as\s+(?:a\s*)?:"
+        r"\s*(?:1[.)]\s*)?(?:a\s+)?private note\s*"
+        r"(?:[,;/]|or|\n|2[.)])\s*(?:2[.)]\s*)?(?:a\s+)?private task\b",
+        plain,
+        re.IGNORECASE,
+    ):
+        return True
     route_context = False
     for sentence in re.split(r"[.!;:\n]+", plain):
         clause = re.sub(r"^\s*(?:[-+•]\s+)?", "", sentence)
