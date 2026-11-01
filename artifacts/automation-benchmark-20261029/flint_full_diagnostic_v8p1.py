@@ -34,7 +34,13 @@ from owned_process import OwnedSession
 from run_automation_suite import execute_source, isolation_identity
 from run_automation_suite import run_task as python_task
 from run_prompt import call_backend_streaming
-from run_standin_suite import committed_config, generation, run_task, write_json
+from run_standin_suite import (
+    committed_config,
+    generation,
+    run_task,
+    verify_endpoint_identity,
+    write_json,
+)
 from standin_tasks import cases
 from supervise_bench import baseline_ready, gate_reason, now, sample
 
@@ -156,6 +162,8 @@ def worker(output: Path):
             )
         if not bench.wait_for_health(base.rstrip("/") + "/models", proc=server):
             raise RuntimeError("diagnostic server health failed")
+        endpoint = verify_endpoint_identity(base, model)
+        manifest["endpoint_identity"] = endpoint
         if not bench.assert_plain_completion(base, model, timeout=900):
             raise RuntimeError("diagnostic plain completion failed")
         manifest.update(
