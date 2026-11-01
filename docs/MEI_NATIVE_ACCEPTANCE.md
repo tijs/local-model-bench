@@ -36,3 +36,8 @@ the first run completed with failed direct tool probes and is unqualified.
 See its [preserved review](../artifacts/mei-rc2-native-groot-20261101/README.md).
 The example output already exists: choose a fresh directory and commit an
 updated source-pinned config before a new attempt.
+
+A fresh attempt uses `groot-tools1024.yaml`, Mei `e3e4bb0`, an isolated new
+runtime base and 1024 reasoning-inclusive tokens for each direct-tool probe.
+Failure envelopes are retained; validation and context/cache contracts are
+unchanged. The original 256-token attempt remains failed evidence.
