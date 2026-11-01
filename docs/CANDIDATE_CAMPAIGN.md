@@ -246,3 +246,21 @@ controls remain before the household/Python trial. The source's constrained
 named/required/strict-tool limitation remains explicit.
 
 [Full native evidence and review](../artifacts/clover-native-diffusion-20261101/README.md)
+
+## Clover cold-restart memory investigation
+
+Native automatic tools passed, but the subsequent cache experiment stopped for
+swap growth on a rapid cold restart. A fresh attempt with seven stable recovery
+observations also stopped for sustained warning pressure during its second
+load. The recovery condition passed; waiting alone did not solve it. All model
+hashes matched after both attempts. No complete cache verdict or Clover task
+score exists.
+
+Source inspection points to late weight residency as a candidate mechanism for
+the observed compression spike. A one-variable loader experiment requests each
+shared shard buffer's residency before CPU filling, with no payload/math change.
+It is isolated from the measured runtime and remains unqualified until live
+loading/output/cache controls complete.
+
+[First interruption](../artifacts/clover-cache-diffusion-20261101/README.md) ·
+[Recovery attempt](../artifacts/clover-cache-diffusion-recovery-20261101/README.md)

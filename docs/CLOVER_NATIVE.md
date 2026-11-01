@@ -63,3 +63,9 @@ stable recovery observations between exited processes, including wired and
 compressor byte counters, with a90-second bound. It keeps all global resource
 limits and uses an explicitly declared1024-token request budget. The next
 output is `artifacts/clover-cache-diffusion-recovery-20261101`.
+
+The [recovery-profile attempt](../artifacts/clover-cache-diffusion-recovery-20261101/README.md)
+also stopped: the recovery condition passed, then the next load hit sustained
+warning pressure. Recovery alone is insufficient. Both incomplete attempts
+remain unranked. An isolated early-weight-residency loader candidate is being
+built and must pass live controls before any fix or full-score claim.
