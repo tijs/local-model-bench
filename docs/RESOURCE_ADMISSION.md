@@ -91,3 +91,15 @@ Metal conversion workspace remains part of the runtime budget. This is a
 separate serving profile requiring fresh admission and full monitored tasks.
 The static budget allows a guarded attempt; only measured runtime behavior can
 qualify it. Original profiles/results are preserved.
+
+## MiniCPM CPU-expert profile (v8.3)
+
+The q8KV/ubatch64 all-GPU attempt also passed native tools then stopped during
+its first task for measured warning pressure, with no swap growth. The separate
+`minicpm-q8kv-cpu8.yaml` retains those settings and moves the first8 expert layers
+to CPU via pinned llama.cpp `--n-cpu-moe 8`. CPU tensors remain part of host RAM;
+the byte plan still counts the full GGUF. This placement targets the wired GPU
+working set, not an assumed reduction in model bytes. Verbosity4 captures actual
+allocation sizes. Fresh admission/full tasks and the same pressure guards apply;
+CPU placement can change speed and floating-point results. No complete score is
+inferred from the two interrupted all-GPU attempts.
