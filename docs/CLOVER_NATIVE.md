@@ -42,3 +42,15 @@ we do not switch to causal or speculative decoding to bypass this limitation.
 The [first attempt passed all five checks](../artifacts/clover-native-diffusion-20261101/README.md).
 The example output/runtime paths now exist; use a fresh committed profile and
 output for another attempt. The full held-out suite has not run yet.
+
+## Cache controls
+
+`clover-kapitsa-diffusion-cache.yaml` selects the separate guarded cache
+experiment through the same diagnostic CLI. Use fresh output
+`artifacts/clover-cache-diffusion-20261101`. It compares a cached repeat,
+growing tool history and continuation after a seven-token partial block
+against two independent cold processes per case. Each case requires cold
+output determinism, a real warm cache hit, zero cold cached tokens, identical
+content/reasoning/tool arguments and the correct tool contract. Random call IDs
+are excluded. No disk cache, sampler or decoding-mode change is introduced.
+This is a focused cache control, not a statistical quality or speed claim.

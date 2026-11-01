@@ -158,6 +158,9 @@ def main():
     if cfg.get("benchmark_scope") != "kapitsa-native-diagnostic-v1" or cfg.get("diagnostic_only") is not True:
         raise ValueError("this runner is diagnostic-only")
     if args.child:
+        if cfg.get("native_probe", {}).get("cache_controls"):
+            from kapitsa_cache_controls import child as cache_child
+            return cache_child(cfg, content, args.output)
         return child(cfg, content, args.output)
     if Path(cfg["runtime_base"]).exists():
         raise ValueError("choose a fresh owned runtime base")
@@ -176,10 +179,14 @@ def main():
     args.deadline, args.skip_cache, args.skip_context = 900, False, True
     with Path("/tmp/kapitsa-gpu.lock").open("a+") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        check = diagnostic_succeeded
+        if cfg.get("native_probe", {}).get("cache_controls"):
+            from kapitsa_cache_controls import succeeded as cache_succeeded
+            check = cache_succeeded
         rc = monitor_child(cfg, content, args, [
             sys.executable, str(Path(__file__).resolve()), "--config", str(args.config.resolve()),
             "--output", str(args.output.resolve()), "--child",
-        ], diagnostic_check=diagnostic_succeeded)
+        ], diagnostic_check=check)
     write_json(args.output / "pre-run-model-hashes.json", hashes)
     return rc
 
