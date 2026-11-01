@@ -65,3 +65,31 @@ The omission is generated before parsing and does not require cache reuse. Combi
 The initial off-mode invocation retained a conflicting KV-directory flag and was rejected before inference. That attempt is preserved under `flint-greedy-off-controls-20261031/`; the corrected controls are under `flint-greedy-off-corrected-controls-20261031/`. All diagnostic servers are stopped and logs preserved. All32 original/adapter files rehashed and matched after inference. Current stage checks also verify Ornith's11 files and pinned Mei runtime, plus MiniCPM's full GGUF hash and pinned llama.cpp runtime; live admissions remain pending.
 
 The comparison renderer now distinguishes admission failure from an unattempted or zero-scoring suite, and labels partial fractions with executed/planned counts. This changes presentation only: the released scoring/runtime/method fingerprints and eligibility rules remain unchanged. Nineteen focused comparison tests, Ruff and ty pass; delayed-header and full655-test release validation remain recorded above. Host headroom remains below the larger profiles'85% launch requirement. Disk-buffer purge requires unavailable administrator authentication; no interactive password or relaxed resource threshold was used.
+
+## Resource calibration checkpoint — 2026-11-01
+
+Released `benchmark-v7.2` at `2d79f65` adds diagnostic Qwen/Ornith84% profiles,
+a stable30-second baseline and900-second maximum workload, retaining all runtime
+stops and excluding probes from scored comparisons. Released comparison configs
+and previous results remain unchanged. No new model score is established.
+
+`ornith-resource-probe-20261101/` declined before runner/model launch: all seven
+samples were83%, normal pressure,960.19MiB swap with no growth. Exact invocation,
+config and rejected baseline are preserved. Before this attempt, all11 Ornith
+files rehashed correctly and Mei/VMLX pins matched
+(`ornith-probe-prehash-20261101.json`). No model cache was created by this attempt;
+no owned server remains. Do not interpret this as a model failure or lower the
+committed84% diagnostic floor to chase a changing host baseline.
+
+`minicpm-memory-assessment-20261101.json` and its reproducible metadata-only script
+inspect the pinned GGUF without mapping/loading tensors. It declares10 dense
+attention layers and30 recurrent layers. For the existing ctx65536/parallel1,
+f16 K/V and f32 recurrent state, pinned llama.cpp formulas give1,342,177,280bytes
+of dense K/V and65,863,680bytes of recurrent state. GGUF file length plus these
+cache terms is22,574,295,968bytes (21.024GiB). File length is not exact resident
+model allocation; graph/compute buffers, backend alignment, duplicated tensors,
+load/warmup transients and OS/application baseline remain additional unknowns.
+This is a separate MiniCPM assessment, not an inference run, allocation cap or
+proof that the Qwen threshold applies. MiniCPM's85% launch gate is unchanged;
+its own bounded live calibration remains pending. The full four-model campaign,
+matched latest-version coverage and final summary remain unfinished.
