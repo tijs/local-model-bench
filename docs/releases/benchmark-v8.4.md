@@ -3,7 +3,7 @@
 Adds the pinned Groot19B/A3B RCO MLX text-only serving profile for the next
 four-candidate campaign (Groot, ThinkingCap, Logics-SWE, Clover). The profile
 retains the existing12 household and3 isolated Python contracts, budgets,
-validators and resource supervision. Existing measurement/config bytes are
+validators and resource supervision. Existing measurement helpers, tasks, validators and model YAML configs are
 unchanged; no historical scores are rewritten or rerun identities manufactured.
 
 Groot source revision6b0c0cfedb818d739ce5fded969dbbb071546f45: all six shard
