@@ -33,4 +33,4 @@ binary identity and needs its own committed benchmark config/admission.
 
 [Build and test provenance](build-provenance.json) ·
 [CPU tests](cpu-tests.log) · [Lint](prek.log) ·
-[Native profile](../../../../configs/candidates-20261101/clover-kapitsa-diffusion-native-early-residency.yaml)
+[Native profile](../../../configs/candidates-20261101/clover-kapitsa-diffusion-native-early-residency.yaml)
