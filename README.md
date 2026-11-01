@@ -13,13 +13,14 @@ application tests or product scores.
 
 | Model / serving profile | Household | Python | Full-run time |
 |---|---:|---:|---:|
+| Logics-SWE IQ4_XS / llama.cpp | 12/12 | 3/3 | 8m 37s |
 | Groot 19B/A3B, 4.5 bpw MLX / Mei | 12/12 | 3/3 | 11m 05s |
 | ThinkingCap Q4_K_M, two checkpoints | 11/12 | 3/3 | 8m 47s |
 | MiniCPM Q4_K_M, CPU8, q8 KV, no repacking, two checkpoints | 11/12 | 3/3 | 9m 38s |
 | Ornith1.5 4-bit MLX / Mei | 9/12 | 2/3 | 11m 10s |
 | Qwen3.6 4-bit MLX / Mei | 7/12 | 3/3 | 13m 22s |
 
-All five completed with normal pressure throughout and no swap growth. All
+All six completed with normal pressure throughout and no swap growth. All
 grades and tool journals matched on audit; every submitted script passed
 independent replay on four fixture variants. ThinkingCap omitted a required
 record citation. MiniCPM reused operation IDs for different retry arguments.
@@ -50,13 +51,15 @@ use Mei. These compare complete serving profiles, rather than isolating model
 or quantization quality. Independent repeats remain pending.
 
 The [candidate campaign](docs/CANDIDATE_CAMPAIGN.md) is testing Groot,
-ThinkingCap, Logics-SWE and Clover. Groot passed every task in its latest trial and remains a provisional front-runner.
+ThinkingCap, Logics-SWE and Clover. Groot and Logics-SWE passed every task in their latest trials; both are provisional contenders.
 ThinkingCap's first
-attempt stopped for memory pressure; its bounded-checkpoint retry completed on v9. Logics-SWE is hash-verified and ready for native admission. Clover has a
-pinned runtime build and passing CPU/API tests; neither has a model score yet. The v9 routing-validator correction requires fresh comparisons;
+attempt stopped for memory pressure; its bounded-checkpoint retry completed on v9. Logics-SWE completed its first full trial. Clover has a pinned runtime build and
+passing CPU/API tests, but no model admission or score yet. The v9 routing-validator correction requires fresh comparisons;
 existing grades remain historical and will not be rewritten.
 
-The active roster is **MiniCPM, Groot (provisional), Qwen3.6 and Ornith1.5**.
+The active roster is **Groot and Logics-SWE (provisional contenders), ThinkingCap,
+MiniCPM, Qwen3.6 and Ornith1.5**. Final selection follows the remaining candidate
+and repeat work.
 Flint, including JANGH2, was retired from consideration by user decision on
 2026-11-01 after the completed comparison. Its configs, transcripts and results
 remain historical evidence; further Flint runs or quant research require an

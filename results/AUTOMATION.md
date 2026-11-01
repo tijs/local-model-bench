@@ -20,5 +20,6 @@ Each submitted script is checked on visible and unseen fixture variants. Shared 
 | 20261101T210635Z-aa8c55ce | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly / mei | 8f7ae9ba649b / 72b6376db223 | heldout / model_card | completed | 3/3 | 3 | 0 | 103.57 |
 | 20261101T211729Z-8acde4a3 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit / mei | d4c9ac05c7bb / 46406ad1b123 | heldout / model_card | completed | 3/3 | 2 | 1 | 284.25 |
 | 20261101T213227Z-d8513cc2 | hermitdave/Groot-19B-A3B-261023-MLX-rco-role-4.5bpw / mei | d67be3456120 / 5d0d215cdc89 | heldout / model_card | completed | 3/3 | 3 | 0 | 237.14 |
+| 20261101T215954Z-d263a1bb | bartowski/Logics-MLLM_Logics-SWE-Qwen3.6-35B-A3B-GGUF:IQ4_XS / llama.cpp | b818e1ac3f0b / 4bec7d1f85c3 | heldout / thinking | completed | 3/3 | 3 | 0 | 108.89 |
 
 Scores require matching task/tool/validator and release identities. Partial runs are never a complete-model score.

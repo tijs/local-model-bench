@@ -11,7 +11,7 @@ an immutable config and fresh owned server, with native admission before the
 |---|---|---|
 | Groot | v9: 12/12 household, 3/3 Python; normal pressure, no swap growth | Provisional front-runner; finish remaining candidates and runtime release |
 | ThinkingCap | v9: 11/12 household, 3/3 Python; normal pressure, no swap growth | Retain as a provisional contender and repeat |
-| Logics-SWE | IQ4_XS staged and publisher hash verified; 65K all-GPU/q8-KV profile prepared | Fresh native admission and full run |
+| Logics-SWE | v9.2: 12/12 household, 3/3 Python; normal pressure, no swap growth | Provisional contender; independent repeat pending |
 | Clover | Custom MLX architecture and genuine diffusion path identified | Validate implementation and tool semantics; keep causal and diffusion modes distinct |
 
 [Current v9 comparison](../results/AGENT_V9.md) ·
@@ -158,3 +158,20 @@ Its Clover pack is MLX-format, while the engine itself is native Metal. No
 Clover model has loaded and no GPU correctness, performance or tool score is
 claimed by the build. Diffusion must be explicitly selected and distinguished
 from its causal/speculative paths.
+
+## Logics-SWE first full result
+
+The first native-admitted IQ4_XS trial completed **12/12 household and 3/3 Python**
+in 517.034 seconds (8m 37s), excluding the baseline. All 102 pressure samples
+were normal, with zero swap growth. All 12 grades and API/journal arguments
+matched; every script passed independent execution on all four fixture variants.
+All 168 checkpoint-creation observations respected the limit of two.
+
+Logics-SWE and Groot are provisional contenders, both passing all current
+contracts in their latest trial. Logics is faster in this observation; Groot's
+prepared weights are much smaller (12.3 GB versus 19.9 GB) and had more memory
+headroom. These are different quants, samplers and engines, with limited trials.
+An independent Logics repeat and Clover evaluation remain pending, along with
+Mei release qualification. No pure model/quant or real-app conclusion follows.
+
+[Full Logics-SWE evidence and reproducible audit](../artifacts/candidate-system-campaign-20261101/logics-swe-heldout-v9p2-20261101/)

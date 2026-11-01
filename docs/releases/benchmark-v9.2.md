@@ -20,3 +20,15 @@ Also preserves the pinned Kapitsa build and selected CPU/API test evidence for
 Clover preparation. That engine is native Metal consuming MLX-format weights.
 No Clover GPU load, diffusion correctness, native tool admission or quality
 score is implied by a successful build. Mei preview release work remains open.
+
+## First Logics-SWE result
+
+The native-admitted IQ4_XS run is now complete and audited: **12/12 household
+and 3/3 Python in 8m 37s**, plus the 30-second host baseline. All 102 pressure
+samples were normal, with zero swap growth. Grades and API/tool journals match;
+all scripts pass independent four-variant replay and the model posthash matches.
+
+Logics-SWE joins Groot as a provisional contender. An independent Logics repeat
+and the Clover model evaluation remain open. Preserve the distinctions between
+these serving profiles and limited trial counts; no universal reliability or
+real Peixinho application acceptance is claimed.
