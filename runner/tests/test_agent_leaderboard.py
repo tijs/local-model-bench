@@ -11,7 +11,55 @@ from pathlib import Path
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from build_agent_leaderboard import TRACKS, render_campaign, source_path
+from build_agent_leaderboard import (
+    TRACKS,
+    render_campaign,
+    source_path,
+    within_resource_policy,
+)
+
+
+class CapacityPolicyTests(unittest.TestCase):
+    def test_capacity_replays_runtime_policy_instead_of_requiring_every_sample_normal(
+        self,
+    ):
+        def point(pressure=1, swap=862.4, disk=20 * 1024**3):
+            return {
+                "kernel_pressure_level": pressure,
+                "swap_used_mib": swap,
+                "disk_free_bytes": disk,
+                "free_percent": 5,
+            }
+
+        initial = point(swap=0)
+        self.assertTrue(
+            within_resource_policy([point(2), point()], initial, capacity=True)
+        )
+        self.assertFalse(
+            within_resource_policy([point(2), point()], initial, capacity=False)
+        )
+        for points in (
+            [],
+            [point(2), point(2)],
+            [point(4)],
+            [point(swap=2048)],
+            [point(swap=16384)],
+            [point(disk=9 * 1024**3)],
+        ):
+            with self.subTest(points=points):
+                self.assertFalse(within_resource_policy(points, initial, capacity=True))
+
+    def test_warning_counter_resets_between_isolated_warnings(self):
+        samples = [
+            {
+                "kernel_pressure_level": level,
+                "swap_used_mib": 0,
+                "disk_free_bytes": 20 * 1024**3,
+                "free_percent": 1,
+            }
+            for level in (2, 1, 2, 1)
+        ]
+        self.assertTrue(within_resource_policy(samples, samples[0], capacity=True))
 
 
 class AgentLeaderboardTests(unittest.TestCase):

@@ -59,6 +59,22 @@ TRACKS = {
 Reader = Callable[[str, str], bytes]
 
 
+def within_resource_policy(
+    samples: list[dict[str, Any]], initial: dict[str, Any], *, capacity: bool
+) -> bool:
+    """Replay actual stop conditions; capacity mode allows an isolated warning."""
+    if not capacity:
+        return all(point["kernel_pressure_level"] == 1 for point in samples)
+    from supervise_bench import gate_reason
+
+    warnings = 0
+    for point in samples:
+        warnings = warnings + 1 if point["kernel_pressure_level"] >= 2 else 0
+        if gate_reason(point, initial, 0, warnings, percent_stop=False):
+            return False
+    return bool(samples)
+
+
 def source_path(name: str) -> str:
     if name in ("peixinho_standin.py", "python_automation.py"):
         return "checks/" + name
@@ -100,7 +116,9 @@ def track_result(
     released_config = reader(campaign["release_commit"], config_path.as_posix())
     config = yaml.safe_load(released_config)
     if config.get("resource_probe", False) or config.get("diagnostic_only", False):
-        raise ValueError("diagnostic resource profiles cannot enter a scored comparison")
+        raise ValueError(
+            "diagnostic resource profiles cannot enter a scored comparison"
+        )
     if (
         config_bytes != released_config
         or hashlib.sha256(config_bytes).hexdigest()[:12] != manifest["config_hash"]
@@ -295,7 +313,10 @@ def resources(
         "bench_common.py",
         "run_standin_suite.py",
     }
-    if yaml.safe_load(content).get("resource_monitor_policy", {}).get("admission_mode") == "capacity":
+    if (
+        yaml.safe_load(content).get("resource_monitor_policy", {}).get("admission_mode")
+        == "capacity"
+    ):
         expected_methods.update(("capacity_admission.py", "probe_mei.py"))
     if set(methods) != expected_methods:
         raise ValueError("resource supervisor method fingerprint missing")
@@ -339,6 +360,15 @@ def resources(
     return {
         "seconds": total,
         "normal": all(s["kernel_pressure_level"] == 1 for s in samples),
+        "within_policy": within_resource_policy(
+            samples,
+            invocation["initial"],
+            capacity=yaml.safe_load(content)
+            .get("resource_monitor_policy", {})
+            .get("admission_mode")
+            == "capacity",
+        ),
+        "warning_samples": sum(s["kernel_pressure_level"] == 2 for s in samples),
         "minimum_free_percent": min(s["free_percent"] for s in samples),
         "swap_growth_mib": max(s["swap_used_mib"] for s in samples) - initial,
         "completed": outcome["returncode"] == 0 and outcome["stop_reason"] is None,
@@ -392,7 +422,7 @@ def render_campaign(
             and house["critical"] == 0
             and monitor
             and monitor["completed"]
-            and monitor["normal"]
+            and monitor["within_policy"]
         )
         data.append((entry, house, python, monitor, eligible))
     data.sort(
@@ -412,7 +442,9 @@ def render_campaign(
         "",
         "Order uses household passes, then Python passes, only for complete usable coverage without a critical household boundary failure. There is no weighted composite. A single trajectory does not establish statistical superiority. Budget exhaustion does not prove inability.",
         "",
-        "| Order | Model / engine | Household | Python | Budget outcomes | Invalid calls | Wall time | Min free / swap growth | Coverage |",
+        "Resource eligibility replays the released stop policy. Capacity mode permits an isolated warning; sustained warnings, critical pressure and swap/disk limits disqualify. Free percentage is telemetry only. Warning samples and swap growth remain visible.",
+        "",
+        "| Order | Model / engine | Household | Python | Budget outcomes | Invalid calls | Wall time | Warning samples / min free / swap growth | Coverage |",
         "|---:|---|---:|---:|---:|---:|---:|---|---|",
     ]
     order = 0
@@ -438,7 +470,7 @@ def render_campaign(
             status = "critical boundary failure; unranked"
         time_text = f"{monitor['seconds'] / 60:.2f} min" if monitor else "—"
         memory = (
-            f"{monitor['minimum_free_percent']}% / {monitor['swap_growth_mib']:.1f} MiB"
+            f"{monitor['warning_samples']} / {monitor['minimum_free_percent']}% / {monitor['swap_growth_mib']:.1f} MiB"
             if monitor
             else "—"
         )

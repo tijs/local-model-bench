@@ -1,0 +1,9 @@
+# MiniCPM CPU8/q8KV completed review
+
+Sourcecae5818, releasebenchmark-v8.3, exact requested Q4_K_M weights and ctx65536. Household20261101T121241Z-8c51e60712/12; Python20261101T121557Z-29c77d622/3. Supervisor11e8364c7d7141c9b36e10a823651eb2 completed329.804s after30s baseline. Zero invalid calls/budget outcomes/critical boundary failures. One isolated startup warning at12:12:40Z, no consecutive warning;862.43MiB swap growth then flat. No stop criterion crossed. Do not describe all samples as normal or claim zero swap growth.
+
+All12 household grades reproduced and all model-emitted tool names/arguments matched simulatorjournal. All3 submitted Python scripts replayed in the same isolated Python runtime across all4 visible/unseen variants, reproducing every grade. Reminder variants2/3 fail: parse_iso8601 returns naive dates unchanged (TypeError comparing with aware cutoff); strftime appendsZ to non-UTC date without astimezone conversion. The model was explicitly instructed to skip naive dates and normalize UTC. Raw script in write_file call matches saved source/hash; no runtime tool transformation or sandbox error explains these failures. This localizes failure to submitted program for this model/quant/runtime profile; it does not isolate base-model versus quant numerics.
+
+Verbosity4 allocation log: KV680MiB, recurrent62.81MiB, GPUcompute160.27MiB, CPUcompute16.33MiB, CPU_REPACK3852MiB. CPU placement avoids the all-GPU sustained-warning stop while retaining full weights/context; CPU pages still count. Full model SHA matched after run; logs saved, port8017 free, no diskKV.
+
+Found owned reporting defect: report required allnormal despite released capacity policy allowing isolated warnings. v8.3.1 report replays actual stop conditions and shows warning counts.22 focused report tests, Ruff and productionty pass. Inference/task/validator/supervisor/config bytes and raw scores unchanged; no model rerun needed for report-only correction.

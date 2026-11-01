@@ -13,5 +13,6 @@ Each submitted script is checked on visible and unseen fixture variants. Shared 
 | 20261101T103610Z-d5de7e35 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly / mei | 8f7ae9ba649b / 56db80b8d61a | heldout / model_card | completed | 3/3 | 3 | 0 | 89.22 |
 | 20261101T105601Z-7a8bf77e | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit / mei | d4c9ac05c7bb / e01b2b02457e | heldout / model_card | interrupted (incomplete/unusable) | 2/3 | 0 | 1 | 101.39 |
 | 20261101T112104Z-6fbe24e4 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit / mei | d4c9ac05c7bb / 81a315f15bc4 | heldout / model_card | completed | 3/3 | 2 | 0 | 247.03 |
+| 20261101T121557Z-29c77d62 | openbmb/MiniCPM-V-4.7-35B-A3B-gguf:Q4_K_M / llama.cpp | d23069a83dd4 / cae5818180b2 | heldout / instruct | completed | 3/3 | 2 | 0 | 113.36 |
 
 Scores require matching task/tool/validator and release identities. Partial runs are never a complete-model score.
