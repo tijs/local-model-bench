@@ -709,6 +709,10 @@ def _run_one_impl(config_path: Path, cfg, config_hash, trials: int = 1, coding_s
         identity = verify_mei_runtime(cfg, base_url=base_url)
         print("Mei runtime provenance: " + json.dumps(identity, sort_keys=True))
 
+    if cfg.get("capacity_context_probe") is not None:
+        from capacity_admission import validate_context
+        validate_context(cfg, base_url, request_model)
+
     if cfg.get("benchmark_scope") == "peixinho-standin-v1":
         from run_standin_suite import selected_task_ids
         expected = set(selected_task_ids(cfg, cfg.get("standin_smoke", False)))
@@ -814,10 +818,11 @@ def run_one(config_path: Path, trials: int = 1, coding_suites=None, stage="all",
         raise ValueError('config bytes changed after resource admission')
     cfg = yaml.safe_load(config_content)
     config_hash = hashlib.sha256(config_content).hexdigest()[:12]
-    if cfg.get("resource_probe", False) and (
+    if (cfg.get("resource_probe", False) or
+        cfg.get("resource_monitor_policy", {}).get("admission_mode") == "capacity") and (
         not os.environ.get("BENCH_SUPERVISION_ID") or admitted is None
     ):
-        raise ValueError("resource probes require runner/supervise_bench.py")
+        raise ValueError("resource admission requires runner/supervise_bench.py")
     if "python_automation" in cfg:
         if not isinstance(cfg["python_automation"], bool):
             raise ValueError("python_automation must be a literal boolean")

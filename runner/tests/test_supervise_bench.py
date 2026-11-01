@@ -18,6 +18,7 @@ import supervise_bench as monitor
 def sample(free=90, pressure=1, swap=0.0, disk=50 * 1024**3):
     return {
         "time": "2026-10-29T20:00:00+00:00",
+        "physical_memory_bytes": 32 * 1024**3,
         "free_percent": free,
         "kernel_pressure_level": pressure,
         "swap_used_mib": swap,
@@ -199,6 +200,54 @@ class ResourceSupervisorTests(unittest.TestCase):
             self.assertEqual(
                 (root / "evidence/config.yaml").read_bytes(), b"exact config"
             )
+
+    def test_capacity_probe_ignores_percent_but_keeps_critical_stop(self):
+        from test_capacity_admission import config
+
+        cfg_data = config()
+        cfg_data.update(
+            resource_probe=True,
+            diagnostic_only=True,
+            orchestration={"rank_eligible": False},
+        )
+        cfg_data["resource_monitor_policy"]["launch_baseline_samples"] = 7
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            process = SimpleNamespace(pid=12345, returncode=None)
+
+            def stop(**kwargs):
+                process.returncode = 130
+
+            session = SimpleNamespace(leader_exited=lambda: False, stop=stop)
+            with (
+                patch.object(monitor, "REPO", root),
+                patch.object(
+                    monitor,
+                    "committed_config",
+                    return_value=(cfg_data, b"capacity config"),
+                ),
+                patch.object(
+                    monitor,
+                    "sample",
+                    side_effect=[sample(free=83)] * 7
+                    + [sample(free=9), sample(free=9, pressure=4)],
+                ),
+                patch.object(monitor.time, "sleep"),
+                patch.object(
+                    monitor.subprocess, "Popen", return_value=process
+                ) as launch,
+                patch.object(monitor, "OwnedSession", return_value=session),
+            ):
+                self.assertEqual(
+                    monitor.supervise(root / "probe.yaml", root / "evidence", 3600), 1
+                )
+            launch.assert_called_once()
+            outcome = json.loads((root / "evidence/outcome.json").read_text())
+            self.assertEqual(outcome["stop_reason"], "critical memory pressure")
+            invocation = json.loads((root / "evidence/invocation.json").read_text())
+            self.assertIsNone(invocation["resource_policy"]["launch_min_free_percent"])
+            self.assertIsNone(invocation["resource_policy"]["stop_min_free_percent"])
+            self.assertIn("capacity_admission.py", invocation["supervisor_versions"])
 
     def test_dirty_source_is_rejected_before_output_or_launch(self):
         with tempfile.TemporaryDirectory() as directory:

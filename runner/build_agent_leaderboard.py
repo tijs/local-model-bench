@@ -289,12 +289,15 @@ def resources(
     methods = invocation.get("supervisor_versions", {})
     if not re.fullmatch("[0-9a-f]{12,40}", invocation.get("supervisor_git_sha", "")):
         raise ValueError("supervisor source must be a clean committed revision")
-    if set(methods) != {
+    expected_methods = {
         "supervise_bench.py",
         "owned_process.py",
         "bench_common.py",
         "run_standin_suite.py",
-    }:
+    }
+    if yaml.safe_load(content).get("resource_monitor_policy", {}).get("admission_mode") == "capacity":
+        expected_methods.update(("capacity_admission.py", "probe_mei.py"))
+    if set(methods) != expected_methods:
         raise ValueError("resource supervisor method fingerprint missing")
     for name, actual in methods.items():
         if (

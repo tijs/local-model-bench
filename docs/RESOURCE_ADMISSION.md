@@ -1,69 +1,82 @@
-# Resource admission probes
+# Resource admission
 
-The released comparison profiles retain their original launch thresholds. The
-85% rule was precautionary, not a calibrated universal requirement. See
-`artifacts/automation-benchmark-20261029/memory-launch-rule-review-20261101.json`.
-Earlier Qwen runs started at81/82 with normal pressure and no swap growth, but
-current workloads consumed more headroom. This does not justify a blanket80%
-threshold or establish that every backend can run at84%.
+Current v8 profiles use **capacity admission**, replacing the uncalibrated launch
+percentage gates. A kernel memorystatus percentage does not tell us whether a
+specific model and context cache fit. Earlier attempts at83% were declined by
+our policy, not by demonstrated inability to load or infer. The v7.2 profiles
+and declined attempts remain immutable historical evidence.
 
-Separate `qwen-resource-probe.yaml` and `ornith-resource-probe.yaml` profiles in
-`configs/agent-automation-v7-20261029/` use84% for a bounded calibration experiment.
-They preserve the pinned model/runtime, context, native sampling, cache quotas
-and full12-household/3-Python workload. Each uses its own runtime/cache directory.
-These are diagnostic profiles, excluded from the released comparison selections;
-completing one is not a new held-out benchmark score. A deadline interruption is
-preserved as partial evidence. Native tool admission remains mandatory.
+## Byte plan and host checks
 
-After committing source/config, on a quiet host, run one profile at a time:
+Each profile in `configs/capacity-v8-20261101/` declares pinned model bytes,
+context-cache bytes at ctx65536, retained-prefix and allocator-cache quotas,
+a2GiB workspace allowance and a4GiB host reserve. The supervisor rejects malformed
+or mismatched model/context plans and plans whose sum exceeds physical RAM.
+These explicit allowances are estimates, not measured maxima or an allocation
+reservation. File length need not equal resident GPU/model memory. Actual host
+application usage can exceed the reserve. A feasible sum allows a guarded load;
+it does not certify a safe working set or long-context performance.
+
+Before loading, seven samples over at least30seconds must all show normal kernel
+pressure, at least10GiB disk, less than16GiB swap and less than64MiB swap spread.
+The percentage and its variation are telemetry only in capacity mode. Baseline
+samples, physical RAM, raw `vm_stat` counters, exact budget/config and source
+fingerprints are saved. OS process footprint/RSS totals are incomplete GPU/model
+accounting; do not sum them with allocator counters as if disjoint.
+
+During loading and inference the supervisor samples every5seconds. It stops on
+critical pressure immediately, two warning samples,2GiB swap growth,16GiB total
+swap,10GiB disk, the deadline or an explicit stop request. Capacity profiles do
+not use the old10% runtime stop either; real pressure and swap remain independent
+signals. Legacy profiles retain their original percentage behavior. The
+supervisor stops only owned processes and never closes unrelated applications.
+
+## Context allocation probes
+
+The separate `qwen-probe.yaml`, `ornith-probe.yaml` and `minicpm-probe.yaml`
+profiles are diagnostic and cannot enter a scored comparison:
 
 ```bash
 uv run --locked python runner/supervise_bench.py \
-  --config configs/agent-automation-v7-20261029/ornith-resource-probe.yaml \
-  --output artifacts/automation-benchmark-20261029/ornith-resource-probe-UNIQUE \
-  --deadline 900 --trials 1
+  --config configs/capacity-v8-20261101/ornith-probe.yaml \
+  --output artifacts/automation-benchmark-20261029/ornith-capacity-UNIQUE \
+  --deadline 3600 --trials 1
 ```
 
-The supervisor enforces one trial, a maximum900-second workload deadline and
-seven prelaunch observations spaced5seconds apart (30seconds total). Every
-observation must have normal pressure, at least84% kernel memorystatus level,
-at least10GiB disk and less than16GiB swap. Across the baseline, the metric
-spread must be at most2points and swap spread less than64MiB. All observations,
-including rejected attempts, are retained in `baseline.jsonl`. This detects
-observed instability; it cannot guarantee no unrelated workload starts later.
+Commit source/config before launching and use a new output directory each time.
+Only one model server may run. Each capacity probe enforces one trial and a
+maximum3600-second workload deadline, plus baseline and bounded cleanup time.
+The parent passes its exact admitted config hash and output directory to the
+owned runner; direct unsupervised probe launches are rejected.
 
-All existing runtime stops remain: immediate critical pressure, two warning
-samples, two samples at or below10%,2GiB swap growth from the final prelaunch
-sample,16GiB total swap,10GiB disk,5-second sampling and bounded owned teardown.
-The30-second baseline is additional to the workload deadline; teardown has its
-existing grace period. Direct `run_bench.py` invocation rejects probe profiles
-without supervisor admission. Use the supervisor rather than individual suite
-commands for resource probes.
+After model identity/plain-completion checks, prompts ramp through4096,16384 and
+65520 tokens with up to16 generated tokens. Local tokenizer counts (Mei) or
+server tokenization (llama.cpp) are checked against actual completion usage.
+Completed steps and failures are written to `context-capacity.json` before
+proceeding. Mei's backend status/allocator report is saved after each completed
+step; llama.cpp's model/KV/recurrent/compute allocations are available in its
+server log. The normal pressure/swap monitor stays active throughout prefill.
+A timeout, interruption or mismatch is not a pass. A synthetic repetitive prompt
+allocates context but does not establish retrieval quality or worst-case
+attention behavior. Record actual prompt/completion counts; do not call it a
+65536-token quality test.
 
-`free_percent` is the macOS kernel memorystatus signal, not raw free-page RAM or
-an exact available-GiB budget. `owned_processes` contains OS footprint/RSS counters;
-these are incomplete GPU/model accounting. Mei's MLX allocator telemetry in its
-request logs is a separate measurement and must not be added to process totals
-as if disjoint. No dynamic memory-budget estimate is implemented. Review host
-pressure/swap alongside backend allocator peaks, task coverage and external
-interference before adopting any comparison admission profile. Preserve logs,
-request telemetry and hashes before clearing a probe's owned KV cache.
+If the ramp passes, the same diagnostic lifecycle continues into both household
+and Python tracks. This is resource evidence, not a new held-out score: its cache
+has been warmed by the ramp. Preserve backend logs, request telemetry and model
+hashes, stop the server and clear only its owned KV directory. A subsequent
+comparison uses the full profile with a fresh server/cache, without the ramp.
+Never relabel diagnostics or historical runs as latest-method scores.
 
-MiniCPM's existing85% profile remains unchanged pending a separate GGUF/KV and
-working-set assessment. A short Qwen/Ornith probe cannot establish MiniCPM safety,
-worst-case65,536-token survival, or real Peixinho acceptance. Any later comparison
-profile must be committed and attributed to its own release/config identity;
-never relabel historical runs.
+MiniCPM has a separate GGUF/source assessment in
+`artifacts/automation-benchmark-20261029/minicpm-memory-assessment-20261101.json`:
+10 dense f16KV layers require1.25GiB at65536 tokens;30 recurrent layers add
+65,863,680bytes. File plus these terms is21.024GiB before other allowances.
+Qwen/Ornith use matching hybrid dimensions from their own pinned MLX configs.
+Flint uses a conservative full-length K/V bound for all49 layers, without
+assuming sliding-window savings. Flint's existing failed native-tool admission
+still stands; capacity feasibility does not override tool admission.
 
-## MiniCPM probe
-
-`configs/agent-automation-v7-20261029/minicpm-resource-probe.yaml` is a separate
-GGUF diagnostic profile retaining85% launch headroom, the same stable30-second
-baseline and900-second maximum workload. Use the supervisor command above with
-that config and a new output directory. It retains the exact ctx65536/f16KV/
-parallel1/no-mmproj/native-sampling settings of the comparison profile.
-The source/metadata-only assessment and its limitations are preserved in
-`artifacts/automation-benchmark-20261029/minicpm-memory-assessment-20261101.json`.
-No MiniCPM model has been loaded for that assessment. Review actual backend
-model/KV/recurrent/compute-buffer logs alongside host guards during its probe
-before proposing any change in admission.
+The old review and all rejected preflights remain in the campaign artifacts.
+Kernel counter definitions come from [Apple's VM statistics declarations](https://github.com/apple-oss-distributions/xnu/blob/main/osfmk/mach/vm_statistics.h)
+and [host counter implementation](https://github.com/apple-oss-distributions/xnu/blob/main/osfmk/kern/host.c).

@@ -1,7 +1,8 @@
 # local-model-bench
 
-Current release: **benchmark-v7.2.1 — separate MiniCPM resource probe**.
-See [MiniCPM probe release notes](docs/releases/benchmark-v7.2.1.md),
+Current release: **benchmark-v8 — capacity admission and context probes**.
+See [v8 release notes](docs/releases/benchmark-v8.md),
+[MiniCPM probe release notes](docs/releases/benchmark-v7.2.1.md),
 [resource admission release notes](docs/releases/benchmark-v7.2.md),
 [report patch notes](docs/releases/benchmark-v7.1.1.md), the
 [transport patch](docs/releases/benchmark-v7.1.md), and the

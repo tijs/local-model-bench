@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from bench_common import REPO, git_sha
+from capacity_admission import capacity_fits, capacity_plan
 from owned_process import OwnedSession
 from run_standin_suite import committed_config, write_json
 
@@ -45,6 +46,7 @@ def admission_settings(
     for value, lower, upper in ((count, 1, 13), (spread, 0, 5)):
         if type(value) is not int or not lower <= value <= upper:
             raise ValueError("invalid launch baseline bounds")
+    plan = capacity_plan(cfg)
     probe = cfg.get("resource_probe", False)
     if type(probe) is not bool:
         raise ValueError("resource_probe must be a literal boolean")
@@ -52,31 +54,36 @@ def admission_settings(
         cfg.get("diagnostic_only") is not True
         or cfg.get("orchestration", {}).get("rank_eligible") is not False
         or count < 7
-        or deadline > 900
+        or deadline > (3600 if plan is not None else 900)
         or trials != 1
     ):
         raise ValueError(
             "resource probes require diagnostic/non-ranking identity, "
-            "at least7 baseline samples, one trial and deadline<=900s"
+            "at least7 baseline samples, one trial and bounded deadline"
         )
     return count, spread
 
 
-def baseline_ready(samples: list[dict[str, Any]], floor: int, spread: int) -> bool:
+def baseline_ready(
+    samples: list[dict[str, Any]], floor: int | None, spread: int
+) -> bool:
     """Every observation must pass; a transient recovery cannot hide pressure."""
     return (
         bool(samples)
         and all(
-            point["free_percent"] >= floor
+            (floor is None or point["free_percent"] >= floor)
             and point["kernel_pressure_level"] == 1
             and point["disk_free_bytes"] >= 10 * 1024**3
             and point["swap_used_mib"] < 16384
             for point in samples
         )
         and (
-            max(point["free_percent"] for point in samples)
-            - min(point["free_percent"] for point in samples)
-            <= spread
+            (
+                floor is None
+                or max(point["free_percent"] for point in samples)
+                - min(point["free_percent"] for point in samples)
+                <= spread
+            )
             and max(point["swap_used_mib"] for point in samples)
             - min(point["swap_used_mib"] for point in samples)
             < 64
@@ -85,13 +92,18 @@ def baseline_ready(samples: list[dict[str, Any]], floor: int, spread: int) -> bo
 
 
 def gate_reason(
-    sample: dict[str, Any], initial: dict[str, Any], low: int, warnings: int
+    sample: dict[str, Any],
+    initial: dict[str, Any],
+    low: int,
+    warnings: int,
+    *,
+    percent_stop: bool = True,
 ) -> str | None:
     if sample["kernel_pressure_level"] >= 4:
         return "critical memory pressure"
     if warnings >= 2:
         return "sustained warning memory pressure"
-    if low >= 2:
+    if percent_stop and low >= 2:
         return "sustained memory free <=10%"
     if sample["swap_used_mib"] - initial["swap_used_mib"] >= 2048:
         return "swap growth >=2 GiB"
@@ -140,6 +152,8 @@ def sample(pid: int, destination: Path) -> dict[str, Any]:
             )
     return {
         "time": now(),
+        "physical_memory_bytes": int(read(["sysctl", "-n", "hw.memsize"])),
+        "host_vm_stat": read(["vm_stat"]),
         "free_percent": int(free[1]),
         "kernel_pressure_level": int(
             read(["sysctl", "-n", "kern.memorystatus_vm_pressure_level"])
@@ -183,7 +197,8 @@ def supervise(config: Path, output: Path, deadline: int = 7200, trials: int = 1)
     baseline_count, baseline_spread = admission_settings(cfg, deadline, trials)
     identifier = uuid.uuid4().hex
     config_sha = hashlib.sha256(content).hexdigest()
-    floor = launch_floor(cfg)
+    plan = capacity_plan(cfg)
+    floor = None if plan is not None else launch_floor(cfg)
     if not 1 <= trials <= 20 or not 1 <= deadline <= 86400:
         raise ValueError("invalid trial/deadline bounds")
     environment = os.environ.copy()
@@ -193,6 +208,7 @@ def supervise(config: Path, output: Path, deadline: int = 7200, trials: int = 1)
         environment[key] = value
     environment["BENCH_SUPERVISION_ID"] = identifier
     environment["BENCH_ADMITTED_CONFIG_SHA256"] = config_sha
+    environment["BENCH_SUPERVISION_OUTPUT"] = str(output.resolve())
     output.mkdir(parents=True, exist_ok=False)
     try:
         baseline = []
@@ -231,7 +247,9 @@ def supervise(config: Path, output: Path, deadline: int = 7200, trials: int = 1)
         "launch_baseline_samples": baseline_count,
         "launch_max_percent_spread": baseline_spread,
         "launch_max_swap_spread_mib_exclusive": 64,
-        "stop_min_free_percent": 10,
+        "stop_min_free_percent": None if plan is not None else 10,
+        "admission_mode": "capacity" if plan is not None else "legacy_percent",
+        "capacity_plan": plan,
         "sustained_samples": 2,
         "sample_seconds": 5,
         "critical_pressure_immediate": True,
@@ -263,6 +281,11 @@ def supervise(config: Path, output: Path, deadline: int = 7200, trials: int = 1)
                     "bench_common.py",
                     "run_standin_suite.py",
                 )
+                + (
+                    ("capacity_admission.py", "probe_mei.py")
+                    if plan is not None
+                    else ()
+                )
             },
             "cwd": str(REPO),
             "initial": initial,
@@ -270,7 +293,9 @@ def supervise(config: Path, output: Path, deadline: int = 7200, trials: int = 1)
             "resource_policy": policy,
         },
     )
-    if not baseline_ready(baseline, floor, baseline_spread):
+    if not baseline_ready(baseline, floor, baseline_spread) or (
+        plan is not None and not capacity_fits(plan, baseline)
+    ):
         write_json(
             output / "outcome.json",
             {
@@ -319,7 +344,9 @@ def supervise(config: Path, output: Path, deadline: int = 7200, trials: int = 1)
                 telemetry.write(json.dumps(current) + "\n")
                 low = low + 1 if current["free_percent"] <= 10 else 0
                 warnings = warnings + 1 if current["kernel_pressure_level"] >= 2 else 0
-                reason = gate_reason(current, initial, low, warnings)
+                reason = gate_reason(
+                    current, initial, low, warnings, percent_stop=plan is None
+                )
                 if reason is None and time.monotonic() >= end:
                     reason = "deadline"
                 if reason is None and (output / "stop.request").exists():
