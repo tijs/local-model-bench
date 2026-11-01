@@ -54,3 +54,12 @@ output determinism, a real warm cache hit, zero cold cached tokens, identical
 content/reasoning/tool arguments and the correct tool contract. Random call IDs
 are excluded. No disk cache, sampler or decoding-mode change is introduced.
 This is a focused cache control, not a statistical quality or speed claim.
+
+The first cache-control experiment stopped for2GiB swap growth during the
+immediate second-process load; its warm requests passed but cold controls did
+not complete. See the [interruption review](../artifacts/clover-cache-diffusion-20261101/README.md).
+The fresh `clover-kapitsa-diffusion-cache-recovery.yaml` profile adds seven
+stable recovery observations between exited processes, including wired and
+compressor byte counters, with a90-second bound. It keeps all global resource
+limits and uses an explicitly declared1024-token request budget. The next
+output is `artifacts/clover-cache-diffusion-recovery-20261101`.

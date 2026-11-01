@@ -5,13 +5,45 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import re
 import shlex
 import subprocess
+import time
 from pathlib import Path
 
 from mei_provenance import listener_binary
 from run_mei_acceptance import wait_ready
 from run_standin_suite import write_json
+from supervise_bench import baseline_ready, sample
+
+
+def vm_bytes(point, label):
+    text = point["host_vm_stat"]
+    page = re.search(r"page size of (\d+)", text)
+    count = re.search(re.escape(label) + r":\s+(\d+)", text)
+    if page is None or count is None:
+        raise ValueError("missing macOS VM byte counters")
+    return int(page[1]) * int(count[1])
+
+
+def recovered(points, initial):
+    return (len(points) >= 7 and baseline_ready(points[-7:], None, 2)
+            and all(vm_bytes(p, label) <= vm_bytes(initial, label) + 512 * 1024**2
+                    for p in points[-7:] for label in ("Pages wired down", "Pages occupied by compressor")))
+
+
+def wait_for_recovery(output, initial, session):
+    points = []
+    deadline = time.monotonic() + 90
+    with (output / f"recovery-{session}.jsonl").open("x", buffering=1) as stream:
+        while time.monotonic() < deadline:
+            point = sample(os.getpid(), output)
+            stream.write(json.dumps(point) + "\n")
+            points.append(point)
+            if recovered(points, initial):
+                return
+            time.sleep(5)
+    raise RuntimeError("post-exit resource recovery not observed within90seconds; no next model started")
 
 
 def signature(response):
@@ -71,6 +103,7 @@ def child(cfg, content, output):
     server = None
     log = None
     session = 0
+    initial = json.loads((output / "baseline.jsonl").read_text().splitlines()[-1])
     report = {"status": "running", "decoder_verified": None, "cases": {}}
 
     def stop():
@@ -90,6 +123,8 @@ def child(cfg, content, output):
     def restart():
         nonlocal server, log, session
         stop()
+        if session:
+            wait_for_recovery(output, initial, session)
         session += 1
         path = output / f"server-{session}.log"
         log = path.open("x")
@@ -114,7 +149,7 @@ def child(cfg, content, output):
                   "parameters": {"type": "object", "properties": {"a": {"type": "integer"}, "b": {"type": "integer"}},
                                  "required": ["a", "b"], "additionalProperties": False}}}]
         base = {"model": cfg["served_model_id"], "temperature": 0, "seed": 17,
-                "max_tokens": 1024, "stream": False, "tools": tools, "tool_choice": "auto"}
+                "max_tokens": cfg["native_probe"]["max_tokens"], "stream": False, "tools": tools, "tool_choice": "auto"}
         messages = [{"role": "system", "content": prefix},
                     {"role": "user", "content": "What is 15 + 27? You must use add_numbers to compute it."}]
         repeat = base | {"messages": messages}
@@ -149,6 +184,9 @@ def child(cfg, content, output):
             report["cases"][name] = row
             write_json(output / "cache-comparison.json", report)
         report["status"] = "passed" if all(row["passed"] for row in report["cases"].values()) else "failed"
+    except KeyboardInterrupt:
+        report.update(status="interrupted", error="supervisor interrupted cache controls")
+        raise
     except (OSError, ValueError, RuntimeError, KeyError, TypeError, subprocess.SubprocessError) as exc:
         report.update(status="failed", error=f"{type(exc).__name__}: {exc}")
     finally:

@@ -5,7 +5,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from kapitsa_cache_controls import compare, signature
+from kapitsa_cache_controls import compare, recovered, signature, vm_bytes
 
 
 def response(cached=0, text="reasoning", call_id="random-id"):
@@ -18,6 +18,19 @@ def response(cached=0, text="reasoning", call_id="random-id"):
 
 
 class KapitsaCacheControlTests(unittest.TestCase):
+    def test_handoff_requires_seven_stable_samples_and_recovered_vm_bytes(self):
+        point = {"host_vm_stat": "page size of 16384 bytes\nPages wired down: 100.\nPages occupied by compressor: 100.",
+                 "free_percent": 1, "kernel_pressure_level": 1, "disk_free_bytes": 20 * 1024**3,
+                 "swap_used_mib": 100}
+        self.assertEqual(vm_bytes(point, "Pages wired down"), 100 * 16384)
+        self.assertTrue(recovered([point] * 7, point))
+        self.assertFalse(recovered([point] * 6, point))
+        for label in ("Pages wired down", "Pages occupied by compressor"):
+            spike = point | {"host_vm_stat": point["host_vm_stat"].replace(label + ": 100", label + ": 100000")}
+            self.assertFalse(recovered([point] * 6 + [spike], point))
+        self.assertFalse(recovered([point] * 6 + [point | {"swap_used_mib": 170}], point))
+        self.assertFalse(recovered([point] * 6 + [point | {"kernel_pressure_level": 2}], point))
+
     def test_output_signature_ignores_dynamic_call_ids_but_keeps_reasoning_and_arguments(self):
         self.assertEqual(signature(response(call_id="a")), signature(response(call_id="b")))
         changed = copy.deepcopy(response())
