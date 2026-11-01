@@ -32,4 +32,7 @@ The fresh output directory preserves config, invocation, baseline, resources,
 launch/probe output, runtime identity and the final outcome. Existing output is
 refused. Review an interrupted attempt before retrying, and preserve all raw
 results. The current rc.2 config uses the public, hash-verified Groot text pack;
-new native results remain pending until its actual run completes.
+the first run completed with failed direct tool probes and is unqualified.
+See its [preserved review](../artifacts/mei-rc2-native-groot-20261101/README.md).
+The example output already exists: choose a fresh directory and commit an
+updated source-pinned config before a new attempt.

@@ -33,74 +33,63 @@ The selected reference retests are complete. Earlier results below remain
 historical references; they are not relabeled v9 scores. The new MiniCPM runtime
 profile is a memory/speed tradeoff, not a controlled model-quality comparison.
 
-## Previous completed results (v8 method)
+## What the benchmark tests
 
-One held-out trial per task on the v8.1-equivalent task method. Times include
-startup and native admission, excluding the 30-second host baseline.
+The primary track has twelve synthetic household workflows: capture, grounded
+retrieval and privacy, previewed sharing, saved progress, routines and recovery.
+Models use bounded domain tools; held-out checks inspect the final state and
+operation journal. See the [household workflow guide](docs/PEIXINHO_STANDIN.md).
 
-| Model | Household workflows | Python automation | Full-run time |
-|---|---:|---:|---:|
-| MiniCPM-V4.7 Q4_K_M | 12/12 | 2/3 | 5m 30s |
-| Groot 19B/A3B, 4.5 bpw MLX | 11/12 | 3/3 | 9m 39s |
-| Qwen3.6 35B/A3B, 4-bit MLX | 10/12 | 3/3 | 7m 06s |
-| Ornith1.5 35B/A3B, 4-bit MLX | 9/12 | 2/3 | 10m 09s |
+The Python track has three real script-writing tasks: shopping CSV normalization,
+decimal-safe expense aggregation and reminder-export repair. Models can read a
+synthetic fixture, write `solution.py`, run it and repair it. Final grading uses
+four inputs in OS containment, including unseen variants. Invalid calls still
+count even if the eventual script works. See the
+[Python automation guide](docs/PYTHON_AUTOMATION.md).
 
-See the [verified comparison and exact run IDs](results/CANDIDATES.md).
-MiniCPM uses q8 K/V with the first eight expert layers on CPU; the other models
-use Mei. These compare complete serving profiles, rather than isolating model
-or quantization quality. Independent repeats remain pending.
+Full-run times above include startup/build wait, native admission and both task
+tracks, excluding the 30-second host baseline. They compare complete serving
+profiles. One trajectory per task does not establish statistical superiority;
+task success also does not establish near-64K capacity or actual app acceptance.
 
-The [candidate campaign](docs/CANDIDATE_CAMPAIGN.md) is testing Groot,
-ThinkingCap, Logics-SWE and Clover. Groot and Logics-SWE passed every task in their latest trials; both are provisional contenders.
-ThinkingCap's first
-attempt stopped for memory pressure; its bounded-checkpoint retry completed on v9. Logics-SWE completed its first full trial. Clover is hash-verified, with passing CPU/API and diffusion kernel checks;
-native model admission and workflow quality are pending. The v9 routing-validator correction requires fresh comparisons;
-existing grades remain historical and will not be rewritten.
+## Work in progress
 
-The active roster is **Groot and Logics-SWE (provisional contenders), ThinkingCap,
-MiniCPM, Qwen3.6 and Ornith1.5**. Final selection follows the remaining candidate
-and repeat work.
-Flint, including JANGH2, was retired from consideration by user decision on
-2026-11-01 after the completed comparison. Its configs, transcripts and results
-remain historical evidence; further Flint runs or quant research require an
-explicit decision to reconsider it. See the [comparison summary](results/AGENT_SUMMARY.md).
+Groot and Logics-SWE are provisional contenders after passing all 15 current
+tasks. Independent repeats and the remaining candidate work precede final roster
+selection. The [campaign review](docs/CANDIDATE_CAMPAIGN.md) records profiles,
+failures, memory fixes and next steps.
 
-Hermes was retired on 2026-10-25. Its drivers, task definitions, transcripts and
-results remain historical evidence. Current commands never reset its profiles,
-launch it, or run its coding workloads. Do not reinstall or restore it.
+- **Clover:** publisher files and diffusion kernel checks verified; native model
+  tools and task evaluation pending. Its available MLX-format pack is consumed
+  by Kapitsa, a native Metal engine. It is not yet a Mei/MLX runtime result.
+- **Mei preview:** the prepared Groot text pack is
+  [public](https://huggingface.co/Tostibrown/Groot-19B-A3B-261023-rco-role-4.5bpw-textonly).
+  The first rc.2 native qualification failed two direct tool probes at their
+  256-token limit; cache and exact-context checks passed. The attempt is
+  [preserved](artifacts/mei-rc2-native-groot-20261101/README.md).
+  Packaging and preview release remain pending; stable Mei remains 0.9.0.
 
-## Primary track: synthetic Peixinho workflows
+Flint, including JANGH2, was retired from the roster on 2026-11-01. Hermes was
+retired as a runtime on 2026-10-25. Their configs, transcripts and results remain
+historical evidence. Do not restore Hermes or run its legacy coding workloads.
 
-The `peixinho-standin-v1` scope adds twelve synthetic household workflow
-contracts: capture, grounded retrieval/privacy, previewed sharing/private copies,
-saved progress, routines and outage recovery. It uses bounded domain operations
-and held-out state/journal validators. These are simulator/model evaluations,
-not Peixinho app acceptance tests. See [the stand-in guide](docs/PEIXINHO_STANDIN.md)
-for the explicit config profile, smoke/full coverage and separate result log/report.
-Benchmark-v5 and its model-only results retain their original identities.
+## Find results and reproduce them
 
-## Python automation track
+| Need | Start here |
+|---|---|
+| Latest six-model scores, exact runs and failures | [Current v9 comparison](results/AGENT_V9.md) |
+| Model profiles, audits and remaining work | [Candidate campaign](docs/CANDIDATE_CAMPAIGN.md) |
+| Machine-readable current run selection | [v9 selection](results/agent-v9-20261101.json) |
+| Previous v8 scores and original provenance | [Historical comparison](results/CANDIDATES.md) |
+| Memory admission and stop rules | [Resource guide](docs/RESOURCE_ADMISSION.md) |
+| Native release qualification, separate from scores | [Mei acceptance guide](docs/MEI_NATIVE_ACCEPTANCE.md) |
+| All guides and historical reports | [Documentation index](docs/README.md) |
 
-The benchmark includes three real isolated Python CLI tasks: shopping CSV
-normalization, decimal-safe expense aggregation, and reminder-export repair.
-It uses a bounded write/run/repair loop and unseen post-agent inputs, with a
-separate score/report. See [the automation guide](docs/PYTHON_AUTOMATION.md).
-The **v8.3.1** comparison uses the unchanged v8.1 task method and is complete with Flint not admitted: Qwen3.6 completed
-**10/12 household + 3/3 Python** in7m06s; Ornith1.5 completed **9/12 + 2/3** in10m09s.
-Both selected task runs stayed at normal pressure without swap growth. Flint
-failed native admission and remains unranked. MiniCPM completed **12/12 + 2/3**
-in5m30s with one isolated startup warning and862MiB swap growth, then flat. See the
-[coverage-aware comparison](results/AGENT_LEADERBOARD.md), [four-model summary](results/AGENT_SUMMARY.md) and
-[campaign selection](results/agent-v8p3p1-20261101.json). These are one-trajectory,
-profile-specific results, not statistical superiority or real-app acceptance.
-MiniCPM uses q8_0 K/V, ubatch64 and first8 expert layers on CPU after both all-GPU profiles stopped for measured warning pressure;
-its Q4_K_M weights and65536context remain. Near64K capacity is a separate experiment and is not implied by a task score.
-
-The v8.1 correction stops counting an ordinary check for an absent advertised
-starter file as an invalid tool call; old grades remain unchanged. Historical
-v7/v7.1 results and partial/resource-interrupted attempts retain their own method
-identities in the [campaign evidence](artifacts/automation-benchmark-20261029/README.md).
-Use the documented supervisor and a fresh owned server/cache for each profile.
+Earlier MiniCPM (12/12 + 2/3), Qwen (10/12 + 3/3) and Ornith (9/12 + 2/3)
+v8 results remain online with their original method identities. The latest
+MiniCPM profile disables CPU repacking and caps recurrent checkpoints at two;
+its 11/12 + 3/3 score is a new serving-profile trial. Neither older nor newer
+scores are silently substituted or regraded.
 
 ## Secondary track: model-only v1
 
@@ -127,7 +116,9 @@ Run `uv sync --locked` to install all project dependencies.
 ```bash
 uv sync --locked
 uv run --locked python -m unittest discover -s runner/tests -v
-uv run --locked python runner/run_bench.py --config configs/runtime-attribution-fixturefix-20261029/qwen-full.yaml --trials 1
+uv run --locked python runner/supervise_bench.py \
+  --config configs/capacity-v8-20261101/qwen.yaml \
+  --output artifacts/qwen-fresh-example --trials 1
 ```
 
 Commit the exact config before starting. Run one model server at a time under
@@ -152,8 +143,3 @@ regression tests and is not an executable current benchmark path.
 Project state and execution plans live in Kiem (`proj/local_model_bench`); see
 [AGENTS.md](AGENTS.md). Preserve append-only results and provenance. Use `uv`,
 `ruff` and `ty` for Python work.
-
-Native Mei release gates use the [guarded acceptance launcher](docs/MEI_NATIVE_ACCEPTANCE.md).
-It preserves partial checks and applies the same actual resource limits as scored
-runs. The [prepared Groot text pack](https://huggingface.co/Tostibrown/Groot-19B-A3B-261023-rco-role-4.5bpw-textonly)
-is public and verified; the next Mei preview's native qualification remains open.

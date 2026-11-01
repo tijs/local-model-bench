@@ -9,14 +9,14 @@ an immutable config and fresh owned server, with native admission before the
 
 | Candidate | Verified outcome | Next step |
 |---|---|---|
-| Groot | v9: 12/12 household, 3/3 Python; normal pressure, no swap growth | Provisional front-runner; finish remaining candidates and runtime release |
+| Groot | v9: 12/12 household, 3/3 Python; normal pressure, no swap growth | Provisional contender; same-binary repeat and runtime release pending |
 | ThinkingCap | v9: 11/12 household, 3/3 Python; normal pressure, no swap growth | Retain as a provisional contender and repeat |
 | Logics-SWE | v9.2: 12/12 household, 3/3 Python; normal pressure, no swap growth | Provisional contender; independent repeat pending |
 | Clover | MLX-format pack verified; native Metal kernel checks pass on M1 Max | Admit native tools and test genuine diffusion with separate provenance |
 
 [Current v9 comparison](../results/AGENT_V9.md) ·
 [Previous v8 comparison](../results/CANDIDATES.md) ·
-[Exact campaign selection](../results/agent-candidates-20261101.json) ·
+[Exact current selection](../results/agent-v9-20261101.json) ·
 [MiniCPM, Qwen and Ornith review](../results/AGENT_SUMMARY.md)
 
 ## ThinkingCap interruption and owned fixes
@@ -30,8 +30,8 @@ The pinned llama.cpp runtime retains up to 32 context checkpoints by default,
 independently of `--cache-ram 0`. The log shows about 200 MiB per checkpoint and
 ten retained near the stop. This is a concrete missing component of the initial
 memory estimate, though it does not prove that snapshots alone caused pressure.
-The next profile will explicitly limit checkpoints and budget their retained
-memory. Actual pressure, swap, disk and deadline guards remain in force.
+The completed retry explicitly limits checkpoints to two and budgets their
+retained memory. Actual pressure, swap, disk and deadline guards remain in force.
 
 The ambiguous-capture response explicitly invited the user to choose between a
 private note and private task, introducing a numbered list with a colon. The
@@ -127,11 +127,10 @@ identities are preserved; this is not a bit-identical executable repeat or a
 controlled numerical ablation. No old grade was rewritten or better sample
 substituted for a failed admission.
 
-The selected v9 reference comparison is now complete: Groot 12/12 + 3/3,
-ThinkingCap 11/12 + 3/3, bounded MiniCPM 11/12 + 3/3, Ornith 9/12 + 2/3 and
-Qwen 7/12 + 3/3. Groot is the provisional front-runner, with uncertainty from
-limited trials and differing serving profiles. Logics-SWE, Clover and useful
-Mei release/distribution work remain open in the broader campaign.
+The selected six-model v9 comparison is complete, including the MiniCPM, Qwen
+and Ornith retests. Groot and Logics-SWE each passed all 15 tasks in their latest
+trial. Independent finalist repeats, Clover evaluation and Mei release work
+remain open; the broader campaign is still in progress.
 
 [Full Groot repeat evidence and audit](../artifacts/candidate-system-campaign-20261101/groot-heldout-v9-repeat-20261101/)
 
@@ -148,15 +147,16 @@ still govern admission and execution.
 
 Logics provides no sampler recipe. The benchmark explicitly adopts its Qwen3.6
 lineage's general-thinking recipe for both tracks; this is a declared choice,
-not a claim that Logics prescribed those values. Native tools and a complete
-score are pending. This is a separate GGUF serving profile, not a Mei result.
+not a claim that Logics prescribed those values. The profile subsequently
+passed native tools and completed both tracks, as recorded below. This is a separate GGUF serving profile, not a Mei result.
 
 [Preparation evidence](../artifacts/candidate-system-campaign-20261101/logics-swe-preparation/)
 
 Kapitsa is also built from pinned source and its selected CPU/API tests pass.
-Its Clover pack is MLX-format, while the engine itself is native Metal. No
-Clover model has loaded and no GPU correctness, performance or tool score is
-claimed by the build. Diffusion must be explicitly selected and distinguished
+Its Clover pack is MLX-format, while the engine itself is native Metal. Clover
+has not yet loaded as a model. The later kernel checks below add GPU
+correctness evidence, but neither the build nor kernel checks establish a
+performance or tool score. Diffusion must be explicitly selected and distinguished
 from its causal/speculative paths.
 
 ## Logics-SWE first full result
@@ -186,8 +186,10 @@ Eight focused tests and all 679 runner tests pass. See the native acceptance gui
 Mei work branch `526204b` prepares 0.10.0-rc.2 with the Groot pull/profile entry,
 accurate architecture labels, verified export tooling and checkpointed probes.
 All 449 Swift tests pass (two explicit skips), as do 23 Python exporter/probe
-tests. Native admission, packaging, release and Homebrew readback are still open;
-stable remains 0.9.0. The public Groot artifact's 16 files were independently
+tests. The first full native run completed with two failed direct tool probes;
+packaging, release and Homebrew readback remain open. Stable remains 0.9.0. See
+the [native attempt review](../artifacts/mei-rc2-native-groot-20261101/README.md).
+The public Groot artifact's 16 files were independently
 verified by anonymous hash/size readback at `53f52e0e`. Historical local source
 and export files remain unchanged.
 
