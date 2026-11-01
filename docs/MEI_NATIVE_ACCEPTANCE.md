@@ -41,3 +41,7 @@ A fresh attempt uses `groot-tools1024.yaml`, Mei `e3e4bb0`, an isolated new
 runtime base and 1024 reasoning-inclusive tokens for each direct-tool probe.
 Failure envelopes are retained; validation and context/cache contracts are
 unchanged. The original 256-token attempt remains failed evidence.
+
+The fresh run [passed all 13 checks](../artifacts/mei-rc2-native-groot-tools1024-20261101/README.md).
+Both direct calls completed in285 tokens, above the old cap. Pressure stayed
+normal and swap did not grow. Original failure evidence is retained unchanged.

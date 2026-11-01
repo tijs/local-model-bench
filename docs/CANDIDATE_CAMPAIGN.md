@@ -199,3 +199,15 @@ non-attention suite also passes under shader validation. This is kernel evidence
 on this Mac, not native model or tool acceptance. Kapitsa consumes MLX-format
 weights with its own Metal runtime. No silent causal/speculative fallback will
 be labeled diffusion.
+
+## Mei rc.2 native qualification
+
+The fresh source-pinned run passed all 13 required native checks in 228.389
+seconds. Both direct calls completed correctly in 285 tokens under the declared
+1024-token budget; the first attempt exhausted its 256-token cap. All 45
+pressure samples were normal, swap was flat and all 16 model hashes matched.
+Native acceptance writes no task scores. Packaged executable/Metal hashes match
+this tested build exactly; source was merged to Mei main. Preview publication
+and Homebrew installed-asset verification are next. Stable remains 0.9.0.
+
+[Full native evidence and limits](../artifacts/mei-rc2-native-groot-tools1024-20261101/README.md)
