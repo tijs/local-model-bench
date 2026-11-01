@@ -31,6 +31,7 @@ from build_agent_leaderboard import TRACKS, source_path
 from capacity_admission import capacity_fits, capacity_plan
 from mei_provenance import verify_mei_runtime
 from owned_process import OwnedSession
+from run_automation_suite import TOOLS as PYTHON_TOOLS
 from run_automation_suite import execute_source, isolation_identity
 from run_automation_suite import run_task as python_task
 from run_prompt import call_backend_streaming
@@ -46,6 +47,24 @@ from supervise_bench import baseline_ready, gate_reason, now, sample
 
 RELEASE = "19c9584b71e30ceea8d8c4c29070d1781ce60854"
 PROFILE = Path(__file__).with_name("flint-full-diagnostic-v8p1.yaml")
+FAILED_DIAGNOSTIC = Path(__file__).with_name("flint-full-diagnostic-v8p3p1-20261101")
+
+
+def replay_prefix(task: str) -> list[dict[str, Any]]:
+    if task not in ("expense-summary", "reminder-repair"):
+        raise ValueError("only the two preserved empty-final requests may be replayed")
+    path = FAILED_DIAGNOSTIC / f"python-{task}.json"
+    if path.read_bytes() != subprocess.check_output(
+        ["git", "show", f"HEAD:{path.relative_to(REPO)}"], cwd=REPO
+    ):
+        raise ValueError("commit original diagnostic evidence before replay")
+    result = json.loads(path.read_text())
+    if (
+        result["error"] != "empty_final"
+        or result["messages"][-1]["role"] != "assistant"
+    ):
+        raise ValueError("expected the preserved reasoning-only terminal response")
+    return result["messages"][:-1]
 
 
 def fingerprint(path: Path) -> str:
@@ -170,6 +189,51 @@ def worker(output: Path):
             status="running", runtime_identity=verify_mei_runtime(cfg, base_url=base)
         )
         write_json(output / "diagnostic.json", manifest)
+        if invocation.get("replay_terminations"):
+            manifest.update(planned_household=0, planned_python=0, planned_replays=2)
+            for name in ("expense-summary", "reminder-repair"):
+                messages = replay_prefix(name)
+                before = set((output / "stream-timing").glob("*.json"))
+                response, ttft, decode = call_backend_streaming(
+                    base,
+                    model,
+                    messages,
+                    PYTHON_TOOLS,
+                    timeout=180,
+                    max_tokens=4096,
+                    connect_timeout=90,
+                    first_progress_timeout=90,
+                    stream_idle_timeout=30,
+                    **sampler,
+                )
+                timing = sorted(set((output / "stream-timing").glob("*.json")) - before)
+                if len(timing) != 1:
+                    raise RuntimeError(
+                        "expected exactly one termination trace per replay"
+                    )
+                record = {
+                    "request_messages": messages,
+                    "response": response,
+                    "ttft": ttft,
+                    "decode": decode,
+                    "termination": json.loads(timing[0].read_text()),
+                    "qualified": False,
+                    "limits": "New stochastic continuation of the saved prefix; not the original sampled token sequence or a benchmark retry.",
+                }
+                write_json(output / f"termination-{name}.json", record)
+                manifest["completed"].append(
+                    {"track": "termination_replay", "task": name}
+                )
+                write_json(output / "diagnostic.json", manifest)
+                print(
+                    "TERMINATION",
+                    name,
+                    record["termination"]["termination_cause"],
+                    flush=True,
+                )
+            manifest["status"] = "completed"
+            write_json(output / "diagnostic.json", manifest)
+            return
         # Deliberately do NOT rerun native admission or call run_suite's test bypass.
         for case in cases("heldout"):
             result = run_task(case, call_backend_streaming, base, model, sampler)
@@ -234,8 +298,12 @@ def worker(output: Path):
             server.wait(timeout=20)
 
 
-def supervise(output: Path):
+def supervise(output: Path, replay_terminations: bool = False):
     cfg, content, versions = validate()
+    if replay_terminations:
+        for task in ("expense-summary", "reminder-repair"):
+            replay_prefix(task)
+    deadline = 900 if replay_terminations else 7200
     output = output.resolve()
     if not output.is_relative_to(REPO / "artifacts"):
         raise ValueError(
@@ -281,7 +349,8 @@ def supervise(output: Path):
             "versions": versions,
             "initial": baseline[-1],
             "capacity_plan": plan,
-            "deadline_seconds": 7200,
+            "deadline_seconds": deadline,
+            "replay_terminations": replay_terminations,
             "diagnostic_only": True,
             "qualified": False,
         },
@@ -289,9 +358,11 @@ def supervise(output: Path):
     env = os.environ.copy()
     env.update(cfg["required_runner_environment"])
     env["FLINT_DIAGNOSTIC_NONCE"] = identifier
+    if replay_terminations:
+        env["VMLX_STREAM_TIMING_DIR"] = str(output / "stream-timing")
     process = session = None
     reason = None
-    end = time.monotonic() + 7200
+    end = time.monotonic() + deadline
     low = warnings = 0
     try:
         with (
@@ -380,6 +451,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--validate-draft", action="store_true")
     parser.add_argument("--worker", action="store_true")
+    parser.add_argument("--replay-terminations", action="store_true")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
 
@@ -397,4 +469,4 @@ if __name__ == "__main__":
     elif args.worker:
         worker(args.output)
     else:
-        raise SystemExit(supervise(args.output))
+        raise SystemExit(supervise(args.output, args.replay_terminations))

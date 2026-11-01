@@ -47,6 +47,42 @@ def point(pressure=1):
 
 
 class DriverTests(unittest.TestCase):
+    def test_replay_uses_exact_committed_prefix_and_excludes_terminal_response(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            folder = root / "artifacts/failed"
+            folder.mkdir(parents=True)
+            messages = [
+                {"role": "system", "content": "contract"},
+                {"role": "tool", "content": "saved feedback"},
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "reasoning_content": "write now",
+                },
+            ]
+            content = json.dumps(
+                {"error": "empty_final", "messages": messages}
+            ).encode()
+            (folder / "python-expense-summary.json").write_bytes(content)
+            with (
+                patch.object(driver, "REPO", root),
+                patch.object(driver, "FAILED_DIAGNOSTIC", folder),
+                patch.object(driver.subprocess, "check_output", return_value=content),
+            ):
+                self.assertEqual(driver.replay_prefix("expense-summary"), messages[:-1])
+                with self.assertRaisesRegex(ValueError, "only the two"):
+                    driver.replay_prefix("shopping-csv")
+            with (
+                patch.object(driver, "REPO", root),
+                patch.object(driver, "FAILED_DIAGNOSTIC", folder),
+                patch.object(
+                    driver.subprocess, "check_output", return_value=b"different"
+                ),
+                self.assertRaisesRegex(ValueError, "commit original"),
+            ):
+                driver.replay_prefix("expense-summary")
+
     def test_busy_port_never_launches_or_creates_output(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory).resolve()
