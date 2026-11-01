@@ -306,6 +306,20 @@ Failure classes: task_failure=1
 
 Failure classes: interrupted=1, task_failure=1
 
+| 20261101T202525Z-33effef7 | bottlecapai/ThinkingCap-gemma-4-26B-A4B-it-GGUF:Q4_K_M / llama.cpp | 54253c2bab35 / 0834ad036f3c | heldout / thinking | completed | 12/12 | 0 | 11/12 | 0 | 0 | 0 |
+
+| Domain | Passed / executed | Median task wall s | Median output tok/s (wall) |
+|---|---:|---:|---:|
+| capture | 3/3 | 14.50 | 33.66 |
+| privacy | 2/2 | 13.39 | 31.89 |
+| progress | 1/2 | 18.30 | 27.49 |
+| resilience | 1/1 | 26.96 | 32.53 |
+| retrieval | 1/1 | 19.42 | 31.98 |
+| routines | 1/1 | 12.85 | 33.06 |
+| sharing | 2/2 | 10.97 | 24.43 |
+
+Failure classes: task_failure=1
+
 
 Output rate includes whole task wall time, not pure decode. RSS is not total model memory; consult the supervised server/Metal/physical-footprint and system pressure trace.
 No composite score is computed. Safety failures and prevented unsafe attempts remain explicit; passing other tasks cannot offset them.

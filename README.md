@@ -9,7 +9,19 @@ engines are llama.cpp variants and Mei (Swift/MLX). Peixinho is the intended
 future application runtime; it is currently a design, so there are no Peixinho
 application tests or product scores.
 
-## Latest completed results (v8 method)
+## Current v9 results
+
+ThinkingCap Q4_K_M completed **11/12 household workflows and 3/3 Python tasks**
+in **8m 47s**, with normal pressure throughout and no swap growth. Its retry uses
+at most two context checkpoints. The sole failure omitted the required record
+citation for a correct next-step answer. All grades and tool journals matched on
+audit; every script passed independent replay on all four fixture variants.
+
+See the [v9 comparison](results/AGENT_V9.md) for exact run IDs and profiles.
+MiniCPM, Qwen, Ornith and Groot v9 retests are pending. Their earlier results
+below remain available as historical references; they are not relabeled v9 scores.
+
+## Previous completed results (v8 method)
 
 One held-out trial per task on the v8.1-equivalent task method. Times include
 startup and native admission, excluding the 30-second host baseline.
@@ -28,7 +40,7 @@ or quantization quality. Independent repeats remain pending.
 
 The [candidate campaign](docs/CANDIDATE_CAMPAIGN.md) is testing Groot,
 ThinkingCap, Logics-SWE and Clover. Groot is provisional. ThinkingCap's first
-attempt stopped for memory pressure and has no full score. Logics-SWE and Clover
+attempt stopped for memory pressure; its bounded-checkpoint retry completed on v9. Logics-SWE and Clover
 have not run. The v9 routing-validator correction requires fresh comparisons;
 existing grades remain historical and will not be rewritten.
 

@@ -10,11 +10,12 @@ an immutable config and fresh owned server, with native admission before the
 | Candidate | Verified outcome | Next step |
 |---|---|---|
 | Groot | 11/12 household, 3/3 Python; normal pressure, no swap growth | Repeat after the validator release |
-| ThinkingCap | Native admission passed; full run stopped for sustained warning pressure | Bound context checkpoints, then fresh admission and full run |
+| ThinkingCap | v9: 11/12 household, 3/3 Python; normal pressure, no swap growth | Retain as a provisional contender and repeat |
 | Logics-SWE | Source/quant research saved; weights not staged | Prepare and admit an exact pinned profile |
 | Clover | Custom MLX architecture and genuine diffusion path identified | Validate implementation and tool semantics; keep causal and diffusion modes distinct |
 
-[Completed comparison](../results/CANDIDATES.md) ·
+[Current v9 comparison](../results/AGENT_V9.md) ·
+[Previous v8 comparison](../results/CANDIDATES.md) ·
 [Exact campaign selection](../results/agent-candidates-20261101.json) ·
 [MiniCPM, Qwen and Ornith review](../results/AGENT_SUMMARY.md)
 
@@ -49,3 +50,15 @@ runs; report-only changes must preserve the measured method identity.
 Mei improvements must reach a tested release, rather than remain only on a work
 branch. These are synthetic evaluations: Peixinho is still a design, and no
 result establishes application acceptance or full-context capacity.
+
+## ThinkingCap bounded-checkpoint result
+
+The fresh v9 run completed in 527.273 seconds, excluding the 30-second baseline.
+It passed 11/12 household workflows and all three Python tasks. All 104 pressure
+samples were normal, swap growth was zero, and 184 checkpoint observations
+confirmed a maximum of two retained snapshots. All grades and API/journal
+arguments matched; all submitted scripts passed independent fixture replay.
+The sole failure answered the correct next step but omitted the required record
+citation. The interrupted original remains unchanged and unranked.
+
+[Full run and reproducible audit](../artifacts/candidate-system-campaign-20261101/thinkingcap-heldout-v9-checkpoint2-20261101/)
