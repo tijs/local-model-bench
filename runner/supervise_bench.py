@@ -35,6 +35,55 @@ def launch_floor(cfg: dict[str, Any]) -> int:
     return value
 
 
+def admission_settings(
+    cfg: dict[str, Any], deadline: int, trials: int
+) -> tuple[int, int]:
+    """Opt-in stable baselines; probes cannot become unbounded scored runs."""
+    policy = cfg.get("resource_monitor_policy", {})
+    count = policy.get("launch_baseline_samples", 1)
+    spread = policy.get("launch_max_percent_spread", 2)
+    for value, lower, upper in ((count, 1, 13), (spread, 0, 5)):
+        if type(value) is not int or not lower <= value <= upper:
+            raise ValueError("invalid launch baseline bounds")
+    probe = cfg.get("resource_probe", False)
+    if type(probe) is not bool:
+        raise ValueError("resource_probe must be a literal boolean")
+    if probe and (
+        cfg.get("diagnostic_only") is not True
+        or cfg.get("orchestration", {}).get("rank_eligible") is not False
+        or count < 7
+        or deadline > 900
+        or trials != 1
+    ):
+        raise ValueError(
+            "resource probes require diagnostic/non-ranking identity, "
+            "at least7 baseline samples, one trial and deadline<=900s"
+        )
+    return count, spread
+
+
+def baseline_ready(samples: list[dict[str, Any]], floor: int, spread: int) -> bool:
+    """Every observation must pass; a transient recovery cannot hide pressure."""
+    return (
+        bool(samples)
+        and all(
+            point["free_percent"] >= floor
+            and point["kernel_pressure_level"] == 1
+            and point["disk_free_bytes"] >= 10 * 1024**3
+            and point["swap_used_mib"] < 16384
+            for point in samples
+        )
+        and (
+            max(point["free_percent"] for point in samples)
+            - min(point["free_percent"] for point in samples)
+            <= spread
+            and max(point["swap_used_mib"] for point in samples)
+            - min(point["swap_used_mib"] for point in samples)
+            < 64
+        )
+    )
+
+
 def gate_reason(
     sample: dict[str, Any], initial: dict[str, Any], low: int, warnings: int
 ) -> str | None:
@@ -131,6 +180,7 @@ def supervise(config: Path, output: Path, deadline: int = 7200, trials: int = 1)
         raise ValueError(
             "commit benchmark source/config changes before a supervised run"
         )
+    baseline_count, baseline_spread = admission_settings(cfg, deadline, trials)
     identifier = uuid.uuid4().hex
     config_sha = hashlib.sha256(content).hexdigest()
     floor = launch_floor(cfg)
@@ -145,7 +195,15 @@ def supervise(config: Path, output: Path, deadline: int = 7200, trials: int = 1)
     environment["BENCH_ADMITTED_CONFIG_SHA256"] = config_sha
     output.mkdir(parents=True, exist_ok=False)
     try:
-        initial = sample(os.getpid(), output)
+        baseline = []
+        with (output / "baseline.jsonl").open("x", buffering=1) as log:
+            for index in range(baseline_count):
+                if index:
+                    time.sleep(5)
+                point = sample(os.getpid(), output)
+                baseline.append(point)
+                log.write(json.dumps(point) + "\n")
+        initial = baseline[-1]
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as exc:
         write_json(
             output / "outcome.json",
@@ -170,6 +228,9 @@ def supervise(config: Path, output: Path, deadline: int = 7200, trials: int = 1)
     ]
     policy = {
         "launch_min_free_percent": floor,
+        "launch_baseline_samples": baseline_count,
+        "launch_max_percent_spread": baseline_spread,
+        "launch_max_swap_spread_mib_exclusive": 64,
         "stop_min_free_percent": 10,
         "sustained_samples": 2,
         "sample_seconds": 5,
@@ -181,6 +242,13 @@ def supervise(config: Path, output: Path, deadline: int = 7200, trials: int = 1)
     write_json(
         output / "invocation.json",
         {
+            "resource_probe": cfg.get("resource_probe", False),
+            "memory_accounting": {
+                "free_percent": "kernel memorystatus level; not raw free RAM or available GiB",
+                "owned_processes": "OS process counters; incomplete GPU/model accounting; do not sum into an admission budget",
+                "backend": cfg.get("inference_engine"),
+                "backend_allocator": "not sampled here; inspect backend request telemetry separately; not additive to OS counters",
+            },
             "argv": argv,
             "supervision_id": identifier,
             "config_sha256": config_sha,
@@ -202,12 +270,7 @@ def supervise(config: Path, output: Path, deadline: int = 7200, trials: int = 1)
             "resource_policy": policy,
         },
     )
-    if (
-        initial["free_percent"] < floor
-        or initial["kernel_pressure_level"] != 1
-        or initial["disk_free_bytes"] < 10 * 1024**3
-        or initial["swap_used_mib"] >= 16384
-    ):
+    if not baseline_ready(baseline, floor, baseline_spread):
         write_json(
             output / "outcome.json",
             {

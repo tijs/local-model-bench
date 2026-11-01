@@ -99,6 +99,8 @@ def track_result(
     config_path = relative_path(selection["config"])
     released_config = reader(campaign["release_commit"], config_path.as_posix())
     config = yaml.safe_load(released_config)
+    if config.get("resource_probe", False) or config.get("diagnostic_only", False):
+        raise ValueError("diagnostic resource profiles cannot enter a scored comparison")
     if (
         config_bytes != released_config
         or hashlib.sha256(config_bytes).hexdigest()[:12] != manifest["config_hash"]

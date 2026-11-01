@@ -1,6 +1,8 @@
 """Resource supervisor declines unsafe launches and records terminal outcomes."""
 
+import hashlib
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -9,6 +11,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import run_bench
 import supervise_bench as monitor
 
 
@@ -74,6 +77,128 @@ class ResourceSupervisorTests(unittest.TestCase):
                 monitor.launch_floor(
                     {"resource_monitor_policy": {"launch_min_free_percent": value}}
                 )
+
+    def test_stable_baseline_requires_every_sample_to_pass(self):
+        self.assertTrue(monitor.baseline_ready([sample(free=84)] * 7, 84, 2))
+        for points in (
+            [sample(free=83), sample(free=84)],
+            [sample(pressure=2), sample()],
+            [sample(free=84), sample(free=87)],
+            [sample(swap=0), sample(swap=64)],
+            [sample(disk=9 * 1024**3), sample()],
+            [],
+        ):
+            with self.subTest(points=points):
+                self.assertFalse(monitor.baseline_ready(points, 84, 2))
+
+    def test_probe_requires_bounded_nonranking_identity(self):
+        cfg = {
+            "resource_probe": True,
+            "diagnostic_only": True,
+            "orchestration": {"rank_eligible": False},
+            "resource_monitor_policy": {"launch_baseline_samples": 7},
+        }
+        self.assertEqual(monitor.admission_settings(cfg, 900, 1), (7, 2))
+        for change, deadline, trials in (
+            ({"diagnostic_only": False}, 900, 1),
+            ({"orchestration": {"rank_eligible": True}}, 900, 1),
+            ({"resource_monitor_policy": {"launch_baseline_samples": 1}}, 900, 1),
+            ({}, 901, 1),
+            ({}, 900, 2),
+            ({"resource_probe": "true"}, 900, 1),
+        ):
+            with (
+                self.subTest(change=change, deadline=deadline, trials=trials),
+                self.assertRaises(ValueError),
+            ):
+                monitor.admission_settings(cfg | change, deadline, trials)
+
+    def test_unstable_baseline_is_preserved_and_never_launches(self):
+        cfg_data = {
+            "resource_monitor_policy": {
+                "launch_min_free_percent": 84,
+                "launch_baseline_samples": 7,
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            cfg = root / "config.yaml"
+            with (
+                patch.object(monitor, "REPO", root),
+                patch.object(monitor, "committed_config", return_value=(cfg_data, b"")),
+                patch.object(
+                    monitor,
+                    "sample",
+                    side_effect=[sample(pressure=2)] + [sample(free=84)] * 6,
+                ),
+                patch.object(monitor.time, "sleep") as sleep,
+                patch.object(monitor.subprocess, "Popen") as launch,
+            ):
+                self.assertEqual(monitor.supervise(cfg, root / "evidence"), 2)
+            launch.assert_not_called()
+            self.assertEqual(sleep.call_count, 6)
+            self.assertEqual(
+                len((root / "evidence/baseline.jsonl").read_text().splitlines()), 7
+            )
+            invocation = json.loads((root / "evidence/invocation.json").read_text())
+            self.assertIn(
+                "incomplete GPU", invocation["memory_accounting"]["owned_processes"]
+            )
+
+    def test_probe_rejects_direct_runner_before_runtime_preparation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            cfg = Path(directory) / "probe.yaml"
+            content = b"resource_probe: true\n"
+            cfg.write_bytes(content)
+            with (
+                patch.dict(os.environ, {}, clear=True),
+                patch.object(run_bench, "verify_mei_runtime") as prepare,
+                self.assertRaisesRegex(ValueError, "supervise_bench"),
+            ):
+                run_bench.run_one(cfg)
+            prepare.assert_not_called()
+
+    def test_stable_84_probe_launches_once_with_exact_admitted_config(self):
+        cfg_data = {
+            "resource_probe": True,
+            "diagnostic_only": True,
+            "orchestration": {"rank_eligible": False},
+            "resource_monitor_policy": {
+                "launch_min_free_percent": 84,
+                "launch_baseline_samples": 7,
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            process = SimpleNamespace(pid=12345, returncode=0)
+            session = SimpleNamespace(
+                leader_exited=lambda: True, stop=lambda **kwargs: None
+            )
+            with (
+                patch.object(monitor, "REPO", root),
+                patch.object(
+                    monitor,
+                    "committed_config",
+                    return_value=(cfg_data, b"exact config"),
+                ),
+                patch.object(monitor, "sample", return_value=sample(free=84)),
+                patch.object(monitor.time, "sleep"),
+                patch.object(
+                    monitor.subprocess, "Popen", return_value=process
+                ) as launch,
+                patch.object(monitor, "OwnedSession", return_value=session),
+            ):
+                self.assertEqual(
+                    monitor.supervise(root / "probe.yaml", root / "evidence", 900), 0
+                )
+            launch.assert_called_once()
+            self.assertEqual(
+                launch.call_args.kwargs["env"]["BENCH_ADMITTED_CONFIG_SHA256"],
+                hashlib.sha256(b"exact config").hexdigest(),
+            )
+            self.assertEqual(
+                (root / "evidence/config.yaml").read_bytes(), b"exact config"
+            )
 
     def test_dirty_source_is_rejected_before_output_or_launch(self):
         with tempfile.TemporaryDirectory() as directory:

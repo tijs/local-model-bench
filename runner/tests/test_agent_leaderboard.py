@@ -209,6 +209,11 @@ class AgentLeaderboardTests(unittest.TestCase):
     def report(self, reader=None):
         return render_campaign(self.root, self.campaign, reader or self.reader)
 
+    def test_resource_probe_cannot_enter_scored_comparison(self):
+        self.cfg += b"resource_probe: true\ndiagnostic_only: true\n"
+        with self.assertRaisesRegex(ValueError, "diagnostic resource profiles"):
+            render_campaign(self.root, self.campaign, self.reader)
+
     def test_complete_matching_runs_are_compared(self):
         text = self.report()
         self.assertIn("12/12", text)

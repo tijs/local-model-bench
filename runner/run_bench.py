@@ -814,6 +814,10 @@ def run_one(config_path: Path, trials: int = 1, coding_suites=None, stage="all",
         raise ValueError('config bytes changed after resource admission')
     cfg = yaml.safe_load(config_content)
     config_hash = hashlib.sha256(config_content).hexdigest()[:12]
+    if cfg.get("resource_probe", False) and (
+        not os.environ.get("BENCH_SUPERVISION_ID") or admitted is None
+    ):
+        raise ValueError("resource probes require runner/supervise_bench.py")
     if "python_automation" in cfg:
         if not isinstance(cfg["python_automation"], bool):
             raise ValueError("python_automation must be a literal boolean")
