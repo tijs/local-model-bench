@@ -1,6 +1,6 @@
 # Local agent benchmark comparison
 
-Release **benchmark-v9** (`0834ad036f3cdfc682c7466e2e06fe632e79410e`); held-out partition, 1 trial(s) per task.
+Release **benchmark-v9.1** (`8a8383eb726b06e44a059b67cba653acf0614849`); held-out partition, 1 trial(s) per task.
 
 Synthetic household workflows and real isolated Python automation. **Not Peixinho app acceptance or a pure base-model/quantization ablation.**
 
@@ -22,7 +22,7 @@ Resource eligibility replays the released stop policy. Capacity mode permits an 
   - `resume-step`: task_failure; checks correct_next_step_cited.
 - **Tostibrown/Qwen3.6-35B-A3B-4bit-textonly** — config `configs/capacity-v8-20261101/qwen.yaml`; pending. Exact model/quant/runtime and sampler pins are in the config and run manifests.
 - **hermitdave/Groot-19B-A3B-261023-MLX-rco-role-4.5bpw** — config `configs/candidates-20261101/groot-mei.yaml`; pending. Exact model/quant/runtime and sampler pins are in the config and run manifests.
-- **openbmb/MiniCPM-V-4.7-35B-A3B-gguf:Q4_K_M** — config `configs/capacity-v8-20261101/minicpm-q8kv-cpu8.yaml`; pending. Exact model/quant/runtime and sampler pins are in the config and run manifests.
+- **openbmb/MiniCPM-V-4.7-35B-A3B-gguf:Q4_K_M** — config `configs/candidates-20261101/minicpm-cpu8-no-repack-checkpoint2.yaml`; pending. Exact model/quant/runtime and sampler pins are in the config and run manifests.
 - **ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit** — config `configs/capacity-v8-20261101/ornith.yaml`; pending. Exact model/quant/runtime and sampler pins are in the config and run manifests.
 
 Historical versions, calibration runs and partial attempts remain append-only in their own reports. These selected runs are never inferred from the newest timestamp alone.
