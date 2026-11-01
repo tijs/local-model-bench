@@ -12,7 +12,7 @@ an immutable config and fresh owned server, with native admission before the
 | Groot | v9: 12/12 household, 3/3 Python; normal pressure, no swap growth | Provisional contender; same-binary repeat and runtime release pending |
 | ThinkingCap | v9: 11/12 household, 3/3 Python; normal pressure, no swap growth | Retain as a provisional contender and repeat |
 | Logics-SWE | v9.2: 12/12 household, 3/3 Python; normal pressure, no swap growth | Provisional contender; independent repeat pending |
-| Clover | MLX-format pack verified; native Metal kernel checks pass on M1 Max | Admit native tools and test genuine diffusion with separate provenance |
+| Clover | Native32-row diffusion: plain, streaming/nonstreaming automatic tools and dependent continuation pass | Cache controls, backend integration and full scored evaluation |
 
 [Current v9 comparison](../results/AGENT_V9.md) ·
 [Previous v8 comparison](../results/CANDIDATES.md) ·
@@ -224,9 +224,25 @@ does not close them.
 
 ## Clover native admission preparation
 
-The [guarded diffusion diagnostic](CLOVER_NATIVE.md) pins Kapitsa70fb555 and
-publisher pack5eb76824, with one local/private slot, no drafter/disk cache and
-actual32-row diffusion. The27.57GB byte plan includes retained checkpoints and
+The [guarded diffusion diagnostic](CLOVER_NATIVE.md) pins Kapitsa 70fb555 and
+publisher pack 5eb76824, with one local/private slot, no drafter/disk cache and
+actual 32-row diffusion. The 27.57 GB byte plan includes retained checkpoints and
 workspace; actual pressure/swap guards remain. Automatic tools and dependent
 continuation are next. Named/required/strict grammar tools are unsupported in
 this engine's Clover path; no causal/speculative fallback is used.
+
+## Clover first native diffusion result
+
+The first guarded run passed all five native diagnostic checks in 20.329 seconds,
+excluding the 30-second baseline. The unchanged dependent-call gate completed in
+three turns with the generated code grounded in the final answer. All 4 pressure
+samples were normal with zero swap growth; all 15 post-run file hashes matched.
+Startup and request logs confirm 32-row diffusion/threshold 0.95 and real denoising
+passes, with no drafter, remote routing or causal/speculative substitution.
+
+This establishes short native automatic-tool support, not full-context/cache
+numerical correctness or a task score. Scored backend integration and cache
+controls remain before the household/Python trial. The source's constrained
+named/required/strict-tool limitation remains explicit.
+
+[Full native evidence and review](../artifacts/clover-native-diffusion-20261101/README.md)

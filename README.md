@@ -1,7 +1,7 @@
 # local-model-bench
 
-Current release: **benchmark-v9.3 — guarded native Mei acceptance**.
-See the [current release notes](docs/releases/benchmark-v9.3.md) and
+Current release: **benchmark-v9.4 — native Clover diffusion tools**.
+See the [current release notes](docs/releases/benchmark-v9.4.md) and
 [release history](docs/releases/).
 
 Compare local LLM serving stacks on affordable Apple Silicon Macs. The active
@@ -60,7 +60,9 @@ selection. The [campaign review](docs/CANDIDATE_CAMPAIGN.md) records profiles,
 failures, memory fixes and next steps.
 
 - **Clover:** publisher files and diffusion kernel checks verified; native model
-  tools and task evaluation pending. Its available MLX-format pack is consumed
+  automatic tools and dependent continuation
+  [passed native diagnostics](artifacts/clover-native-diffusion-20261101/README.md).
+  Cache controls and task evaluation remain pending. Its MLX-format pack is consumed
   by Kapitsa, a native Metal engine. It is not yet a Mei/MLX runtime result.
 - **Mei preview:** the prepared Groot text pack is
   [public](https://huggingface.co/Tostibrown/Groot-19B-A3B-261023-rco-role-4.5bpw-textonly).

@@ -38,3 +38,7 @@ we do not switch to causal or speculative decoding to bypass this limitation.
 
 [Campaign review](CANDIDATE_CAMPAIGN.md) ·
 [Pinned runtime and kernel evidence](../artifacts/candidate-system-campaign-20261101/kapitsa-preparation/)
+
+The [first attempt passed all five checks](../artifacts/clover-native-diffusion-20261101/README.md).
+The example output/runtime paths now exist; use a fresh committed profile and
+output for another attempt. The full held-out suite has not run yet.
