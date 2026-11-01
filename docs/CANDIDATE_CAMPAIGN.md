@@ -62,3 +62,14 @@ The sole failure answered the correct next step but omitted the required record
 citation. The interrupted original remains unchanged and unranked.
 
 [Full run and reproducible audit](../artifacts/candidate-system-campaign-20261101/thinkingcap-heldout-v9-checkpoint2-20261101/)
+
+## MiniCPM v9 reference interruption
+
+The matched CPU8/q8-KV retest stopped during startup after two warning samples,
+before native admission or task rows. The previous completed v8 score remains
+online. Its server log exposes 3,852 MiB of CPU repacking buffers. The separate
+v9.1 profile disables repacking and caps recurrent checkpoints at two, while
+keeping model weights, CPU placement, sampler, context and KV precision fixed.
+Fresh admission and full scoring are pending; CPU kernel speed/numerics may differ.
+
+[Startup evidence and review](../artifacts/candidate-system-campaign-20261101/minicpm-heldout-v9-cpu8-20261101/)

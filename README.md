@@ -1,7 +1,7 @@
 # local-model-bench
 
-Current release: **benchmark-v9 — routing validator correction and bounded ThinkingCap cache profile**.
-See the [current release notes](docs/releases/benchmark-v9.md) and
+Current release: **benchmark-v9.1 — bounded MiniCPM runtime memory profile**.
+See the [current release notes](docs/releases/benchmark-v9.1.md) and
 [release history](docs/releases/).
 
 Compare local LLM serving stacks on affordable Apple Silicon Macs. The active
