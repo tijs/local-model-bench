@@ -54,3 +54,16 @@ working-set assessment. A short Qwen/Ornith probe cannot establish MiniCPM safet
 worst-case65,536-token survival, or real Peixinho acceptance. Any later comparison
 profile must be committed and attributed to its own release/config identity;
 never relabel historical runs.
+
+## MiniCPM probe
+
+`configs/agent-automation-v7-20261029/minicpm-resource-probe.yaml` is a separate
+GGUF diagnostic profile retaining85% launch headroom, the same stable30-second
+baseline and900-second maximum workload. Use the supervisor command above with
+that config and a new output directory. It retains the exact ctx65536/f16KV/
+parallel1/no-mmproj/native-sampling settings of the comparison profile.
+The source/metadata-only assessment and its limitations are preserved in
+`artifacts/automation-benchmark-20261029/minicpm-memory-assessment-20261101.json`.
+No MiniCPM model has been loaded for that assessment. Review actual backend
+model/KV/recurrent/compute-buffer logs alongside host guards during its probe
+before proposing any change in admission.
