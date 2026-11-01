@@ -216,6 +216,9 @@ class ResourceSupervisorTests(unittest.TestCase):
             process = SimpleNamespace(pid=12345, returncode=None)
 
             def stop(**kwargs):
+                (root / "evidence/context-capacity.json").write_text(
+                    '{"status":"running","steps":[]}'
+                )
                 process.returncode = 130
 
             session = SimpleNamespace(leader_exited=lambda: False, stop=stop)
@@ -244,6 +247,7 @@ class ResourceSupervisorTests(unittest.TestCase):
             launch.assert_called_once()
             outcome = json.loads((root / "evidence/outcome.json").read_text())
             self.assertEqual(outcome["stop_reason"], "critical memory pressure")
+            self.assertTrue(outcome["model_started"])
             invocation = json.loads((root / "evidence/invocation.json").read_text())
             self.assertIsNone(invocation["resource_policy"]["launch_min_free_percent"])
             self.assertIsNone(invocation["resource_policy"]["stop_min_free_percent"])

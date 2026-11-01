@@ -176,7 +176,7 @@ def cases(variant: str = "development") -> list[Case]:
             answers = ["Saved to the family Shopping list."]
         elif task_id == "capture-ambiguous":
             segments = [
-                'Capture this exact text: "Remember the school thing." I am unsure whether it is a note or something to do. Keep it private until I choose, and offer me the two routes.'
+                'Capture this exact text: "Remember the school thing." The quotation marks delimit the text and must not be stored. I am unsure whether it is a note or something to do. Keep it private until I choose, and offer me the two routes.'
             ]
             expected["original"] = "Remember the school thing."
             actions = [
@@ -197,7 +197,7 @@ def cases(variant: str = "development") -> list[Case]:
             ]
         elif task_id == "capture-multipart":
             segments = [
-                f'Capture three parts: (a) add {item} to family Shopping; (b) add {second} there too; (c) "Remember the school thing." (destination uncertain). Use IDs {ops[0]}, {ops[1]}, {ops[2]} for the part captures. Save only item names for Shopping. Keep the uncertain part private and preserve its quoted original text unchanged.',
+                f'Capture three parts: (a) add {item} to family Shopping; (b) add {second} there too; (c) "Remember the school thing." (destination uncertain). Use IDs {ops[0]}, {ops[1]}, {ops[2]} for the part captures. Save only item names for Shopping. Keep the uncertain part private and preserve the text inside the quotation marks unchanged; do not store the surrounding quotation marks.',
                 "The connection dropped. Retry the same three parts with the same source and operation IDs; do not duplicate accepted items.",
             ]
             expected["original"] = "Remember the school thing."

@@ -50,7 +50,7 @@ BUDGETS = {
 TOOLS = [
     tool(
         "read_file",
-        "Read an available synthetic input file or solution.py. No other paths are available.",
+        "Inspect a synthetic input file or current solution.py. Returns exists=false for an advertised filename not present yet (such as solution.py before writing it). No other paths are available.",
         {
             "name": {
                 "type": "string",
@@ -144,11 +144,19 @@ class Workspace:
             validate(SCHEMAS[name], args)
             if name == "read_file":
                 if args["name"] == self.task.filename:
-                    result = {"name": args["name"], "content": self.data}
+                    result = {
+                        "name": args["name"],
+                        "exists": True,
+                        "content": self.data,
+                    }
                 elif args["name"] == "solution.py" and self.source is not None:
-                    result = {"name": "solution.py", "content": self.source}
+                    result = {
+                        "name": "solution.py",
+                        "exists": True,
+                        "content": self.source,
+                    }
                 else:
-                    raise DomainError("file is not available")
+                    result = {"name": args["name"], "exists": False, "content": None}
             elif name == "write_script":
                 source = args["source"]
                 try:

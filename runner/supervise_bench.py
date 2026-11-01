@@ -388,6 +388,7 @@ def supervise(config: Path, output: Path, deadline: int = 7200, trials: int = 1)
                     "runner_started": process is not None,
                     "model_started": True
                     if any(registered.values())
+                    or (output / "context-capacity.json").exists()
                     else None
                     if process is not None
                     else False,

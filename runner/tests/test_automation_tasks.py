@@ -263,11 +263,41 @@ class AutomationTaskTests(unittest.TestCase):
 
     def test_only_named_synthetic_files_and_source_write_are_exposed(self):
         w = Workspace(tasks()[0], "item,quantity\n")
-        for name in ("../checks/python_automation.py", "/etc/passwd", "input.json"):
+        for name in ("../checks/python_automation.py", "/etc/passwd"):
             self.assertIn("error", w.execute("read_file", {"name": name}))
         self.assertIn("error", w.execute("write_script", {"source": "x" * 32769}))
         self.assertEqual(w.data, "item,quantity\n")
         self.assertIsNone(w.source)
+
+    def test_advertised_missing_files_are_results_not_invalid_calls(self):
+        w = Workspace(tasks()[0], "item,quantity\n")
+        for name in ("solution.py", "input.json"):
+            self.assertEqual(
+                w.execute("read_file", {"name": name}),
+                {"name": name, "exists": False, "content": None},
+            )
+        self.assertEqual(w.invalid_calls, 0)
+        self.assertTrue(w.execute("read_file", {"name": "input.csv"})["exists"])
+        self.assertIn(
+            "error",
+            w.execute("write_script", {"name": "solution.py", "source": "print('ok')"}),
+        )
+        self.assertEqual(w.invalid_calls, 1)
+
+    def test_inspecting_absent_starter_does_not_fail_correct_program(self):
+        delegate = ScriptClient(REFERENCES["shopping-csv"])
+        calls = 0
+
+        def client(*args, **kwargs):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                return response("read_file", {"name": "solution.py"}), 0.01, 0.02
+            return delegate(*args, **kwargs)
+
+        result = run_task(tasks()[0], "development", client, "unused", "test", {})
+        self.assertTrue(result["grade"]["pass"], result["grade"])
+        self.assertEqual(result["grade"]["invalid_tool_calls"], 0)
 
     def test_malformed_unicode_is_an_invalid_call_and_evidence_survives(self):
         w = Workspace(tasks()[0], "item,quantity\n")
