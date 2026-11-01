@@ -1,32 +1,38 @@
 # local-model-bench
 
 Current release: **benchmark-v8.5 — ThinkingCap candidate profile**.
-See [v8.5 release notes](docs/releases/benchmark-v8.5.md),
-[v8.4 release notes](docs/releases/benchmark-v8.4.md),
-[v8.3.1 release notes](docs/releases/benchmark-v8.3.1.md),
-[v8.3 release notes](docs/releases/benchmark-v8.3.md),
-[v8.2 release notes](docs/releases/benchmark-v8.2.md),
-[v8.1 release notes](docs/releases/benchmark-v8.1.md),
-[v8 release notes](docs/releases/benchmark-v8.md),
-[MiniCPM probe release notes](docs/releases/benchmark-v7.2.1.md),
-[resource admission release notes](docs/releases/benchmark-v7.2.md),
-[report patch notes](docs/releases/benchmark-v7.1.1.md), the
-[transport patch](docs/releases/benchmark-v7.1.md), and the
-[v7 methodology](docs/releases/benchmark-v7.md). Historical v6 results retain
-their original method identities and are not directly comparable with v7.
+See the [current release notes](docs/releases/benchmark-v8.5.md) and
+[release history](docs/releases/).
 
 Compare local LLM serving stacks on affordable Apple Silicon Macs. The active
 engines are llama.cpp variants and Mei (Swift/MLX). Peixinho is the intended
 future application runtime; it is currently a design, so there are no Peixinho
 application tests or product scores.
 
-A new candidate campaign is testing Groot, ThinkingCap, Logics-SWE and Clover.
-The [candidate selection](results/agent-candidates-20261101.json) records prepared
-profiles; candidate admission or scores are pending until a completed audited run.
+## Latest completed results
 
-The active model roster is **MiniCPM-V4.7 Q4_K_M, Groot19B/A3B (provisional), Qwen3.6 and Ornith1.5**.
-Groot completed11/12 household+3/3 Python in its first trial; see the
-[candidate comparison](results/CANDIDATES.md). Independent repeats remain pending.
+One held-out trial per task on the v8.1-equivalent task method. Times include
+startup and native admission, excluding the 30-second host baseline.
+
+| Model | Household workflows | Python automation | Full-run time |
+|---|---:|---:|---:|
+| MiniCPM-V4.7 Q4_K_M | 12/12 | 2/3 | 5m 30s |
+| Groot 19B/A3B, 4.5 bpw MLX | 11/12 | 3/3 | 9m 39s |
+| Qwen3.6 35B/A3B, 4-bit MLX | 10/12 | 3/3 | 7m 06s |
+| Ornith1.5 35B/A3B, 4-bit MLX | 9/12 | 2/3 | 10m 09s |
+
+See the [verified comparison and exact run IDs](results/CANDIDATES.md).
+MiniCPM uses q8 K/V with the first eight expert layers on CPU; the other models
+use Mei. These compare complete serving profiles, rather than isolating model
+or quantization quality. Independent repeats remain pending.
+
+The [candidate campaign](docs/CANDIDATE_CAMPAIGN.md) is testing Groot,
+ThinkingCap, Logics-SWE and Clover. Groot is provisional. ThinkingCap's first
+attempt stopped for memory pressure and has no full score. Logics-SWE and Clover
+have not run. A routing-validator correction and fresh comparisons are pending;
+existing grades remain historical and will not be rewritten.
+
+The active roster is **MiniCPM, Groot (provisional), Qwen3.6 and Ornith1.5**.
 Flint, including JANGH2, was retired from consideration by user decision on
 2026-11-01 after the completed comparison. Its configs, transcripts and results
 remain historical evidence; further Flint runs or quant research require an
