@@ -13,12 +13,13 @@ application tests or product scores.
 
 | Model / serving profile | Household | Python | Full-run time |
 |---|---:|---:|---:|
+| Groot 19B/A3B, 4.5 bpw MLX / Mei | 12/12 | 3/3 | 11m 05s |
 | ThinkingCap Q4_K_M, two checkpoints | 11/12 | 3/3 | 8m 47s |
 | MiniCPM Q4_K_M, CPU8, q8 KV, no repacking, two checkpoints | 11/12 | 3/3 | 9m 38s |
-| Qwen3.6 4-bit MLX / Mei | 7/12 | 3/3 | 13m 22s |
 | Ornith1.5 4-bit MLX / Mei | 9/12 | 2/3 | 11m 10s |
+| Qwen3.6 4-bit MLX / Mei | 7/12 | 3/3 | 13m 22s |
 
-All four completed with normal pressure throughout and no swap growth. All
+All five completed with normal pressure throughout and no swap growth. All
 grades and tool journals matched on audit; every submitted script passed
 independent replay on four fixture variants. ThinkingCap omitted a required
 record citation. MiniCPM reused operation IDs for different retry arguments.
@@ -27,7 +28,7 @@ operation ID, repeated a deleted code and scheduled the wrong weekdays; its
 reminder script worked after an invalid tool call. See the detailed reviews.
 
 See the [v9 comparison](results/AGENT_V9.md) for exact run IDs and profiles.
-Groot's v9 retest is pending. Earlier results below remain
+The selected reference retests are complete. Earlier results below remain
 historical references; they are not relabeled v9 scores. The new MiniCPM runtime
 profile is a memory/speed tradeoff, not a controlled model-quality comparison.
 
@@ -49,7 +50,8 @@ use Mei. These compare complete serving profiles, rather than isolating model
 or quantization quality. Independent repeats remain pending.
 
 The [candidate campaign](docs/CANDIDATE_CAMPAIGN.md) is testing Groot,
-ThinkingCap, Logics-SWE and Clover. Groot is provisional. ThinkingCap's first
+ThinkingCap, Logics-SWE and Clover. Groot passed every task in its latest trial and remains a provisional front-runner.
+ThinkingCap's first
 attempt stopped for memory pressure; its bounded-checkpoint retry completed on v9. Logics-SWE and Clover
 have not run. The v9 routing-validator correction requires fresh comparisons;
 existing grades remain historical and will not be rewritten.

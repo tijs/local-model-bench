@@ -9,7 +9,7 @@ an immutable config and fresh owned server, with native admission before the
 
 | Candidate | Verified outcome | Next step |
 |---|---|---|
-| Groot | 11/12 household, 3/3 Python; normal pressure, no swap growth | Repeat after the validator release |
+| Groot | v9: 12/12 household, 3/3 Python; normal pressure, no swap growth | Provisional front-runner; finish remaining candidates and runtime release |
 | ThinkingCap | v9: 11/12 household, 3/3 Python; normal pressure, no swap growth | Retain as a provisional contender and repeat |
 | Logics-SWE | Source/quant research saved; weights not staged | Prepare and admit an exact pinned profile |
 | Clover | Custom MLX architecture and genuine diffusion path identified | Validate implementation and tool semantics; keep causal and diffusion modes distinct |
@@ -113,3 +113,24 @@ code and using the wrong weekday indices. The older 9/12 + 2/3 result remains
 historical; the same counts do not imply identical failures or trajectories.
 
 [Full evidence and audit](../artifacts/candidate-system-campaign-20261101/ornith-heldout-v9-20261101/)
+
+## Groot v9 repeat and comparison status
+
+Groot completed 12/12 household and 3/3 Python in 664.892 seconds (11m 05s),
+including startup/native checks and excluding the baseline. All 131 pressure
+samples were normal with zero swap growth. Every saved grade and API/journal
+argument matched; all scripts independently passed all four fixture variants.
+
+The config and Mei/vmlx source pins match its earlier 11/12 + 3/3 run. The
+rebuilt executable hash differs, while the Metal library hash matches. Both
+identities are preserved; this is not a bit-identical executable repeat or a
+controlled numerical ablation. No old grade was rewritten or better sample
+substituted for a failed admission.
+
+The selected v9 reference comparison is now complete: Groot 12/12 + 3/3,
+ThinkingCap 11/12 + 3/3, bounded MiniCPM 11/12 + 3/3, Ornith 9/12 + 2/3 and
+Qwen 7/12 + 3/3. Groot is the provisional front-runner, with uncertainty from
+limited trials and differing serving profiles. Logics-SWE, Clover and useful
+Mei release/distribution work remain open in the broader campaign.
+
+[Full Groot repeat evidence and audit](../artifacts/candidate-system-campaign-20261101/groot-heldout-v9-repeat-20261101/)
