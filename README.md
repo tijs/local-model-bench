@@ -1,7 +1,8 @@
 # local-model-bench
 
-Current release: **benchmark-v8.4 — Groot MLX candidate profile**.
-See [v8.4 release notes](docs/releases/benchmark-v8.4.md),
+Current release: **benchmark-v8.5 — ThinkingCap candidate profile**.
+See [v8.5 release notes](docs/releases/benchmark-v8.5.md),
+[v8.4 release notes](docs/releases/benchmark-v8.4.md),
 [v8.3.1 release notes](docs/releases/benchmark-v8.3.1.md),
 [v8.3 release notes](docs/releases/benchmark-v8.3.md),
 [v8.2 release notes](docs/releases/benchmark-v8.2.md),
