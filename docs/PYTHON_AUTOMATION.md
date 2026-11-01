@@ -33,7 +33,7 @@ Before live runs: pass the reference/intentional-wrong-script tests, containment
 Use the packaged supervisor for the current full two-track profiles. Choose a new output directory for every attempt; existing evidence is never overwritten:
 
 ```bash
-uv run --locked python runner/supervise_bench.py --config configs/agent-automation-v7-20261029/qwen-calibration-retry.yaml --output artifacts/qwen-calibration-example --trials 1
+uv run --locked python runner/supervise_bench.py --config configs/capacity-v8-20261101/qwen.yaml --output artifacts/qwen-current-example --trials 1
 ```
 
 The supervisor checks committed source/config bytes, normal pressure, disk and swap before starting the runner. New v8 profiles use explicit model/context/cache byte plans and guarded loading; the host percentage is telemetry, not a launch or runtime cutoff. Seven baseline samples must have normal pressure and flat swap. Critical pressure, sustained warning, swap growth/absolute limits, disk and deadline stops remain. Separate diagnostic profiles test near-capacity context allocation before both task tracks; scored profiles use a fresh cache without this warmup. See [resource admission](RESOURCE_ADMISSION.md) for commands, uncertainty and legacy behavior.
