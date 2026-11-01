@@ -45,3 +45,9 @@ unchanged. The original 256-token attempt remains failed evidence.
 The fresh run [passed all 13 checks](../artifacts/mei-rc2-native-groot-tools1024-20261101/README.md).
 Both direct calls completed in285 tokens, above the old cap. Pressure stayed
 normal and swap did not grow. Original failure evidence is retained unchanged.
+
+The [rc.2 preview](https://github.com/tijs/mei/releases/tag/v0.10.0-rc.2) is now
+published. Its installed Homebrew assets match the native-tested hashes and
+passed a separate [11-check smoke](../artifacts/mei-rc2-installed-groot-smoke-20261101/README.md).
+That diagnostic skips context and is not reported as full native admission.
+Stable promotion remains open.

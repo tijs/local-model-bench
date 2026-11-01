@@ -207,7 +207,17 @@ seconds. Both direct calls completed correctly in 285 tokens under the declared
 1024-token budget; the first attempt exhausted its 256-token cap. All 45
 pressure samples were normal, swap was flat and all 16 model hashes matched.
 Native acceptance writes no task scores. Packaged executable/Metal hashes match
-this tested build exactly; source was merged to Mei main. Preview publication
-and Homebrew installed-asset verification are next. Stable remains 0.9.0.
+this tested build exactly; source was merged to Mei main. The rc.2 preview is
+published with both assets, and the separate Homebrew installation passed all
+11 requested smoke checks under normal pressure with no swap growth. Remote
+main/tag parity, installed hashes and latest stable0.9.0 are verified.
 
 [Full native evidence and limits](../artifacts/mei-rc2-native-groot-tools1024-20261101/README.md)
+
+[Mei rc.2 release](https://github.com/tijs/mei/releases/tag/v0.10.0-rc.2) ·
+[Installed smoke and distribution readback](../artifacts/mei-rc2-installed-groot-smoke-20261101/README.md)
+
+Remaining campaign work: Clover native tools and faithful diffusion evaluation,
+independent finalist repeats and final roster/system review. Stable Mei promotion
+and loaded-status responsiveness remain explicit open work; the preview release
+does not close them.

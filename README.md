@@ -64,11 +64,12 @@ failures, memory fixes and next steps.
   by Kapitsa, a native Metal engine. It is not yet a Mei/MLX runtime result.
 - **Mei preview:** the prepared Groot text pack is
   [public](https://huggingface.co/Tostibrown/Groot-19B-A3B-261023-rco-role-4.5bpw-textonly).
-  The fresh rc.2 native qualification
-  [passed all 13 checks](artifacts/mei-rc2-native-groot-tools1024-20261101/README.md).
-  The first attempt's token-budget failures remain preserved. Preview packaging
-  matches the tested binary and Metal; distribution verification is in progress.
-  Stable Mei remains 0.9.0.
+  [Mei rc.2 is released](https://github.com/tijs/mei/releases/tag/v0.10.0-rc.2)
+  through `brew install tijs/tap/mei-preview`. Full native qualification passed
+  [13 checks](artifacts/mei-rc2-native-groot-tools1024-20261101/README.md), and
+  the installed asset passed [11 smoke checks](artifacts/mei-rc2-installed-groot-smoke-20261101/README.md).
+  The first failed attempt stays preserved. Stable Mei remains 0.9.0; stable
+  promotion and loaded-status responsiveness remain open.
 
 Flint, including JANGH2, was retired from the roster on 2026-11-01. Hermes was
 retired as a runtime on 2026-10-25. Their configs, transcripts and results remain
