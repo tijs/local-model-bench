@@ -1,6 +1,6 @@
 # Local agent benchmark comparison
 
-Release **benchmark-v8.3** (`b7a61c56951705af0de25b6cb0ebd1a23cd1959d`); held-out partition, 1 trial(s) per task.
+Release **benchmark-v8.3.1** (`65c2a18050d2a122be8dc762f971f6894af6b9aa`); held-out partition, 1 trial(s) per task.
 
 Synthetic household workflows and real isolated Python automation. **Not Peixinho app acceptance or a pure base-model/quantization ablation.**
 
