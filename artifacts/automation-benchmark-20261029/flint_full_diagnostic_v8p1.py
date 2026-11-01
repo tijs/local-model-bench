@@ -2,7 +2,7 @@
 
 Uses unmodified v8.1 task/tool/isolation implementations. No canonical log rows,
 admission retries, or rank-eligible scores are written. Commit driver/profile
-before --run. --validate-draft does not load a model or create output.
+before execution. --validate-draft does not load a model or create output.
 """
 
 from __future__ import annotations

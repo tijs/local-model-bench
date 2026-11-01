@@ -38,12 +38,12 @@ The benchmark includes three real isolated Python CLI tasks: shopping CSV
 normalization, decimal-safe expense aggregation, and reminder-export repair.
 It uses a bounded write/run/repair loop and unseen post-agent inputs, with a
 separate score/report. See [the automation guide](docs/PYTHON_AUTOMATION.md).
-The **v8.3.1** comparison uses the unchanged v8.1 task method and is in progress: Qwen3.6 completed
+The **v8.3.1** comparison uses the unchanged v8.1 task method and is complete with Flint not admitted: Qwen3.6 completed
 **10/12 household + 3/3 Python** in7m06s; Ornith1.5 completed **9/12 + 2/3** in10m09s.
 Both selected task runs stayed at normal pressure without swap growth. Flint
 failed native admission and remains unranked. MiniCPM completed **12/12 + 2/3**
 in5m30s with one isolated startup warning and862MiB swap growth, then flat. See the
-[coverage-aware comparison](results/AGENT_LEADERBOARD.md) and
+[coverage-aware comparison](results/AGENT_LEADERBOARD.md), [four-model summary](results/AGENT_SUMMARY.md) and
 [campaign selection](results/agent-v8p3p1-20261101.json). These are one-trajectory,
 profile-specific results, not statistical superiority or real-app acceptance.
 MiniCPM uses q8_0 K/V, ubatch64 and first8 expert layers on CPU after both all-GPU profiles stopped for measured warning pressure;

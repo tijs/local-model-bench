@@ -23,3 +23,9 @@ to normal exact config/helper/parent provenance checks. Comparisons remain
 single-trajectory, profile-specific synthetic workflows and isolated Python,
 not statistical superiority, real Peixinho integration, vision quality or proof
 of usable65K context. Flint failed strict native admission and remains unranked.
+
+## Completed four-model campaign
+
+Qualified results: MiniCPM12/12 household+2/3 Python (5m30s), Qwen10/12+3/3 (7m06s), Ornith9/12+2/3 (10m09s). Flint failed native admission and remains unranked; its full separate diagnostic9/12+0/3 (24m20s) is not a qualified score. Original Flint empty-final stop causes remain uncertain; two instrumented new continuations emitted tools and stopped at the native observation boundary.
+
+See [the full summary](../../results/AGENT_SUMMARY.md), [verified leaderboard](../../results/AGENT_LEADERBOARD.md) and [exact selection](../../results/agent-v8p3p1-20261101.json). Final locked runner tests671/671, diagnostic driver tests3/3; focused Ruff/ty pass. All raw historical results retained.

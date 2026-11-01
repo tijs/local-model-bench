@@ -107,3 +107,7 @@ model score or new cache resulted. This preserves a separate MiniCPM resource
 admission outcome rather than assuming the Qwen-class threshold applies.
 Remaining live calibration requires a passing baseline; neither failed preflight
 counts as benchmark coverage. Servers remain off and the full campaign is open.
+
+## Final current comparison (2026-11-01)
+
+See [four-model summary](../../results/AGENT_SUMMARY.md) and [verified leaderboard](../../results/AGENT_LEADERBOARD.md), released methodbenchmark-v8.3.1. Qualified MiniCPM12/12+2/3 (CPU8/q8KV), Qwen10/12+3/3, Ornith9/12+2/3. Flint native admission failed; its separate full15-task diagnostic9/12+0/3 is unranked. Two original Flint empty-final stop causes remain uncertain after new stochastic controls emitted tools. All historical checkpoints above retain their original identities.
