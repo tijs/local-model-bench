@@ -1,5 +1,12 @@
 # Current Peixinho stand-in configs
 
+Active roster (2026-11-01): MiniCPM-V4.7 Q4_K_M, Qwen3.6 and Ornith1.5.
+Flint/JANGH2 is retired by user decision. Existing Flint configs are retained
+unchanged for historical reproduction, not selected for new campaigns or
+quantization research unless the user explicitly reopens the candidate.
+Config discovery is not an active-roster selector: do not use `--all` to select
+this roster; choose the committed per-model profile explicitly.
+
 Released in benchmark-v6 and maintained in [the current release](../README.md),
 the synthetic stand-in track is the primary workflow evaluation.
 Use `benchmark_scope: peixinho-standin-v1` to select the separate stateful workflow

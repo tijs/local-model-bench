@@ -18,6 +18,12 @@ engines are llama.cpp variants and Mei (Swift/MLX). Peixinho is the intended
 future application runtime; it is currently a design, so there are no Peixinho
 application tests or product scores.
 
+The active model roster is **MiniCPM-V4.7 Q4_K_M, Qwen3.6 and Ornith1.5**.
+Flint, including JANGH2, was retired from consideration by user decision on
+2026-11-01 after the completed comparison. Its configs, transcripts and results
+remain historical evidence; further Flint runs or quant research require an
+explicit decision to reconsider it. See the [comparison summary](results/AGENT_SUMMARY.md).
+
 Hermes was retired on 2026-10-25. Its drivers, task definitions, transcripts and
 results remain historical evidence. Current commands never reset its profiles,
 launch it, or run its coding workloads. Do not reinstall or restore it.
