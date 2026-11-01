@@ -35,17 +35,20 @@ The benchmark includes three real isolated Python CLI tasks: shopping CSV
 normalization, decimal-safe expense aggregation, and reminder-export repair.
 It uses a bounded write/run/repair loop and unseen post-agent inputs, with a
 separate score/report. See [the automation guide](docs/PYTHON_AUTOMATION.md).
-The complete v7 Qwen development calibration scored **10/12 household** and
-**3/3 Python** with normal memory pressure and no swap growth;
-[evidence and attribution limits](artifacts/automation-benchmark-20261029/README.md).
-These are separate scores from one development trial, not a held-out ranking.
-The v7.1 held-out campaign is in progress: Qwen completed **9/12 household** and
-**2/3 Python**. See the [coverage-aware comparison](results/AGENT_LEADERBOARD.md);
-Flint failed admission, while Ornith and MiniCPM remain pending. No overall
-winner is established.
-Use the documented supervisor for the new profiles; it injects their required
-runner environment. Version7 also increases household generation budgets and
-clarifies shopping-item text. Use the historical tags for older baselines.
+The corrected **v8.1** held-out comparison is in progress: Qwen3.6 completed
+**10/12 household + 3/3 Python** in7m06s; Ornith1.5 completed **9/12 + 2/3** in10m09s.
+Both selected task runs stayed at normal pressure without swap growth. Flint
+failed native admission and remains unranked; MiniCPM is pending. See the
+[coverage-aware comparison](results/AGENT_LEADERBOARD.md) and
+[campaign selection](results/agent-v8p1-20261101.json). These are one-trajectory,
+profile-specific results, not statistical superiority or real-app acceptance.
+Near64K capacity is a separate experiment and is not implied by a task score.
+
+The v8.1 correction stops counting an ordinary check for an absent advertised
+starter file as an invalid tool call; old grades remain unchanged. Historical
+v7/v7.1 results and partial/resource-interrupted attempts retain their own method
+identities in the [campaign evidence](artifacts/automation-benchmark-20261029/README.md).
+Use the documented supervisor and a fresh owned server/cache for each profile.
 
 ## Secondary track: model-only v1
 
