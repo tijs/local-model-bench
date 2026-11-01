@@ -2,7 +2,7 @@
 
 Adds the pinned Logics-SWE IQ4_XS candidate profile and verified preparation
 provenance. The 19.9 GB file matches its publisher hash. Native tools,
-dependent continuation and full quality are still pending.
+dependent continuation and the first full trial now pass; see the reviewed result below.
 
 The explicit profile uses a 65,536 context cap, all-GPU weights, q8 K/V,
 small prefill microbatches, two recurrent checkpoints and no CPU repacking.
