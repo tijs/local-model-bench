@@ -1,7 +1,8 @@
 # local-model-bench
 
-Current release: **benchmark-v8.3.1 — capacity reporting correction**.
-See [v8.3.1 release notes](docs/releases/benchmark-v8.3.1.md),
+Current release: **benchmark-v8.4 — Groot MLX candidate profile**.
+See [v8.4 release notes](docs/releases/benchmark-v8.4.md),
+[v8.3.1 release notes](docs/releases/benchmark-v8.3.1.md),
 [v8.3 release notes](docs/releases/benchmark-v8.3.md),
 [v8.2 release notes](docs/releases/benchmark-v8.2.md),
 [v8.1 release notes](docs/releases/benchmark-v8.1.md),
@@ -17,6 +18,10 @@ Compare local LLM serving stacks on affordable Apple Silicon Macs. The active
 engines are llama.cpp variants and Mei (Swift/MLX). Peixinho is the intended
 future application runtime; it is currently a design, so there are no Peixinho
 application tests or product scores.
+
+A new candidate campaign is testing Groot, ThinkingCap, Logics-SWE and Clover.
+The [candidate selection](results/agent-candidates-20261101.json) records prepared
+profiles; candidate admission or scores are pending until a completed audited run.
 
 The active model roster is **MiniCPM-V4.7 Q4_K_M, Qwen3.6 and Ornith1.5**.
 Flint, including JANGH2, was retired from consideration by user decision on
