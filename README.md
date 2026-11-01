@@ -11,15 +11,20 @@ application tests or product scores.
 
 ## Current v9 results
 
-ThinkingCap Q4_K_M completed **11/12 household workflows and 3/3 Python tasks**
-in **8m 47s**, with normal pressure throughout and no swap growth. Its retry uses
-at most two context checkpoints. The sole failure omitted the required record
-citation for a correct next-step answer. All grades and tool journals matched on
-audit; every script passed independent replay on all four fixture variants.
+| Model / serving profile | Household | Python | Full-run time |
+|---|---:|---:|---:|
+| ThinkingCap Q4_K_M, two checkpoints | 11/12 | 3/3 | 8m 47s |
+| MiniCPM Q4_K_M, CPU8, q8 KV, no repacking, two checkpoints | 11/12 | 3/3 | 9m 38s |
+
+Both completed with normal pressure throughout and no swap growth. All grades
+and tool journals matched on audit; every submitted script passed independent
+replay on four fixture variants. ThinkingCap omitted a required record citation.
+MiniCPM reused operation IDs for different retry arguments, which were denied.
 
 See the [v9 comparison](results/AGENT_V9.md) for exact run IDs and profiles.
-MiniCPM, Qwen, Ornith and Groot v9 retests are pending. Their earlier results
-below remain available as historical references; they are not relabeled v9 scores.
+Qwen, Ornith and Groot v9 retests are pending. Earlier results below remain
+historical references; they are not relabeled v9 scores. The new MiniCPM runtime
+profile is a memory/speed tradeoff, not a controlled model-quality comparison.
 
 ## Previous completed results (v8 method)
 

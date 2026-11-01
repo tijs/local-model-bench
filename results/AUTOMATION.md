@@ -16,5 +16,6 @@ Each submitted script is checked on visible and unseen fixture variants. Shared 
 | 20261101T121557Z-29c77d62 | openbmb/MiniCPM-V-4.7-35B-A3B-gguf:Q4_K_M / llama.cpp | d23069a83dd4 / cae5818180b2 | heldout / instruct | completed | 3/3 | 2 | 0 | 113.36 |
 | 20261101T194323Z-2301e961 | hermitdave/Groot-19B-A3B-261023-MLX-rco-role-4.5bpw / mei | d67be3456120 / 51b8e9c2adda | heldout / model_card | completed | 3/3 | 3 | 0 | 209.57 |
 | 20261101T202927Z-699cdc5e | bottlecapai/ThinkingCap-gemma-4-26B-A4B-it-GGUF:Q4_K_M / llama.cpp | 54253c2bab35 / 0834ad036f3c | heldout / thinking | completed | 3/3 | 3 | 0 | 271.34 |
+| 20261101T204934Z-6cf50401 | openbmb/MiniCPM-V-4.7-35B-A3B-gguf:Q4_K_M / llama.cpp | 04d3b7d81e73 / d6fd01417719 | heldout / instruct | completed | 3/3 | 3 | 0 | 169.49 |
 
 Scores require matching task/tool/validator and release identities. Partial runs are never a complete-model score.

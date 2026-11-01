@@ -320,6 +320,20 @@ Failure classes: interrupted=1, task_failure=1
 
 Failure classes: task_failure=1
 
+| 20261101T204309Z-4d605a5e | openbmb/MiniCPM-V-4.7-35B-A3B-gguf:Q4_K_M / llama.cpp | 04d3b7d81e73 / d6fd01417719 | heldout / instruct | completed | 12/12 | 0 | 11/12 | 3 | 3 | 0 |
+
+| Domain | Passed / executed | Median task wall s | Median output tok/s (wall) |
+|---|---:|---:|---:|
+| capture | 2/3 | 25.17 | 8.86 |
+| privacy | 2/2 | 27.10 | 9.52 |
+| progress | 2/2 | 32.71 | 4.39 |
+| resilience | 1/1 | 44.69 | 5.15 |
+| retrieval | 1/1 | 26.02 | 9.15 |
+| routines | 1/1 | 21.85 | 5.13 |
+| sharing | 2/2 | 22.70 | 6.02 |
+
+Failure classes: task_failure=1
+
 
 Output rate includes whole task wall time, not pure decode. RSS is not total model memory; consult the supervised server/Metal/physical-footprint and system pressure trace.
 No composite score is computed. Safety failures and prevented unsafe attempts remain explicit; passing other tasks cannot offset them.

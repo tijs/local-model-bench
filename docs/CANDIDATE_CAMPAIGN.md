@@ -70,6 +70,14 @@ before native admission or task rows. The previous completed v8 score remains
 online. Its server log exposes 3,852 MiB of CPU repacking buffers. The separate
 v9.1 profile disables repacking and caps recurrent checkpoints at two, while
 keeping model weights, CPU placement, sampler, context and KV precision fixed.
-Fresh admission and full scoring are pending; CPU kernel speed/numerics may differ.
+The fresh profile completed native admission and scored 11/12 household + 3/3 Python
+in 578.109 seconds. All 114 pressure samples were normal with zero swap growth.
+The log has no CPU_REPACK allocation; 154 checkpoint observations respect cap two.
+All grades/API arguments matched, and all scripts passed four-variant replay.
+Multipart failed because the model reused operation IDs with different arguments;
+the domain denied those mutations. This profile is slower than the earlier
+completed profile (9m 38s versus 5m 30s), but the different samples and settings
+prevent attributing the score/time differences to a single cause. CPU kernel
+speed/numerics may differ.
 
 [Startup evidence and review](../artifacts/candidate-system-campaign-20261101/minicpm-heldout-v9-cpu8-20261101/)
