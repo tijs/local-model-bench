@@ -1,7 +1,7 @@
 # local-model-bench
 
-Current release: **benchmark-v9.1 — bounded MiniCPM runtime memory profile**.
-See the [current release notes](docs/releases/benchmark-v9.1.md) and
+Current release: **benchmark-v9.2 — pinned Logics-SWE candidate profile**.
+See the [current release notes](docs/releases/benchmark-v9.2.md) and
 [release history](docs/releases/).
 
 Compare local LLM serving stacks on affordable Apple Silicon Macs. The active
@@ -52,8 +52,8 @@ or quantization quality. Independent repeats remain pending.
 The [candidate campaign](docs/CANDIDATE_CAMPAIGN.md) is testing Groot,
 ThinkingCap, Logics-SWE and Clover. Groot passed every task in its latest trial and remains a provisional front-runner.
 ThinkingCap's first
-attempt stopped for memory pressure; its bounded-checkpoint retry completed on v9. Logics-SWE and Clover
-have not run. The v9 routing-validator correction requires fresh comparisons;
+attempt stopped for memory pressure; its bounded-checkpoint retry completed on v9. Logics-SWE is hash-verified and ready for native admission. Clover has a
+pinned runtime build and passing CPU/API tests; neither has a model score yet. The v9 routing-validator correction requires fresh comparisons;
 existing grades remain historical and will not be rewritten.
 
 The active roster is **MiniCPM, Groot (provisional), Qwen3.6 and Ornith1.5**.

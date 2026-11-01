@@ -11,7 +11,7 @@ an immutable config and fresh owned server, with native admission before the
 |---|---|---|
 | Groot | v9: 12/12 household, 3/3 Python; normal pressure, no swap growth | Provisional front-runner; finish remaining candidates and runtime release |
 | ThinkingCap | v9: 11/12 household, 3/3 Python; normal pressure, no swap growth | Retain as a provisional contender and repeat |
-| Logics-SWE | Source/quant research saved; weights not staged | Prepare and admit an exact pinned profile |
+| Logics-SWE | IQ4_XS staged and publisher hash verified; 65K all-GPU/q8-KV profile prepared | Fresh native admission and full run |
 | Clover | Custom MLX architecture and genuine diffusion path identified | Validate implementation and tool semantics; keep causal and diffusion modes distinct |
 
 [Current v9 comparison](../results/AGENT_V9.md) ·
@@ -134,3 +134,27 @@ limited trials and differing serving profiles. Logics-SWE, Clover and useful
 Mei release/distribution work remain open in the broader campaign.
 
 [Full Groot repeat evidence and audit](../artifacts/candidate-system-campaign-20261101/groot-heldout-v9-repeat-20261101/)
+
+## Logics-SWE preparation
+
+The exact targeted inventory returned the base and four GGUF repositories, with
+no MLX pack among those entries. The chosen imatrix IQ4_XS artifact is
+19,886,931,040 bytes and matches its publisher SHA256 at the pinned revision.
+Metadata confirms qwen35moe, 40 layers, ten full-attention layers and no MTP
+tensors. The committed profile uses all-GPU placement, q8 K/V, a 65,536 context
+cap, two recurrent checkpoints and no CPU repacking. The capacity estimate is
+27,242,495,072 bytes, including workspace and host allowances; actual guards
+still govern admission and execution.
+
+Logics provides no sampler recipe. The benchmark explicitly adopts its Qwen3.6
+lineage's general-thinking recipe for both tracks; this is a declared choice,
+not a claim that Logics prescribed those values. Native tools and a complete
+score are pending. This is a separate GGUF serving profile, not a Mei result.
+
+[Preparation evidence](../artifacts/candidate-system-campaign-20261101/logics-swe-preparation/)
+
+Kapitsa is also built from pinned source and its selected CPU/API tests pass.
+Its Clover pack is MLX-format, while the engine itself is native Metal. No
+Clover model has loaded and no GPU correctness, performance or tool score is
+claimed by the build. Diffusion must be explicitly selected and distinguished
+from its causal/speculative paths.
