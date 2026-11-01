@@ -98,3 +98,18 @@ independent four-variant replay. No API transformation mismatch was found; this
 does not exclude every numerical/runtime cause of variation.
 
 [Full evidence and audit](../artifacts/candidate-system-campaign-20261101/qwen-heldout-v9-20261101/)
+
+## Ornith matched v9 reference result
+
+Ornith completed 9/12 household and 2/3 Python in 669.805 seconds, with all 132
+pressure samples normal and no swap growth. All saved grades and API/journal
+arguments matched. Each submitted script passed independent execution on all
+four fixture variants; reminder repair still fails because its first
+`write_script` call included an unsupported `name` parameter. Correct eventual
+output does not erase an invalid call.
+
+Household failures were an invented routing operation ID, repeating a deleted
+code and using the wrong weekday indices. The older 9/12 + 2/3 result remains
+historical; the same counts do not imply identical failures or trajectories.
+
+[Full evidence and audit](../artifacts/candidate-system-campaign-20261101/ornith-heldout-v9-20261101/)
