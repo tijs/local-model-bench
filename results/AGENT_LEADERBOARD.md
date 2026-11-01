@@ -1,6 +1,6 @@
 # Local agent benchmark comparison
 
-Release **benchmark-v8.2** (`49c822ff3995dac13e364ebe5789cd6643444f21`); held-out partition, 1 trial(s) per task.
+Release **benchmark-v8.3** (`b7a61c56951705af0de25b6cb0ebd1a23cd1959d`); held-out partition, 1 trial(s) per task.
 
 Synthetic household workflows and real isolated Python automation. **Not Peixinho app acceptance or a pure base-model/quantization ablation.**
 
@@ -24,6 +24,6 @@ Order uses household passes, then Python passes, only for complete usable covera
   - `routine-occurrence`: task_failure; checks correct_explicit_schedule.
   - `shopping-csv`: truncation; checks finished_with_final_answer, submitted_script, final_script_executed_successfully, visible_output_correct, unseen_outputs_correct.
 - **OsaurusAI/Flint-40B-A2.5B-JANGH2** — config `configs/capacity-v8-20261101/flint.yaml`; household: `20261101T104306Z-118ab6ab` (0/12 executed). Exact model/quant/runtime and sampler pins are in the config and run manifests.
-- **openbmb/MiniCPM-V-4.7-35B-A3B-gguf:Q4_K_M** — config `configs/capacity-v8-20261101/minicpm-q8kv.yaml`; pending. Exact model/quant/runtime and sampler pins are in the config and run manifests.
+- **openbmb/MiniCPM-V-4.7-35B-A3B-gguf:Q4_K_M** — config `configs/capacity-v8-20261101/minicpm-q8kv-cpu8.yaml`; pending. Exact model/quant/runtime and sampler pins are in the config and run manifests.
 
 Historical versions, calibration runs and partial attempts remain append-only in their own reports. These selected runs are never inferred from the newest timestamp alone.
