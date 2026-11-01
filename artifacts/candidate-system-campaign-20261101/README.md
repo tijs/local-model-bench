@@ -28,3 +28,7 @@ or diffusion-quality claim follows from source availability.
 Next: fresh owned Groot admission/full run and failure review. Only bounded
 progress/host reads during inference; no code/tests/hashes/build sidework.
 Then proceed to remaining candidates and propagate useful fixes per Kiem plan.
+
+## Groot first full run completed
+
+11/12 household+3/3 Python in578.527s including build/startup, allnormal/no swap growth. Native admission passed, all grades/APIjournals and Python replays verified. One denied foreign-private read caused strict privacy/invalid-operation failure; no disclosed content or critical boundary failure.17 sourcefiles and1673 exporttensors rehashed; logs saved and7.342GB ownedKV cleared. See groot-review.md and the verified results/CANDIDATES.md. Groot is provisional pending independent repeats; ThinkingCap,Logics-SWE,Clover and shared Mei release work remain open.

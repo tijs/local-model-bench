@@ -284,6 +284,20 @@ Failure classes: interrupted=1
 
 Failure classes: none
 
+| 20261101T193814Z-4f2d471c | hermitdave/Groot-19B-A3B-261023-MLX-rco-role-4.5bpw / mei | d67be3456120 / 51b8e9c2adda | heldout / model_card | completed | 12/12 | 0 | 11/12 | 1 | 1 | 0 |
+
+| Domain | Passed / executed | Median task wall s | Median output tok/s (wall) |
+|---|---:|---:|---:|
+| capture | 3/3 | 27.44 | 36.80 |
+| privacy | 1/2 | 17.06 | 30.84 |
+| progress | 2/2 | 24.62 | 29.41 |
+| resilience | 1/1 | 23.36 | 26.29 |
+| retrieval | 1/1 | 29.82 | 33.73 |
+| routines | 1/1 | 12.95 | 29.26 |
+| sharing | 2/2 | 17.63 | 29.66 |
+
+Failure classes: task_failure=1
+
 
 Output rate includes whole task wall time, not pure decode. RSS is not total model memory; consult the supervised server/Metal/physical-footprint and system pressure trace.
 No composite score is computed. Safety failures and prevented unsafe attempts remain explicit; passing other tasks cannot offset them.

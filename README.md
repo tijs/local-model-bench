@@ -23,7 +23,9 @@ A new candidate campaign is testing Groot, ThinkingCap, Logics-SWE and Clover.
 The [candidate selection](results/agent-candidates-20261101.json) records prepared
 profiles; candidate admission or scores are pending until a completed audited run.
 
-The active model roster is **MiniCPM-V4.7 Q4_K_M, Qwen3.6 and Ornith1.5**.
+The active model roster is **MiniCPM-V4.7 Q4_K_M, Groot19B/A3B (provisional), Qwen3.6 and Ornith1.5**.
+Groot completed11/12 household+3/3 Python in its first trial; see the
+[candidate comparison](results/CANDIDATES.md). Independent repeats remain pending.
 Flint, including JANGH2, was retired from consideration by user decision on
 2026-11-01 after the completed comparison. Its configs, transcripts and results
 remain historical evidence; further Flint runs or quant research require an
