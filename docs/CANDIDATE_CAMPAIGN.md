@@ -9,7 +9,7 @@ an immutable config and fresh owned server, with native admission before the
 
 | Candidate | Verified outcome | Next step |
 |---|---|---|
-| Groot | v9.5 reference: 12/12 household, 3/3 Python; normal pressure, no swap growth | Mei rc.2 seed 17: 11/12+3/3 in 10m19s; seed 29 and cross-model repeats pending |
+| Groot | v9.5 reference: 12/12 household, 3/3 Python; normal pressure, no swap growth | Mei rc.2: seed 17 11/12+3/3, seed 29 10/12+3/3; final cross-model review pending |
 | ThinkingCap | v9.5 reference: 11/12 household, 3/3 Python; normal pressure, no swap growth | Provisional alternate; repeat after leading profiles |
 | Logics-SWE | v9.5 reference: 12/12 household, 3/3 Python; normal pressure, no swap growth | v9.8 seed 17: 11/12+3/3 in 11m34s; seed 29 pending |
 | Clover | Fresh v9.7: 8/12 household, 2/3 Python in 15m03s; normal pressure, no swap growth | Experimental; no full pass or demonstrated reason to port to Mei yet |
@@ -337,3 +337,17 @@ The CPU prompt audit reconstructed all 79 requests (resetting actual HTTP histor
 at simulated reconnects). Native prompts and token IDs matched the publisher
 renderer/tokenizer, and all saved API prompt lengths agreed. No prompt/tokenizer
 mismatch was observed. This is not a numerical decoder/quantization parity test.
+
+## Groot second released-runtime repeat
+
+The [seed 29 trial](../artifacts/groot-rc2-v9p8-seed29-20261102/README.md)
+completed 10/12 household+3/3 Python in 10m14s. Same binary/Metal/model bytes as
+seed 17; all 121 pressure samples normal, zero swap growth. It repeated the old
+deleted code and made one unassigned routing call before recovering; no
+unauthorized mutation or critical breach occurred. All 16 post-run model hashes
+and runtime hashes match; grades/journals/scripts reproduce. Generated KV files
+were inventoried and removed after owned exit, with logs and task evidence retained.
+
+The [seed 29 cohort](../results/FINALISTS_V9.8_SEED29.md) keeps this result
+separate from seed 17. Only the declared Logics-SWE seed 29 trial remains before
+finalist comparison and the campaign completion review.

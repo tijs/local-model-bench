@@ -10,6 +10,29 @@ Kapitsa/Metal profile for Clover diffusion experiments. Peixinho is the intended
 future application runtime; it is currently a design, so there are no Peixinho
 application tests or product scores.
 
+## Finalist repeats on v9.8
+
+| Serving profile | Request seed | Household | Python | Full-run time |
+|---|---:|---:|---:|---:|
+| Groot public text pack / distributed Mei rc.2 | 17 | 11/12 | 3/3 | 10m19s |
+| Groot public text pack / same Mei rc.2 binary | 29 | 10/12 | 3/3 | 10m14s |
+| Logics-SWE IQ4_XS / pinned llama.cpp | 17 | 11/12 | 3/3 | 11m34s |
+| Logics-SWE IQ4_XS / same llama.cpp binary | 29 | pending | pending | pending |
+
+All completed repeats had normal pressure and no swap growth. Both Groot trials
+repeated a deleted numeric value; seed 29 also made an unassigned routing call
+before recovering. Logics seed 17 exhausted its turn budget after correctly
+recovering retry state. All completed Python tasks passed four-variant replay.
+
+[Seed 17 cohort](results/FINALISTS_V9.8_SEED17.md) ·
+[Seed 29 cohort](results/FINALISTS_V9.8_SEED29.md) ·
+[Repeat design and reviews](docs/FINALIST_REPEATS.md)
+
+Every predeclared outcome stays visible. Different seeds do not establish
+independence or superiority; final roster selection awaits the last trial.
+These are full serving-profile results, not a pure model or quantization ablation.
+The broader reference table below retains its earlier measured method.
+
 ## Published v9.5 reference results
 
 | Model / serving profile | Household | Python | Full-run time |
@@ -57,17 +80,11 @@ task success also does not establish near-64K capacity or actual app acceptance.
 
 ## Work in progress
 
-Groot and Logics-SWE are provisional contenders after passing all 15 v9.5
-reference tasks. [Two fresh trials each](docs/FINALIST_REPEATS.md) are declared
-on v9.8, including the exact distributed Mei rc.2 binary. Final roster selection
-remains pending those comparisons. The [first Groot trial](artifacts/groot-rc2-v9p8-seed17-20261102/README.md)
-scored **11/12 household, 3/3 Python in 10m19s** with no resource interruption;
-its sole failure repeated a deleted code in a historical aside.
-[Logics-SWE seed 17](artifacts/logics-swe-v9p8-seed17-20261102/README.md) also
-scored **11/12 and 3/3**, in 11m34s; its multipart retry reached the turn limit
-with correct stored state. Both seed-29 trials remain pending.
-[Current v9.8 cohort](results/FINALISTS_V9.8_SEED17.md). The [campaign review](docs/CANDIDATE_CAMPAIGN.md) records profiles,
-failures, memory fixes and next steps.
+Groot and Logics-SWE remain provisional contenders. Three of the four declared
+v9.8 trials are complete; Logics-SWE seed 29 is next. The current table above
+keeps both Groot outcomes and their failure modes visible. The
+[campaign review](docs/CANDIDATE_CAMPAIGN.md) tracks shared improvements,
+remaining work and comparison limits.
 
 - **Clover:** publisher files and diffusion kernel checks verified; native model
   automatic tools and dependent continuation
