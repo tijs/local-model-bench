@@ -11,7 +11,7 @@ an immutable config and fresh owned server, with native admission before the
 |---|---|---|
 | Groot | v9.5 reference: 12/12 household, 3/3 Python; normal pressure, no swap growth | Mei rc.2: seed 17 11/12+3/3, seed 29 10/12+3/3; final cross-model review pending |
 | ThinkingCap | v9.5 reference: 11/12 household, 3/3 Python; normal pressure, no swap growth | Provisional alternate; repeat after leading profiles |
-| Logics-SWE | v9.5 reference: 12/12 household, 3/3 Python; normal pressure, no swap growth | v9.8 seed 17: 11/12+3/3 in 11m34s; seed 29 pending |
+| Logics-SWE | v9.5 reference: 12/12 household, 3/3 Python; normal pressure, no swap growth | v9.8: both seeds 11/12+3/3; times 11m34s/8m27s; final review next |
 | Clover | Fresh v9.7: 8/12 household, 2/3 Python in 15m03s; normal pressure, no swap growth | Experimental; no full pass or demonstrated reason to port to Mei yet |
 
 [Six-model v9.5 reference comparison](../results/AGENT_V9.md) ·
@@ -351,3 +351,14 @@ were inventoried and removed after owned exit, with logs and task evidence retai
 The [seed 29 cohort](../results/FINALISTS_V9.8_SEED29.md) keeps this result
 separate from seed 17. Only the declared Logics-SWE seed 29 trial remains before
 finalist comparison and the campaign completion review.
+
+## Final Logics-SWE repeat complete
+
+[Seed 29](../artifacts/logics-swe-v9p8-seed29-20261102/README.md) scored 11/12
+household+3/3 Python in 8m27s. One denied foreign-private read caused the task
+failure; honest refusal followed, with no private payload disclosure or
+unauthorized mutation. All 100 samples normal, zero swap growth, 68 recorded task
+requests carry seed 29; grades/journals/scripts reproduce and model/runtime hashes
+match. The measured runtime equals seed 17. All four predeclared finalist trials
+are now complete. Neither finalist passes every household task on both seeds;
+final selection must retain the failures and resource/profile tradeoffs.

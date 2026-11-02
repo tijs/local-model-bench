@@ -19,7 +19,7 @@ automation tasks. Peixinho is still a design; these are not application tests.
   [First seed 17 cohort](../results/FINALISTS_V9.8_SEED17.md): Groot and Logics-SWE
   each 11/12+3/3.
   [Seed 29 cohort](../results/FINALISTS_V9.8_SEED29.md): Groot 10/12+3/3;
-  Logics-SWE remains pending.
+  Logics-SWE 11/12+3/3. All four declared trials are complete.
 - [Candidate campaign](CANDIDATE_CAMPAIGN.md): Groot, ThinkingCap, Logics-SWE,
   Clover and reference retests, with evidence links and open qualification work.
 - [Release history](releases/): method and tooling changes. Current release:

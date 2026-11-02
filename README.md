@@ -17,19 +17,20 @@ application tests or product scores.
 | Groot public text pack / distributed Mei rc.2 | 17 | 11/12 | 3/3 | 10m19s |
 | Groot public text pack / same Mei rc.2 binary | 29 | 10/12 | 3/3 | 10m14s |
 | Logics-SWE IQ4_XS / pinned llama.cpp | 17 | 11/12 | 3/3 | 11m34s |
-| Logics-SWE IQ4_XS / same llama.cpp binary | 29 | pending | pending | pending |
+| Logics-SWE IQ4_XS / same llama.cpp binary | 29 | 11/12 | 3/3 | 8m27s |
 
 All completed repeats had normal pressure and no swap growth. Both Groot trials
 repeated a deleted numeric value; seed 29 also made an unassigned routing call
 before recovering. Logics seed 17 exhausted its turn budget after correctly
-recovering retry state. All completed Python tasks passed four-variant replay.
+recovering retry state; seed 29 attempted a denied private read before refusing. All completed Python tasks passed four-variant replay.
 
 [Seed 17 cohort](results/FINALISTS_V9.8_SEED17.md) ·
 [Seed 29 cohort](results/FINALISTS_V9.8_SEED29.md) ·
 [Repeat design and reviews](docs/FINALIST_REPEATS.md)
 
 Every predeclared outcome stays visible. Different seeds do not establish
-independence or superiority; final roster selection awaits the last trial.
+independence or superiority. All four trials are complete; the roster review
+is next.
 These are full serving-profile results, not a pure model or quantization ablation.
 The broader reference table below retains its earlier measured method.
 
@@ -80,9 +81,10 @@ task success also does not establish near-64K capacity or actual app acceptance.
 
 ## Work in progress
 
-Groot and Logics-SWE remain provisional contenders. Three of the four declared
-v9.8 trials are complete; Logics-SWE seed 29 is next. The current table above
-keeps both Groot outcomes and their failure modes visible. The
+All four declared v9.8 finalist trials are complete. Logics-SWE scored 11/12
+household on both seeds; Groot scored 11/12 and 10/12. Both passed all Python
+tasks, and neither passed every household task in these repeats. The current
+table keeps every outcome and failure mode visible. The
 [campaign review](docs/CANDIDATE_CAMPAIGN.md) tracks shared improvements,
 remaining work and comparison limits.
 
