@@ -4,8 +4,12 @@ Start with the [project overview and current scores](../README.md). The current
 comparison covers twelve synthetic household tasks and three isolated Python
 automation tasks. Peixinho is still a design; these are not application tests.
 
-## Current results and work
+## Current results and decisions
 
+- [Retained roster](ROSTER.md): two primary serving profiles, alternatives,
+  experimental diffusion, failures and limits.
+- [Campaign completion audit](../artifacts/candidate-system-campaign-20261101/final-review-20261102/README.md):
+  requirement-by-requirement evidence, released artifacts and separate open work.
 - [Six-model v9.5 reference comparison](../results/AGENT_V9.md): selected complete runs,
   exact identities, coverage, time, resource observations and failed checks.
 - [Clover v9.7 result](../results/CLOVER_V9.7.md): fresh corrected-method trial,
@@ -23,7 +27,7 @@ automation tasks. Peixinho is still a design; these are not application tests.
 - [Candidate campaign](CANDIDATE_CAMPAIGN.md): Groot, ThinkingCap, Logics-SWE,
   Clover and reference retests, with evidence links and open qualification work.
 - [Release history](releases/): method and tooling changes. Current release:
-  [benchmark-v9.8](releases/benchmark-v9.8.md).
+  [benchmark-v9.8.1](releases/benchmark-v9.8.1.md).
 
 ## Running and understanding the benchmark
 

@@ -1,6 +1,12 @@
 # Current Peixinho stand-in configs
 
-Active roster (2026-11-01): MiniCPM-V4.7 Q4_K_M, Qwen3.6 and Ornith1.5.
+Active shortlist (2026-11-02): **Logics-SWE IQ4_XS / llama.cpp** and
+**Groot public text RCO / Mei rc.2**. ThinkingCap and MiniCPM remain alternatives;
+Clover is experimental native diffusion; Qwen/Ornith are historical references.
+See the [roster decision and failures](../docs/ROSTER.md) and
+[machine-readable selection record](active_roster.json). All four predeclared
+finalist repeats are complete, including both weaker outcomes.
+
 Flint/JANGH2 is retired by user decision. Existing Flint configs are retained
 unchanged for historical reproduction, not selected for new campaigns or
 quantization research unless the user explicitly reopens the candidate.

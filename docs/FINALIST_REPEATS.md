@@ -1,16 +1,16 @@
 # Finalist repeats
 
 Groot and Logics-SWE each passed all twelve household and three Python tasks in
-the published v9.5 comparison. Before choosing between them, run two fresh full
-trials per profile on the released corrected grader. Both seeds are declared in
-advance. Retain every outcome; do not select only the better trajectory.
+the published v9.5 comparison. The four predeclared full
+trials on the released corrected grader are now complete. Both seeds were
+declared in advance. Retain every outcome; do not select only the better trajectory.
 
 | Order | Committed config | Output | Request seed |
 |---:|---|---|---:|
 | 1 | `configs/candidates-20261101/groot-rc2-v9p8-seed17.yaml` | `artifacts/groot-rc2-v9p8-seed17-20261102` | 17 |
 | 2 | `configs/candidates-20261101/logics-swe-v9p8-seed17.yaml` | `artifacts/logics-swe-v9p8-seed17-20261102` | 17 |
-| 3 | `configs/candidates-20261101/groot-rc2-v9p8-seed 29.yaml` | `artifacts/groot-rc2-v9p8-seed29-20261102` | 29 |
-| 4 | `configs/candidates-20261101/logics-swe-v9p8-seed 29.yaml` | `artifacts/logics-swe-v9p8-seed29-20261102` | 29 |
+| 3 | `configs/candidates-20261101/groot-rc2-v9p8-seed29.yaml` | `artifacts/groot-rc2-v9p8-seed29-20261102` | 29 |
+| 4 | `configs/candidates-20261101/logics-swe-v9p8-seed29.yaml` | `artifacts/logics-swe-v9p8-seed29-20261102` | 29 |
 
 Each run has a new process, fresh owned cache/runtime state and the normal
 capacity-byte plan plus pressure/swap/disk/deadline guards. Review and preserve
@@ -19,11 +19,11 @@ during inference. Use the committed config and record both task tracks:
 
 ```sh
 uv run --locked python runner/supervise_bench.py \
-  --config configs/candidates-20261101/logics-swe-v9p8-seed 29.yaml \
+  --config configs/candidates-20261101/logics-swe-v9p8-seed29.yaml \
   --output artifacts/logics-swe-v9p8-seed29-20261102 --trials 1
 ```
 
-## Results so far
+## Completed results
 
 Groot seed 17 completed at **11/12 household and 3/3 Python in 10m19s**, with
 normal pressure and no swap growth. It repeated the deleted numeric code inside
@@ -48,6 +48,7 @@ were normal, with zero swap growth. All grades, journals and isolated script
 replays reproduce; all 65 saved task requests carry seed 29.
 
 [Seed 29 cohort](../results/FINALISTS_V9.8_SEED29.md) preserves this outcome.
+
 ## Logics-SWE seed 29 result
 
 The [final trial](../artifacts/logics-swe-v9p8-seed29-20261102/README.md)
@@ -59,7 +60,8 @@ seed 17, all 68 task requests carry seed 29, and grades/journals/scripts reprodu
 
 All four predeclared trials are complete. Both cohort reports keep every
 outcome. All output paths and the example command above are consumed; do not
-rerun them. Next is the campaign roster/completion review, not a retry-until-pass.
+rerun them. The [roster and completion review](ROSTER.md) retain both primary tradeoffs;
+there is no further retry declared.
 
 ## Disk-cache accounting
 

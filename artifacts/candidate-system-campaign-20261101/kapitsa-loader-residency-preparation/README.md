@@ -1,4 +1,9 @@
-# Early weight residency: unqualified loader experiment
+# Early weight residency: preparation record
+
+This records the initial unqualified experiment. Later native/cache controls
+and both full trials completed on the candidate with normal pressure and no
+swap growth: [current diffusion review](../../../docs/CLOVER_NATIVE.md).
+That qualifies the pinned profile, not a universal memory-fix or causal proof.
 
 The cache controls exposed compression/warning/swap spikes during repeated
 Clover loads, even after observed host recovery. The original loader fills

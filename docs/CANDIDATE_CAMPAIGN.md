@@ -1,17 +1,17 @@
-# Candidate campaign — 1 November 2026
+# Candidate campaign — completed 2 November 2026
 
 The campaign tests Groot, ThinkingCap, Logics-SWE and Clover alongside the
 completed MiniCPM, Qwen and Ornith reference profiles. Every scored attempt uses
 an immutable config and fresh owned server, with native admission before the
 12 household workflows and three isolated Python automation tasks.
 
-## Results and next steps
+## Completed campaign and retained profiles
 
 | Candidate | Verified outcome | Next step |
 |---|---|---|
-| Groot | v9.5 reference: 12/12 household, 3/3 Python; normal pressure, no swap growth | Mei rc.2: seed 17 11/12+3/3, seed 29 10/12+3/3; final cross-model review pending |
-| ThinkingCap | v9.5 reference: 11/12 household, 3/3 Python; normal pressure, no swap growth | Provisional alternate; repeat after leading profiles |
-| Logics-SWE | v9.5 reference: 12/12 household, 3/3 Python; normal pressure, no swap growth | v9.8: both seeds 11/12+3/3; times 11m34s/8m27s; final review next |
+| Groot | v9.5 reference: 12/12 household, 3/3 Python; normal pressure, no swap growth | Retain compact MLX primary; rc.2 repeats 11/12 and 10/12, Python 3/3 both |
+| ThinkingCap | v9.5 reference: 11/12 household, 3/3 Python; normal pressure, no swap growth | Retain as alternative; single older-method trajectory, not repeated in v9.8 |
+| Logics-SWE | v9.5 reference: 12/12 household, 3/3 Python; normal pressure, no swap growth | Retain quality-focused primary; v9.8 both seeds 11/12+3/3 |
 | Clover | Fresh v9.7: 8/12 household, 2/3 Python in 15m03s; normal pressure, no swap growth | Experimental; no full pass or demonstrated reason to port to Mei yet |
 
 [Six-model v9.5 reference comparison](../results/AGENT_V9.md) ·
@@ -39,8 +39,9 @@ failure is a turn-limited multipart retry with correct persisted state and all
 receipts recovered. The two seed 17 trials have equal counts but different
 failure modes; [both seed 29 trials remain](FINALIST_REPEATS.md).
 
-The remaining sections preserve the investigation chronology. Current next
-steps are the table above and the owning Kiem campaign plan.
+The remaining sections preserve the investigation chronology. The [retained roster](ROSTER.md) and
+[completion review](../artifacts/candidate-system-campaign-20261101/final-review-20261102/README.md)
+record the final decision and its limits.
 
 ## ThinkingCap interruption and owned fixes
 

@@ -1,7 +1,7 @@
 # local-model-bench
 
-Current release: **benchmark-v9.8 — released-runtime repeats**.
-See the [current release notes](docs/releases/benchmark-v9.8.md) and
+Current release: **benchmark-v9.8.1 — campaign results and retained profiles**.
+See the [current release notes](docs/releases/benchmark-v9.8.1.md) and
 [release history](docs/releases/).
 
 Compare local LLM serving stacks on affordable Apple Silicon Macs. The active
@@ -9,6 +9,11 @@ engines are llama.cpp variants, Mei (Swift/MLX), and a separately pinned
 Kapitsa/Metal profile for Clover diffusion experiments. Peixinho is the intended
 future application runtime; it is currently a design, so there are no Peixinho
 application tests or product scores.
+
+Keep **Logics-SWE / llama.cpp** and **Groot / Mei rc.2** as the primary
+shortlist. ThinkingCap and MiniCPM remain alternatives; Clover stays experimental.
+[Retained profiles, failures and limits](docs/ROSTER.md). The four-trial campaign
+is complete; neither finalist passed every household task in these repeats.
 
 ## Finalist repeats on v9.8
 
@@ -24,13 +29,14 @@ repeated a deleted numeric value; seed 29 also made an unassigned routing call
 before recovering. Logics seed 17 exhausted its turn budget after correctly
 recovering retry state; seed 29 attempted a denied private read before refusing. All completed Python tasks passed four-variant replay.
 
+
 [Seed 17 cohort](results/FINALISTS_V9.8_SEED17.md) ·
 [Seed 29 cohort](results/FINALISTS_V9.8_SEED29.md) ·
 [Repeat design and reviews](docs/FINALIST_REPEATS.md)
 
 Every predeclared outcome stays visible. Different seeds do not establish
-independence or superiority. All four trials are complete; the roster review
-is next.
+independence or superiority. All four trials are complete; the
+[roster review](docs/ROSTER.md) retains both useful tradeoffs.
 These are full serving-profile results, not a pure model or quantization ablation.
 The broader reference table below retains its earlier measured method.
 
@@ -79,14 +85,14 @@ tracks, excluding the 30-second host baseline. They compare complete serving
 profiles. One trajectory per task does not establish statistical superiority;
 task success also does not establish near-64K capacity or actual app acceptance.
 
-## Work in progress
+## Campaign disposition
 
 All four declared v9.8 finalist trials are complete. Logics-SWE scored 11/12
 household on both seeds; Groot scored 11/12 and 10/12. Both passed all Python
 tasks, and neither passed every household task in these repeats. The current
 table keeps every outcome and failure mode visible. The
-[campaign review](docs/CANDIDATE_CAMPAIGN.md) tracks shared improvements,
-remaining work and comparison limits.
+[campaign review](docs/CANDIDATE_CAMPAIGN.md) records shared improvements and
+comparison limits; [the retained roster](docs/ROSTER.md) records the decision.
 
 - **Clover:** publisher files and diffusion kernel checks verified; native model
   automatic tools and dependent continuation
