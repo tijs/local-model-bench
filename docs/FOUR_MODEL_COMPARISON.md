@@ -149,6 +149,39 @@ versus **llama.cpp (GGUF)**. Include run IDs, native sampler differences, contex
 quant/source pins, failed/partial coverage and resource caveats beside charts.
 No point is plotted as a completed score for an interrupted/unadmitted run.
 
+### Short- and long-context decode speed
+
+The next summary will add one row per model with two averaged TPS endpoints,
+joined by a line: a filled marker for short context and an open marker for long
+context. Label both with actual input-token counts. The connector pairs two
+observations; it does not predict intermediate speeds. Keep task duration and
+the separate household/Python success tracks alongside this view.
+
+Use two predeclared fresh processes per profile and retain every measured
+repeat, weighting the processes equally. Match model/runtime pins and the
+controlled prompt, output allowance and sampler across the comparison. Exclude
+cold/warmup observations from the endpoints, retain them as evidence, and reject
+incomplete or mixed-revision input. The aggregation and PNG/SVG renderer live in
+`runner/context_speed_summary.py`.
+
+Task-log `tokens_per_second` divides completion tokens by full task wall time;
+it includes prefill and tool overhead and is not decode TPS. The current v9.10
+response traces retain engine decode timings, but Qwen has no matched long
+context: its largest request is about 4.3K tokens. Those traces cannot supply a
+controlled 30K comparison. Obtain matched observations for all four profiles,
+including Logics/llama.cpp, on the runtime used for the fresh task cohort.
+
+A clearly marked [qualification layout preview](../artifacts/mei-stable-qualification-20261102/context-speed-layout-preview.png)
+uses actual unreleased candidate-only Mei measurements at 17/30,000 input
+tokens. It excludes Logics and carries no task score or stable-release claim.
+Its [raw observations and averages](../artifacts/mei-stable-qualification-20261102/context-speed-layout-preview.json)
+and [performance review](../artifacts/mei-stable-qualification-20261102/default-performance-review.md)
+remain separate from the published four-model summary. The final comparison
+must not mix these qualification numbers with published rc.2 task results.
+To reproduce the layout without overwriting its evidence, run
+`uv run --locked python artifacts/mei-stable-qualification-20261102/preview_context_speed.py --output /tmp/mei-context-speed-preview`
+with a fresh destination stem.
+
 ## Why v9.9 stopped after five attempts
 
 Qwen seed29 correctly listed the persisted routing options and requested
