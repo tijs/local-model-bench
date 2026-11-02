@@ -210,3 +210,36 @@ below the old cap rejects this as a sufficient explanation. The driver checks
 `memory.cacheLimitBytes` against the launch argument before measuring, so an
 ignored setting cannot masquerade as a comparison. This is an exploratory
 screen; no production default or full 30K qualification claim follows from it.
+
+The six-process screen completed with parity and normal pressure. Process
+median short / 1K rates were:
+
+| Allocation cache | Process 1 | Process 2 | Process 3 |
+| --- | --- | --- | --- |
+| 128 MiB | 48.75 / 49.60 | 69.73 / 68.11 | 69.92 / 68.25 |
+| 512 MiB | 65.98 / 65.09 | 65.21 / 64.76 | 66.48 / 65.41 |
+
+The live cap matched each launch. Retained cache reached roughly 128 or
+512 MiB respectively. Larger allowance reduced the observed process spread,
+using more memory and sacrificing some highest observed speed. This supports
+testing the profile at full context; it does not establish every internal
+mechanism or a universal default. Every process and slower sample is retained
+in [allocator-summary.json](allocator-summary.json).
+
+## Matched public-profile gates
+
+`default-matrix.json` declares a fresh A1/B1/B2/A2 sequence for each of Groot,
+Qwen and Ornith. A uses the API-correct original control; B uses the original
+lookup candidate. Both have **compilation enabled and a 512 MiB allocation
+cache**, with the same weights, Metal, sampler, 65K context, 30K loaded prompt,
+prefix-cache budget and remaining settings. There is no debugger attached.
+Five measured observations per context/process provide ten per source/context.
+B1 also runs the pinned nine-test normal-budget Swift client.
+
+These gates directly assess the lookup patch in the same serving profile.
+The preceding cache screen does not prove their result. Inspect every process
+and any spread/regression before promotion; do not select a favorable run.
+The same manifest lists three fresh full native admission profiles at this
+allowance, using the normal-budget probe source with proved equivalent app
+inputs. Native/cache/exact-context gates, stable distribution/install checks
+and eight scored reruns remain required. None of these diagnostic rows rank.
