@@ -1,7 +1,7 @@
 # local-model-bench
 
-Current release: **benchmark-v9.6 — pinned Clover serving profile**.
-See the [current release notes](docs/releases/benchmark-v9.6.md) and
+Current release: **benchmark-v9.7 — deleted-source grading correction**.
+See the [current release notes](docs/releases/benchmark-v9.7.md) and
 [release history](docs/releases/).
 
 Compare local LLM serving stacks on affordable Apple Silicon Macs. The active
@@ -10,7 +10,7 @@ Kapitsa/Metal profile for Clover diffusion experiments. Peixinho is the intended
 future application runtime; it is currently a design, so there are no Peixinho
 application tests or product scores.
 
-## Current v9 results
+## Published v9.5 reference results
 
 | Model / serving profile | Household | Python | Full-run time |
 |---|---:|---:|---:|
@@ -31,7 +31,8 @@ reminder script worked after an invalid tool call. See the detailed reviews.
 
 See the [v9.5 six-model comparison](results/AGENT_V9.md) for exact run IDs and profiles.
 These retain their measured source identities as the new backend is integrated.
-The selected reference retests are complete. Earlier results below remain
+Those selected reference retests are complete on v9.5; fresh v9.7 comparison
+runs remain pending after the grading correction. Earlier results below remain
 historical references; they are not relabeled v9 scores. The new MiniCPM runtime
 profile is a memory/speed tradeoff, not a controlled model-quality comparison.
 
@@ -66,9 +67,12 @@ failures, memory fixes and next steps.
   [passed native diagnostics](artifacts/clover-native-diffusion-20261101/README.md).
   [Cache controls passed](artifacts/clover-cache-diffusion-actual-baseline-20261101/README.md)
   across seven fresh processes with normal pressure and no swap growth. Its
-  [pinned serving profile](docs/KAPITSA_RUNTIME.md) is ready for the first full
-  household/Python trial; no Clover task score exists yet. Its pack is consumed
-  by Kapitsa, a native Metal engine. It is not yet a Mei/MLX runtime result.
+  [first full v9.6 trial](artifacts/clover-heldout-diffusion-full-20261102/README.md)
+  recorded **7/12 household, 2/3 Python in 14m48s** with normal pressure and no
+  swap growth. One household failure is a confirmed grader false negative;
+  v9.7 corrects it and requires a fresh trial. The original score stays intact.
+  Kapitsa consumes the MLX-format pack through native Metal; this is not a
+  Mei/MLX runtime result.
 - **Mei preview:** the prepared Groot text pack is
   [public](https://huggingface.co/Tostibrown/Groot-19B-A3B-261023-rco-role-4.5bpw-textonly).
   [Mei rc.2 is released](https://github.com/tijs/mei/releases/tag/v0.10.0-rc.2)

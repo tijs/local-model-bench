@@ -67,10 +67,17 @@ def released_version_names(track: str, reader: Reader, revision: str) -> set[str
     Every selected helper still has to match both release and measured source.
     """
     names = set(TRACKS[track][3])
-    entrypoint = "run_standin_suite.py" if track == "household" else "run_automation_suite.py"
+    entrypoint = (
+        "run_standin_suite.py" if track == "household" else "run_automation_suite.py"
+    )
     source = reader(revision, "runner/" + entrypoint)
-    if b"from kapitsa_provenance import" in source and b'"kapitsa_provenance.py"' not in source:
-        raise ValueError("released entrypoint imports Kapitsa without fingerprinting it")
+    if (
+        b"from kapitsa_provenance import" in source
+        and b'"kapitsa_provenance.py"' not in source
+    ):
+        raise ValueError(
+            "released entrypoint imports Kapitsa without fingerprinting it"
+        )
     if b'"kapitsa_provenance.py"' in source:
         names.add("kapitsa_provenance.py")
     return names
@@ -398,6 +405,11 @@ def render_campaign(
 ) -> str:
     if not re.fullmatch("[0-9a-f]{40}", campaign.get("release_commit", "")):
         raise ValueError("campaign requires exact release commit")
+    notes = campaign.get("method_notes", [])
+    if not isinstance(notes, list) or any(
+        not isinstance(note, str) or not note.strip() or "\n" in note for note in notes
+    ):
+        raise ValueError("method_notes must be a list of nonempty single-line strings")
     if (
         campaign.get("partition") != "heldout"
         or not isinstance(campaign.get("trials"), int)
@@ -462,6 +474,7 @@ def render_campaign(
         "",
         "Resource eligibility replays the released stop policy. Capacity mode permits an isolated warning; sustained warnings, critical pressure and swap/disk limits disqualify. Free percentage is telemetry only. Warning samples and swap growth remain visible.",
         "",
+        *[line for note in notes for line in (f"**Method note:** {note}", "")],
         "| Order | Model / engine | Household | Python | Budget outcomes | Invalid calls | Wall time | Warning samples / min free / swap growth | Coverage |",
         "|---:|---|---:|---:|---:|---:|---:|---|---|",
     ]

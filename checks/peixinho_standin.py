@@ -374,7 +374,7 @@ def grade(
         if case.variant == "heldout":
             checks["deleted_source_not_reused"] = bool(
                 re.search(
-                    r"not (?:stored|found|available)|unknown|no .{0,30}(?:code|record)",
+                    r"not (?:stored|found|available)|unknown|no longer (?:stored|found|available|accessible)\b|no .{0,30}(?:code|record)",
                     latest,
                     re.IGNORECASE,
                 )

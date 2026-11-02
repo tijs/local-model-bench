@@ -99,7 +99,7 @@ class AgentLeaderboardTests(unittest.TestCase):
             "python_run": "20261029T210100Z-22222222",
             "supervision": "artifacts/supervision",
         }
-        self.campaign = {
+        self.campaign: dict[str, Any] = {
             "benchmark_release": "benchmark-v7",
             "release_commit": self.commit,
             "partition": "heldout",
@@ -278,6 +278,19 @@ class AgentLeaderboardTests(unittest.TestCase):
         self.assertIn("12/12", text)
         self.assertIn("3/3", text)
         self.assertIn("| 1 | fixture-model", text)
+
+    def test_method_note_is_visible_before_score_table(self):
+        self.campaign["method_notes"] = ["Known grader defect; fresh trial required."]
+        report = self.report()
+        self.assertIn("**Method note:** Known grader defect; fresh trial required.", report)
+        self.assertLess(report.index("**Method note:**"), report.index("| Order |"))
+
+    def test_method_notes_reject_malformed_values(self):
+        for notes in ("warning", [None], [""], ["one\ntwo"]):
+            with self.subTest(notes=notes):
+                self.campaign["method_notes"] = notes
+                with self.assertRaisesRegex(ValueError, "method_notes"):
+                    self.report()
 
     def test_partial_household_cannot_receive_order(self):
         self.rows["household"].pop()

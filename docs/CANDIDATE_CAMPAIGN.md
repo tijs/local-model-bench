@@ -291,3 +291,26 @@ The old six-model report still reproduces exactly against v9.5.
 
 [Cache evidence](../artifacts/clover-cache-diffusion-actual-baseline-20261101/README.md) ·
 [Full profile and command](KAPITSA_RUNTIME.md)
+
+## Clover full trial and grading correction
+
+The [first full v9.6 run](../artifacts/clover-heldout-diffusion-full-20261102/README.md)
+recorded 7/12 household and 2/3 Python in 14m48s. All 175 pressure samples were
+normal, swap growth was zero, all 15 post-run file hashes matched and owned
+cleanup left no runtime files. All saved grades/API journals and twelve script
+variant executions reproduced.
+
+One household failure belongs to the benchmark: the deleted-source validator
+rejected the truthful phrase “no longer available.” v9.7 adds that narrow
+paraphrase without relaxing stale-code, privacy, operation-ID or state checks.
+The original score stays intact. A fresh Clover trial and affected reference
+comparisons are required before final selection; the published six-model
+comparison retains its exact v9.5 identity. Remaining observed failures include
+unassigned IDs, denied private reads, missing citation, altered preview and
+Unicode lower-versus-casefold behavior. These support profile-level findings,
+not definitive separation of model, quantization and numerical runtime effects.
+
+The CPU prompt audit reconstructed all 79 requests (resetting actual HTTP history
+at simulated reconnects). Native prompts and token IDs matched the publisher
+renderer/tokenizer, and all saved API prompt lengths agreed. No prompt/tokenizer
+mismatch was observed. This is not a numerical decoder/quantization parity test.

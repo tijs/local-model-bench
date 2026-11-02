@@ -1,4 +1,10 @@
-# Clover native diffusion diagnostic
+# Clover diffusion: results and native diagnostics
+
+The [first full v9.6 trial](../artifacts/clover-heldout-diffusion-full-20261102/README.md)
+recorded 7/12 household and 2/3 Python in 14m48s, with normal pressure and zero
+swap growth. One household failure is a confirmed language-grader false negative.
+The original score remains unchanged; a fresh corrected-method run is pending.
+The chronology below preserves the earlier diagnostic decisions.
 
 Clover's pinned 4-bit pack uses MLX affine storage, but its current serving path
 is Kapitsa's native C++/Metal engine. It is not a stock Qwen or Mei model.
@@ -41,7 +47,7 @@ we do not switch to causal or speculative decoding to bypass this limitation.
 
 The [first attempt passed all five checks](../artifacts/clover-native-diffusion-20261101/README.md).
 The example output/runtime paths now exist; use a fresh committed profile and
-output for another attempt. The full held-out suite has not run yet.
+output for another attempt. That diagnostic preceded the full trial linked above.
 
 ## Cache controls
 

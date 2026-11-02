@@ -27,7 +27,12 @@ The local derived commit is explicitly not a fetchable upstream revision.
 These are focused admission controls. Full task coverage and near-context-cap
 capacity/quality remain separate. Earlier failed/partial attempts stay visible.
 
-## Run the full two-track trial
+## First full two-track trial (completed)
+
+[Recorded result and failure review](../artifacts/clover-heldout-diffusion-full-20261102/README.md):
+7/12 household and 2/3 Python on v9.6. One household failure is a confirmed
+validator false negative. Retain those rows and use a fresh committed profile
+for any corrected-method retry; the example paths below have already been used.
 
 Commit the exact config and complete the locked model-free checks first:
 
@@ -49,3 +54,20 @@ Reports still verify old releases against their frozen source/helper sets; no
 old grade or measured identity is rewritten. Adding backend support changes
 launch/provenance fingerprints, so new full runs keep a distinct released
 measurement identity even though the task contracts remain unchanged.
+
+## Corrected-method trial
+
+The v9.7 trial is declared in
+[`clover-kapitsa-diffusion-v9p7.yaml`](../configs/candidates-20261101/clover-kapitsa-diffusion-v9p7.yaml).
+It keeps the same model bytes, executable, decoder, sampling and budgets. Only
+fresh runtime/log paths and the reviewed status change. Commit it before use:
+
+```sh
+uv run --locked python runner/supervise_bench.py \
+  --config configs/candidates-20261101/clover-kapitsa-diffusion-v9p7.yaml \
+  --output artifacts/clover-heldout-v9p7-20261102 --trials 1
+```
+
+This is one predeclared full corrected-method trial, not retrying tasks until
+success. Score it under its actual new release/source identity. The v9.6 false
+negative and all other original failures remain public evidence.
