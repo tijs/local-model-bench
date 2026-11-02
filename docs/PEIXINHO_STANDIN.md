@@ -75,6 +75,12 @@ cannot be offset by other passes or speed. A task can fail for quality, protocol
 empty answer, turn/token/time bounds, transport or interruption. Completed
 messages and accepted state/receipts survive later transport failure; the shared
 transport does not expose unfinished SSE fragments for token-level forensics.
+Some check names combine state and phase completion. In particular,
+`retry_receipts_exist` requires three capture receipts, recovered operation IDs
+and both multipart phases completed. After a turn-limit failure, that check can
+fail even when all receipts exist and were recovered. Read the saved journal
+and error classification before interpreting it as missing or lost state.
+
 Changed-source answers require a fresh read in the changed-source phase. A
 separate unambiguous sentence marking a prior code obsolete is permitted;
 asserting it as current, contradicting that disclaimer or omitting the fresh

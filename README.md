@@ -62,8 +62,11 @@ reference tasks. [Two fresh trials each](docs/FINALIST_REPEATS.md) are declared
 on v9.8, including the exact distributed Mei rc.2 binary. Final roster selection
 remains pending those comparisons. The [first Groot trial](artifacts/groot-rc2-v9p8-seed17-20261102/README.md)
 scored **11/12 household, 3/3 Python in 10m19s** with no resource interruption;
-its sole failure repeated a deleted code in a historical aside. The other
-three declared trials remain pending. The [campaign review](docs/CANDIDATE_CAMPAIGN.md) records profiles,
+its sole failure repeated a deleted code in a historical aside.
+[Logics-SWE seed 17](artifacts/logics-swe-v9p8-seed17-20261102/README.md) also
+scored **11/12 and 3/3**, in 11m34s; its multipart retry reached the turn limit
+with correct stored state. Both seed-29 trials remain pending.
+[Current v9.8 cohort](results/FINALISTS_V9.8_SEED17.md). The [campaign review](docs/CANDIDATE_CAMPAIGN.md) records profiles,
 failures, memory fixes and next steps.
 
 - **Clover:** publisher files and diffusion kernel checks verified; native model

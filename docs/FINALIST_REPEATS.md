@@ -19,22 +19,30 @@ during inference. Use the committed config and record both task tracks:
 
 ```sh
 uv run --locked python runner/supervise_bench.py \
-  --config configs/candidates-20261101/logics-swe-v9p8-seed17.yaml \
-  --output artifacts/logics-swe-v9p8-seed17-20261102 --trials 1
+  --config configs/candidates-20261101/groot-rc2-v9p8-seed29.yaml \
+  --output artifacts/groot-rc2-v9p8-seed29-20261102 --trials 1
 ```
 
-## First result
+## Seed 17 results
 
 Groot seed 17 completed at **11/12 household and 3/3 Python in 10m19s**, with
 normal pressure and no swap growth. It repeated the deleted numeric code inside
 a historical aside, despite correctly saying it was unavailable. All other
 tasks passed. [Reviewed evidence](../artifacts/groot-rc2-v9p8-seed17-20261102/README.md)
 and the [seed 17 cohort report](../results/FINALISTS_V9.8_SEED17.md) preserve the
-failure. The other three trials remain pending. The first row's runtime/output
-paths are now consumed; use the next unrun row, not that example path again.
+failure.
+
+Logics-SWE seed 17 completed at **11/12 household and 3/3 Python in 11m34s**,
+with normal pressure and no swap growth. Its multipart retry persisted and
+recovered the correct state, but exhausted twelve turns without a final answer.
+The composite retry-receipt check also requires phase completion; receipts
+were present. [Review](../artifacts/logics-swe-v9p8-seed17-20261102/README.md).
+
+Both seed 29 trials remain pending. The first two rows' runtime/output paths
+are consumed; the example above now starts the next unrun Groot seed 29 row.
 
 The disk tier is separate from the 512 MiB resident-prefix budget. Its default
-cap is 10 GiB; this run wrote about 7.34 GiB of generated KV files. After saving
+cap is 10 GiB; Groot seed 17 wrote about 7.34 GiB of generated KV files. After saving
 inventory, index summary and logs, its exited owned KV directory was removed.
 The task evidence, weights and release files remain. Include disk-cache space
 in the storage plan and preserve a cleanup receipt after each Mei run.
