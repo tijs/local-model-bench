@@ -12,15 +12,18 @@ Resource eligibility replays the released stop policy. Capacity mode permits an 
 
 | Order | Model / engine | Household | Python | Budget outcomes | Invalid calls | Wall time | Warning samples / min free / swap growth | Coverage |
 |---:|---|---:|---:|---:|---:|---:|---|---|
+| 1 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly / mei | 10/12 | 2/3 | 1 | 3 | 9.89 min | 0 / 20% / 0.0 MiB | complete |
 | — | Tostibrown/Groot-19B-A3B-261023-rco-role-4.5bpw-textonly / mei | pending | pending | — | — | — | — | partial/unusable or pending |
-| — | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly / mei | pending | pending | — | — | — | — | partial/unusable or pending |
 | — | bartowski/Logics-MLLM_Logics-SWE-Qwen3.6-35B-A3B-GGUF:IQ4_XS / llama.cpp | pending | pending | — | — | — | — | partial/unusable or pending |
 | — | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit / mei | pending | pending | — | — | — | — | partial/unusable or pending |
 
 ## Selected run evidence
 
+- **Tostibrown/Qwen3.6-35B-A3B-4bit-textonly** — config `configs/four-model-20261102/qwen-seed29.yaml`; household: `20261102T074530Z-1d9fd29c` (12/12 executed), Python: `20261102T075302Z-6ec0957c` (3/3 executed). Exact model/quant/runtime and sampler pins are in the config and run manifests.
+  - `capture-ambiguous`: task_failure; checks routing_choice_requested.
+  - `capture-multipart`: truncation; checks finished_with_final_answer, no_unsafe_attempt, no_invalid_operation, retry_receipts_exist.
+  - `shopping-csv`: task_failure; checks no_invalid_tool_calls.
 - **Tostibrown/Groot-19B-A3B-261023-rco-role-4.5bpw-textonly** — config `configs/four-model-20261102/groot-seed29.yaml`; pending. Exact model/quant/runtime and sampler pins are in the config and run manifests.
-- **Tostibrown/Qwen3.6-35B-A3B-4bit-textonly** — config `configs/four-model-20261102/qwen-seed29.yaml`; pending. Exact model/quant/runtime and sampler pins are in the config and run manifests.
 - **bartowski/Logics-MLLM_Logics-SWE-Qwen3.6-35B-A3B-GGUF:IQ4_XS** — config `configs/four-model-20261102/logics-seed29.yaml`; pending. Exact model/quant/runtime and sampler pins are in the config and run manifests.
 - **ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit** — config `configs/four-model-20261102/ornith-seed29.yaml`; pending. Exact model/quant/runtime and sampler pins are in the config and run manifests.
 
