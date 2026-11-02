@@ -7,7 +7,7 @@ Real quality-versus-time/memory graphs will be generated when all eight are audi
 | Model / engine | Seed | Household | Python | Full-run time | Evidence |
 |---|---:|---:|---:|---:|---|
 | Base Qwen3.6 / mei | 17 | 9/12 | 2/3 | 8.37 min | [review](../artifacts/qwen-four-v9p9-seed17-20261102/README.md) |
-| Ornith1.5 / mei | 17 | pending | pending | pending | — |
+| Ornith1.5 / mei | 17 | 9/12 | 3/3 | 9.56 min | [review](../artifacts/ornith-four-v9p9-seed17-20261102/README.md) |
 | Groot / mei | 17 | pending | pending | pending | — |
 | Logics-SWE / llama.cpp | 17 | pending | pending | pending | — |
 | Base Qwen3.6 / mei | 29 | pending | pending | pending | — |

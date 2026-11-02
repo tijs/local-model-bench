@@ -16,6 +16,10 @@ two-model replacement decision was premature. Three use **Mei (Swift/MLX)**;
 Logics-SWE uses **llama.cpp (GGUF)**. [Current summary and upcoming graphs](results/AGENT_SUMMARY.md) ·
 [Eight-run design](docs/FOUR_MODEL_COMPARISON.md).
 
+Fresh progress: Qwen seed17 **9/12 household + 2/3 Python**; Ornith seed17
+**9/12 + 3/3**. Six predeclared runs remain. Both completed with normal
+pressure and no swap growth; see the linked summary for audited traces.
+
 No old result is used as a new retest. The final summary will plot quality
 against full-run time and measured wired-memory increase, with each seed and
 engine visible. The older comparisons below remain historical references.
@@ -66,8 +70,8 @@ reminder script worked after an invalid tool call. See the detailed reviews.
 
 See the [v9.5 six-model comparison](results/AGENT_V9.md) for exact run IDs and profiles.
 These retain their measured source identities as the new backend is integrated.
-Those selected reference retests are complete on v9.5; fresh v9.7 comparison
-runs remain pending after the grading correction. Earlier results below remain
+Those selected reference retests are complete on v9.5; the fresh v9.9
+comparison above supersedes the older pending-retest plan. Earlier results below remain
 historical references; they are not relabeled v9 scores. The new MiniCPM runtime
 profile is a memory/speed tradeoff, not a controlled model-quality comparison.
 
