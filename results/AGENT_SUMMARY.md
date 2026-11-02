@@ -1,17 +1,24 @@
-# Four retained models — fresh comparison in progress
+# Four-model comparison: fresh v9.9 runs in progress
 
-Retain **base Qwen3.6 / Mei**, **Ornith1.5 / Mei**, **Groot / Mei** and
-**Logics-SWE / llama.cpp**. The earlier replacement decision was premature.
-All four will be measured fresh on frozen benchmark-v9.9, seeds 17 and 29 each.
-No old result is substituted for one of these eight new runs.
+All four contenders are retained. Eight new full runs were predeclared before
+inference, using one frozen released benchmark. No older finalist run is reused.
+Real quality-versus-time/memory graphs will be generated when all eight are audited.
 
-The final summary will include quality-versus-time and quality-versus-memory
-plots, separate household/Python quality, both seed observations, explicit
-engine markers and exported metric data. Results are pending; there are no
-new measured graph points yet.
+| Model / engine | Seed | Household | Python | Full-run time | Evidence |
+|---|---:|---:|---:|---:|---|
+| Base Qwen3.6 / mei | 17 | 9/12 | 2/3 | 8.37 min | [review](../artifacts/qwen-four-v9p9-seed17-20261102/README.md) |
+| Ornith1.5 / mei | 17 | pending | pending | pending | — |
+| Groot / mei | 17 | pending | pending | pending | — |
+| Logics-SWE / llama.cpp | 17 | pending | pending | pending | — |
+| Base Qwen3.6 / mei | 29 | pending | pending | pending | — |
+| Ornith1.5 / mei | 29 | pending | pending | pending | — |
+| Groot / mei | 29 | pending | pending | pending | — |
+| Logics-SWE / llama.cpp | 29 | pending | pending | pending | — |
 
-[Predeclared profiles and measurement definitions](../docs/FOUR_MODEL_COMPARISON.md) ·
-[Previous v8.3.1 summary](AGENT_SUMMARY_V8.3.1.md) ·
-[Historical six-model v9.5 comparison](AGENT_V9.md) ·
-[Earlier seed17 cohort](FINALISTS_V9.8_SEED17.md) ·
-[Earlier seed29 cohort](FINALISTS_V9.8_SEED29.md)
+[Design and metric definitions](../docs/FOUR_MODEL_COMPARISON.md) ·
+[Seed17 provenance](FOUR_MODEL_V9.9_SEED17.md) · [Seed29 provenance](FOUR_MODEL_V9.9_SEED29.md) ·
+[Preserved v8.3.1 summary](AGENT_SUMMARY_V8.3.1.md).
+
+Mei means Swift/MLX; llama.cpp means GGUF. Quality tracks remain separate.
+All runs include startup, admission and all15 tasks. Synthetic tasks are not
+actual Peixinho application acceptance. Pending runs have no score.
