@@ -67,7 +67,7 @@ def request_json(
     with urllib.request.urlopen(request, timeout=timeout) as response:
         result = json.load(response)
     if not isinstance(result, dict):
-        raise ValueError("expected a JSON response object")
+        raise TypeError("expected a JSON response object")
     return result
 
 
@@ -170,7 +170,7 @@ def child(cfg: dict, output: Path) -> int:
                     ok=status.get("status") == "ok",
                     active_generations=scheduler["activeGenerations"],
                 )
-            except (OSError, ValueError) as exc:
+            except (OSError, ValueError, TypeError) as exc:
                 row.update(ok=False, error=f"{type(exc).__name__}: {exc}")
             row["elapsed_seconds"] = time.monotonic() - begin
             result["status_samples"].append(row)
