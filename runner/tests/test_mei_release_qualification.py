@@ -20,6 +20,48 @@ from qualify_mei_release import observable, qualification_settings, succeeded
 
 
 class QualificationTests(unittest.TestCase):
+    def test_explicit_total_memory_limit_must_take_effect_independently_of_cache(self):
+        requested = 24 * 1024**3
+        command = ["mei", "--memory-limit-bytes", str(requested)]
+        status = {"maxTokens": 8192, "memory": {"memoryLimitBytes": requested}}
+        self.assertEqual(
+            qualification.serving_settings(status, command)[
+                "observed_allocator_memory_limit_bytes"
+            ],
+            requested,
+        )
+        for actual in (None, True, str(requested), 0, -1, 24051816857):
+            with self.subTest(actual=actual), self.assertRaises(ValueError):
+                qualification.serving_settings(
+                    {"maxTokens": 8192, "memory": {"memoryLimitBytes": actual}}, command
+                )
+
+    def test_auto_total_limit_reports_backend_value_and_zero_cache_remains_explicit(
+        self,
+    ):
+        status = {
+            "maxTokens": 8192,
+            "memory": {"memoryLimitBytes": 24051816857, "cacheLimitBytes": 0},
+        }
+        command = ["mei", "--memory-limit-bytes", "0", "--cache-limit-bytes", "0"]
+        self.assertEqual(
+            qualification.serving_settings(status, command),
+            {
+                "normal_output_budget": 8192,
+                "observed_allocator_memory_limit_bytes": 24051816857,
+                "observed_allocator_cache_limit_bytes": 0,
+            },
+        )
+        for actual in (None, True, "24051816857", 0, -1):
+            with self.subTest(actual=actual), self.assertRaises(ValueError):
+                qualification.serving_settings(
+                    {
+                        "maxTokens": 8192,
+                        "memory": {"memoryLimitBytes": actual, "cacheLimitBytes": 0},
+                    },
+                    command,
+                )
+
     def test_effective_allocator_limit_must_match_the_declared_profile(self):
         command = ["mei", "--cache-limit-bytes", "536870912"]
         status = {"maxTokens": 8192, "memory": {"cacheLimitBytes": 536870912}}

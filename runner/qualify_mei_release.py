@@ -141,6 +141,20 @@ def serving_settings(status: dict, command: list[str]) -> dict[str, int]:
                 "effective allocator-cache limit differs from the launch profile"
             )
         result["observed_allocator_cache_limit_bytes"] = actual
+    if "--memory-limit-bytes" in command:
+        expected = int(command[command.index("--memory-limit-bytes") + 1])
+        memory = status.get("memory")
+        actual = memory.get("memoryLimitBytes") if isinstance(memory, dict) else None
+        # Zero requests backend auto policy; a positive limit must take effect.
+        if (
+            type(actual) is not int
+            or actual <= 0
+            or (expected > 0 and actual != expected)
+        ):
+            raise ValueError(
+                "effective allocator-memory limit differs from the launch profile"
+            )
+        result["observed_allocator_memory_limit_bytes"] = actual
     return result
 
 
