@@ -129,3 +129,29 @@ directly profile fast/slow execution context and compilation/allocation before
 selecting a fix. Public-profile control comparisons and full native gates
 remain open. Every server and the screen controller exited; logs, runtime and
 model hashes, cache inventories and cleanup receipts are retained.
+
+## Admission of process-inspection tools
+
+`execution-context-tool-check.swift` is a model-free fixture, not Mei acceptance.
+`sample` can inspect it without root. `swift-inspect dump-concurrency` takes a
+positional PID; the initial incorrect `--pid` attempt is retained. More
+importantly, the positional command returned **exit 0 with an attachment error
+and no snapshot** on the ordinary fixture. A zero exit is insufficient.
+
+An inspection-only copy of that fixture, ad-hoc signed with
+`com.apple.security.get-task-allow`, produced a real task dump without root.
+The task explicitly created at `.userInitiated` appears with
+`enqueuePriority=0x19`. See the retained `swift-inspect-tool-check-v2.*` negative
+and `-v3.*` positive observations. Only the model-free fixture copy was signed;
+neither frozen Mei binary was altered, and no real Mei task has been profiled
+by this tooling check yet.
+
+The next diagnostic can use separate inspection-only Mei copies with fresh
+binary hashes and proof that executable sections match their frozen originals.
+Keep those copies outside release packaging. Observe producer task priority,
+active-thread queues and stacks in both fast and slow processes; do not infer
+the cause from a fixture, an inherited `Task {}` alone, or another pooled mean.
+Any profiling affects timing and must be labelled diagnostic, not promoted as
+unprofiled qualification. Remaining 30K/default-profile, native and publication
+gates are unchanged. Apple describes the target entitlement in
+[its command-line tool debugging guidance](https://developer.apple.com/documentation/xcode/embedding-a-helper-tool-in-a-sandboxed-app).
