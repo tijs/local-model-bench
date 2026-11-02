@@ -7,12 +7,14 @@ import tempfile
 import unittest
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from build_agent_leaderboard import (
     TRACKS,
+    released_version_names,
     render_campaign,
     source_path,
     within_resource_policy,
@@ -20,6 +22,15 @@ from build_agent_leaderboard import (
 
 
 class CapacityPolicyTests(unittest.TestCase):
+    def test_additive_verifier_coverage_comes_from_frozen_release_source(self):
+        for track in TRACKS:
+            old = released_version_names(track, lambda *_: b"old entrypoint", "old")
+            new = released_version_names(track, lambda *_: b'"kapitsa_provenance.py"', "new")
+            self.assertEqual(old, TRACKS[track][3])
+            self.assertEqual(new, old | {"kapitsa_provenance.py"})
+            with self.assertRaisesRegex(ValueError, "without fingerprinting"):
+                released_version_names(track, lambda *_: b"from kapitsa_provenance import verify", "bad")
+
     def test_capacity_replays_runtime_policy_instead_of_requiring_every_sample_normal(
         self,
     ):
@@ -80,7 +91,7 @@ class AgentLeaderboardTests(unittest.TestCase):
                 "python_automation": True,
             }
         ).encode()
-        self.selection = {
+        self.selection: dict[str, Any] = {
             "model": "fixture-model",
             "engine": "mei",
             "config": self.cfg_path,
@@ -103,7 +114,7 @@ class AgentLeaderboardTests(unittest.TestCase):
             rid = self.selection[track + "_run"]
             directory = self.root / "results" / folder / "runs" / rid
             directory.mkdir(parents=True)
-            manifest = {
+            manifest: dict[str, Any] = {
                 "run_id": rid,
                 "benchmark_scope": scope,
                 "model": "fixture-model",
@@ -134,7 +145,7 @@ class AgentLeaderboardTests(unittest.TestCase):
             for tid in ids:
                 artifact = directory / (tid + "-trial1.json")
                 relative = str(artifact.relative_to(self.root))
-                row = {
+                row: dict[str, Any] = {
                     k: manifest[k]
                     for k in (
                         "run_id",

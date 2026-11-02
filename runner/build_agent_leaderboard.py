@@ -59,6 +59,23 @@ TRACKS = {
 Reader = Callable[[str, str], bytes]
 
 
+def released_version_names(track: str, reader: Reader, revision: str) -> set[str]:
+    """Derive additive verifier coverage from the frozen released entrypoint.
+
+    Older releases remain reproducible with their exact original helper set;
+    a new release that fingerprints Kapitsa must include that verifier too.
+    Every selected helper still has to match both release and measured source.
+    """
+    names = set(TRACKS[track][3])
+    entrypoint = "run_standin_suite.py" if track == "household" else "run_automation_suite.py"
+    source = reader(revision, "runner/" + entrypoint)
+    if b"from kapitsa_provenance import" in source and b'"kapitsa_provenance.py"' not in source:
+        raise ValueError("released entrypoint imports Kapitsa without fingerprinting it")
+    if b'"kapitsa_provenance.py"' in source:
+        names.add("kapitsa_provenance.py")
+    return names
+
+
 def within_resource_policy(
     samples: list[dict[str, Any]], initial: dict[str, Any], *, capacity: bool
 ) -> bool:
@@ -108,7 +125,8 @@ def track_result(
         r"\d{8}T\d{6}Z-[0-9a-f]{8}", run_id
     ):
         raise ValueError("invalid selected run identity")
-    folder, scope, task_ids, version_names = TRACKS[track]
+    folder, scope, task_ids, _ = TRACKS[track]
+    version_names = released_version_names(track, reader, campaign["release_commit"])
     directory = root / "results" / folder / "runs" / run_id
     manifest = json.loads((directory / "manifest.json").read_text())
     config_bytes = (directory / "config.yaml").read_bytes()

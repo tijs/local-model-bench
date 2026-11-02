@@ -12,7 +12,7 @@ an immutable config and fresh owned server, with native admission before the
 | Groot | v9: 12/12 household, 3/3 Python; normal pressure, no swap growth | Provisional contender; same-binary repeat and runtime release pending |
 | ThinkingCap | v9: 11/12 household, 3/3 Python; normal pressure, no swap growth | Retain as a provisional contender and repeat |
 | Logics-SWE | v9.2: 12/12 household, 3/3 Python; normal pressure, no swap growth | Provisional contender; independent repeat pending |
-| Clover | Native32-row diffusion: plain, streaming/nonstreaming automatic tools and dependent continuation pass | Cache controls, backend integration and full scored evaluation |
+| Clover | Native tools and three cold/cache controls pass; seven healthy candidate process loads | First full held-out trial on pinned Kapitsa/Metal |
 
 [Current v9 comparison](../results/AGENT_V9.md) ·
 [Previous v8 comparison](../results/CANDIDATES.md) ·
@@ -272,3 +272,22 @@ identity are published. That is basic admission only; the same cold-load/cache
 experiment is next, and the original runtime/evidence remain intact.
 
 [Candidate native evidence](../artifacts/clover-native-diffusion-early-residency-20261101/README.md)
+
+## Clover cache controls complete; scored integration ready
+
+The early-residency profile passed repeat, growing-history and partial-block
+continuation controls in 262.708 seconds. Every warm response matched two
+deterministic cold responses, with real warm hits and zero cold cached tokens.
+All 51 resource samples across seven processes were normal, with no swap growth;
+all 15 post-run hashes matched. The original failed loads and the unnecessarily
+strict recovery-timeout attempt remain unchanged.
+
+The full twelve-household/three-Python profile now binds the derived source,
+public patch/tree, executable/libraries, metadata and actual diffusion mode.
+Owned-group cleanup and the exclusive GPU lock are tested, including a real
+failed-load descendant fixture. All 693 model-free runner tests pass. No task
+contract or budget changed; new runs keep new lifecycle/verifier fingerprints.
+The old six-model report still reproduces exactly against v9.5.
+
+[Cache evidence](../artifacts/clover-cache-diffusion-actual-baseline-20261101/README.md) ·
+[Full profile and command](KAPITSA_RUNTIME.md)

@@ -18,6 +18,7 @@ from typing import Any
 
 import yaml
 from bench_common import REPO, git_sha, supervision_id
+from kapitsa_provenance import verify_kapitsa_runtime
 from llama_provenance import verify_llama_runtime
 from mei_provenance import verify_mei_runtime
 from run_prompt import (
@@ -528,6 +529,8 @@ def run_suite(
     )
     if not _test_skip_admission and cfg.get("inference_engine") == "llama.cpp":
         runtime_identity = verify_llama_runtime(cfg, base_url=base_url)
+    if not _test_skip_admission and cfg.get("inference_engine") == "kapitsa-metal":
+        runtime_identity = verify_kapitsa_runtime(cfg, base_url=base_url)
     selected_ids = selected_task_ids(cfg, smoke)
     selected = [case for case in cases(partition) if case.task_id in selected_ids]
     profile, sampler = generation(cfg)
@@ -552,6 +555,7 @@ def run_suite(
                     "bench_common.py",
                     "mei_provenance.py",
                     "llama_provenance.py",
+                    "kapitsa_provenance.py",
                     "owned_process.py",
                 )
             ],

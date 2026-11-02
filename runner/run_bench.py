@@ -8,7 +8,6 @@ No Peixinho application behavior is claimed by these native model tests.
 import argparse
 import hashlib
 import json
-import math
 import os
 import pathlib
 import re
@@ -30,8 +29,9 @@ from bench_common import (
     git_sha,
     snapshot_config,
 )
-from mei_provenance import verify_mei_runtime
+from kapitsa_provenance import acquire_gpu_lock, verify_kapitsa_runtime
 from llama_provenance import verify_llama_runtime
+from mei_provenance import verify_mei_runtime
 from owned_process import OwnedSession
 
 REPO = Path(__file__).resolve().parent.parent
@@ -77,7 +77,7 @@ def run(cmd, *, graceful_interrupt=False, **kw):
     printable = cmd if isinstance(cmd, str) else " ".join(str(c) for c in cmd)
     print(f"$ {printable}")
     if not graceful_interrupt:
-        return subprocess.run(cmd, shell=isinstance(cmd, str), cwd=str(REPO), **kw)
+        return subprocess.run(cmd, shell=isinstance(cmd, str), cwd=str(REPO), check=kw.pop("check", False), **kw)
     # subprocess.run kills its child immediately on KeyboardInterrupt. Suite
     # runners need a short grace period to persist their interrupted task/manifest.
     process = subprocess.Popen(cmd, shell=isinstance(cmd, str), cwd=str(REPO), **kw)
@@ -656,9 +656,9 @@ def _run_one_impl(config_path: Path, cfg, config_hash, trials: int = 1, coding_s
             server_proc = subprocess.Popen(
                 cmd, shell=True, cwd=str(REPO),
                 stdout=f, stderr=subprocess.STDOUT,
-                **({'start_new_session': True} if inference_engine.startswith('llama.cpp') else {}),
+                start_new_session=inference_engine.startswith('llama.cpp') or inference_engine == 'kapitsa-metal',
             )
-        if owned_processes is not None and inference_engine.startswith('llama.cpp'):
+        if owned_processes is not None and (inference_engine.startswith('llama.cpp') or inference_engine == 'kapitsa-metal'):
             server_proc = OwnedSession(server_proc)
             owned_processes.append(server_proc)
 
@@ -689,9 +689,9 @@ def _run_one_impl(config_path: Path, cfg, config_hash, trials: int = 1, coding_s
                     [sys.executable, str(REPO / "runner" / "bench_local_proxy.py")],
                     cwd=str(REPO), env=proxy_env,
                     stdout=f, stderr=subprocess.STDOUT,
-                    **({'start_new_session': True} if inference_engine.startswith('llama.cpp') else {}),
+                    start_new_session=inference_engine.startswith('llama.cpp') or inference_engine == 'kapitsa-metal',
                 )
-            if owned_processes is not None and inference_engine.startswith('llama.cpp'):
+            if owned_processes is not None and (inference_engine.startswith('llama.cpp') or inference_engine == 'kapitsa-metal'):
                 proxy_proc = OwnedSession(proxy_proc)
                 owned_processes.append(proxy_proc)
             if not wait_for_health(f"http://127.0.0.1:{proxy_port}/healthz", timeout=30, proc=proxy_proc):
@@ -708,6 +708,9 @@ def _run_one_impl(config_path: Path, cfg, config_hash, trials: int = 1, coding_s
     if cfg.get("inference_engine") == "mei" and cfg.get("mei_source_commit"):
         identity = verify_mei_runtime(cfg, base_url=base_url)
         print("Mei runtime provenance: " + json.dumps(identity, sort_keys=True))
+
+    if cfg.get("inference_engine") == "kapitsa-metal":
+        print("Kapitsa runtime provenance: " + json.dumps(verify_kapitsa_runtime(cfg, base_url=base_url), sort_keys=True))
 
     if cfg.get("capacity_context_probe") is not None:
         from capacity_admission import validate_context
@@ -777,6 +780,7 @@ def _run_one_impl(config_path: Path, cfg, config_hash, trials: int = 1, coding_s
                 _model_report()
                 return
         if suite == "sanity":
+            assert isinstance(rows, list)  # established by complete_model_summary above
             for task_id in expected:
                 if not _majority_pass([row for row in rows if row["task_id"] == task_id]):
                     print(f"FAILED: {task_id}; stopping at the sanity gate")
@@ -791,7 +795,7 @@ def stop_owned_processes(processes):
     for process in reversed(processes):
         try:
             process.stop()
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - stop every owned group before reporting aggregate failures
             failures.append(exc)
     if failures:
         raise ExceptionGroup('owned session cleanup failed', failures)
@@ -831,9 +835,8 @@ def run_one(config_path: Path, trials: int = 1, coding_suites=None, stage="all",
     if cfg.get("benchmark_scope") == "peixinho-standin-v1":
         from run_standin_suite import committed_config, validate_config
         validate_config(cfg)
-        if "python_automation" in cfg:
-            if cfg["python_automation"] and (cfg.get("standin_smoke", False) or "standin_task_ids" in cfg):
-                raise ValueError("combined automation runs require full household coverage")
+        if cfg.get("python_automation") and (cfg.get("standin_smoke", False) or "standin_task_ids" in cfg):
+            raise ValueError("combined automation runs require full household coverage")
         _, committed_bytes = committed_config(config_path)
         if committed_bytes != config_content:
             raise ValueError("stand-in config changed during admission")
@@ -842,6 +845,21 @@ def run_one(config_path: Path, trials: int = 1, coding_suites=None, stage="all",
     verify_mei_runtime(cfg)
     if cfg.get("benchmark_scope") == "peixinho-standin-v1":
         verify_llama_runtime(cfg)
+    verify_kapitsa_runtime(cfg)
+    gpu_lock = None
+    if cfg.get("inference_engine") == "kapitsa-metal":
+        import socket
+        for port in (8017, 8024):
+            with socket.socket() as connection:
+                connection.settimeout(0.5)
+                if connection.connect_ex(("127.0.0.1", port)) == 0:
+                    raise ValueError(f"occupied benchmark port {port}; no unload performed")
+        gpu_lock = acquire_gpu_lock(cfg)
+        try:
+            Path(cfg["runtime_base"]).mkdir(parents=True, exist_ok=False)
+        except BaseException:
+            gpu_lock.close()
+            raise
     owned_processes = []
     try:
         return _run_one_impl(
@@ -855,7 +873,11 @@ def run_one(config_path: Path, trials: int = 1, coding_suites=None, stage="all",
     finally:
         if isinstance(cfg, dict) and cfg.get("inference_engine") == "mei":
             run(mei_stop_command(cfg))
-        stop_owned_processes(owned_processes)
+        try:
+            stop_owned_processes(owned_processes)
+        finally:
+            if gpu_lock is not None:
+                gpu_lock.close()
 
 
 def _leaderboard():

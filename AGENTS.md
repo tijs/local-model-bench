@@ -10,8 +10,10 @@ file into a project log.
 `local-model-bench` is a reproducible benchmark project for comparing local LLM
 serving stacks, with Peixinho as the primary harness focus. It measures automated task
 quality, speed, memory, cache behavior, and tool-use reliability across the
-active local engines: llama.cpp variants serving GGUF models and Mei serving
-Swift/MLX models.
+active local engines: llama.cpp variants serving GGUF models, Mei serving
+Swift/MLX models, and a separately pinned Kapitsa/Metal Clover profile for
+native diffusion experiments. See `docs/KAPITSA_RUNTIME.md` for its source,
+mode, ownership and qualification boundaries.
 
 Hermes was retired as a runtime by user decision on 2026-10-25. Preserve the
 legacy Hermes-specific runner code, configurations, transcripts and results as

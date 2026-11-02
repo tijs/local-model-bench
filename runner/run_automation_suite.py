@@ -18,6 +18,7 @@ from typing import Any
 
 from automation_tasks import SCOPE, SYSTEM, TASK_IDS, Task, tasks, visible_input
 from bench_common import REPO, git_sha, supervision_id
+from kapitsa_provenance import verify_kapitsa_runtime
 from llama_provenance import verify_llama_runtime
 from mei_provenance import verify_mei_runtime
 from run_prompt import StreamStall, call_backend_streaming
@@ -408,6 +409,8 @@ def run_suite(
     )
     if not _test_skip_admission and cfg.get("inference_engine") == "llama.cpp":
         runtime = verify_llama_runtime(cfg, base_url=base_url)
+    if not _test_skip_admission and cfg.get("inference_engine") == "kapitsa-metal":
+        runtime = verify_kapitsa_runtime(cfg, base_url=base_url)
     profile, sampler = generation(cfg)
     rid = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime()) + "-" + uuid.uuid4().hex[:8]
     run_dir = root / "results/automation/runs" / rid
@@ -423,6 +426,7 @@ def run_suite(
         Path(__file__).with_name("bench_common.py"),
         Path(__file__).with_name("mei_provenance.py"),
         Path(__file__).with_name("llama_provenance.py"),
+        Path(__file__).with_name("kapitsa_provenance.py"),
         Path(__file__).with_name("owned_process.py"),
         Path(__file__).with_name("build_automation_report.py"),
         REPO / "checks/python_automation.py",

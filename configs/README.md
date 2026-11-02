@@ -507,3 +507,13 @@ buffer pool on these builds; omission selects its backend default. Read
 `/v1/mei/status` for requested/effective policy and live allocator limits. Changes
 to policy or runtime pins require a new committed config and fresh admission;
 historical configs and scores are not updated in place.
+
+## Clover native Metal profile
+
+`candidates-20261101/clover-kapitsa-diffusion-full.yaml` pins the first full
+Clover household/Python trial after native tools and cold/cache controls passed.
+It uses a separately attributed Kapitsa/Metal engine and an MLX-format pack,
+with genuine block diffusion, one local/private slot and no drafter/disk cache.
+The derived loader patch/base/tree and all runtime/model metadata identities
+are explicit. See [the serving guide](../docs/KAPITSA_RUNTIME.md). Earlier native,
+interrupted and cache-only configs stay diagnostic and never become task scores.

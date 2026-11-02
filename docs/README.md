@@ -14,7 +14,7 @@ automation tasks. Peixinho is still a design; these are not application tests.
 - [Candidate campaign](CANDIDATE_CAMPAIGN.md): Groot, ThinkingCap, Logics-SWE,
   Clover and reference retests, with evidence links and open qualification work.
 - [Release history](releases/): method and tooling changes. Current release:
-  [benchmark-v9.5](releases/benchmark-v9.5.md).
+  [benchmark-v9.6](releases/benchmark-v9.6.md).
 
 ## Running and understanding the benchmark
 
@@ -23,6 +23,8 @@ automation tasks. Peixinho is still a design; these are not application tests.
   containment and budgets.
 - [Resource admission](RESOURCE_ADMISSION.md): capacity estimates, pressure,
   swap and disk stop rules. Free-memory percentage is telemetry.
+- [Pinned Clover serving profile](KAPITSA_RUNTIME.md): full-suite lifecycle,
+  runtime attribution, sampling and source-patch limits.
 - [Clover native diffusion](CLOVER_NATIVE.md): pinned Kapitsa/Metal, automatic
   tools and dependent continuation, separate from scored runs.
 - [Native Mei acceptance](MEI_NATIVE_ACCEPTANCE.md): guarded release checks,

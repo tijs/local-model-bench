@@ -1,11 +1,12 @@
 # local-model-bench
 
-Current release: **benchmark-v9.5 — Clover cache and loading controls**.
-See the [current release notes](docs/releases/benchmark-v9.5.md) and
+Current release: **benchmark-v9.6 — pinned Clover serving profile**.
+See the [current release notes](docs/releases/benchmark-v9.6.md) and
 [release history](docs/releases/).
 
 Compare local LLM serving stacks on affordable Apple Silicon Macs. The active
-engines are llama.cpp variants and Mei (Swift/MLX). Peixinho is the intended
+engines are llama.cpp variants, Mei (Swift/MLX), and a separately pinned
+Kapitsa/Metal profile for Clover diffusion experiments. Peixinho is the intended
 future application runtime; it is currently a design, so there are no Peixinho
 application tests or product scores.
 
@@ -28,7 +29,8 @@ Qwen made invalid calls and repeated a deleted code. Ornith used an unassigned
 operation ID, repeated a deleted code and scheduled the wrong weekdays; its
 reminder script worked after an invalid tool call. See the detailed reviews.
 
-See the [v9 comparison](results/AGENT_V9.md) for exact run IDs and profiles.
+See the [v9.5 six-model comparison](results/AGENT_V9.md) for exact run IDs and profiles.
+These retain their measured source identities as the new backend is integrated.
 The selected reference retests are complete. Earlier results below remain
 historical references; they are not relabeled v9 scores. The new MiniCPM runtime
 profile is a memory/speed tradeoff, not a controlled model-quality comparison.
@@ -62,7 +64,10 @@ failures, memory fixes and next steps.
 - **Clover:** publisher files and diffusion kernel checks verified; native model
   automatic tools and dependent continuation
   [passed native diagnostics](artifacts/clover-native-diffusion-20261101/README.md).
-  Cache controls and task evaluation remain pending. Its MLX-format pack is consumed
+  [Cache controls passed](artifacts/clover-cache-diffusion-actual-baseline-20261101/README.md)
+  across seven fresh processes with normal pressure and no swap growth. Its
+  [pinned serving profile](docs/KAPITSA_RUNTIME.md) is ready for the first full
+  household/Python trial; no Clover task score exists yet. Its pack is consumed
   by Kapitsa, a native Metal engine. It is not yet a Mei/MLX runtime result.
 - **Mei preview:** the prepared Groot text pack is
   [public](https://huggingface.co/Tostibrown/Groot-19B-A3B-261023-rco-role-4.5bpw-textonly).
