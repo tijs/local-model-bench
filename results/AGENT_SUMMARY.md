@@ -12,7 +12,7 @@ Real quality-versus-time/memory graphs will be generated when all eight are audi
 | Logics-SWE / llama.cpp | 17 | 11/12 | 3/3 | 11.07 min | [review](../artifacts/logics-four-v9p10-seed17-20261102/README.md) |
 | Base Qwen3.6 / mei | 29 | 11/12 | 2/3 | 9.81 min | [review](../artifacts/qwen-four-v9p10-seed29-20261102/README.md) |
 | Ornith1.5 / mei | 29 | 11/12 | 1/3 | 10.99 min | [review](../artifacts/ornith-four-v9p10-seed29-20261102/README.md) |
-| Groot / mei | 29 | pending | pending | pending | — |
+| Groot / mei | 29 | 10/12 | 3/3 | 10.40 min | [review](../artifacts/groot-four-v9p10-seed29-20261102/README.md) |
 | Logics-SWE / llama.cpp | 29 | pending | pending | pending | — |
 
 [Design and metric definitions](../docs/FOUR_MODEL_COMPARISON.md) ·
