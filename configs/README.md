@@ -517,3 +517,12 @@ with genuine block diffusion, one local/private slot and no drafter/disk cache.
 The derived loader patch/base/tree and all runtime/model metadata identities
 are explicit. See [the serving guide](../docs/KAPITSA_RUNTIME.md). Earlier native,
 interrupted and cache-only configs stay diagnostic and never become task scores.
+
+The first profile completed on v9.6 at 7/12 household+2/3 Python; a confirmed
+deleted-source language false negative remains visible in its original grade.
+`candidates-20261101/clover-kapitsa-diffusion-v9p7.yaml` then completed on the
+corrected release at 8/12+2/3 in 15m03s. Both runs had normal pressure throughout
+and zero swap growth. [Latest review](../artifacts/clover-heldout-v9p7-20261102/README.md)
+and [diagnostic chronology](../docs/CLOVER_NATIVE.md) explain the failures and
+qualification limits. All paths from those profiles have been used; they are
+provenance examples, not reusable fresh runtime/output directories.

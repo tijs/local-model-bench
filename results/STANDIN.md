@@ -404,6 +404,20 @@ Failure classes: none
 
 Failure classes: task_failure=4, turn_limit=1
 
+| 20261102T005318Z-266aff30 | kapitsaprime/Clover-35B-A3B-Preview-MLX-4bit / kapitsa-metal | 3bdcc8add765 / e9c8b1432f6f | heldout / diffusion-greedy | completed | 12/12 | 0 | 8/12 | 8 | 8 | 0 |
+
+| Domain | Passed / executed | Median task wall s | Median output tok/s (wall) |
+|---|---:|---:|---:|
+| capture | 2/3 | 72.66 | 16.28 |
+| privacy | 1/2 | 30.78 | 16.86 |
+| progress | 1/2 | 32.32 | 12.56 |
+| resilience | 1/1 | 25.92 | 16.55 |
+| retrieval | 1/1 | 37.34 | 17.38 |
+| routines | 1/1 | 52.52 | 16.49 |
+| sharing | 1/2 | 42.56 | 14.98 |
+
+Failure classes: task_failure=3, turn_limit=1
+
 
 Output rate includes whole task wall time, not pure decode. RSS is not total model memory; consult the supervised server/Metal/physical-footprint and system pressure trace.
 No composite score is computed. Safety failures and prevented unsafe attempts remain explicit; passing other tasks cannot offset them.

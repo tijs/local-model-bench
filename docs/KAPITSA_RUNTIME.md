@@ -71,3 +71,7 @@ uv run --locked python runner/supervise_bench.py \
 This is one predeclared full corrected-method trial, not retrying tasks until
 success. Score it under its actual new release/source identity. The v9.6 false
 negative and all other original failures remain public evidence.
+
+The corrected-method trial is now complete: [8/12 household, 2/3 Python in 15m03s](../artifacts/clover-heldout-v9p7-20261102/README.md).
+Its paths are also consumed. The published v9.6 and v9.7 results keep separate
+method identities and original rows; no further retry is currently declared.

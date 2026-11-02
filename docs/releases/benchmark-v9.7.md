@@ -32,3 +32,16 @@ No task budget, tool permission, resource gate or model decoding mode changed.
 [Clover review](../../artifacts/clover-heldout-diffusion-full-20261102/README.md) ·
 [Published six-model comparison](../../results/AGENT_V9.md) ·
 [Campaign](../CANDIDATE_CAMPAIGN.md)
+
+## Post-release corrected-method result
+
+The declared fresh Clover trial completed on the released source at **8/12
+household and 2/3 Python in 15m03s**. The deleted-source case now passes. All twelve
+household tool argument sequences and final answers match the original trial;
+the other four household failures remain. CSV still uses lower instead of
+casefold and this attempt also reached its turn limit. All 178 resource samples
+were normal, swap growth was zero, all 15 post-run hashes matched and owned
+cleanup completed. Keep Clover experimental; it did not pass the full benchmark.
+
+[Fresh result and review](../../artifacts/clover-heldout-v9p7-20261102/README.md) ·
+[Verified v9.7 score report](../../results/CLOVER_V9.7.md)

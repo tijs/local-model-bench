@@ -67,12 +67,12 @@ failures, memory fixes and next steps.
   [passed native diagnostics](artifacts/clover-native-diffusion-20261101/README.md).
   [Cache controls passed](artifacts/clover-cache-diffusion-actual-baseline-20261101/README.md)
   across seven fresh processes with normal pressure and no swap growth. Its
-  [first full v9.6 trial](artifacts/clover-heldout-diffusion-full-20261102/README.md)
-  recorded **7/12 household, 2/3 Python in 14m48s** with normal pressure and no
-  swap growth. One household failure is a confirmed grader false negative;
-  v9.7 corrects it and requires a fresh trial. The original score stays intact.
-  Kapitsa consumes the MLX-format pack through native Metal; this is not a
-  Mei/MLX runtime result.
+  [fresh v9.7 trial](artifacts/clover-heldout-v9p7-20261102/README.md) scored
+  **8/12 household, 2/3 Python in 15m03s** with normal pressure and no swap
+  growth. It did not pass the full benchmark and remains experimental. The
+  [original v9.6 score](artifacts/clover-heldout-diffusion-full-20261102/README.md)
+  stays intact, including its confirmed grader false negative. Kapitsa consumes
+  the MLX-format pack through native Metal; this is not a Mei/MLX runtime result.
 - **Mei preview:** the prepared Groot text pack is
   [public](https://huggingface.co/Tostibrown/Groot-19B-A3B-261023-rco-role-4.5bpw-textonly).
   [Mei rc.2 is released](https://github.com/tijs/mei/releases/tag/v0.10.0-rc.2)

@@ -9,15 +9,25 @@ an immutable config and fresh owned server, with native admission before the
 
 | Candidate | Verified outcome | Next step |
 |---|---|---|
-| Groot | v9: 12/12 household, 3/3 Python; normal pressure, no swap growth | Provisional contender; same-binary repeat and runtime release pending |
-| ThinkingCap | v9: 11/12 household, 3/3 Python; normal pressure, no swap growth | Retain as a provisional contender and repeat |
-| Logics-SWE | v9.2: 12/12 household, 3/3 Python; normal pressure, no swap growth | Provisional contender; independent repeat pending |
-| Clover | Native tools and three cold/cache controls pass; seven healthy candidate process loads | First full held-out trial on pinned Kapitsa/Metal |
+| Groot | v9.5 reference: 12/12 household, 3/3 Python; normal pressure, no swap growth | Mei rc.2 released; same-binary corrected-method repeats pending |
+| ThinkingCap | v9.5 reference: 11/12 household, 3/3 Python; normal pressure, no swap growth | Provisional alternate; repeat after leading profiles |
+| Logics-SWE | v9.5 reference: 12/12 household, 3/3 Python; normal pressure, no swap growth | Independent corrected-method repeat pending |
+| Clover | Fresh v9.7: 8/12 household, 2/3 Python in 15m03s; normal pressure, no swap growth | Experimental; no full pass or demonstrated reason to port to Mei yet |
 
-[Current v9 comparison](../results/AGENT_V9.md) ·
+[Six-model v9.5 reference comparison](../results/AGENT_V9.md) ·
 [Previous v8 comparison](../results/CANDIDATES.md) ·
-[Exact current selection](../results/agent-v9-20261101.json) ·
+[Exact reference selection](../results/agent-v9-20261101.json) ·
 [MiniCPM, Qwen and Ornith review](../results/AGENT_SUMMARY.md)
+
+[Latest Clover result and review](../artifacts/clover-heldout-v9p7-20261102/README.md)
+keeps its v9.7 method separate from the reference table. The original v9.6
+7/12 score is preserved; the fresh corrected-method trial passed the deleted-
+source case and left four household failures. Python remains 2/3; CSV uses
+lower instead of casefold and also reached its turn limit. All 178 resource
+samples were normal, with zero swap growth; all 15 model hashes matched.
+
+The remaining sections preserve the investigation chronology. Current next
+steps are the table above and the owning Kiem campaign plan.
 
 ## ThinkingCap interruption and owned fixes
 

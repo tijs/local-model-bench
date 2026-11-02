@@ -6,9 +6,12 @@ automation tasks. Peixinho is still a design; these are not application tests.
 
 ## Current results and work
 
-- [Six-model v9 comparison](../results/AGENT_V9.md): selected complete runs,
+- [Six-model v9.5 reference comparison](../results/AGENT_V9.md): selected complete runs,
   exact identities, coverage, time, resource observations and failed checks.
-- [Current run selection](../results/agent-v9-20261101.json): machine-readable
+- [Clover v9.7 result](../results/CLOVER_V9.7.md): fresh corrected-method trial,
+  8/12 household and 2/3 Python, with [failure review](../artifacts/clover-heldout-v9p7-20261102/README.md).
+  Its original v9.6 score remains separate.
+- [Reference run selection](../results/agent-v9-20261101.json): machine-readable
   input to the comparison generator. Runs are selected explicitly, not by newest
   timestamp or best score.
 - [Candidate campaign](CANDIDATE_CAMPAIGN.md): Groot, ThinkingCap, Logics-SWE,
