@@ -6,6 +6,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 SCRIPT = (
     Path(__file__).resolve().parents[2]
@@ -46,6 +47,29 @@ def complete_result():
 
 
 class MatrixAuditTests(unittest.TestCase):
+    def test_explicit_progress_refuses_to_restart_existing_evidence(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            declared = root / "declared.json"
+            declared.write_text('{"cells": []}')
+            progress = root / "progress.json"
+            progress.write_text("preserved previous evidence")
+            with (
+                patch(
+                    "sys.argv",
+                    [
+                        str(SCRIPT),
+                        "--matrix",
+                        str(declared),
+                        "--progress",
+                        str(progress),
+                    ],
+                ),
+                self.assertRaisesRegex(ValueError, "do not restart"),
+            ):
+                matrix.main()
+            self.assertEqual(progress.read_text(), "preserved previous evidence")
+
     def test_repeated_output_is_complete_and_byte_identical(self):
         good = complete_result()
         self.assertEqual(set(matrix.observable_by_context(good)), {"short", "loaded"})

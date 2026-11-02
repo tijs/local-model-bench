@@ -1,5 +1,6 @@
 """Sequential qualification cells with terminal preservation and parity audit."""
 
+import argparse
 import json
 import statistics
 import subprocess
@@ -76,15 +77,19 @@ def audit(output, baseline):
     }
 
 
-def save_progress(progress):
-    temporary = PREP / "matrix-progress.tmp"
+def save_progress(progress, destination):
+    temporary = destination.with_suffix(".tmp")
     temporary.write_text(json.dumps(progress, indent=2) + "\n")
-    temporary.replace(PREP / "matrix-progress.json")
+    temporary.replace(destination)
 
 
 def main():
-    matrix = json.loads((PREP / "matrix.json").read_text())
-    if (PREP / "matrix-progress.json").exists():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--matrix", type=Path, default=PREP / "matrix.json")
+    parser.add_argument("--progress", type=Path, default=PREP / "matrix-progress.json")
+    args = parser.parse_args()
+    matrix = json.loads(args.matrix.read_text())
+    if args.progress.exists():
         raise ValueError(
             "do not restart a live or interrupted campaign; inspect its exact process/output first"
         )
@@ -95,10 +100,10 @@ def main():
         "current": None,
     }
     baseline = {}
-    save_progress(progress)
+    save_progress(progress, args.progress)
     for cell in matrix["cells"]:
         progress["current"] = cell
-        save_progress(progress)
+        save_progress(progress, args.progress)
         print(f"START {cell['model']} {cell['cell']}", flush=True)
         output = ROOT / cell["output"]
         run = subprocess.run(
@@ -149,13 +154,13 @@ def main():
             progress.update(
                 status="stopped_for_review", error=f"{type(exc).__name__}: {exc}"
             )
-            save_progress(progress)
+            save_progress(progress, args.progress)
             print(progress["error"], flush=True)
             return 1
         progress["completed"].append(
             cell | {"audit": str(output / "qualification-audit.json")}
         )
-        save_progress(progress)
+        save_progress(progress, args.progress)
         print(
             f"PASS {cell['model']} {cell['cell']}: {checked['median_decode_tps']}",
             flush=True,
@@ -163,7 +168,7 @@ def main():
     progress.update(
         status="measurement_cells_complete", current=None, finished_epoch=time.time()
     )
-    save_progress(progress)
+    save_progress(progress, args.progress)
     return 0
 
 

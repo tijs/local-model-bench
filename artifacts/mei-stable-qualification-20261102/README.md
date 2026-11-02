@@ -87,3 +87,24 @@ any further diagnostics use fresh committed configs and outputs.
 timings, coverage, resource summaries and explicit open gates. Regenerate only
 into a fresh output after inspecting the source evidence; raw results and
 saved audits remain immutable.
+
+## Follow-up hash-seeding diagnostic
+
+`hash-screen.json` predeclares six fresh Qwen processes, in order
+R1/D1/D2/R2/R3/D3. They use the same frozen candidate and compilation-enabled
+profile; only `SWIFT_DETERMINISTIC_HASHING` changes between R=0 and D=1.
+Contexts are short and **1024 tokens**, with five measured observations per
+context/process. This is a bounded hypothesis screen, not a substitute for the
+30K release gate. The nine-test Swift client is not repeated by this screen.
+
+Prediction: if randomized dictionary/materialization or graph-construction
+order contributes to the rate bands, deterministic hashing should reduce
+between-process variation. Comparable variation in D rejects this explanation
+for this screen; stable D alone does not prove a production fix or identify
+which traversal matters. No production source or default is changed by the
+diagnostic. Preserve all arms and stop for any resource/parity failure.
+
+The actual toolchain was checked with `hash-seed-probe.swift`: three processes
+with 0 varied, while three with 1 repeated hash values and dictionary order.
+See `hash-seed-runtime-check.json`. The diagnostic mechanism is documented by
+[Swift's hashing proposal](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0206-hashable-enhancements.md).
