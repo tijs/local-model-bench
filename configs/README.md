@@ -1,11 +1,11 @@
 # Current Peixinho stand-in configs
 
-Active shortlist (2026-11-02): **Logics-SWE IQ4_XS / llama.cpp** and
-**Groot public text RCO / Mei rc.2**. ThinkingCap and MiniCPM remain alternatives;
-Clover is experimental native diffusion; Qwen/Ornith are historical references.
-See the [roster decision and failures](../docs/ROSTER.md) and
-[machine-readable selection record](active_roster.json). All four predeclared
-finalist repeats are complete, including both weaker outcomes.
+Retained contenders (2026-11-02): **base Qwen3.6, Ornith1.5 and Groot / Mei**,
+and **Logics-SWE / llama.cpp**. All four have new two-seed full retests declared
+in `four-model-20261102/` on frozen v9.9. No prior Groot/Logics run is reused.
+[Design and cost definitions](../docs/FOUR_MODEL_COMPARISON.md) ·
+[Current summary](../results/AGENT_SUMMARY.md) · [Roster](active_roster.json).
+ThinkingCap/MiniCPM remain alternatives; Clover stays experimental.
 
 Flint/JANGH2 is retired by user decision. Existing Flint configs are retained
 unchanged for historical reproduction, not selected for new campaigns or

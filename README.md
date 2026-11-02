@@ -1,7 +1,7 @@
 # local-model-bench
 
-Current release: **benchmark-v9.8.1 — campaign results and retained profiles**.
-See the [current release notes](docs/releases/benchmark-v9.8.1.md) and
+Current release: **benchmark-v9.9 — fresh four-model comparison and charts**.
+See the [current release notes](docs/releases/benchmark-v9.9.md) and
 [release history](docs/releases/).
 
 Compare local LLM serving stacks on affordable Apple Silicon Macs. The active
@@ -10,12 +10,17 @@ Kapitsa/Metal profile for Clover diffusion experiments. Peixinho is the intended
 future application runtime; it is currently a design, so there are no Peixinho
 application tests or product scores.
 
-Keep **Logics-SWE / llama.cpp** and **Groot / Mei rc.2** as the primary
-shortlist. ThinkingCap and MiniCPM remain alternatives; Clover stays experimental.
-[Retained profiles, failures and limits](docs/ROSTER.md). The four-trial campaign
-is complete; neither finalist passed every household task in these repeats.
+Retain **base Qwen3.6, Ornith1.5, Groot and Logics-SWE**. All four are being
+retested fresh on one frozen version, with two predeclared seeds each; the old
+two-model replacement decision was premature. Three use **Mei (Swift/MLX)**;
+Logics-SWE uses **llama.cpp (GGUF)**. [Current summary and upcoming graphs](results/AGENT_SUMMARY.md) ·
+[Eight-run design](docs/FOUR_MODEL_COMPARISON.md).
 
-## Finalist repeats on v9.8
+No old result is used as a new retest. The final summary will plot quality
+against full-run time and measured wired-memory increase, with each seed and
+engine visible. The older comparisons below remain historical references.
+
+## Earlier finalist repeats on v9.8 (historical)
 
 | Serving profile | Request seed | Household | Python | Full-run time |
 |---|---:|---:|---:|---:|
@@ -36,7 +41,7 @@ recovering retry state; seed 29 attempted a denied private read before refusing.
 
 Every predeclared outcome stays visible. Different seeds do not establish
 independence or superiority. All four trials are complete; the
-[roster review](docs/ROSTER.md) retains both useful tradeoffs.
+[earlier roster review](docs/ROSTER.md) has been superseded by retaining all four.
 These are full serving-profile results, not a pure model or quantization ablation.
 The broader reference table below retains its earlier measured method.
 

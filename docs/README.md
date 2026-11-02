@@ -4,7 +4,13 @@ Start with the [project overview and current scores](../README.md). The current
 comparison covers twelve synthetic household tasks and three isolated Python
 automation tasks. Peixinho is still a design; these are not application tests.
 
-## Current results and decisions
+## Current comparison
+
+[Four-model summary and graphs](../results/AGENT_SUMMARY.md) now tracks the
+fresh common-release comparison. All eight runs are newly declared; measurements
+and final figures are pending. [Design](FOUR_MODEL_COMPARISON.md).
+
+## Earlier results and decisions
 
 - [Retained roster](ROSTER.md): two primary serving profiles, alternatives,
   experimental diffusion, failures and limits.
@@ -27,7 +33,7 @@ automation tasks. Peixinho is still a design; these are not application tests.
 - [Candidate campaign](CANDIDATE_CAMPAIGN.md): Groot, ThinkingCap, Logics-SWE,
   Clover and reference retests, with evidence links and open qualification work.
 - [Release history](releases/): method and tooling changes. Current release:
-  [benchmark-v9.8.1](releases/benchmark-v9.8.1.md).
+  [benchmark-v9.9](releases/benchmark-v9.9.md).
 
 ## Running and understanding the benchmark
 
@@ -51,7 +57,7 @@ output and owned cache directories. Preserve failed attempts before retrying.
 ## Historical evidence
 
 - [Previous v8 candidate comparison](../results/CANDIDATES.md).
-- [Earlier four-model summary](../results/AGENT_SUMMARY.md), including Flint's
+- [Earlier four-model summary](../results/AGENT_SUMMARY_V8.3.1.md), including Flint's
   retirement and the original MiniCPM, Qwen and Ornith trials.
 - [Model-only report](../results/MODEL_ONLY.md): neutral simulated-tool checks,
   separate from household and script execution.
