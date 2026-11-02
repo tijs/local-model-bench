@@ -127,6 +127,23 @@ def acceptance_succeeded(returncode: int, log: str, expected_tests: int) -> bool
     )
 
 
+def serving_settings(status: dict, command: list[str]) -> dict[str, int]:
+    budget = status.get("maxTokens")
+    if type(budget) is not int or budget <= 0:
+        raise ValueError("server did not advertise a normal output budget")
+    result = {"normal_output_budget": budget}
+    if "--cache-limit-bytes" in command:
+        expected = int(command[command.index("--cache-limit-bytes") + 1])
+        memory = status.get("memory")
+        actual = memory.get("cacheLimitBytes") if isinstance(memory, dict) else None
+        if type(actual) is not int or actual != expected:
+            raise ValueError(
+                "effective allocator-cache limit differs from the launch profile"
+            )
+        result["observed_allocator_cache_limit_bytes"] = actual
+    return result
+
+
 def acceptance_identity(cfg: dict) -> dict | None:
     spec = cfg.get("mei_swift_acceptance")
     if spec is None:
@@ -298,10 +315,8 @@ def child(cfg: dict, output: Path) -> int:
         wait_ready(process, base)
         result["runtime_identity"] = verify_mei_runtime(cfg, base_url=base)
         profile_status = request_json(base + "/mei/status", timeout=5)
-        normal_budget = profile_status.get("maxTokens")
-        if type(normal_budget) is not int or normal_budget <= 0:
-            raise ValueError("server did not advertise a normal output budget")
-        result["normal_output_budget"] = normal_budget
+        result.update(serving_settings(profile_status, command))
+        normal_budget = result["normal_output_budget"]
         # Only observe status during the first cold long prefill. Performance
         # observations below run without HTTP status polling interference.
         completion("short", prompts["short"], "cold", 0)

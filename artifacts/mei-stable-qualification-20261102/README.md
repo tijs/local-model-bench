@@ -184,3 +184,29 @@ The first copy-preparation attempt stopped before any model load because this
 macOS version defaults to human-readable entitlement output. Explicit
 `codesign --xml` fixed verification; that unused signed copy and its failure
 receipt are preserved separately.
+
+The six inspection cells completed with twelve actual decode captures.
+Each sampled `generateLoopTask`/`TokenIterator.next` thread matched the running
+Swift task's priority **0x19**, on a user-initiated cooperative queue. Both
+fast and slow candidate processes used that priority, as did the controls.
+[inspection-summary.json](inspection-summary.json) records the thread/task
+matching and observations before the first profile capture. A simple producer
+priority difference is not supported; no scheduling change is made. Profiling
+paused/interfered with requests for roughly 7–8 seconds per capture, so those
+rates must not be presented as release throughput.
+
+## Allocation-cache headroom screen
+
+`allocator-screen.json` predeclares A1/B1/B2/A2/A3/B3 on the original frozen
+candidate (not an inspection copy). A allows 128 MiB of MLX allocation cache;
+B allows 512 MiB. All other settings match: compilation enabled, random
+hashing, short/1024 contexts, five measured 128-token decodes per process.
+The byte plan includes each allowance; normal guards remain in force.
+
+Prediction: if reusable GPU-buffer headroom contributes to the rate bands,
+512 MiB should reduce between-process variation and retain cache above the
+old cap without changing output. Comparable variation or cache retention
+below the old cap rejects this as a sufficient explanation. The driver checks
+`memory.cacheLimitBytes` against the launch argument before measuring, so an
+ignored setting cannot masquerade as a comparison. This is an exploratory
+screen; no production default or full 30K qualification claim follows from it.

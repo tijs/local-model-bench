@@ -20,6 +20,26 @@ from qualify_mei_release import observable, qualification_settings, succeeded
 
 
 class QualificationTests(unittest.TestCase):
+    def test_effective_allocator_limit_must_match_the_declared_profile(self):
+        command = ["mei", "--cache-limit-bytes", "536870912"]
+        status = {"maxTokens": 8192, "memory": {"cacheLimitBytes": 536870912}}
+        self.assertEqual(
+            qualification.serving_settings(status, command),
+            {
+                "normal_output_budget": 8192,
+                "observed_allocator_cache_limit_bytes": 536870912,
+            },
+        )
+        for actual in (None, True, "536870912", 134217728):
+            with self.subTest(actual=actual), self.assertRaises(ValueError):
+                qualification.serving_settings(
+                    {"maxTokens": 8192, "memory": {"cacheLimitBytes": actual}}, command
+                )
+        with self.assertRaises(ValueError):
+            qualification.serving_settings({"maxTokens": 8192}, command)
+        with self.assertRaises(ValueError):
+            qualification.serving_settings({"maxTokens": 0}, [])
+
     def test_live_acceptance_must_run_every_declared_test_without_skips(self):
         self.assertTrue(
             qualification.acceptance_succeeded(
