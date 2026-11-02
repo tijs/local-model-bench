@@ -17,7 +17,7 @@ Logics-SWE uses **llama.cpp (GGUF)**. [Current summary and upcoming graphs](resu
 [Eight-run design](docs/FOUR_MODEL_COMPARISON.md).
 
 Fresh progress: Qwen seed17 **9/12 household + 2/3 Python**; Ornith seed17
-**9/12 + 3/3**; Groot seed17 **11/12 + 3/3**. Five predeclared runs remain. All completed with normal
+**9/12 + 3/3**; Groot seed17 **11/12 + 3/3**. Logics-SWE seed17 **11/12 + 3/3**. Four seed29 runs remain. All completed with normal
 pressure and no swap growth; see the linked summary for audited traces.
 
 No old result is used as a new retest. The final summary will plot quality
