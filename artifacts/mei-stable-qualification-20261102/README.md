@@ -155,3 +155,32 @@ Any profiling affects timing and must be labelled diagnostic, not promoted as
 unprofiled qualification. Remaining 30K/default-profile, native and publication
 gates are unchanged. Apple describes the target entitlement in
 [its command-line tool debugging guidance](https://developer.apple.com/documentation/xcode/embedding-a-helper-tool-in-a-sandboxed-app).
+
+## Direct execution-context diagnostic
+
+`inspection-screen.json` declares A1/B1/B2/A2/B3/B4 on Qwen. A is the API-correct
+control; B is the phase-lookup candidate. Both use compilation enabled,
+randomized hashing, short/1024-token contexts and a 512-token decode allowance.
+Both are inspection-only signed copies. Preparation compares **every Mach-O
+section** with the frozen originals, verifies the exact entitlement set and
+signature, and records new binary hashes. Neither original was modified.
+These copies must never be packaged as a release.
+
+`run_inspection.py` retains the normal owned lifecycle and resource guards.
+After loaded repeats 2 and 4 it targets the following short decode for an
+actual Swift task dump and one-second thread sample. Each capture records
+ownership, timestamps, active-generation status and raw tool output. A zero
+exit without actual task/priority data cannot pass. Missing/failed captures,
+resource stops or output mismatches stop the diagnostic for review.
+
+These are **profiled observations**, never qualification or scored timings.
+The purpose is to identify producer priority and active thread stacks in fast
+and slow processes before selecting a source change. Read the actual task
+and stack data; neither captured files nor a command's exit code alone prove
+that the relevant producer was observed. Preceding unprofiled 30K evidence and
+all open release gates remain intact.
+
+The first copy-preparation attempt stopped before any model load because this
+macOS version defaults to human-readable entitlement output. Explicit
+`codesign --xml` fixed verification; that unused signed copy and its failure
+receipt are preserved separately.
