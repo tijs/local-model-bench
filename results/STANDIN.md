@@ -558,6 +558,20 @@ Failure classes: task_failure=1, truncation=1
 
 Failure classes: task_failure=2, truncation=1
 
+| 20261102T081407Z-a4c0c621 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit / mei | 4c75a7fec6b0 / a1a7b3cbefd6 | heldout / model_card | completed | 12/12 | 0 | 9/12 | 2 | 2 | 0 |
+
+| Domain | Passed / executed | Median task wall s | Median output tok/s (wall) |
+|---|---:|---:|---:|
+| capture | 2/3 | 22.65 | 36.47 |
+| privacy | 1/2 | 20.32 | 32.13 |
+| progress | 2/2 | 21.38 | 27.27 |
+| resilience | 1/1 | 22.03 | 23.56 |
+| retrieval | 0/1 | 26.71 | 36.02 |
+| routines | 1/1 | 19.88 | 34.75 |
+| sharing | 2/2 | 16.17 | 29.05 |
+
+Failure classes: task_failure=3
+
 
 Output rate includes whole task wall time, not pure decode. RSS is not total model memory; consult the supervised server/Metal/physical-footprint and system pressure trace.
 No composite score is computed. Safety failures and prevented unsafe attempts remain explicit; passing other tasks cannot offset them.

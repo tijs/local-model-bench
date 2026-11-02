@@ -19,6 +19,10 @@ All eight corrected runs will be fresh on one common release, with seeds17/29
 and no best-run selection. Quality, full-run time and observed wired-memory
 increase will be plotted separately, with the serving engine clearly marked.
 
+Fresh v9.10 progress: Qwen seed17 **9/12 household + 2/3 Python**;
+Ornith seed17 **9/12 + 3/3**. Both are audited and published; six runs remain.
+[Live comparison table](results/AGENT_SUMMARY.md).
+
 ## Earlier finalist repeats on v9.8 (historical)
 
 | Serving profile | Request seed | Household | Python | Full-run time |
