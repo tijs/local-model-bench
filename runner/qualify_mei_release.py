@@ -65,14 +65,24 @@ def request_json(
         url, data=data, headers={"Content-Type": "application/json"}
     )
     with urllib.request.urlopen(request, timeout=timeout) as response:
-        return json.load(response)
+        result = json.load(response)
+    if not isinstance(result, dict):
+        raise ValueError("expected a JSON response object")
+    return result
 
 
 def observable(response: dict) -> dict:
     """Compare observable output/counts, without claiming hidden token IDs."""
     choice = response["choices"][0]
     usage = response["usage"]
-    text = choice["text"]
+    if "text" in choice and "message" not in choice:
+        text = choice["text"]
+    elif "message" in choice and "text" not in choice:
+        # Published rc.2 uses a chat-shaped envelope for raw completions.
+        # Keep that historical control measurable without relabeling its API.
+        text = choice["message"]["content"]
+    else:
+        raise ValueError("unrecognized or ambiguous completion response shape")
     count = usage["completion_tokens"]
     speed = usage.get("tokens_per_second")
     if not isinstance(text, str) or not text or type(count) is not int or count <= 0:
@@ -150,11 +160,15 @@ def child(cfg: dict, output: Path) -> int:
                 status = request_json(
                     base + "/mei/status", timeout=float(settings["status_timeout"])
                 )
+                scheduler = status.get("scheduler")
+                if (
+                    not isinstance(scheduler, dict)
+                    or type(scheduler.get("activeGenerations")) is not int
+                ):
+                    raise ValueError("status has no valid active-generation counter")
                 row.update(
                     ok=status.get("status") == "ok",
-                    active_generations=status.get("scheduler", {}).get(
-                        "activeGenerations", 0
-                    ),
+                    active_generations=scheduler["activeGenerations"],
                 )
             except (OSError, ValueError) as exc:
                 row.update(ok=False, error=f"{type(exc).__name__}: {exc}")
@@ -177,6 +191,19 @@ def child(cfg: dict, output: Path) -> int:
         started_epoch = time.time()
         start = time.monotonic()
         response = request_json(base + "/completions", body)
+        with (output / "responses.jsonl").open("a") as stream:
+            stream.write(
+                json.dumps(
+                    {
+                        "context": context,
+                        "phase": phase,
+                        "repeat": repeat,
+                        "started_epoch": started_epoch,
+                        "response": response,
+                    }
+                )
+                + "\n"
+            )
         fields = observable(response)
         if context == "loaded" and fields["prompt_tokens"] != settings["loaded_tokens"]:
             raise ValueError("tokenizer did not produce the declared loaded context")
@@ -232,6 +259,9 @@ def child(cfg: dict, output: Path) -> int:
     except (
         OSError,
         ValueError,
+        KeyError,
+        TypeError,
+        IndexError,
         RuntimeError,
         subprocess.SubprocessError,
         KeyboardInterrupt,

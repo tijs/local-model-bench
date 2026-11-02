@@ -160,6 +160,16 @@ class QualificationTests(unittest.TestCase):
             },
         }
         self.assertEqual(observable(response)["text"], "hello")
+        legacy = copy.deepcopy(response)
+        legacy["choices"][0] = {
+            "message": {"content": "hello"},
+            "finish_reason": "length",
+        }
+        self.assertEqual(observable(legacy), observable(response))
+        ambiguous = copy.deepcopy(legacy)
+        ambiguous["choices"][0]["text"] = "different"
+        with self.assertRaises(ValueError):
+            observable(ambiguous)
         for value in (0, -1, float("nan"), float("inf"), None, True):
             bad = copy.deepcopy(response)
             bad["usage"]["tokens_per_second"] = value
