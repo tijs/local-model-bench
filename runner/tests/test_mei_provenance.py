@@ -60,10 +60,79 @@ class MeiProvenanceTests(unittest.TestCase):
 
     def test_clean_source_and_lock_are_recorded(self):
         identity = provenance.verify_mei_runtime(self.cfg)
+        assert identity is not None
         self.assertEqual(identity["mei_source_commit"], self.revision)
         self.assertEqual(identity["vmlx_commit"], self.dependency)
         (self.repo / "research.md").write_text("unrelated local notes")
         provenance.verify_mei_runtime(self.cfg)
+
+    def released_config(self):
+        binary = self.repo / "installed/mei"
+        binary.parent.mkdir(exist_ok=True)
+        binary.write_bytes(b"released executable")
+        binary.chmod(0o755)
+        metal = binary.parent / "mlx.metallib"
+        metal.write_bytes(b"released metal")
+        cfg = {
+            **self.cfg,
+            "benchmark_launch_command": f"bash launcher --mei-repo {self.repo} --mei-binary {binary}",
+            "mei_release_artifact": {
+                "source_revision": self.revision,
+                "binary_sha256": provenance.sha256(binary),
+                "metallib_sha256": provenance.sha256(metal),
+            },
+        }
+        return cfg, binary, metal
+
+    def test_released_artifact_checks_hashes_and_actual_listener_without_build(self):
+        cfg, binary, _ = self.released_config()
+        with patch.object(provenance, "listener_binary", return_value=binary.resolve()):
+            identity = provenance.verify_mei_runtime(
+                cfg, base_url="http://127.0.0.1:8024/v1"
+            )
+        assert identity is not None
+        self.assertEqual(
+            identity["binary_sha256"], cfg["mei_release_artifact"]["binary_sha256"]
+        )
+        self.assertEqual(identity["binary_path"], str(binary.resolve()))
+        with (
+            patch.object(
+                provenance, "listener_binary", return_value=Path("/other/mei")
+            ),
+            self.assertRaisesRegex(ValueError, "listener executable"),
+        ):
+            provenance.verify_mei_runtime(cfg, base_url="http://127.0.0.1:8024/v1")
+
+    def test_changed_released_binary_or_metallib_refused(self):
+        for which in (1, 2):
+            cfg, binary, metal = self.released_config()
+            (binary if which == 1 else metal).write_bytes(b"changed")
+            with self.assertRaisesRegex(ValueError, "artifact hash mismatch"):
+                provenance.verify_mei_runtime(cfg)
+
+    def test_missing_wrong_or_ambiguous_release_pins_refused(self):
+        cfg, _, _ = self.released_config()
+        for key, value in (
+            ("source_revision", "2" * 40),
+            ("binary_sha256", None),
+            ("metallib_sha256", "short"),
+        ):
+            broken = {
+                **cfg,
+                "mei_release_artifact": {**cfg["mei_release_artifact"], key: value},
+            }
+            with self.subTest(key=key), self.assertRaises(ValueError):
+                provenance.verify_mei_runtime(broken)
+        for command in (
+            self.cfg["benchmark_launch_command"],
+            cfg["benchmark_launch_command"] + " --mei-binary /other/mei",
+        ):
+            with self.assertRaises(ValueError):
+                provenance.verify_mei_runtime(
+                    {**cfg, "benchmark_launch_command": command}
+                )
+        with self.assertRaises(ValueError):
+            provenance.verify_mei_runtime({**cfg, "mei_release_artifact": None})
 
     def test_wrong_revision_refused_before_lifecycle(self):
         self.cfg["mei_source_commit"] = "2" * 40
@@ -121,6 +190,7 @@ class MeiProvenanceTests(unittest.TestCase):
                 identity = provenance.verify_mei_runtime(
                     self.cfg, base_url="http://127.0.0.1:8024/v1"
                 )
+            assert identity is not None
             self.assertEqual(check.call_count, 2)
             self.assertEqual(identity["binary_sha256"], provenance.sha256(binary))
         with (

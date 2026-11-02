@@ -1,7 +1,7 @@
 # local-model-bench
 
-Current release: **benchmark-v9.7 — deleted-source grading correction**.
-See the [current release notes](docs/releases/benchmark-v9.7.md) and
+Current release: **benchmark-v9.8 — released-runtime repeats**.
+See the [current release notes](docs/releases/benchmark-v9.8.md) and
 [release history](docs/releases/).
 
 Compare local LLM serving stacks on affordable Apple Silicon Macs. The active
@@ -57,9 +57,10 @@ task success also does not establish near-64K capacity or actual app acceptance.
 
 ## Work in progress
 
-Groot and Logics-SWE are provisional contenders after passing all 15 current
-tasks. Independent repeats and the remaining candidate work precede final roster
-selection. The [campaign review](docs/CANDIDATE_CAMPAIGN.md) records profiles,
+Groot and Logics-SWE are provisional contenders after passing all 15 v9.5
+reference tasks. [Two fresh trials each](docs/FINALIST_REPEATS.md) are declared
+on v9.8, including the exact distributed Mei rc.2 binary. Final roster selection
+remains pending those comparisons. The [campaign review](docs/CANDIDATE_CAMPAIGN.md) records profiles,
 failures, memory fixes and next steps.
 
 - **Clover:** publisher files and diffusion kernel checks verified; native model

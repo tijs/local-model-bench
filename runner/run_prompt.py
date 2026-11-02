@@ -72,9 +72,9 @@ import socket
 import sys
 import threading
 import time
-import urllib.request
 import urllib.error
-
+import urllib.request
+from typing import Any
 
 GUARDRAIL_WARN_AFTER = {"exact_failure": 2, "same_tool_failure": 3, "idempotent_no_progress": 2}
 
@@ -163,6 +163,7 @@ _GENERATION_OVERRIDE_TYPES = {
     "presence_penalty": (int, float),
     "frequency_penalty": (int, float),
     "reasoning_effort": (str,),
+    "seed": (int,),
 }
 
 
@@ -202,6 +203,8 @@ def normalize_generation_overrides(overrides):
             raise ValueError(
                 "generation override 'reasoning_effort': must be a non-empty string"
             )
+        if key == "seed" and not 0 <= value <= 2**32 - 1:
+            raise ValueError("generation seed must be between 0 and 4294967295")
     return dict(overrides)
 
 
@@ -209,7 +212,7 @@ def build_chat_body(*, model, messages, tools, temperature, max_tokens,
                     top_p=None, top_k=None, min_p=None,
                     repetition_penalty=None, presence_penalty=None,
                     frequency_penalty=None, reasoning_effort=None,
-                    stream=True):
+                    stream=True, seed=None):
     """Assemble the /chat/completions JSON body for one streaming turn.
 
     Optional sampling/reasoning fields — temperature included — are
@@ -229,6 +232,7 @@ def build_chat_body(*, model, messages, tools, temperature, max_tokens,
         "presence_penalty": presence_penalty,
         "frequency_penalty": frequency_penalty,
         "reasoning_effort": reasoning_effort,
+        "seed": seed,
     }
     overrides = normalize_generation_overrides(
         {k: v for k, v in overrides.items() if v is not None}
@@ -512,7 +516,7 @@ def call_backend_streaming(base_url, model, messages, tools, temperature, timeou
                            first_progress_timeout=DEFAULT_FIRST_PROGRESS_TIMEOUT,
                            stream_idle_timeout=DEFAULT_STREAM_IDLE_TIMEOUT,
                            no_response_retries=DEFAULT_NO_RESPONSE_RETRIES,
-                           retry_delay=DEFAULT_RETRY_DELAY_SECONDS):
+                           retry_delay=DEFAULT_RETRY_DELAY_SECONDS, seed=None):
     """Streams the response so we can measure real time-to-first-token
     (TTFT) — separate from total wall time, since a big fixed system prompt
     mostly costs prefill time, not generation time. Reassembles the stream
@@ -564,6 +568,7 @@ def call_backend_streaming(base_url, model, messages, tools, temperature, timeou
             presence_penalty=presence_penalty,
             frequency_penalty=frequency_penalty,
             reasoning_effort=reasoning_effort,
+            seed=seed,
         )
         # Immutable per-request sampler/effort metadata (2026-09-22): the
         # EXACT sampling/reasoning fields present in this turn's HTTP body —
@@ -576,7 +581,7 @@ def call_backend_streaming(base_url, model, messages, tools, temperature, timeou
             key: body[key]
             for key in ("temperature", "top_p", "top_k", "min_p",
                         "repetition_penalty", "presence_penalty",
-                        "frequency_penalty", "reasoning_effort")
+                        "frequency_penalty", "reasoning_effort", "seed")
             if key in body
         }
         headers = {"Content-Type": "application/json"}
@@ -604,7 +609,7 @@ def call_backend_streaming(base_url, model, messages, tools, temperature, timeou
         last_delta = None
         content_parts = []
         reasoning_parts = []
-        tool_calls_acc = {}
+        tool_calls_acc: dict[int, dict[str, Any]] = {}
         usage = {}
         timings = None
         finish_reason = None
@@ -809,6 +814,8 @@ def main():
                     help="optional per-request top_p (sent only when set)")
     ap.add_argument("--top-k", type=int, default=None,
                     help="optional per-request top_k (sent only when set)")
+    ap.add_argument("--seed", type=int, default=None,
+                    help="optional per-request seed, recorded exactly; backend determinism is not guaranteed")
     ap.add_argument("--min-p", type=float, default=None,
                     help="optional per-request min_p (sent only when set)")
     ap.add_argument("--repetition-penalty", type=float, default=None,
@@ -894,6 +901,7 @@ def main():
                 presence_penalty=args.presence_penalty,
                 frequency_penalty=args.frequency_penalty,
                 reasoning_effort=args.reasoning_effort,
+                seed=args.seed,
                 api_key=api_key,
                 connect_timeout=args.connect_timeout,
                 first_progress_timeout=args.first_progress_timeout,

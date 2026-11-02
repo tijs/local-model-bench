@@ -526,3 +526,14 @@ and zero swap growth. [Latest review](../artifacts/clover-heldout-v9p7-20261102/
 and [diagnostic chronology](../docs/CLOVER_NATIVE.md) explain the failures and
 qualification limits. All paths from those profiles have been used; they are
 provenance examples, not reusable fresh runtime/output directories.
+
+## Released-runtime finalist repeats
+
+The four `candidates-20261101/*v9p8-seed*.yaml` profiles predeclare two full
+trials each for Groot and Logics-SWE. See the [repeat design](../docs/FINALIST_REPEATS.md)
+for order and output paths. Groot uses `--mei-binary` with exact released
+executable/Metal hashes and clean source/lock pins; no rebuild occurs.
+`generation_profiles.<name>.seed` controls the HTTP request and is recorded in
+resolved metadata. It is distinct from the legacy runner CLI `--seed` server
+flag. No seed means no new field on the wire. Statistical independence and
+cross-runtime numerical parity are not implied.

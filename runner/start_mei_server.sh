@@ -54,9 +54,9 @@ Options:
                        counts, and on research builds the chosen adaptive
                        stable boundary). Distinct from --request-log, which
                        writes the machine-readable JSONL.
-  --seed N             Default sampling seed (Mei research/request-seed+).
-                       Without it the seed is fixed, so one suite run is a
-                       single trajectory sample; vary it to get a distribution.
+  --seed N             Legacy server flag for research builds that accept it.
+                       Standard Mei uses HTTP request seeds instead; declare
+                       generation_profiles.<name>.seed in scored configs.
   --request-log PATH   Append one JSON line per generation run (Mei 0.4.1+):
                        prompt/cached/completion tokens, prefill_ms,
                        generate_ms, wall_ms. Decompose it with
@@ -76,6 +76,8 @@ Options:
                             shards; the default mmap path realigned ~16.6 GiB
                             of temporary copies and OOM'd the GPU allocator)
   --mei-repo PATH           Mei checkout (default: ~/projects/mei)
+  --mei-binary PATH         Use this existing executable without building;
+                            scored configs must pin its release artifact hashes
   --runtime-base PATH       Mei runtime root (default: ~/.local/share/local-model-bench/mei-runtime)
   --build-dir PATH          SwiftPM scratch/build dir (default: .../mei-build-pinned-91fed8be)
   --dry-run                 Validate and print, but do not launch
@@ -112,6 +114,7 @@ REQUEST_LOG=""
 LOG_REQUESTS=""
 SEED=""
 MEI_REPO="$MEI_REPO_DEFAULT"
+MEI_BINARY=""
 RUNTIME_BASE="$RUNTIME_BASE_DEFAULT"
 BUILD_DIR="$BUILD_DIR_DEFAULT"
 DRY_RUN=0
@@ -165,6 +168,7 @@ while [[ $# -gt 0 ]]; do
     --log-requests) LOG_REQUESTS="${2:?missing value}"; shift 2 ;;
     --seed) SEED="${2:?missing value}"; shift 2 ;;
     --mei-repo) MEI_REPO="${2:?missing value}"; shift 2 ;;
+    --mei-binary) MEI_BINARY="${2:?missing value}"; shift 2 ;;
     --runtime-base) RUNTIME_BASE="${2:?missing value}"; shift 2 ;;
     --build-dir) BUILD_DIR="${2:?missing value}"; shift 2 ;;
     --dry-run) DRY_RUN=1; shift ;;
@@ -195,6 +199,12 @@ if (( ! DRY_RUN )) && /usr/sbin/lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2
 fi
 
 BIN="$BUILD_DIR/release/mei"
+if [[ -n "$MEI_BINARY" ]]; then
+  [[ "$MEI_BINARY" = /* && -x "$MEI_BINARY" ]] || {
+    echo "FATAL: --mei-binary requires an absolute executable path" >&2; exit 2;
+  }
+  BIN="$MEI_BINARY"
+fi
 
 # Build the argument vector BEFORE building, so --dry-run can print the exact
 # launch line (with every gate control) without compiling the Swift package or
@@ -256,18 +266,26 @@ if (( DRY_RUN )); then
   exit 0
 fi
 
-mkdir -p "$RUNTIME_BASE" "$RUNTIME_BASE/logs" "$BUILD_DIR"
+mkdir -p "$RUNTIME_BASE" "$RUNTIME_BASE/logs"
 LOG_DIR="$RUNTIME_BASE/logs"
 PID_FILE="$RUNTIME_BASE/server.pid"
 
-echo "mei: building (release, scratch: $BUILD_DIR) ..."
-"${MEI_SWIFT:-swift}" build -c release --scratch-path "$BUILD_DIR" --package-path "$MEI_REPO" \
-  > "$LOG_DIR/build.log" 2>&1 || {
-  echo "FATAL: swift build failed — see $LOG_DIR/build.log" >&2
-  exit 1
-}
-[[ -x "$BIN" ]] || { echo "FATAL: built binary missing at $BIN" >&2; exit 1; }
-bash "$MEI_REPO/scripts/prepare_metallib.sh" "$BUILD_DIR/release" || { echo "FATAL: missing Metal kernel library" >&2; exit 1; }
+if [[ -z "$MEI_BINARY" ]]; then
+  mkdir -p "$BUILD_DIR"
+  echo "mei: building (release, scratch: $BUILD_DIR) ..."
+  "${MEI_SWIFT:-swift}" build -c release --scratch-path "$BUILD_DIR" --package-path "$MEI_REPO" \
+    > "$LOG_DIR/build.log" 2>&1 || {
+    echo "FATAL: swift build failed — see $LOG_DIR/build.log" >&2
+    exit 1
+  }
+  [[ -x "$BIN" ]] || { echo "FATAL: built binary missing at $BIN" >&2; exit 1; }
+  bash "$MEI_REPO/scripts/prepare_metallib.sh" "$BUILD_DIR/release" || { echo "FATAL: missing Metal kernel library" >&2; exit 1; }
+else
+  [[ -f "$(dirname "$BIN")/mlx.metallib" ]] || {
+    echo "FATAL: released Mei binary has no adjacent mlx.metallib" >&2; exit 1;
+  }
+  echo "mei: using existing executable $BIN (no build)"
+fi
 
 "$BIN" "${ARGS[@]}" >> "$LOG_DIR/server.log" 2>&1 &
 SERVER_PID=$!

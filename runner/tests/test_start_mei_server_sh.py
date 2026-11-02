@@ -20,6 +20,7 @@ Run: uv run --locked python -m unittest discover -s runner/tests -v
 """
 import os
 import shlex
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -111,6 +112,27 @@ def _dry_run(extra):
 
 
 class StartMeiServerForwardingTests(unittest.TestCase):
+    def test_existing_executable_skips_build_and_owns_runtime_pid(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            binary = Path(tmp) / "mei"
+            binary.write_text("#!/bin/sh\nprintf 'fixture Mei ran\\n'\n")
+            binary.chmod(0o755)
+            (binary.parent / "mlx.metallib").write_bytes(b"fixture metal")
+            base, result = _run_launcher(["--mei-binary", str(binary)], dry_run=False)
+            self.addCleanup(shutil.rmtree, base)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertFalse((base / "build").exists())
+            self.assertFalse((base / "runtime/server.pid").exists())
+            self.assertIn("fixture Mei ran", (base / "runtime/logs/server.log").read_text())
+            self.assertNotIn("building (release", result.stdout)
+
+    def test_existing_binary_dry_run_does_not_create_runtime(self):
+        base, result = _dry_run(["--mei-binary", "/usr/bin/true"])
+        self.addCleanup(shutil.rmtree, base)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("/usr/bin/true", result.stdout)
+        self.assertFalse((base / "runtime").exists())
+
     def test_runtime_policies_are_forwarded_without_implicit_conflicting_reuse(self):
         minimal = [value for i in range(0, len(BASE_ARGS), 2)
                    if BASE_ARGS[i] not in {"--cache-reuse", "--kv-cache-dir"}

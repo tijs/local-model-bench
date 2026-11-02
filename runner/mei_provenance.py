@@ -126,6 +126,38 @@ def verify_mei_runtime(
         "vmlx_commit": dependency,
         "mei_repo": str(repo),
     }
+    artifact = cfg.get("mei_release_artifact")
+    if "--mei-binary" in argv:
+        if argv.count("--mei-binary") != 1 or argv.count("--mei-repo") != 1:
+            raise ValueError("released Mei launch paths must be unambiguous")
+        if not isinstance(artifact, dict) or artifact.get("source_revision") != source:
+            raise ValueError(
+                "released Mei artifact must pin the verified source revision"
+            )
+        binary = declared_path(argv, "--mei-binary")
+        if not binary.is_file() or not binary.stat().st_mode & 0o111:
+            raise ValueError("released Mei binary must be executable")
+        for key, path in (
+            ("binary_sha256", binary),
+            ("metallib_sha256", binary.parent / "mlx.metallib"),
+        ):
+            expected_hash = artifact.get(key)
+            if not isinstance(expected_hash, str) or not re.fullmatch(
+                r"[0-9a-f]{64}", expected_hash
+            ):
+                raise ValueError(f"released Mei artifact requires an exact {key}")
+            if not path.is_file() or sha256(path) != expected_hash:
+                raise ValueError(f"released Mei artifact hash mismatch: {key}")
+            result[key] = expected_hash
+        if base_url is not None and listener_binary(base_url) != binary:
+            raise ValueError("Mei listener executable does not match released artifact")
+        result.update(
+            verification="source, dependency lock and released artifact hashes verified",
+            binary_path=str(binary),
+        )
+        return result
+    if artifact is not None:
+        raise ValueError("released Mei artifact requires --mei-binary")
     if base_url is not None:
         build = declared_path(argv, "--build-dir")
         clean_revision(

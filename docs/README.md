@@ -14,10 +14,12 @@ automation tasks. Peixinho is still a design; these are not application tests.
 - [Reference run selection](../results/agent-v9-20261101.json): machine-readable
   input to the comparison generator. Runs are selected explicitly, not by newest
   timestamp or best score.
+- [Finalist repeat design](FINALIST_REPEATS.md): fixed released binaries,
+  predeclared seeds and fresh process/cache boundaries. No repeat scores yet.
 - [Candidate campaign](CANDIDATE_CAMPAIGN.md): Groot, ThinkingCap, Logics-SWE,
   Clover and reference retests, with evidence links and open qualification work.
 - [Release history](releases/): method and tooling changes. Current release:
-  [benchmark-v9.7](releases/benchmark-v9.7.md).
+  [benchmark-v9.8](releases/benchmark-v9.8.md).
 
 ## Running and understanding the benchmark
 
