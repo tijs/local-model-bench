@@ -27,6 +27,11 @@ and every sampled response must meet the timeout. The 30K count is checked
 against server usage. Warmups and cold requests stay in evidence and are
 excluded from timing summaries. API output exposes text and counts, so these
 comparisons cannot prove equality of hidden sampled token IDs.
+Both prompts end in the same integer-listing task. The long prompt is counted
+with the local tokenizer before model load; exact inputs and their hashes are
+retained. Malformed and empty responses fail, with raw envelopes saved first.
+The client recognizes rc.2's historical chat-shaped raw envelope as well as
+the corrected standard text-completion envelope.
 
 ```sh
 uv run --locked python runner/qualify_mei_release.py \

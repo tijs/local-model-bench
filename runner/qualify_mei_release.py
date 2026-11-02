@@ -34,6 +34,7 @@ from run_mei_acceptance import (
     wait_ready,
 )
 from run_standin_suite import write_json
+from tokenizers import Tokenizer
 
 
 def qualification_settings(cfg: dict[str, Any]) -> dict[str, int | float]:
@@ -96,6 +97,27 @@ def observable(response: dict) -> dict:
         "prompt_tokens": usage["prompt_tokens"],
         "finish_reason": choice["finish_reason"],
     }
+
+
+def prepare_prompts(model_dir: Path, loaded_tokens: int) -> dict[str, str]:
+    """Count locally before model load; both contexts end in the same task."""
+    tokenizer = Tokenizer.from_file(str(model_dir / "tokenizer.json"))
+    short = "List the integers from 1 to 100, separated by commas:\n"
+    suffix = "\n\n" + short
+    filler_count = loaded_tokens - len(
+        tokenizer.encode(suffix, add_special_tokens=False).ids
+    )
+    for _ in range(3):
+        if filler_count <= 0:
+            break
+        loaded = " hello" * filler_count + suffix
+        count = len(tokenizer.encode(loaded, add_special_tokens=False).ids)
+        if count == loaded_tokens:
+            return {"short": short, "loaded": loaded}
+        filler_count += loaded_tokens - count
+    raise ValueError(
+        "could not construct the declared loaded context with the local tokenizer"
+    )
 
 
 def succeeded(output: Path) -> bool:
@@ -222,16 +244,19 @@ def child(cfg: dict, output: Path) -> int:
         print(f"{phase} {context} {repeat}: {row['decode_tps']:.3f} tok/s", flush=True)
 
     try:
+        model_dir = Path(command[command.index("--model-dir") + 1])
+        prompts = prepare_prompts(model_dir, int(settings["loaded_tokens"]))
+        write_json(output / "prompts.json", prompts)
+        result["prompt_sha256"] = {
+            name: hashlib.sha256(prompt.encode()).hexdigest()
+            for name, prompt in prompts.items()
+        }
         with (output / "launcher.log").open("x") as log:
             process = subprocess.Popen(
                 command, cwd=REPO, env=environment, stdout=log, stderr=subprocess.STDOUT
             )
         wait_ready(process, base)
         result["runtime_identity"] = verify_mei_runtime(cfg, base_url=base)
-        prompts = {
-            "short": "List the integers from 1 to 100, separated by commas:",
-            "loaded": " hello" * int(settings["loaded_tokens"]),
-        }
         # Only observe status during the first cold long prefill. Performance
         # observations below run without HTTP status polling interference.
         completion("short", prompts["short"], "cold", 0)

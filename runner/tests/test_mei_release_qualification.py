@@ -12,12 +12,30 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import Mock, patch
 
+from tokenizers import Tokenizer, models, pre_tokenizers
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import qualify_mei_release as qualification
 from qualify_mei_release import observable, qualification_settings, succeeded
 
 
 class QualificationTests(unittest.TestCase):
+    def test_loaded_prompt_is_exactly_counted_and_ends_in_the_short_task(self):
+        tokenizer = Tokenizer(
+            models.WordLevel({"[UNK]": 0, "hello": 1}, unk_token="[UNK]")
+        )
+        tokenizer.pre_tokenizer = pre_tokenizers.WhitespaceSplit()
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            tokenizer.save(str(root / "tokenizer.json"))
+            prompts = qualification.prepare_prompts(root, 1024)
+            self.assertEqual(
+                len(tokenizer.encode(prompts["loaded"], add_special_tokens=False).ids),
+                1024,
+            )
+            self.assertTrue(prompts["loaded"].endswith(prompts["short"]))
+            self.assertIn("integers from 1 to 100", prompts["short"])
+
     def test_live_client_loop_preserves_status_failure_and_excludes_warmups(self):
         for fail_status in (False, True):
             active = threading.Event()
@@ -75,7 +93,7 @@ class QualificationTests(unittest.TestCase):
                         "context_cap": 65536,
                         "benchmark_endpoint": f"http://127.0.0.1:{server.server_port}",
                         "orchestration": {"served_model_id": "fixture/model"},
-                        "benchmark_launch_command": "fixture-launcher",
+                        "benchmark_launch_command": "fixture-launcher --model-dir /fixture",
                         "required_runner_environment": {"MEI_RUNTIME_BASE": folder},
                         "mei_qualification": {
                             "repeats": 1,
@@ -94,6 +112,14 @@ class QualificationTests(unittest.TestCase):
                             return_value=Mock(returncode=0),
                         ),
                         patch.object(qualification, "wait_ready"),
+                        patch.object(
+                            qualification,
+                            "prepare_prompts",
+                            return_value={
+                                "short": "list integers",
+                                "loaded": " hello" * 1024,
+                            },
+                        ),
                         patch.object(
                             qualification, "verify_mei_runtime", return_value={}
                         ),
