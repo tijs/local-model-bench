@@ -1,5 +1,8 @@
 # Native Mei release acceptance
 
+See [stable qualification](MEI_STABLE_QUALIFICATION.md) for the separate cold
+determinism, loaded-prefill status and repeated decode measurements.
+
 Use the guarded launcher with a committed, pinned config:
 
 ```sh

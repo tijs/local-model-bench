@@ -74,6 +74,8 @@ every household task in these repeats; actual Peixinho acceptance remains open.
 
 ## Reproduce a run
 
+Run `uv sync --locked` to install all project dependencies. `pyproject.toml`
+and `uv.lock` are canonical; `runner/requirements.txt` is a legacy mirror.
 Use the locked Astral environment. Commit a profile with fresh owned runtime,
 cache and output paths before a rerun; the published profiles retain the exact
 measured choices. Keep one model server at a time and review any partial run
