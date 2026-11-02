@@ -108,3 +108,24 @@ The actual toolchain was checked with `hash-seed-probe.swift`: three processes
 with 0 varied, while three with 1 repeated hash values and dictionary order.
 See `hash-seed-runtime-check.json`. The diagnostic mechanism is documented by
 [Swift's hashing proposal](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0206-hashable-enhancements.md).
+
+The screen completed all six processes with exact output parity and normal
+pressure. It **does not support deterministic hashing as a sufficient fix**:
+
+| Process | Hash setting | Median short / 1K tokens/s |
+| --- | --- | --- |
+| R1 | Randomized | 51.14 / 52.21 |
+| D1 | Deterministic | 69.66 / 68.03 |
+| D2 | Deterministic | 69.73 / 68.06 |
+| R2 | Randomized | 67.09 / 65.74 |
+| R3 | Randomized | 69.86 / 68.22 |
+| D3 | Deterministic | 51.47 / 51.51 |
+
+D3 reproduces the slower range despite deterministic hashing. Earlier D1/D2
+alone would have led to a false conclusion. Preserve all six results in
+[hash-screen-summary.json](hash-screen-summary.json); no production hash or
+load-order change follows from this screen. The next investigation must
+directly profile fast/slow execution context and compilation/allocation before
+selecting a fix. Public-profile control comparisons and full native gates
+remain open. Every server and the screen controller exited; logs, runtime and
+model hashes, cache inventories and cleanup receipts are retained.
