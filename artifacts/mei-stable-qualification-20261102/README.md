@@ -243,3 +243,40 @@ The same manifest lists three fresh full native admission profiles at this
 allowance, using the normal-budget probe source with proved equivalent app
 inputs. Native/cache/exact-context gates, stable distribution/install checks
 and eight scored reruns remain required. None of these diagnostic rows rank.
+
+
+## Bounded Metal allocator fix
+
+A real-Metal reproduction found two faults in MLX core buffer admission:
+full pools kept stale prefill shapes instead of recent decode shapes, and an
+oversized returned buffer could exceed the configured allowance. The expanded
+old-core baseline produces seven failing assertions. The fixed published chain
+is `tijs/mlx@bbdcd4d` → `tijs/vmlx-swift@2256cc1` → `tijs/mei@955b813`.
+All four actual-Metal regressions pass, including partial eviction and zero
+allowance. [Offline verification](bounded-allocator-offline-verification.json)
+records the exact source and log hashes. The final offline suite passed 460
+XCTest cases with two explicitly retired-Flint fixture skips, plus three Swift
+Testing cases. No model was loaded for those tests.
+
+The forthcoming `bounded-allocator-matrix.json` predeclares six unprofiled
+processes per model: A1/B1/C1/C2/B2/A2 for Groot, Qwen and Ornith. A is the
+previous production candidate with compilation on; B is the fixed allocator
+with compilation on; C is the same new binary with compilation off. Application
+inference sources are identical apart from CLI help listing registered presets.
+Both source variants retain the lookup optimization and the same kernel sources.
+
+Each process retains cold and warmup observations plus five measured 128-token
+decodes at short and 30,000-token contexts, giving ten measured decodes per
+context and arm. A/B isolates the allocator change; B/C isolates the existing
+compilation setting. Budgets stay at 512 MiB allocator reuse, 512 MiB resident
+prefix state and the backend-auto total allocation limit. Phase timers stay off.
+B1 and C1 also run the pinned nine-test native Swift HTTP client. Separate full
+native tools/history/cache/exact-65,536 profiles remain required for all three
+models. All guards, byte/count/finish parity checks and terminal evidence
+preservation remain in force. This experiment does not raise a physical wired
+limit and does not create scored task rows.
+
+A passing synthetic allocator test does not establish a model speed gain or
+explain every earlier rate band. Keep the negative cache-capacity screens and
+older slow samples intact. Stable distribution and the fresh four-model task
+cohort still depend on completing and reviewing the real-model gates.
