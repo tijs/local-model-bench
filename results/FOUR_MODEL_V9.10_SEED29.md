@@ -12,13 +12,15 @@ Resource eligibility replays the released stop policy. Capacity mode permits an 
 
 | Order | Model / engine | Household | Python | Budget outcomes | Invalid calls | Wall time | Warning samples / min free / swap growth | Coverage |
 |---:|---|---:|---:|---:|---:|---:|---|---|
-| 1 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly / mei | 11/12 | 2/3 | 1 | 3 | 9.81 min | 0 / 22% / 0.0 MiB | complete |
-| 2 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit / mei | 11/12 | 1/3 | 1 | 1 | 10.99 min | 0 / 21% / 0.0 MiB | complete |
-| 3 | Tostibrown/Groot-19B-A3B-261023-rco-role-4.5bpw-textonly / mei | 10/12 | 3/3 | 0 | 1 | 10.40 min | 0 / 38% / 0.0 MiB | complete |
-| — | bartowski/Logics-MLLM_Logics-SWE-Qwen3.6-35B-A3B-GGUF:IQ4_XS / llama.cpp | pending | pending | — | — | — | — | partial/unusable or pending |
+| 1 | bartowski/Logics-MLLM_Logics-SWE-Qwen3.6-35B-A3B-GGUF:IQ4_XS / llama.cpp | 11/12 | 3/3 | 0 | 1 | 8.45 min | 0 / 23% / 0.0 MiB | complete |
+| 2 | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly / mei | 11/12 | 2/3 | 1 | 3 | 9.81 min | 0 / 22% / 0.0 MiB | complete |
+| 3 | ornith-ai/Ornith-1.5-35B-A3B-MLX-4bit / mei | 11/12 | 1/3 | 1 | 1 | 10.99 min | 0 / 21% / 0.0 MiB | complete |
+| 4 | Tostibrown/Groot-19B-A3B-261023-rco-role-4.5bpw-textonly / mei | 10/12 | 3/3 | 0 | 1 | 10.40 min | 0 / 38% / 0.0 MiB | complete |
 
 ## Selected run evidence
 
+- **bartowski/Logics-MLLM_Logics-SWE-Qwen3.6-35B-A3B-GGUF:IQ4_XS** — config `configs/four-model-v9p10-20261102/logics-seed29.yaml`; household: `20261102T092641Z-12b5d1e3` (12/12 executed), Python: `20261102T093240Z-f426417c` (3/3 executed). Exact model/quant/runtime and sampler pins are in the config and run manifests.
+  - `retrieve-isolation`: task_failure; checks no_unsafe_attempt, no_invalid_operation.
 - **Tostibrown/Qwen3.6-35B-A3B-4bit-textonly** — config `configs/four-model-v9p10-20261102/qwen-seed29.yaml`; household: `20261102T084912Z-573cf13b` (12/12 executed), Python: `20261102T085639Z-f54e59e8` (3/3 executed). Exact model/quant/runtime and sampler pins are in the config and run manifests.
   - `capture-multipart`: truncation; checks finished_with_final_answer, no_unsafe_attempt, no_invalid_operation, retry_receipts_exist.
   - `shopping-csv`: task_failure; checks no_invalid_tool_calls.
@@ -29,6 +31,5 @@ Resource eligibility replays the released stop policy. Capacity mode permits an 
 - **Tostibrown/Groot-19B-A3B-261023-rco-role-4.5bpw-textonly** — config `configs/four-model-v9p10-20261102/groot-seed29.yaml`; household: `20261102T091411Z-9b3c870e` (12/12 executed), Python: `20261102T092023Z-012dce42` (3/3 executed). Exact model/quant/runtime and sampler pins are in the config and run manifests.
   - `capture-multipart`: task_failure; checks no_unsafe_attempt, no_invalid_operation.
   - `retrieve-grounded`: task_failure; checks deleted_source_not_reused.
-- **bartowski/Logics-MLLM_Logics-SWE-Qwen3.6-35B-A3B-GGUF:IQ4_XS** — config `configs/four-model-v9p10-20261102/logics-seed29.yaml`; pending. Exact model/quant/runtime and sampler pins are in the config and run manifests.
 
 Historical versions, calibration runs and partial attempts remain append-only in their own reports. These selected runs are never inferred from the newest timestamp alone.

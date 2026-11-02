@@ -15,6 +15,10 @@ def sample(pages):
     return {
         "host_vm_stat": f"Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages wired down: {pages}.\n",
         "resident_bytes": 999999999999,
+        "kernel_pressure_level": 1,
+        "swap_used_mib": 1024,
+        "disk_free_bytes": 20 * GIB,
+        "free_percent": 30,
     }
 
 
@@ -72,7 +76,9 @@ class ComparisonCoverageTests(unittest.TestCase):
                     "config": stem + ".yaml",
                     "supervision": stem,
                 }
-                (self.root / entry["config"]).write_text('{"model_bytes": 1000000}')
+                (self.root / entry["config"]).write_text(
+                    '{"model_bytes": 1000000, "resource_monitor_policy": {"admission_mode": "capacity"}}'
+                )
                 for folder, key, n in (
                     ("standin", "household_run", 12),
                     ("automation", "python_run", 3),
@@ -102,6 +108,9 @@ class ComparisonCoverageTests(unittest.TestCase):
                 )
                 (directory / "baseline.jsonl").write_text(
                     json.dumps(sample(100)) + "\n"
+                )
+                (directory / "invocation.json").write_text(
+                    json.dumps({"initial": sample(100)})
                 )
                 (directory / "resources.jsonl").write_text(
                     json.dumps(sample(300)) + "\n"
@@ -152,6 +161,24 @@ class ComparisonCoverageTests(unittest.TestCase):
         self.spec["cohorts"] = ["seed17.json", "seed17.json"]
         with self.assertRaisesRegex(ValueError, "duplicate"):
             self.load()
+
+    def test_resource_stop_conditions_refused_even_with_zero_exit(self):
+        path = self.root / "model0-seed17/resources.jsonl"
+        for changes in (
+            [{"kernel_pressure_level": 4}],
+            [{"kernel_pressure_level": 2}, {"kernel_pressure_level": 2}],
+            [{"swap_used_mib": 3073}],
+            [{"disk_free_bytes": 9 * GIB}],
+        ):
+            with self.subTest(changes=changes):
+                path.write_text(
+                    "".join(json.dumps({**sample(300), **x}) + "\n" for x in changes)
+                )
+                with self.assertRaisesRegex(ValueError, "Resource-ineligible"):
+                    self.load()
+        # An isolated warning is explicitly permitted by the capacity policy.
+        path.write_text(json.dumps({**sample(300), "kernel_pressure_level": 2}) + "\n")
+        self.assertEqual(len(self.load()), 8)
 
     def test_incomplete_rows_refused(self):
         path = self.root / "results/automation/log.jsonl"

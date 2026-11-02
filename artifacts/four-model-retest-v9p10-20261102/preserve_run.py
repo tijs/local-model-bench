@@ -61,7 +61,7 @@ save("post-run-model-hashes.json", {"all_match": True, "files": files})
 if slug == "logics":
     save("post-run-runtime-verification.json", verify_llama_runtime(cfg))
     shutil.copy2(
-        f"/tmp/bench_four-model-20261102_logics-seed{seed}_server.log",
+        f"/tmp/bench_four-model-v9p10-20261102_logics-seed{seed}_server.log",
         OUT / "server.log",
     )
     print("Preserved llama.cpp logs/model/runtime hashes; no owned disk KV tier.")

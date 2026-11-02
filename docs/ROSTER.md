@@ -8,10 +8,13 @@ premature: Qwen/Ornith had not received the same current repeated comparison.
 [Main summary and graphs](../results/AGENT_SUMMARY.md) ·
 [Machine-readable roster](../configs/active_roster.json)
 
-All four will run fresh on frozen v9.10, seeds 17/29, with no prior Groot/Logics
-result substituted for a retest. The final summary will show quality/time/memory
-tradeoffs with engine labels, both observations and explicit profile caveats.
-No ordering or new score is inferred before the measurements finish.
+All four completed fresh full runs on frozen v9.10, seeds 17/29. No older
+Groot/Logics result was substituted. Household scores were Qwen 9/11,
+Ornith 9/11, Groot 11/10 and Logics-SWE 11/11, each out of 12. Python scores
+were Qwen 2/2, Ornith 3/1, Groot 3/3 and Logics-SWE 3/3, each out of 3.
+All four remain contenders. Groot used the least observed wired-memory increase;
+Logics-SWE had the highest household total in these two trajectories. These
+observations do not establish a universal replacement or statistical superiority.
 
 ThinkingCap and MiniCPM remain alternatives. Clover remains experimental native
 Kapitsa/Metal diffusion, not a Mei implementation. Flint/JANGH2 remains user-

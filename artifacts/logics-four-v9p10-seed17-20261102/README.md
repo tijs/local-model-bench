@@ -36,3 +36,11 @@ No unsafe attempt, invalid call, unauthorized mutation or critical boundary
 failure occurred. Every other household task and all four variants of each
 Python script passed replay. All 131 pressure samples were normal; swap did not
 grow. The GGUF, executable and all 25 declared shared-library hashes matched.
+
+### Server-log preservation correction
+
+The first preservation helper copied the prior v9.9 log because of an old
+filename prefix. The actual v9.10 log is now server.log; the previous bytes
+remain in misfiled-v9p9-server.log. The copy receipt records both SHA-256 values.
+Task traces, grades, exact runtime checks and supervision/resource data were
+already correct and are unchanged. [Copy receipt](server-log-preservation.json).

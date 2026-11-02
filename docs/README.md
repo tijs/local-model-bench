@@ -6,13 +6,12 @@ automation tasks. Peixinho is still a design; these are not application tests.
 
 ## Current comparison
 
-[Four-model summary and graphs](../results/AGENT_SUMMARY.md) now tracks the
-fresh common-release comparison. All eight runs are newly declared; measurements
-and final figures are pending. [Design](FOUR_MODEL_COMPARISON.md).
+[Four-model summary and graphs](../results/AGENT_SUMMARY.md) contains all eight
+fresh v9.10 runs, quality-versus-time/memory graphs, exact observations and audit links. [Design](FOUR_MODEL_COMPARISON.md).
 
 ## Earlier results and decisions
 
-- [Retained roster](ROSTER.md): two primary serving profiles, alternatives,
+- [Retained roster](ROSTER.md): four retained serving profiles, alternatives,
   experimental diffusion, failures and limits.
 - [Campaign completion audit](../artifacts/candidate-system-campaign-20261101/final-review-20261102/README.md):
   requirement-by-requirement evidence, released artifacts and separate open work.
@@ -33,7 +32,7 @@ and final figures are pending. [Design](FOUR_MODEL_COMPARISON.md).
 - [Candidate campaign](CANDIDATE_CAMPAIGN.md): Groot, ThinkingCap, Logics-SWE,
   Clover and reference retests, with evidence links and open qualification work.
 - [Release history](releases/): method and tooling changes. Current release:
-  [benchmark-v9.10](releases/benchmark-v9.10.md).
+  [benchmark-v9.10.1](releases/benchmark-v9.10.1.md); the measured method remains v9.10.
 
 ## Running and understanding the benchmark
 
@@ -51,7 +50,7 @@ and final figures are pending. [Design](FOUR_MODEL_COMPARISON.md).
 - [Configurations](../configs/README.md): serving profiles and provenance.
 
 Use the locked Astral environment and commit the exact config before execution.
-Start with the supervised command in the [README](../README.md#run); use fresh
+Start with the supervised command in the [README](../README.md#reproduce-a-run); use fresh
 output and owned cache directories. Preserve failed attempts before retrying.
 
 ## Historical evidence

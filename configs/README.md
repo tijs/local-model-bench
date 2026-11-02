@@ -1,8 +1,8 @@
 # Current Peixinho stand-in configs
 
 Retained contenders (2026-11-02): **base Qwen3.6, Ornith1.5 and Groot / Mei**,
-and **Logics-SWE / llama.cpp**. All four have new two-seed full retests declared
-in `four-model-v9p10-20261102/` on frozen v9.10. No prior Groot/Logics run is reused.
+and **Logics-SWE / llama.cpp**. All four completed two fresh full retests
+using `four-model-v9p10-20261102/` on frozen v9.10. All eight are audited; no prior Groot/Logics run was reused.
 [Design and cost definitions](../docs/FOUR_MODEL_COMPARISON.md) ·
 [Current summary](../results/AGENT_SUMMARY.md) · [Roster](active_roster.json).
 ThinkingCap/MiniCPM remain alternatives; Clover stays experimental.

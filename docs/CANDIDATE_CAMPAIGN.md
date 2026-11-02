@@ -1,4 +1,10 @@
-# Candidate campaign — completed 2 November 2026
+# Historical candidate campaign — completed 2 November 2026
+
+The current roster retains **Qwen, Ornith, Groot and Logics-SWE** after eight
+fresh v9.10 runs. [Current results and graphs](../results/AGENT_SUMMARY.md) ·
+[Current roster](ROSTER.md). The campaign history below keeps its original
+measurement identities; earlier two-primary decisions and pending checkpoints
+are superseded by the current four-model comparison.
 
 The campaign tests Groot, ThinkingCap, Logics-SWE and Clover alongside the
 completed MiniCPM, Qwen and Ornith reference profiles. Every scored attempt uses

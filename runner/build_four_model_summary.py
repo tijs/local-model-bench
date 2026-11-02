@@ -17,7 +17,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from bench_common import REPO
-from build_agent_leaderboard import render_campaign
+from build_agent_leaderboard import render_campaign, within_resource_policy
 from matplotlib.lines import Line2D
 
 GIB = 1024**3
@@ -149,13 +149,20 @@ def load_points(root: Path, specification: dict[str, Any]) -> list[Point]:
                 raise ValueError(
                     "Interrupted supervisor cannot yield a qualified point"
                 )
-            base, peak, delta = memory_cost(
-                read_jsonl(directory / "baseline.jsonl"),
-                read_jsonl(directory / "resources.jsonl"),
-            )
+            baseline = read_jsonl(directory / "baseline.jsonl")
+            samples = read_jsonl(directory / "resources.jsonl")
             import yaml
 
             cfg = yaml.safe_load((root / entry["config"]).read_text())
+            initial = json.loads((directory / "invocation.json").read_text())["initial"]
+            if not within_resource_policy(
+                samples,
+                initial,
+                capacity=cfg.get("resource_monitor_policy", {}).get("admission_mode")
+                == "capacity",
+            ):
+                raise ValueError("Resource-ineligible run cannot be a qualified point")
+            base, peak, delta = memory_cost(baseline, samples)
             points.append(
                 Point(
                     label,
@@ -190,6 +197,18 @@ def figures(points: list[Point], output: Path, title_prefix: str = "") -> list[s
         }
     )
     names = []
+    # Offsets move labels, never observations. Leader lines retain the exact
+    # position of the tightly clustered memory measurements.
+    memory_labels = {
+        ("Base Qwen3.6", 17): (15, -25),
+        ("Base Qwen3.6", 29): (-38, 61),
+        ("Ornith1.5", 17): (-122, 14),
+        ("Ornith1.5", 29): (22, 34),
+        ("Groot", 17): (8, 10),
+        ("Groot", 29): (8, -16),
+        ("Logics-SWE", 17): (-126, 32),
+        ("Logics-SWE", 29): (-126, -24),
+    }
     for metric, xlabel, name in (
         (
             "wall_minutes",
@@ -211,20 +230,28 @@ def figures(points: list[Point], output: Path, title_prefix: str = "") -> list[s
             ax.scatter(
                 x,
                 y,
-                s=95,
-                c=COLORS[point.label],
+                s=125 if point.seed == 17 else 65,
+                facecolors="none" if point.seed == 17 else COLORS[point.label],
                 marker=MARKERS[point.engine],
-                edgecolors="white",
-                linewidths=0.8,
+                edgecolors=COLORS[point.label],
+                linewidths=1.4,
                 zorder=3,
+            )
+            offset = (
+                memory_labels[(point.label, point.seed)]
+                if metric == "wired_increase_gib"
+                else (5, 8 if point.seed == 17 else -14)
             )
             ax.annotate(
                 f"{point.label} s{point.seed}",
                 (x, y),
-                xytext=(5, 8 if point.seed == 17 else -14),
+                xytext=offset,
                 textcoords="offset points",
                 fontsize=8,
                 color=COLORS[point.label],
+                arrowprops={"arrowstyle": "-", "color": COLORS[point.label], "lw": 0.65}
+                if metric == "wired_increase_gib"
+                else None,
             )
         ax.set_title(
             title_prefix + "Household task quality versus resource cost",
@@ -251,7 +278,7 @@ def figures(points: list[Point], output: Path, title_prefix: str = "") -> list[s
             for k, v in ENGINES.items()
         ]
         ax.legend(handles=legend, loc="lower left", frameon=False)
-        note = "Each point is one declared seed; no composite intelligence index or confidence interval."
+        note = "Open markers: seed 17; filled: seed 29. Each point is one run; no composite index or confidence interval."
         if metric == "wired_increase_gib":
             note += "\nSystem-wide peak minus median pre-run baseline; partial memory accounting, not exact model RAM."
         fig.text(0.01, -0.035, note, fontsize=8, color="#555")
@@ -343,8 +370,8 @@ def export(root: Path, spec: dict[str, Any], summary: Path, output: Path) -> Non
         [
             "## Exact observations",
             "",
-            "| Model / engine | Seed | Household | Python | Full time | Wired increase (GiB) | Weight storage (GiB) |",
-            "|---|---:|---:|---:|---:|---:|---:|",
+            "| Model / engine | Seed | Household | Python | Full time | Wired increase (GiB) | Weight storage (GiB) | Audit |",
+            "|---|---:|---:|---:|---:|---:|---:|---|",
         ]
     )
     for p in points:
@@ -354,7 +381,7 @@ def export(root: Path, spec: dict[str, Any], summary: Path, output: Path) -> Non
             else f"{p.wired_increase_gib:.2f}"
         )
         lines.append(
-            f"| {p.label} / {ENGINES[p.engine]} | {p.seed} | {p.household}/12 | {p.python}/3 | {p.wall_minutes:.2f} min | {memory} | {p.weight_gib:.2f} |"
+            f"| {p.label} / {ENGINES[p.engine]} | {p.seed} | {p.household}/12 | {p.python}/3 | {p.wall_minutes:.2f} min | {memory} | {p.weight_gib:.2f} | [review](../{p.supervision}/README.md) |"
         )
     lines.extend(
         [
@@ -371,7 +398,30 @@ def export(root: Path, spec: dict[str, Any], summary: Path, output: Path) -> Non
     )
     for path in spec["cohorts"]:
         cohort = json.loads((root / path).read_text())
-        lines.extend([render_campaign(root, cohort), ""])
+        seed = json.loads(
+            (
+                root
+                / "results/standin/runs"
+                / cohort["models"][0]["household_run"]
+                / "manifest.json"
+            ).read_text()
+        )["generation_overrides"]["seed"]
+        report = spec["benchmark_release"].replace("benchmark-", "").upper()
+        lines.extend(
+            [
+                f"- Seed {seed}: [validated report](FOUR_MODEL_{report}_SEED{seed}.md), [exact selection](../{path}).",
+            ]
+        )
+    lines.extend(
+        [
+            "",
+            "Each per-run review records the frozen grade/tool-journal audit, submitted-script replay and missing submissions. Execution replay is not applicable when no script was submitted. Denied attempts and invalid calls still fail their tasks, even when containment holds or a corrected script later works.",
+            "",
+            "All eight selected supervisors exited normally. The linked cohort reports retain pressure, swap and disk eligibility; each audit retains post-run model/runtime hashes and owned-cache cleanup receipts. These short tasks do not establish near-64K quality or maximum context capacity.",
+            "",
+            "[Interpretation, failed checks and serving profiles](../docs/FOUR_MODEL_COMPARISON.md) · [Original v9.9 attempts](FOUR_MODEL_V9.9_INTERRUPTED.md) · [Historical v8.3.1 summary](AGENT_SUMMARY_V8.3.1.md).",
+        ]
+    )
     lines.extend(
         [
             "[Metric data]("

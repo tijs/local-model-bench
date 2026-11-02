@@ -1,24 +1,42 @@
-# Four-model comparison: fresh v9.10 runs in progress
+# Four-model local agent comparison
 
-All four contenders are retained. Eight new full runs were predeclared before
-inference, using one frozen released benchmark. No older finalist run is reused.
-Real quality-versus-time/memory graphs will be generated when all eight are audited.
+Frozen benchmark **benchmark-v9.10**; two fresh declared seeds per profile, eight complete runs.
 
-| Model / engine | Seed | Household | Python | Full-run time | Evidence |
-|---|---:|---:|---:|---:|---|
-| Base Qwen3.6 / mei | 17 | 9/12 | 2/3 | 8.29 min | [review](../artifacts/qwen-four-v9p10-seed17-20261102/README.md) |
-| Ornith1.5 / mei | 17 | 9/12 | 3/3 | 9.47 min | [review](../artifacts/ornith-four-v9p10-seed17-20261102/README.md) |
-| Groot / mei | 17 | 11/12 | 3/3 | 10.23 min | [review](../artifacts/groot-four-v9p10-seed17-20261102/README.md) |
-| Logics-SWE / llama.cpp | 17 | 11/12 | 3/3 | 11.07 min | [review](../artifacts/logics-four-v9p10-seed17-20261102/README.md) |
-| Base Qwen3.6 / mei | 29 | 11/12 | 2/3 | 9.81 min | [review](../artifacts/qwen-four-v9p10-seed29-20261102/README.md) |
-| Ornith1.5 / mei | 29 | 11/12 | 1/3 | 10.99 min | [review](../artifacts/ornith-four-v9p10-seed29-20261102/README.md) |
-| Groot / mei | 29 | 10/12 | 3/3 | 10.40 min | [review](../artifacts/groot-four-v9p10-seed29-20261102/README.md) |
-| Logics-SWE / llama.cpp | 29 | pending | pending | pending | — |
+All four remain retained contenders. These compare serving profiles, not pure model weights or Peixinho application acceptance.
 
-[Design and metric definitions](../docs/FOUR_MODEL_COMPARISON.md) ·
-[Seed17 provenance](FOUR_MODEL_V9.10_SEED17.md) · [Seed29 provenance](FOUR_MODEL_V9.10_SEED29.md) ·
-[Preserved v8.3.1 summary](AGENT_SUMMARY_V8.3.1.md).
+![quality time](charts/four-model-v9.10/quality-time.png)
 
-Mei means Swift/MLX; llama.cpp means GGUF. Quality tracks remain separate.
-All runs include startup, admission and all15 tasks. Synthetic tasks are not
-actual Peixinho application acceptance. Pending runs have no score.
+![quality memory](charts/four-model-v9.10/quality-memory.png)
+
+![quality tracks](charts/four-model-v9.10/quality-tracks.png)
+
+## Exact observations
+
+| Model / engine | Seed | Household | Python | Full time | Wired increase (GiB) | Weight storage (GiB) | Audit |
+|---|---:|---:|---:|---:|---:|---:|---|
+| Base Qwen3.6 / Mei (Swift/MLX) | 17 | 9/12 | 2/3 | 8.29 min | 20.08 | 18.17 | [review](../artifacts/qwen-four-v9p10-seed17-20261102/README.md) |
+| Base Qwen3.6 / Mei (Swift/MLX) | 29 | 11/12 | 2/3 | 9.81 min | 19.91 | 18.17 | [review](../artifacts/qwen-four-v9p10-seed29-20261102/README.md) |
+| Ornith1.5 / Mei (Swift/MLX) | 17 | 9/12 | 3/3 | 9.47 min | 19.98 | 18.17 | [review](../artifacts/ornith-four-v9p10-seed17-20261102/README.md) |
+| Ornith1.5 / Mei (Swift/MLX) | 29 | 11/12 | 1/3 | 10.99 min | 20.07 | 18.17 | [review](../artifacts/ornith-four-v9p10-seed29-20261102/README.md) |
+| Groot / Mei (Swift/MLX) | 17 | 11/12 | 3/3 | 10.23 min | 15.08 | 11.45 | [review](../artifacts/groot-four-v9p10-seed17-20261102/README.md) |
+| Groot / Mei (Swift/MLX) | 29 | 10/12 | 3/3 | 10.40 min | 15.05 | 11.45 | [review](../artifacts/groot-four-v9p10-seed29-20261102/README.md) |
+| Logics-SWE / llama.cpp (GGUF) | 17 | 11/12 | 3/3 | 11.07 min | 19.53 | 18.52 | [review](../artifacts/logics-four-v9p10-seed17-20261102/README.md) |
+| Logics-SWE / llama.cpp (GGUF) | 29 | 11/12 | 3/3 | 8.45 min | 19.54 | 18.52 | [review](../artifacts/logics-four-v9p10-seed29-20261102/README.md) |
+
+## Reading the costs and quality
+
+Time includes startup/native admission and both tracks, excluding the separate 30-second baseline. Memory is the peak observed system-wide wired-byte increase over median baseline; background activity can affect it. It is partial accounting, not total model memory. GPU allocations are not reliably captured by process RSS/footprint. Weight storage is separate; no counters are added together.
+
+Household and Python quality remain separate. Seeds 17/29 and observed ranges are not confidence intervals or an independence guarantee. Qwen/Ornith retain their T0.6 sampler; Groot/Logics retain T1 and their declared penalties. Quants, engines and cache settings differ explicitly. No best-run selection or universal winner is implied.
+
+## Provenance and failures
+
+- Seed 17: [validated report](FOUR_MODEL_V9.10_SEED17.md), [exact selection](../results/four-model-v9p10-seed17-20261102.json).
+- Seed 29: [validated report](FOUR_MODEL_V9.10_SEED29.md), [exact selection](../results/four-model-v9p10-seed29-20261102.json).
+
+Each per-run review records the frozen grade/tool-journal audit, submitted-script replay and missing submissions. Execution replay is not applicable when no script was submitted. Denied attempts and invalid calls still fail their tasks, even when containment holds or a corrected script later works.
+
+All eight selected supervisors exited normally. The linked cohort reports retain pressure, swap and disk eligibility; each audit retains post-run model/runtime hashes and owned-cache cleanup receipts. These short tasks do not establish near-64K quality or maximum context capacity.
+
+[Interpretation, failed checks and serving profiles](../docs/FOUR_MODEL_COMPARISON.md) · [Original v9.9 attempts](FOUR_MODEL_V9.9_INTERRUPTED.md) · [Historical v8.3.1 summary](AGENT_SUMMARY_V8.3.1.md).
+[Metric data](charts/four-model-v9.10/metrics.json) · [CSV](charts/four-model-v9.10/metrics.csv). PNG and SVG exports are kept beside the data.

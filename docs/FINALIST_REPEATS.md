@@ -60,7 +60,7 @@ seed 17, all 68 task requests carry seed 29, and grades/journals/scripts reprodu
 
 All four predeclared trials are complete. Both cohort reports keep every
 outcome. All output paths and the example command above are consumed; do not
-rerun them. The [roster and completion review](ROSTER.md) retain both primary tradeoffs;
+rerun them. The [roster and completion review](ROSTER.md) describe the two earlier profiles;
 there is no further retry declared.
 
 ## Disk-cache accounting
