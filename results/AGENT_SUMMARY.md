@@ -1,12 +1,24 @@
-# Four-model comparison: corrected common release pending
+# Four-model comparison: fresh v9.10 runs in progress
 
-Retain base Qwen3.6, Ornith1.5, Groot and Logics-SWE. All eight fresh full runs
-will use corrected benchmark-v9.10, with predeclared seeds17/29 and unchanged
-serving profiles. The original v9.9 attempts are preserved separately because
-an audited routing-choice response exposed a grader false negative.
+All four contenders are retained. Eight new full runs were predeclared before
+inference, using one frozen released benchmark. No older finalist run is reused.
+Real quality-versus-time/memory graphs will be generated when all eight are audited.
 
-[Design](../docs/FOUR_MODEL_COMPARISON.md) · [Original v9.9 attempts](FOUR_MODEL_V9.9_INTERRUPTED.md) ·
-[Historical v8.3.1 summary](AGENT_SUMMARY_V8.3.1.md).
+| Model / engine | Seed | Household | Python | Full-run time | Evidence |
+|---|---:|---:|---:|---:|---|
+| Base Qwen3.6 / mei | 17 | 9/12 | 2/3 | 8.29 min | [review](../artifacts/qwen-four-v9p10-seed17-20261102/README.md) |
+| Ornith1.5 / mei | 17 | pending | pending | pending | — |
+| Groot / mei | 17 | pending | pending | pending | — |
+| Logics-SWE / llama.cpp | 17 | pending | pending | pending | — |
+| Base Qwen3.6 / mei | 29 | pending | pending | pending | — |
+| Ornith1.5 / mei | 29 | pending | pending | pending | — |
+| Groot / mei | 29 | pending | pending | pending | — |
+| Logics-SWE / llama.cpp | 29 | pending | pending | pending | — |
 
-Actual quality-versus-time/memory graphs will appear after all eight corrected
-runs are reviewed. No old score is relabeled as a new measurement.
+[Design and metric definitions](../docs/FOUR_MODEL_COMPARISON.md) ·
+[Seed17 provenance](FOUR_MODEL_V9.10_SEED17.md) · [Seed29 provenance](FOUR_MODEL_V9.10_SEED29.md) ·
+[Preserved v8.3.1 summary](AGENT_SUMMARY_V8.3.1.md).
+
+Mei means Swift/MLX; llama.cpp means GGUF. Quality tracks remain separate.
+All runs include startup, admission and all15 tasks. Synthetic tasks are not
+actual Peixinho application acceptance. Pending runs have no score.

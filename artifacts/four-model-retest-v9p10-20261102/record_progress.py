@@ -102,7 +102,7 @@ SQLite index summarized before removing only this run's owned KV directory;
 staged weights and release assets remain. llama.cpp has no owned disk KV tier.
 This is synthetic household/Python evidence, not actual Peixinho app acceptance.
 """)
-            if slug == "logics":
+            if slug == "logics" and "Generated Mei KV," in readme.read_text():
                 text = readme.read_text()
                 start = text.index("Generated Mei KV,")
                 end = text.index("This is synthetic", start)
@@ -115,15 +115,6 @@ This is synthetic household/Python evidence, not actual Peixinho app acceptance.
                 f"| {label} / {cfg['inference_engine']} | {seed} | {h}/12 | {p}/3 | {seconds / 60:.2f} min | [review]({out.relative_to(ROOT)}/README.md) |"
             )
         else:
-            if slug == "logics":
-                text = readme.read_text()
-                start = text.index("Generated Mei KV,")
-                end = text.index("This is synthetic", start)
-                readme.write_text(
-                    text[:start]
-                    + "This llama.cpp profile has no owned disk KV tier. Server logs, model hashes, executable and shared-library checks are preserved.\n"
-                    + text[end:]
-                )
             rows.append(
                 f"| {label} / {cfg['inference_engine']} | {seed} | pending | pending | pending | — |"
             )
