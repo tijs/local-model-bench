@@ -33,6 +33,13 @@ retained. Malformed and empty responses fail, with raw envelopes saved first.
 The client recognizes rc.2's historical chat-shaped raw envelope as well as
 the corrected standard text-completion envelope.
 
+Semantic native admission uses the normal output budget advertised by
+`GET /v1/mei/status` (`maxTokens`): 8192 for the retained MLX profiles. Plain
+answers, tool calls, tool-result continuation and streaming parity all receive
+that budget, including reasoning. A missing/invalid budget fails admission.
+The smaller caps above measure speed; cache-counter probes and exact-context
+boundary checks also remain short and make no task-completion claim.
+
 ```sh
 uv run --locked python runner/qualify_mei_release.py \
   --config configs/<committed-qualification-profile>.yaml \
@@ -58,6 +65,16 @@ Qualification requires reviewing the observations, beyond the driver's exit:
 - Run the complete native streaming/nonstreaming tools, continuation, cache and
   exact-context admission checks separately. Run Mei's live acceptance class
   against the owned server without rebuilding during inference.
+
+Selected profiles may also pin `mei_swift_acceptance` to a prebuilt `.xctest`
+bundle, its executable SHA256 and the expected test count. The runner verifies
+the bundle before loading, then runs only the nine HTTP acceptance tests after
+timing is complete. This uses Apple's test runner directly, with no SwiftPM or
+build during inference. Missing/skipped tests or a client failure fail the
+diagnostic; they cannot be mistaken for native admission or a scored task run.
+The Swift client receives the observed normal output budget and journals raw
+requests/responses. Its validation remains strict; a length-capped non-call
+cannot pass by receiving a larger allowance.
 
 Publish stable only after the [Mei release runbook](https://github.com/tijs/mei/blob/main/docs/RELEASE-RUNBOOK.md)
 and its contender gates pass, then verify the distributed/installed artifact.

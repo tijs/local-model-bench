@@ -20,6 +20,20 @@ from qualify_mei_release import observable, qualification_settings, succeeded
 
 
 class QualificationTests(unittest.TestCase):
+    def test_live_acceptance_must_run_every_declared_test_without_skips(self):
+        self.assertTrue(
+            qualification.acceptance_succeeded(
+                0, "Executed 9 tests, with 0 failures (0 unexpected)", 9
+            )
+        )
+        for rc, log in (
+            (1, "Executed 9 tests, with 0 failures"),
+            (0, "Executed 0 tests, with 0 failures"),
+            (0, "Executed 9 tests, with 9 tests skipped and 0 failures"),
+            (0, "Executed 9 tests, with 1 failure"),
+        ):
+            self.assertFalse(qualification.acceptance_succeeded(rc, log, 9))
+
     def test_loaded_prompt_is_exactly_counted_and_ends_in_the_short_task(self):
         tokenizer = Tokenizer(
             models.WordLevel({"[UNK]": 0, "hello": 1}, unk_token="[UNK]")
@@ -56,9 +70,10 @@ class QualificationTests(unittest.TestCase):
                     self.reply(
                         {
                             "status": "ok",
+                            "maxTokens": 8192,
                             "scheduler": {"activeGenerations": int(active.is_set())},
                         },
-                        500 if fail_status else 200,
+                        500 if fail_status and active.is_set() else 200,
                     )
 
                 def do_POST(self, requests=requests, active=active):
@@ -230,6 +245,16 @@ class QualificationTests(unittest.TestCase):
                 return succeeded(output)
 
             self.assertTrue(check(evidence))
+            self.assertFalse(check(evidence | {"swift_acceptance_required": True}))
+            self.assertTrue(
+                check(
+                    evidence
+                    | {
+                        "swift_acceptance_required": True,
+                        "swift_acceptance": {"passed": True},
+                    }
+                )
+            )
             cases = []
             missing = copy.deepcopy(evidence)
             missing["rows"].pop()

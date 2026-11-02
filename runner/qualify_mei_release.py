@@ -14,6 +14,7 @@ import hashlib
 import json
 import math
 import os
+import re
 import signal
 import socket
 import subprocess
@@ -120,6 +121,39 @@ def prepare_prompts(model_dir: Path, loaded_tokens: int) -> dict[str, str]:
     )
 
 
+def acceptance_succeeded(returncode: int, log: str, expected_tests: int) -> bool:
+    return returncode == 0 and bool(
+        re.search(rf"Executed {expected_tests} tests, with 0 failures", log)
+    )
+
+
+def acceptance_identity(cfg: dict) -> dict | None:
+    spec = cfg.get("mei_swift_acceptance")
+    if spec is None:
+        return None
+    if not isinstance(spec, dict) or set(spec) != {
+        "bundle",
+        "executable_sha256",
+        "expected_tests",
+    }:
+        raise ValueError("invalid pinned Swift acceptance specification")
+    bundle = Path(spec["bundle"])
+    if (
+        not bundle.is_absolute()
+        or bundle.suffix != ".xctest"
+        or type(spec["expected_tests"]) is not int
+        or spec["expected_tests"] < 9
+    ):
+        raise ValueError(
+            "Swift acceptance requires an absolute test bundle and at least nine tests"
+        )
+    with (bundle / "Contents/MacOS/MeiTests").open("rb") as stream:
+        digest = hashlib.file_digest(stream, "sha256").hexdigest()
+    if digest != spec["executable_sha256"]:
+        raise ValueError("Swift acceptance executable changed")
+    return dict(spec)
+
+
 def succeeded(output: Path) -> bool:
     try:
         result = json.loads((output / "qualification.json").read_text())
@@ -144,6 +178,10 @@ def succeeded(output: Path) -> bool:
             )
             and all(row["ok"] for row in result["status_samples"])
             and result["server_stopped"] is True
+            and (
+                not result.get("swift_acceptance_required", False)
+                or result.get("swift_acceptance", {}).get("passed") is True
+            )
         )
     except (OSError, ValueError, KeyError, TypeError):
         return False
@@ -161,6 +199,7 @@ def child(cfg: dict, output: Path) -> int:
         "settings": settings,
         "rows": [],
         "status_samples": [],
+        "swift_acceptance_required": cfg.get("mei_swift_acceptance") is not None,
         "command": command,
         "model": model,
         "parity_scope": "HTTP text bytes, generated count and finish; hidden sampled token IDs are not exposed",
@@ -246,6 +285,7 @@ def child(cfg: dict, output: Path) -> int:
     try:
         model_dir = Path(command[command.index("--model-dir") + 1])
         prompts = prepare_prompts(model_dir, int(settings["loaded_tokens"]))
+        acceptance = acceptance_identity(cfg)
         write_json(output / "prompts.json", prompts)
         result["prompt_sha256"] = {
             name: hashlib.sha256(prompt.encode()).hexdigest()
@@ -257,6 +297,11 @@ def child(cfg: dict, output: Path) -> int:
             )
         wait_ready(process, base)
         result["runtime_identity"] = verify_mei_runtime(cfg, base_url=base)
+        profile_status = request_json(base + "/mei/status", timeout=5)
+        normal_budget = profile_status.get("maxTokens")
+        if type(normal_budget) is not int or normal_budget <= 0:
+            raise ValueError("server did not advertise a normal output budget")
+        result["normal_output_budget"] = normal_budget
         # Only observe status during the first cold long prefill. Performance
         # observations below run without HTTP status polling interference.
         completion("short", prompts["short"], "cold", 0)
@@ -280,6 +325,54 @@ def child(cfg: dict, output: Path) -> int:
             order = ("short", "loaded") if repeat % 2 else ("loaded", "short")
             for context in order:
                 completion(context, prompts[context], "measured", repeat)
+        if acceptance is not None:
+            # A prebuilt HTTP client only: never run SwiftPM/builds while a
+            # model is loaded. A minimal environment prevents credentials
+            # appearing in xctest's automatic diagnostics on a tool error.
+            command = [
+                "/Applications/Xcode.app/Contents/Developer/usr/bin/xctest",
+                "-XCTest",
+                "MeiTests.MeiAcceptanceTests",
+                acceptance["bundle"],
+            ]
+            client_env = {
+                "PATH": os.defpath,
+                "MEI_ACCEPTANCE_BASE_URL": base,
+                "MEI_SERVED_MODEL_ID": model,
+                "MEI_ACCEPTANCE_TIMEOUT": "600",
+                "MEI_ACCEPTANCE_MAX_TOKENS": str(normal_budget),
+                "MEI_ACCEPTANCE_JOURNAL": str(output / "swift-live-api.jsonl"),
+            }
+            with (output / "swift-live-acceptance.log").open("x") as log:
+                checked = subprocess.run(
+                    command,
+                    env=client_env,
+                    stdout=log,
+                    stderr=subprocess.STDOUT,
+                    timeout=3600,
+                    check=False,
+                )
+            passed = acceptance_succeeded(
+                checked.returncode,
+                (output / "swift-live-acceptance.log").read_text(),
+                acceptance["expected_tests"],
+            )
+            journal = output / "swift-live-api.jsonl"
+            replies = (
+                [json.loads(line) for line in journal.read_text().splitlines()]
+                if journal.exists()
+                else []
+            )
+            passed = passed and len(replies) >= acceptance["expected_tests"]
+            result["swift_acceptance"] = acceptance | {
+                "returncode": checked.returncode,
+                "passed": passed,
+                "journal_requests": len(replies),
+            }
+            if not passed:
+                raise RuntimeError(
+                    "pinned Swift live acceptance did not complete all declared tests"
+                )
         result["status"] = "passed"
     except (
         OSError,
