@@ -20,7 +20,7 @@ and no best-run selection. Quality, full-run time and observed wired-memory
 increase will be plotted separately, with the serving engine clearly marked.
 
 Fresh v9.10 progress: Qwen seed17 **9/12 household + 2/3 Python**;
-Ornith seed17 **9/12 + 3/3**. Groot seed17 **11/12 + 3/3** is also audited and published; five runs remain.
+Ornith seed17 **9/12 + 3/3**. Groot seed17 **11/12 + 3/3** is also audited and published; Logics-SWE seed17 **11/12 + 3/3** is now published too. Four seed29 runs remain.
 [Live comparison table](results/AGENT_SUMMARY.md).
 
 ## Earlier finalist repeats on v9.8 (historical)
