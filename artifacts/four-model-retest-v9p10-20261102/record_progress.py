@@ -83,8 +83,9 @@ Household `{entry["household_run"]}`; Python `{entry["python_run"]}`.
 [Comparison design](../../docs/FOUR_MODEL_COMPARISON.md)
 
 All 12 grades reproduce under the measured frozen grader. Every parsed API call
-matches the domain journal. All 3 scripts were independently replayed on all 4
-contained variants and reproduced their saved outcomes. Request seed {seed}
+matches the domain journal. Every submitted script was independently replayed on four
+contained variants and reproduced its saved outcomes. Missing submissions are
+explicitly recorded as not applicable for execution replay. Request seed {seed}
 was verified in all {a["runtime"]["recorded_request_count"]} saved task responses.
 No raw grade was changed. Budget exhaustion/denied operations retain their grades.
 

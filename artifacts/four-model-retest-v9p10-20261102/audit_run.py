@@ -72,6 +72,22 @@ for case in cases("heldout"):
 oracle = grader_module()
 for task in tasks():
     trace = json.loads((AUTO / f"{task.task_id}-trial1.json").read_text())
+    if not trace["script"]:
+        assert trace["validation"] == []
+        assert trace["grade"]["checks"]["submitted_script"] is False
+        assert trace["grade"]["pass"] is False
+        report["python"].append(
+            {
+                "task": task.task_id,
+                "passed": False,
+                "submitted": False,
+                "replay_matches": None,
+                "variants": [],
+                "note": "No submitted script; execution replay is not applicable",
+                "saved_error": trace["error"],
+            }
+        )
+        continue
     replay = []
     for index, data in enumerate(oracle.variants(task.task_id, "heldout")):
         result = execute_source(trace["script"], task.filename, data)
