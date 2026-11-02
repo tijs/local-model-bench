@@ -9,7 +9,7 @@ an immutable config and fresh owned server, with native admission before the
 
 | Candidate | Verified outcome | Next step |
 |---|---|---|
-| Groot | v9.5 reference: 12/12 household, 3/3 Python; normal pressure, no swap growth | Mei rc.2 released; same-binary corrected-method repeats pending |
+| Groot | v9.5 reference: 12/12 household, 3/3 Python; normal pressure, no swap growth | Mei rc.2 seed 17: 11/12+3/3 in 10m19s; seed 29 and cross-model repeats pending |
 | ThinkingCap | v9.5 reference: 11/12 household, 3/3 Python; normal pressure, no swap growth | Provisional alternate; repeat after leading profiles |
 | Logics-SWE | v9.5 reference: 12/12 household, 3/3 Python; normal pressure, no swap growth | Independent corrected-method repeat pending |
 | Clover | Fresh v9.7: 8/12 household, 2/3 Python in 15m03s; normal pressure, no swap growth | Experimental; no full pass or demonstrated reason to port to Mei yet |
@@ -25,6 +25,13 @@ keeps its v9.7 method separate from the reference table. The original v9.6
 source case and left four household failures. Python remains 2/3; CSV uses
 lower instead of casefold and also reached its turn limit. All 178 resource
 samples were normal, with zero swap growth; all 15 model hashes matched.
+
+The [first released-runtime Groot repeat](../artifacts/groot-rc2-v9p8-seed17-20261102/README.md)
+scored 11/12+3/3 on v9.8, with normal pressure and no swap growth. Its sole
+failure repeats a deleted numeric value in a historical aside. The earlier
+12/12 result retains its original identity; this one trial does not establish
+a runtime regression. The [four-trial design](FINALIST_REPEATS.md) keeps all
+outcomes and separates seeds/method identities.
 
 The remaining sections preserve the investigation chronology. Current next
 steps are the table above and the owning Kiem campaign plan.
