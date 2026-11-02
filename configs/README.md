@@ -2,7 +2,7 @@
 
 Retained contenders (2026-11-02): **base Qwen3.6, Ornith1.5 and Groot / Mei**,
 and **Logics-SWE / llama.cpp**. All four have new two-seed full retests declared
-in `four-model-20261102/` on frozen v9.9. No prior Groot/Logics run is reused.
+in `four-model-v9p10-20261102/` on frozen v9.10. No prior Groot/Logics run is reused.
 [Design and cost definitions](../docs/FOUR_MODEL_COMPARISON.md) ·
 [Current summary](../results/AGENT_SUMMARY.md) · [Roster](active_roster.json).
 ThinkingCap/MiniCPM remain alternatives; Clover stays experimental.

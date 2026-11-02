@@ -33,7 +33,7 @@ and final figures are pending. [Design](FOUR_MODEL_COMPARISON.md).
 - [Candidate campaign](CANDIDATE_CAMPAIGN.md): Groot, ThinkingCap, Logics-SWE,
   Clover and reference retests, with evidence links and open qualification work.
 - [Release history](releases/): method and tooling changes. Current release:
-  [benchmark-v9.9](releases/benchmark-v9.9.md).
+  [benchmark-v9.10](releases/benchmark-v9.10.md).
 
 ## Running and understanding the benchmark
 

@@ -1,30 +1,23 @@
 # local-model-bench
 
-Current release: **benchmark-v9.9 — fresh four-model comparison and charts**.
-See the [current release notes](docs/releases/benchmark-v9.9.md) and
-[release history](docs/releases/).
+Current release: **benchmark-v9.10 — corrected routing grading**.
+[Release notes](docs/releases/benchmark-v9.10.md).
+The fresh four-model comparison restarts on v9.10 after an audit found a
+routing-choice grader false negative. All five v9.9 attempts are preserved.
 
-Compare local LLM serving stacks on affordable Apple Silicon Macs. The active
-engines are llama.cpp variants, Mei (Swift/MLX), and a separately pinned
-Kapitsa/Metal profile for Clover diffusion experiments. Peixinho is the intended
-future application runtime; it is currently a design, so there are no Peixinho
-application tests or product scores.
+Compare local LLM serving stacks on affordable Apple Silicon Macs. Retain
+**base Qwen3.6, Ornith1.5, Groot and Logics-SWE**. Qwen/Ornith/Groot use
+**Mei (Swift/MLX)**; Logics-SWE uses **llama.cpp (GGUF)**. A separate
+Kapitsa/Metal Clover profile remains experimental. Peixinho is a design, so
+these are synthetic workflow and contained Python tests, not app acceptance.
 
-Retain **base Qwen3.6, Ornith1.5, Groot and Logics-SWE**. All four are being
-retested fresh on one frozen version, with two predeclared seeds each; the old
-two-model replacement decision was premature. Three use **Mei (Swift/MLX)**;
-Logics-SWE uses **llama.cpp (GGUF)**. [Current summary and upcoming graphs](results/AGENT_SUMMARY.md) ·
-[Eight-run design](docs/FOUR_MODEL_COMPARISON.md).
+[Current summary and upcoming graphs](results/AGENT_SUMMARY.md) ·
+[Eight-run design](docs/FOUR_MODEL_COMPARISON.md) ·
+[Preserved v9.9 attempts](results/FOUR_MODEL_V9.9_INTERRUPTED.md).
 
-Fresh progress: Qwen seed17 **9/12 household + 2/3 Python**; Ornith seed17
-**9/12 + 3/3**; Groot seed17 **11/12 + 3/3**. Logics-SWE seed17 **11/12 + 3/3**. Qwen seed29 is also preserved at raw10/12+2/3, but its audit exposed a
-routing-grader false negative. The v9.9 sequence stops here; a corrected release
-and eight fresh common-version runs will replace this provisional comparison. All completed with normal
-pressure and no swap growth; see the linked summary for audited traces.
-
-No old result is used as a new retest. The final summary will plot quality
-against full-run time and measured wired-memory increase, with each seed and
-engine visible. The older comparisons below remain historical references.
+All eight corrected runs will be fresh on one common release, with seeds17/29
+and no best-run selection. Quality, full-run time and observed wired-memory
+increase will be plotted separately, with the serving engine clearly marked.
 
 ## Earlier finalist repeats on v9.8 (historical)
 
@@ -72,7 +65,7 @@ reminder script worked after an invalid tool call. See the detailed reviews.
 
 See the [v9.5 six-model comparison](results/AGENT_V9.md) for exact run IDs and profiles.
 These retain their measured source identities as the new backend is integrated.
-Those selected reference retests are complete on v9.5; the fresh v9.9
+Those selected reference retests are complete on v9.5; the fresh v9.10
 comparison above supersedes the older pending-retest plan. Earlier results below remain
 historical references; they are not relabeled v9 scores. The new MiniCPM runtime
 profile is a memory/speed tradeoff, not a controlled model-quality comparison.

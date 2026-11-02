@@ -392,7 +392,7 @@ def main() -> None:
         "--summary", type=Path, default=REPO / "results/AGENT_SUMMARY.md"
     )
     parser.add_argument(
-        "--figures", type=Path, default=REPO / "results/charts/four-model-v9.9"
+        "--figures", type=Path, default=REPO / "results/charts/four-model-v9.10"
     )
     args = parser.parse_args()
     export(

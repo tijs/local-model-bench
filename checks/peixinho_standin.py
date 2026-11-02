@@ -45,8 +45,18 @@ def requests_route_choice(text: str) -> bool:
         )
         # "Your options are ready: pick one" refers to the prior offer.
         offered_choice = route_context and re.search(r"\b(?:one|either)\b", clause)
+        # A pronoun can refer to route choices offered in the prior sentences.
+        # Keep the request and preference verb explicit; a bare option list or
+        # an unrelated question about weather must not satisfy this check.
+        indirect_offer = route_context and re.search(
+            r"\bwhich\s+(?:one|of\s+(?:these|those))\s+"
+            r"(?:you\s+(?:prefer|want|choose)|you(?:'d| would)\s+like|"
+            r"to\s+(?:use|choose|pick|select))\b",
+            clause,
+            re.IGNORECASE,
+        )
         if (imperative and (route_object or offered_choice)) or (
-            indirect and route_object
+            indirect and (route_object or indirect_offer)
         ):
             return True
         route_context = route_context or bool(route_object)

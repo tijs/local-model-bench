@@ -36,6 +36,32 @@ class RoutingChoiceRequestTests(unittest.TestCase):
                     grade = self.grade_answer(answer, partition)
                     self.assertTrue(grade["pass"], grade["failed_checks"])
 
+    def test_indirect_request_can_refer_to_previously_offered_routes(self):
+        offer = "Routing choices:\n1. **private_note**\n2. **private_task**\n"
+        for partition in ("development", "heldout"):
+            for request in (
+                "Please let me know which one you prefer.",
+                "Tell me which of these you want.",
+                "Please tell me which one you'd like.",
+                "Let me know which one to use.",
+            ):
+                with self.subTest(partition=partition, request=request):
+                    grade = self.grade_answer(offer + request, partition)
+                    self.assertTrue(grade["pass"], grade["failed_checks"])
+
+    def test_indirect_pronoun_needs_offer_and_explicit_choice_request(self):
+        for partition in ("development", "heldout"):
+            for answer in (
+                "Please let me know which one you prefer.",
+                "Your routing options are ready. I know which one you prefer.",
+                "Your routing options are ready. Do not tell me which one you prefer.",
+                "Your routing options are ready. Tell me whether one day will be sunny.",
+                "Your routing options are ready. Please tell me which one day works.",
+            ):
+                with self.subTest(partition=partition, answer=answer):
+                    grade = self.grade_answer(answer, partition)
+                    self.assertFalse(grade["checks"]["routing_choice_requested"])
+
     def test_pending_state_or_a_selected_route_does_not_request_choice(self):
         for partition in ("development", "heldout"):
             for answer in (

@@ -2,12 +2,12 @@
 
 By user direction, retain **base Qwen3.6, Ornith1.5, Groot and Logics-SWE**.
 The earlier two-model replacement decision was too strong. Run all four fresh
-on one frozen release, benchmark-v9.9, with seeds 17 and 29 per profile. Do not
+on one frozen release, benchmark-v9.10, with seeds 17 and 29 per profile. Do not
 reuse the older Groot/Logics outcomes as this comparison's measurements.
 
 Order: Qwen17, Ornith17, Groot17, Logics17, then Qwen29, Ornith29, Groot29,
-Logics29. All eight committed profiles are in `configs/four-model-20261102/`;
-outputs are `artifacts/<model>-four-v9p9-seed<seed>-20261102`. Every run covers
+Logics29. All eight committed profiles are in `configs/four-model-v9p10-20261102/`;
+outputs are `artifacts/<model>-four-v9p10-seed<seed>-20261102`. Every run covers
 all 12 household workflows and all 3 isolated Python tasks. Retain every outcome;
 review/publish an attempt before the next load. Keep one model server at a time.
 
@@ -19,7 +19,7 @@ explicit in configs. Seeds are declared controls, not deterministic/independent
 sample guarantees. This compares serving profiles, not isolated model weights.
 
 Commit/release configs and reporting code before the first run. The measurement
-code, graders, budgets, containment and stop rules stay frozen through all eight
+code, corrected graders, budgets, containment and stop rules stay frozen through all eight
 runs. Prior rows and reports keep their original identities. Normal capacity,
 pressure/swap/disk guards remain; no percentage or global-compressor cutoff.
 Each Mei run starts with a fresh owned prefix directory. Preserve logs/index
@@ -49,3 +49,13 @@ Use model color and explicit engine labels/marker shapes: **Mei (Swift/MLX)**
 versus **llama.cpp (GGUF)**. Include run IDs, native sampler differences, context,
 quant/source pins, failed/partial coverage and resource caveats beside charts.
 No point is plotted as a completed score for an interrupted/unadmitted run.
+
+## Why v9.9 stopped after five attempts
+
+Qwen seed29 correctly listed the persisted routing options and requested
+“Please let me know which one you prefer.” The v9.9 grader lost the reference
+to prior offered choices and falsely rejected it. Fix the indirect-request
+checker with positive/negative regressions. Preserve all five original attempts,
+then restart the full eight-run comparison on corrected v9.10. Do not regrade
+or relabel their raw rows as new results. Runtime, prompts, tools, budgets,
+sampling and resource policy are unchanged; only this held-out grader changes.

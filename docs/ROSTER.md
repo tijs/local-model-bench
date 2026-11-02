@@ -8,7 +8,7 @@ premature: Qwen/Ornith had not received the same current repeated comparison.
 [Main summary and graphs](../results/AGENT_SUMMARY.md) ·
 [Machine-readable roster](../configs/active_roster.json)
 
-All four will run fresh on frozen v9.9, seeds 17/29, with no prior Groot/Logics
+All four will run fresh on frozen v9.10, seeds 17/29, with no prior Groot/Logics
 result substituted for a retest. The final summary will show quality/time/memory
 tradeoffs with engine labels, both observations and explicit profile caveats.
 No ordering or new score is inferred before the measurements finish.
