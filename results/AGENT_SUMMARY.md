@@ -4,13 +4,24 @@ Frozen benchmark **benchmark-v9.10**; two fresh declared seeds per profile, eigh
 
 All four remain retained contenders. These compare serving profiles, not pure model weights or Peixinho application acceptance.
 
+Each graph shows one weighted-average point per model, using only its two fresh v9.10 repeats. Each run has identical coverage and receives 50% weight. Quality pools task attempts separately for household and Python; time and memory are means across runs. Individual observations remain below.
+
 ![quality time](charts/four-model-v9.10/quality-time.png)
 
 ![quality memory](charts/four-model-v9.10/quality-memory.png)
 
 ![quality tracks](charts/four-model-v9.10/quality-tracks.png)
 
-## Exact observations
+## Model averages
+
+| Model / engine | Household | Python | Average full time | Average peak wired increase |
+|---|---:|---:|---:|---:|
+| Base Qwen3.6 / Mei (Swift/MLX) | 20/24 (83.3%) | 4/6 (66.7%) | 9.05 min | 20.00 GiB |
+| Ornith1.5 / Mei (Swift/MLX) | 20/24 (83.3%) | 4/6 (66.7%) | 10.23 min | 20.03 GiB |
+| Groot / Mei (Swift/MLX) | 21/24 (87.5%) | 6/6 (100.0%) | 10.32 min | 15.06 GiB |
+| Logics-SWE / llama.cpp (GGUF) | 22/24 (91.7%) | 6/6 (100.0%) | 9.76 min | 19.54 GiB |
+
+## Individual run evidence
 
 | Model / engine | Seed | Household | Python | Full time | Wired increase (GiB) | Weight storage (GiB) | Audit |
 |---|---:|---:|---:|---:|---:|---:|---|
@@ -27,7 +38,9 @@ All four remain retained contenders. These compare serving profiles, not pure mo
 
 Time includes startup/native admission and both tracks, excluding the separate 30-second baseline. Memory is the peak observed system-wide wired-byte increase over median baseline; background activity can affect it. It is partial accounting, not total model memory. GPU allocations are not reliably captured by process RSS/footprint. Weight storage is separate; no counters are added together.
 
-Household and Python quality remain separate. Seeds 17/29 and observed ranges are not confidence intervals or an independence guarantee. Qwen/Ornith retain their T0.6 sampler; Groot/Logics retain T1 and their declared penalties. Quants, engines and cache settings differ explicitly. No best-run selection or universal winner is implied.
+The graph averages the two per-run peak memory increases; it is not the maximum across both runs. Each repeat has 12 household and 3 Python tasks, so pooled task weighting gives each run 50% weight. All attempts, including failed tasks and missing script submissions, count. There is no weighting by success, response count, tokens, telemetry sample count or duration, and no composite quality score. Two repeats do not establish independence or statistical superiority.
+
+Qwen/Ornith retain their T0.6 sampler; Groot/Logics retain T1 and their declared penalties. Quants, engines and cache settings differ explicitly. No best-run selection or universal winner is implied.
 
 ## Provenance and failures
 
@@ -39,4 +52,4 @@ Each per-run review records the frozen grade/tool-journal audit, submitted-scrip
 All eight selected supervisors exited normally. The linked cohort reports retain pressure, swap and disk eligibility; each audit retains post-run model/runtime hashes and owned-cache cleanup receipts. These short tasks do not establish near-64K quality or maximum context capacity.
 
 [Interpretation, failed checks and serving profiles](../docs/FOUR_MODEL_COMPARISON.md) · [Original v9.9 attempts](FOUR_MODEL_V9.9_INTERRUPTED.md) · [Historical v8.3.1 summary](AGENT_SUMMARY_V8.3.1.md).
-[Metric data](charts/four-model-v9.10/metrics.json) · [CSV](charts/four-model-v9.10/metrics.csv). PNG and SVG exports are kept beside the data.
+[Metric data](charts/four-model-v9.10/metrics.json) · [CSV](charts/four-model-v9.10/metrics.csv) · [Model averages](charts/four-model-v9.10/model-averages.csv). PNG and SVG exports are kept beside the data.

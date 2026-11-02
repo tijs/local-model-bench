@@ -6,8 +6,8 @@ agent task quality, full-run time, memory and tool reliability with **Mei
 it is still a design, so the current tests use synthetic household workflows
 and real, contained Python automation.
 
-Current release: **benchmark-v9.10.1** — complete four-model comparison and
-quality-versus-cost graphs. [Release notes](docs/releases/benchmark-v9.10.1.md).
+Current release: **benchmark-v9.10.2** — one averaged point per model from the latest
+repeated benchmark runs. [Release notes](docs/releases/benchmark-v9.10.2.md).
 All eight measurements use frozen **benchmark-v9.10**; the patch release adds
 reports and data without changing the measured tasks or runtime behavior.
 
@@ -17,14 +17,19 @@ All four ran fresh twice on the same 32 GiB Apple M1 Max, using seeds 17 and 29.
 Each run covers 12 household workflows and 3 Python tasks. No older result was
 substituted and no best repeat was selected.
 
-| Profile / engine | Household, seeds 17 / 29 | Python, seeds 17 / 29 | Full-run time | Wired increase |
+| Profile / engine | Household success | Python success | Mean full-run time | Mean peak wired increase |
 |---|---:|---:|---:|---:|
-| Base Qwen3.6 / Mei (Swift/MLX) | 9/12 · 11/12 | 2/3 · 2/3 | 8.29–9.81 min | 19.91–20.08 GiB |
-| Ornith1.5 / Mei (Swift/MLX) | 9/12 · 11/12 | 3/3 · 1/3 | 9.47–10.99 min | 19.98–20.07 GiB |
-| Groot / Mei (Swift/MLX) | 11/12 · 10/12 | 3/3 · 3/3 | 10.23–10.40 min | 15.05–15.08 GiB |
-| Logics-SWE / llama.cpp (GGUF) | 11/12 · 11/12 | 3/3 · 3/3 | 8.45–11.07 min | 19.53–19.54 GiB |
+| Base Qwen3.6 / Mei (Swift/MLX) | 83.3% (20/24) | 66.7% (4/6) | 9.05 min | 20.00 GiB |
+| Ornith1.5 / Mei (Swift/MLX) | 83.3% (20/24) | 66.7% (4/6) | 10.23 min | 20.03 GiB |
+| Groot / Mei (Swift/MLX) | 87.5% (21/24) | 100.0% (6/6) | 10.32 min | 15.06 GiB |
+| Logics-SWE / llama.cpp (GGUF) | 91.7% (22/24) | 100.0% (6/6) | 9.76 min | 19.54 GiB |
 
-Wired increase is the observed peak **host wired memory above its median
+Each graph shows **one weighted-average point per model**, using only its two
+complete v9.10 repeats. Equal task coverage gives each run 50% weight; quality
+pools passed/attempted tasks separately for household and Python. Raw runs stay
+in the linked summary. Time and memory are averaged across the two runs.
+
+Wired increase averages each run’s peak **host wired memory above its median
 baseline**: partial, system-wide accounting, not exact model RAM. Background
 activity can affect it. Time includes startup, admission and both task tracks;
 the separate 30-second baseline is excluded.

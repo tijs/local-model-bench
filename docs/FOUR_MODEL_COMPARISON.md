@@ -1,16 +1,16 @@
 # Four-model comparison — completed 2 November 2026
 
 All four retained contenders completed two fresh full runs on frozen v9.10,
-on the same 32 GiB Apple M1 Max. Both declared seeds remain visible. The
+on the same 32 GiB Apple M1 Max. Each model now has one averaged graph point; both declared seeds remain in the evidence tables. The
 measurement code, profiles, budgets and resource policy stayed fixed throughout
 these eight runs. [Main summary and graphs](../results/AGENT_SUMMARY.md).
 
-| Profile / engine | Household, seeds 17 / 29 | Python, seeds 17 / 29 | Full-run time | Wired increase |
+| Profile / engine | Household success | Python success | Mean full-run time | Mean peak wired increase |
 |---|---:|---:|---:|---:|
-| Base Qwen3.6 / Mei (Swift/MLX) | 9/12 · 11/12 | 2/3 · 2/3 | 8.29–9.81 min | 19.91–20.08 GiB |
-| Ornith1.5 / Mei (Swift/MLX) | 9/12 · 11/12 | 3/3 · 1/3 | 9.47–10.99 min | 19.98–20.07 GiB |
-| Groot / Mei (Swift/MLX) | 11/12 · 10/12 | 3/3 · 3/3 | 10.23–10.40 min | 15.05–15.08 GiB |
-| Logics-SWE / llama.cpp (GGUF) | 11/12 · 11/12 | 3/3 · 3/3 | 8.45–11.07 min | 19.53–19.54 GiB |
+| Base Qwen3.6 / Mei (Swift/MLX) | 83.3% (20/24) | 66.7% (4/6) | 9.05 min | 20.00 GiB |
+| Ornith1.5 / Mei (Swift/MLX) | 83.3% (20/24) | 66.7% (4/6) | 10.23 min | 20.03 GiB |
+| Groot / Mei (Swift/MLX) | 87.5% (21/24) | 100.0% (6/6) | 10.32 min | 15.06 GiB |
+| Logics-SWE / llama.cpp (GGUF) | 91.7% (22/24) | 100.0% (6/6) | 9.76 min | 19.54 GiB |
 
 ## What the results support
 
@@ -62,13 +62,19 @@ remain failures. Model/runtime hashes matched after every run.
 
 ## Metric definitions
 
-Quality is shown separately for household (/12) and Python (/3). Every seed is
-plotted. Time is full-suite wall time, including startup/admission and both
+Graphs show one point per model, using only the two complete, selected v9.10
+runs. Household quality pools passes over 24 task attempts; Python pools passes
+over 6 attempts. These tracks remain separate. Each run has identical 12+3
+coverage, so each receives 50% weight. Time and per-run peak wired increase are
+arithmetic means with the same 50/50 weights. Failed tasks remain in the totals;
+weights do not depend on success, duration, tokens, response counts or telemetry
+samples. The individual observations and their variance remain in the summary
+and cohort reports. Time is full-suite wall time, including startup/admission and both
 tracks, excluding the separate 30-second baseline. One full run took 8.3–11.1
 minutes; all eight together took about 79 minutes of measured run time, before
 baselines, audits and publication.
 
-Memory is peak recorded host wired bytes minus the median pre-run baseline,
+Each run’s memory delta is peak recorded host wired bytes minus its median pre-run baseline,
 using the recorded VM page size. It is system-wide partial accounting, affected
 by background activity, not exact model RAM. RSS/physical footprint do not
 reliably include GPU allocations. Weight storage is reported separately and no
@@ -77,14 +83,19 @@ its generated disk tier was inventoried then removed after exit, with receipts.
 
 PNG/SVG charts and JSON/CSV metrics are generated from the explicit cohort
 selection by runner/build_four_model_summary.py. Circles mean Mei (Swift/MLX),
-diamonds mean llama.cpp (GGUF); open/filled scatter markers distinguish seeds
-17/29. Leader lines move only labels, never data points. Observed ranges are not
-confidence intervals. Short tasks do not establish near-64K quality or capacity.
+diamonds mean llama.cpp (GGUF). Each point is the model average, with no seed
+markers or range lines. Memory averages the two per-run peak deltas, rather than
+taking a maximum across runs. Leader lines move labels only. Qwen and Ornith
+almost coincide in the memory graph because their quality and memory averages
+are nearly equal; their data positions are preserved. Averages from two repeats
+do not establish statistical confidence. Short tasks do not establish near-64K quality or capacity.
 
 ## Predeclared design and original interruption
 
 The design below was recorded before execution. Its future-tense instructions
-are retained as provenance; all eight corrected runs are now complete.
+are retained as provenance; all eight corrected runs are now complete. The user
+subsequently requested averaged graph points in v9.10.2; that display change
+supersedes the original per-seed plotting design while preserving every run.
 
 ### Original fresh-comparison design
 

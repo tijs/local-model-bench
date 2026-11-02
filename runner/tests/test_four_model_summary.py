@@ -4,11 +4,20 @@ import json
 import sys
 import tempfile
 import unittest
+from dataclasses import asdict, replace
 from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from build_four_model_summary import COLORS, GIB, load_points, memory_cost, wired_bytes
+from build_four_model_summary import (
+    COLORS,
+    GIB,
+    aggregate_points,
+    export,
+    load_points,
+    memory_cost,
+    wired_bytes,
+)
 
 
 def sample(pages):
@@ -134,6 +143,66 @@ class ComparisonCoverageTests(unittest.TestCase):
         self.assertEqual({p.engine for p in points}, {"mei", "llama.cpp"})
         self.assertTrue(all(p.household == 12 and p.python == 3 for p in points))
         self.assertTrue(all(p.wall_minutes == 10 for p in points))
+
+    def test_repeats_pool_task_quality_and_average_costs(self):
+        points = self.load()
+        points[0] = replace(
+            points[0], household=9, python=2, wall_minutes=8, wired_increase_gib=18
+        )
+        points[1] = replace(
+            points[1], household=11, python=3, wall_minutes=12, wired_increase_gib=22
+        )
+        averages = aggregate_points(list(reversed(points)))
+        self.assertEqual(len(averages), 4)
+        first = averages[0]
+        self.assertEqual(first.label, "Base Qwen3.6")
+        self.assertEqual((first.seeds, first.run_weights), ((17, 29), (0.5, 0.5)))
+        self.assertEqual((first.household_passed, first.household_attempts), (20, 24))
+        self.assertEqual((first.python_passed, first.python_attempts), (5, 6))
+        self.assertAlmostEqual(first.household_success_percent, 100 * 20 / 24)
+        self.assertAlmostEqual(first.python_success_percent, 100 * 5 / 6)
+        self.assertEqual(first.wall_minutes, 10)
+        self.assertEqual(first.wired_increase_gib, 20)
+        self.assertEqual(
+            [p.engine for p in averages], ["mei", "mei", "mei", "llama.cpp"]
+        )
+
+    def test_missing_memory_does_not_silently_drop_a_repeat(self):
+        points = self.load()
+        points[0] = replace(points[0], wired_increase_gib=None)
+        first = aggregate_points(points)[0]
+        self.assertIsNone(first.wired_increase_gib)
+        self.assertEqual(first.runs, 2)
+        self.assertEqual(first.household_attempts, 24)
+
+    def test_averages_reject_missing_duplicate_or_mixed_profiles(self):
+        points = self.load()
+        for invalid in (
+            points[:-1],
+            [points[0], *points[:-1]],
+            [replace(points[0], engine="llama.cpp"), *points[1:]],
+            [replace(points[0], weight_gib=99), *points[1:]],
+        ):
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                aggregate_points(invalid)
+
+    def test_export_keeps_all_observations_and_adds_four_model_averages(self):
+        original = [asdict(p) for p in self.load()]
+        output = self.root / "results/charts"
+        output.mkdir()
+        with (
+            patch("build_four_model_summary.render_campaign"),
+            patch("build_four_model_summary.figures", return_value=[]),
+        ):
+            export(self.root, self.spec, self.root / "results/SUMMARY.md", output)
+        data = json.loads((output / "metrics.json").read_text())
+        self.assertEqual(data["observations"], original)
+        self.assertEqual(len(data["model_averages"]), 4)
+        self.assertEqual(data["aggregation"]["run_weights"], {"17": 0.5, "29": 0.5})
+        self.assertEqual(len((output / "metrics.csv").read_text().splitlines()), 9)
+        self.assertEqual(
+            len((output / "model-averages.csv").read_text().splitlines()), 5
+        )
 
     def test_mismatched_seed_and_changed_runtime_refused(self):
         path = self.manifests[-1]

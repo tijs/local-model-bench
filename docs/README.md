@@ -7,7 +7,7 @@ automation tasks. Peixinho is still a design; these are not application tests.
 ## Current comparison
 
 [Four-model summary and graphs](../results/AGENT_SUMMARY.md) contains all eight
-fresh v9.10 runs, quality-versus-time/memory graphs, exact observations and audit links. [Design](FOUR_MODEL_COMPARISON.md).
+fresh v9.10 runs, quality-versus-time/memory graphs with one averaged point per model, the weighting rule, individual observations and audit links. [Design](FOUR_MODEL_COMPARISON.md).
 
 ## Earlier results and decisions
 
@@ -32,7 +32,7 @@ fresh v9.10 runs, quality-versus-time/memory graphs, exact observations and audi
 - [Candidate campaign](CANDIDATE_CAMPAIGN.md): Groot, ThinkingCap, Logics-SWE,
   Clover and reference retests, with evidence links and open qualification work.
 - [Release history](releases/): method and tooling changes. Current release:
-  [benchmark-v9.10.1](releases/benchmark-v9.10.1.md); the measured method remains v9.10.
+  [benchmark-v9.10.2](releases/benchmark-v9.10.2.md); the measured method remains v9.10.
 
 ## Running and understanding the benchmark
 

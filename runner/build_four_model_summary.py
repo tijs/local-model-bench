@@ -9,7 +9,7 @@ import json
 import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from statistics import median
+from statistics import fmean, median
 from typing import Any
 
 import matplotlib
@@ -46,6 +46,65 @@ class Point:
     household_run: str
     python_run: str
     supervision: str
+
+
+@dataclass(frozen=True)
+class ModelAverage:
+    label: str
+    engine: str
+    runs: int
+    seeds: tuple[int, ...]
+    run_weights: tuple[float, ...]
+    household_passed: int
+    household_attempts: int
+    household_success_percent: float
+    python_passed: int
+    python_attempts: int
+    python_success_percent: float
+    wall_minutes: float
+    wired_increase_gib: float | None
+    weight_gib: float
+
+
+def aggregate_points(points: list[Point]) -> list[ModelAverage]:
+    """Pool task success; equally weight the two complete, equal-coverage runs."""
+    if len(points) != 8 or {p.label for p in points} != set(COLORS):
+        raise ValueError("Averages require all eight selected latest-release runs")
+    averages = []
+    for label in COLORS:
+        group = sorted((p for p in points if p.label == label), key=lambda p: p.seed)
+        if [p.seed for p in group] != [17, 29]:
+            raise ValueError("Averages require exactly one run for each declared seed")
+        if (
+            len({p.engine for p in group}) != 1
+            or len({p.weight_gib for p in group}) != 1
+        ):
+            raise ValueError("Averages cannot combine different serving profiles")
+        house = sum(p.household for p in group)
+        python = sum(p.python for p in group)
+        memory = [p.wired_increase_gib for p in group]
+        averages.append(
+            ModelAverage(
+                label=label,
+                engine=group[0].engine,
+                runs=len(group),
+                seeds=tuple(p.seed for p in group),
+                run_weights=(0.5, 0.5),
+                household_passed=house,
+                household_attempts=12 * len(group),
+                household_success_percent=100 * house / (12 * len(group)),
+                python_passed=python,
+                python_attempts=3 * len(group),
+                python_success_percent=100 * python / (3 * len(group)),
+                wall_minutes=fmean(p.wall_minutes for p in group),
+                # Missing memory in either run must not silently reweight the other.
+                wired_increase_gib=None
+                if None in memory
+                else fmean(x for x in memory if x is not None),
+                weight_gib=group[0].weight_gib,
+            )
+        )
+    return averages
 
 
 def wired_bytes(sample: dict[str, Any]) -> int:
@@ -185,7 +244,9 @@ def load_points(root: Path, specification: dict[str, Any]) -> list[Point]:
     return sorted(points, key=lambda x: (list(COLORS).index(x.label), x.seed))
 
 
-def figures(points: list[Point], output: Path, title_prefix: str = "") -> list[str]:
+def figures(
+    points: list[ModelAverage], output: Path, title_prefix: str = ""
+) -> list[str]:
     output.mkdir(parents=True, exist_ok=True)
     plt.rcParams.update(
         {
@@ -200,24 +261,20 @@ def figures(points: list[Point], output: Path, title_prefix: str = "") -> list[s
     # Offsets move labels, never observations. Leader lines retain the exact
     # position of the tightly clustered memory measurements.
     memory_labels = {
-        ("Base Qwen3.6", 17): (15, -25),
-        ("Base Qwen3.6", 29): (-38, 61),
-        ("Ornith1.5", 17): (-122, 14),
-        ("Ornith1.5", 29): (22, 34),
-        ("Groot", 17): (8, 10),
-        ("Groot", 29): (8, -16),
-        ("Logics-SWE", 17): (-126, 32),
-        ("Logics-SWE", 29): (-126, -24),
+        "Base Qwen3.6": (-130, -25),
+        "Ornith1.5": (18, 10),
+        "Groot": (8, 10),
+        "Logics-SWE": (-100, 15),
     }
     for metric, xlabel, name in (
         (
             "wall_minutes",
-            "Full 15-task run time (minutes) · lower is better",
+            "Average full 15-task run time (minutes) · lower is better",
             "quality-time",
         ),
         (
             "wired_increase_gib",
-            "Peak host wired-memory increase (GiB) · lower is better",
+            "Average per-run peak host wired increase (GiB) · lower is better",
             "quality-memory",
         ),
     ):
@@ -226,24 +283,26 @@ def figures(points: list[Point], output: Path, title_prefix: str = "") -> list[s
             x = getattr(point, metric)
             if x is None:
                 continue
-            y = 100 * point.household / 12
+            y = point.household_success_percent
             ax.scatter(
                 x,
                 y,
-                s=125 if point.seed == 17 else 65,
-                facecolors="none" if point.seed == 17 else COLORS[point.label],
+                s=110,
+                facecolors="none",
                 marker=MARKERS[point.engine],
                 edgecolors=COLORS[point.label],
-                linewidths=1.4,
+                linewidths=1.8,
                 zorder=3,
             )
             offset = (
-                memory_labels[(point.label, point.seed)]
+                memory_labels[point.label]
                 if metric == "wired_increase_gib"
-                else (5, 8 if point.seed == 17 else -14)
+                else (7, -17)
+                if point.label == "Ornith1.5"
+                else (7, 9)
             )
             ax.annotate(
-                f"{point.label} s{point.seed}",
+                point.label,
                 (x, y),
                 xytext=offset,
                 textcoords="offset points",
@@ -260,7 +319,7 @@ def figures(points: list[Point], output: Path, title_prefix: str = "") -> list[s
             pad=14,
         )
         ax.set_xlabel(xlabel)
-        ax.set_ylabel("Household task success (%) · 12 tasks per run")
+        ax.set_ylabel("Household task success (%) · 24 attempts across two runs")
         ax.set_ylim(-5, 110)
         ax.set_yticks([0, 25, 50, 75, 100])
         ax.margins(x=0.2)
@@ -271,6 +330,7 @@ def figures(points: list[Point], output: Path, title_prefix: str = "") -> list[s
                 [],
                 color="#555",
                 marker=MARKERS[k],
+                markerfacecolor="none",
                 linestyle="none",
                 markersize=8,
                 label=v,
@@ -278,52 +338,44 @@ def figures(points: list[Point], output: Path, title_prefix: str = "") -> list[s
             for k, v in ENGINES.items()
         ]
         ax.legend(handles=legend, loc="lower left", frameon=False)
-        note = "Open markers: seed 17; filled: seed 29. Each point is one run; no composite index or confidence interval."
+        note = "One point per model: latest v9.10 repeats, 50% weight each. Quality pools task attempts; costs average runs."
         if metric == "wired_increase_gib":
-            note += "\nSystem-wide peak minus median pre-run baseline; partial memory accounting, not exact model RAM."
+            note += "\nMean of per-run (host peak minus median baseline); partial system-wide accounting, not exact model RAM."
         fig.text(0.01, -0.035, note, fontsize=8, color="#555")
         for extension in ("png", "svg"):
             fig.savefig(output / f"{name}.{extension}", dpi=180, bbox_inches="tight")
         plt.close(fig)
         names.append(name)
     fig, axes = plt.subplots(1, 2, figsize=(11, 4.5), layout="constrained")
-    for ax, field, maximum, title in zip(
+    for ax, field, title in zip(
         axes,
-        ("household", "python"),
-        (12, 3),
+        ("household_success_percent", "python_success_percent"),
         ("Household quality", "Python automation quality"),
         strict=True,
     ):
-        for i, label in enumerate(COLORS):
-            group = [p for p in points if p.label == label]
-            ys = [getattr(p, field) for p in group]
-            if ys:
-                ax.plot(
-                    [i, i],
-                    [min(ys), max(ys)],
-                    color=COLORS[label],
-                    alpha=0.5,
-                    linewidth=4,
-                )
-            for p in group:
-                ax.scatter(
-                    i + (-0.06 if p.seed == 17 else 0.06),
-                    getattr(p, field),
-                    c=COLORS[label],
-                    marker=MARKERS[p.engine],
-                    s=80,
-                    zorder=3,
-                )
+        for i, p in enumerate(points):
+            value = getattr(p, field)
+            ax.scatter(
+                i, value, c=COLORS[p.label], marker=MARKERS[p.engine], s=90, zorder=3
+            )
+            ax.annotate(
+                f"{value:.1f}%",
+                (i, value),
+                xytext=(0, 9),
+                textcoords="offset points",
+                ha="center",
+                fontsize=9,
+            )
         ax.set_xticks(range(4), list(COLORS), rotation=18)
-        ax.set_ylim(-0.2, maximum + 0.6)
-        ax.set_yticks(range(maximum + 1))
-        ax.set_ylabel(f"Tasks passed / {maximum}")
+        ax.set_ylim(-3, 113)
+        ax.set_yticks([0, 25, 50, 75, 100])
+        ax.set_ylabel("Task success (%) across both repeats")
         ax.set_title(title_prefix + title, loc="left", fontweight="bold")
         ax.grid(axis="y", alpha=0.18)
     fig.text(
         0.01,
         -0.05,
-        "Left/right points: seeds 17/29. Line shows observed range, not uncertainty. Circles: Mei; diamonds: llama.cpp.",
+        "Latest v9.10 repeats, 50% weight each; quality tracks remain separate. Circles: Mei; diamonds: llama.cpp.",
         fontsize=8,
     )
     for extension in ("png", "svg"):
@@ -336,13 +388,22 @@ def figures(points: list[Point], output: Path, title_prefix: str = "") -> list[s
 
 def export(root: Path, spec: dict[str, Any], summary: Path, output: Path) -> None:
     points = load_points(root, spec)
-    names = figures(points, output)
+    averages = aggregate_points(points)
+    names = figures(averages, output)
     data = [asdict(p) for p in points]
     (output / "metrics.json").write_text(
         json.dumps(
             {
                 "specification": spec,
                 "observations": data,
+                "model_averages": [asdict(p) for p in averages],
+                "aggregation": {
+                    "scope": "Only the explicitly selected complete runs on the frozen benchmark release",
+                    "quality": "Total passed / total task attempts, separately for household and Python",
+                    "costs": "Equal-weight mean of full-run time and per-run peak wired increase; both runs have identical coverage",
+                    "run_weights": {"17": 0.5, "29": 0.5},
+                    "missing_memory": "Unavailable if either selected run lacks a usable memory delta",
+                },
                 "report_program_sha256": hashlib.sha256(
                     Path(__file__).read_bytes()
                 ).hexdigest(),
@@ -355,6 +416,11 @@ def export(root: Path, spec: dict[str, Any], summary: Path, output: Path) -> Non
         writer = csv.DictWriter(stream, fieldnames=list(data[0]))
         writer.writeheader()
         writer.writerows(data)
+    with (output / "model-averages.csv").open("w", newline="") as stream:
+        rows = [asdict(p) for p in averages]
+        writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows(rows)
     relative = output.relative_to(summary.parent)
     lines = [
         "# Four-model local agent comparison",
@@ -363,12 +429,32 @@ def export(root: Path, spec: dict[str, Any], summary: Path, output: Path) -> Non
         "",
         "All four remain retained contenders. These compare serving profiles, not pure model weights or Peixinho application acceptance.",
         "",
+        "Each graph shows one weighted-average point per model, using only its two fresh v9.10 repeats. Each run has identical coverage and receives 50% weight. Quality pools task attempts separately for household and Python; time and memory are means across runs. Individual observations remain below.",
+        "",
     ]
     for name in names:
         lines.extend([f"![{name.replace('-', ' ')}]({relative}/{name}.png)", ""])
     lines.extend(
         [
-            "## Exact observations",
+            "## Model averages",
+            "",
+            "| Model / engine | Household | Python | Average full time | Average peak wired increase |",
+            "|---|---:|---:|---:|---:|",
+        ]
+    )
+    for p in averages:
+        memory = (
+            "unavailable"
+            if p.wired_increase_gib is None
+            else f"{p.wired_increase_gib:.2f} GiB"
+        )
+        lines.append(
+            f"| {p.label} / {ENGINES[p.engine]} | {p.household_passed}/{p.household_attempts} ({p.household_success_percent:.1f}%) | {p.python_passed}/{p.python_attempts} ({p.python_success_percent:.1f}%) | {p.wall_minutes:.2f} min | {memory} |"
+        )
+    lines.extend(
+        [
+            "",
+            "## Individual run evidence",
             "",
             "| Model / engine | Seed | Household | Python | Full time | Wired increase (GiB) | Weight storage (GiB) | Audit |",
             "|---|---:|---:|---:|---:|---:|---:|---|",
@@ -390,7 +476,9 @@ def export(root: Path, spec: dict[str, Any], summary: Path, output: Path) -> Non
             "",
             "Time includes startup/native admission and both tracks, excluding the separate 30-second baseline. Memory is the peak observed system-wide wired-byte increase over median baseline; background activity can affect it. It is partial accounting, not total model memory. GPU allocations are not reliably captured by process RSS/footprint. Weight storage is separate; no counters are added together.",
             "",
-            "Household and Python quality remain separate. Seeds 17/29 and observed ranges are not confidence intervals or an independence guarantee. Qwen/Ornith retain their T0.6 sampler; Groot/Logics retain T1 and their declared penalties. Quants, engines and cache settings differ explicitly. No best-run selection or universal winner is implied.",
+            "The graph averages the two per-run peak memory increases; it is not the maximum across both runs. Each repeat has 12 household and 3 Python tasks, so pooled task weighting gives each run 50% weight. All attempts, including failed tasks and missing script submissions, count. There is no weighting by success, response count, tokens, telemetry sample count or duration, and no composite quality score. Two repeats do not establish independence or statistical superiority.",
+            "",
+            "Qwen/Ornith retain their T0.6 sampler; Groot/Logics retain T1 and their declared penalties. Quants, engines and cache settings differ explicitly. No best-run selection or universal winner is implied.",
             "",
             "## Provenance and failures",
             "",
@@ -428,7 +516,9 @@ def export(root: Path, spec: dict[str, Any], summary: Path, output: Path) -> Non
             + str(relative)
             + "/metrics.json) · [CSV]("
             + str(relative)
-            + "/metrics.csv). PNG and SVG exports are kept beside the data.",
+            + "/metrics.csv) · [Model averages]("
+            + str(relative)
+            + "/model-averages.csv). PNG and SVG exports are kept beside the data.",
             "",
         ]
     )
