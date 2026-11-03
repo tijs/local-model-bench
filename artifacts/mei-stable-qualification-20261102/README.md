@@ -280,3 +280,11 @@ A passing synthetic allocator test does not establish a model speed gain or
 explain every earlier rate band. Keep the negative cache-capacity screens and
 older slow samples intact. Stable distribution and the fresh four-model task
 cohort still depend on completing and reviewing the real-model gates.
+
+The bounded-allocator campaign stopped after fifteen complete processes when
+Ornith C2 hit two consecutive warning-pressure samples. All sixteen terminal
+attempts were preserved; two measurement cells and the three full native gates
+remain unstarted. Read the [stopped-cohort review](bounded-allocator-review.md)
+and [strictly audited data](bounded-allocator-summary.json) for the mixed speed
+results, recurring warnings and next memory screen. This is not a completed
+release gate or a task score. Incomplete Ornith arms have no aggregate endpoint.
