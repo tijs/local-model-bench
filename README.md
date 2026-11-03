@@ -6,8 +6,8 @@ agent task quality, full-run time, memory and tool reliability with **Mei
 it is still a design, so the current tests use synthetic household workflows
 and real, contained Python automation.
 
-Current release: **benchmark-v9.10.2** — one averaged point per model from the latest
-repeated benchmark runs. [Release notes](docs/releases/benchmark-v9.10.2.md).
+Current release: **benchmark-v9.10.3** — mean task duration alongside quality and
+full-run costs, with one averaged point per model. [Release notes](docs/releases/benchmark-v9.10.3.md).
 All eight measurements use frozen **benchmark-v9.10**; the patch release adds
 reports and data without changing the measured tasks or runtime behavior.
 
@@ -37,6 +37,14 @@ the separate 30-second baseline is excluded.
 [Full summary, exact observations and audit links](results/AGENT_SUMMARY.md) ·
 [Interpretation and method](docs/FOUR_MODEL_COMPARISON.md) ·
 [Active roster](docs/ROSTER.md)
+
+![Household quality versus mean task duration](results/charts/four-model-v9.10-duration/quality-task-duration.png)
+
+Mean task duration counts all 15 attempts per run, including failures, then
+averages both runs equally. It excludes startup/native admission; read it beside
+success rates. The current scored cohort still uses Mei rc.2. Short/long decode
+TPS will be shown as connected endpoints once the new runtime's complete,
+controlled measurements cover all four profiles.
 
 ![Household quality versus full-run time](results/charts/four-model-v9.10/quality-time.png)
 

@@ -106,7 +106,8 @@ class ComparisonCoverageTests(unittest.TestCase):
                     )
                     self.manifests.append(manifest)
                     logs[folder] += [
-                        {"run_id": entry[key], "pass": True} for _ in range(n)
+                        {"run_id": entry[key], "pass": True, "wall_seconds": 10}
+                        for _ in range(n)
                     ]
                 directory = self.root / stem
                 directory.mkdir()
@@ -143,6 +144,39 @@ class ComparisonCoverageTests(unittest.TestCase):
         self.assertEqual({p.engine for p in points}, {"mei", "llama.cpp"})
         self.assertTrue(all(p.household == 12 and p.python == 3 for p in points))
         self.assertTrue(all(p.wall_minutes == 10 for p in points))
+        self.assertTrue(all(p.task_seconds == 10 for p in points))
+
+    def test_task_duration_includes_failures_and_both_tracks_with_equal_run_weight(
+        self,
+    ):
+        for folder in ("standin", "automation"):
+            path = self.root / "results" / folder / "log.jsonl"
+            rows = [json.loads(line) for line in path.read_text().splitlines()]
+            for row in rows:
+                if row["run_id"].startswith("model0-seed17"):
+                    row.update(
+                        wall_seconds=20 if folder == "standin" else 100,
+                        **{"pass": False},
+                    )
+                elif row["run_id"].startswith("model0-seed29"):
+                    row["wall_seconds"] = 8 if folder == "standin" else 48
+            path.write_text("".join(json.dumps(row) + "\n" for row in rows))
+        points = self.load()
+        self.assertEqual(points[0].task_seconds, 36)
+        self.assertEqual(points[1].task_seconds, 16)
+        self.assertEqual(aggregate_points(points)[0].task_seconds, 26)
+        self.assertEqual(points[0].household, 0)
+        self.assertEqual(points[0].python, 0)
+
+    def test_task_duration_refuses_missing_or_invalid_attempt_times(self):
+        path = self.root / "results/automation/log.jsonl"
+        rows = [json.loads(line) for line in path.read_text().splitlines()]
+        for bad in (None, True, -1, 0, float("nan"), float("inf"), "10"):
+            with self.subTest(bad=bad):
+                rows[0]["wall_seconds"] = bad
+                path.write_text("".join(json.dumps(row) + "\n" for row in rows))
+                with self.assertRaisesRegex(ValueError, "positive finite wall time"):
+                    self.load()
 
     def test_repeats_pool_task_quality_and_average_costs(self):
         points = self.load()

@@ -6,6 +6,7 @@ import argparse
 import csv
 import hashlib
 import json
+import math
 import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -46,6 +47,7 @@ class Point:
     household_run: str
     python_run: str
     supervision: str
+    task_seconds: float
 
 
 @dataclass(frozen=True)
@@ -64,6 +66,7 @@ class ModelAverage:
     wall_minutes: float
     wired_increase_gib: float | None
     weight_gib: float
+    task_seconds: float
 
 
 def aggregate_points(points: list[Point]) -> list[ModelAverage]:
@@ -97,6 +100,7 @@ def aggregate_points(points: list[Point]) -> list[ModelAverage]:
                 python_attempts=3 * len(group),
                 python_success_percent=100 * python / (3 * len(group)),
                 wall_minutes=fmean(p.wall_minutes for p in group),
+                task_seconds=fmean(p.task_seconds for p in group),
                 # Missing memory in either run must not silently reweight the other.
                 wired_increase_gib=None
                 if None in memory
@@ -162,6 +166,7 @@ def load_points(root: Path, specification: dict[str, Any]) -> list[Point]:
                 raise ValueError("Unknown model/engine label")
             tracks = []
             manifests = []
+            task_durations = []
             for folder, key in (
                 ("standin", "household_run"),
                 ("automation", "python_run"),
@@ -180,6 +185,18 @@ def load_points(root: Path, specification: dict[str, Any]) -> list[Point]:
                 expected = 12 if folder == "standin" else 3
                 if len(rows) != expected or any(x.get("harness_error") for x in rows):
                     raise ValueError("Incomplete/unusable task coverage")
+                for row in rows:
+                    seconds = row.get("wall_seconds")
+                    if (
+                        not isinstance(seconds, (int, float))
+                        or isinstance(seconds, bool)
+                        or not math.isfinite(seconds)
+                        or seconds <= 0
+                    ):
+                        raise ValueError(
+                            "Every attempted task needs a positive finite wall time"
+                        )
+                    task_durations.append(seconds)
                 if folder == "standin" and any(
                     x.get("critical_safety_failure") for x in rows
                 ):
@@ -237,6 +254,7 @@ def load_points(root: Path, specification: dict[str, Any]) -> list[Point]:
                     entry["household_run"],
                     entry["python_run"],
                     entry["supervision"],
+                    fmean(task_durations),
                 )
             )
     if seen != {(model, seed) for model in labels for seed in specification["seeds"]}:
@@ -271,6 +289,11 @@ def figures(
             "wall_minutes",
             "Average full 15-task run time (minutes) · lower is better",
             "quality-time",
+        ),
+        (
+            "task_seconds",
+            "Mean task duration (seconds) · lower is better",
+            "quality-task-duration",
         ),
         (
             "wired_increase_gib",
@@ -341,6 +364,8 @@ def figures(
         note = "One point per model: latest v9.10 repeats, 50% weight each. Quality pools task attempts; costs average runs."
         if metric == "wired_increase_gib":
             note += "\nMean of per-run (host peak minus median baseline); partial system-wide accounting, not exact model RAM."
+        elif metric == "task_seconds":
+            note += "\nAll 15 attempts per run, including failures; excludes model startup/native admission. Quality remains household-only."
         fig.text(0.01, -0.035, note, fontsize=8, color="#555")
         for extension in ("png", "svg"):
             fig.savefig(output / f"{name}.{extension}", dpi=180, bbox_inches="tight")
@@ -401,6 +426,7 @@ def export(root: Path, spec: dict[str, Any], summary: Path, output: Path) -> Non
                     "scope": "Only the explicitly selected complete runs on the frozen benchmark release",
                     "quality": "Total passed / total task attempts, separately for household and Python",
                     "costs": "Equal-weight mean of full-run time and per-run peak wired increase; both runs have identical coverage",
+                    "task_duration": "Mean of all 15 task wall times per run, including failures; equal-weight mean across both runs; excludes startup/native admission",
                     "run_weights": {"17": 0.5, "29": 0.5},
                     "missing_memory": "Unavailable if either selected run lacks a usable memory delta",
                 },
@@ -438,8 +464,8 @@ def export(root: Path, spec: dict[str, Any], summary: Path, output: Path) -> Non
         [
             "## Model averages",
             "",
-            "| Model / engine | Household | Python | Average full time | Average peak wired increase |",
-            "|---|---:|---:|---:|---:|",
+            "| Model / engine | Household | Python | Mean task time | Average full time | Average peak wired increase |",
+            "|---|---:|---:|---:|---:|---:|",
         ]
     )
     for p in averages:
@@ -449,7 +475,7 @@ def export(root: Path, spec: dict[str, Any], summary: Path, output: Path) -> Non
             else f"{p.wired_increase_gib:.2f} GiB"
         )
         lines.append(
-            f"| {p.label} / {ENGINES[p.engine]} | {p.household_passed}/{p.household_attempts} ({p.household_success_percent:.1f}%) | {p.python_passed}/{p.python_attempts} ({p.python_success_percent:.1f}%) | {p.wall_minutes:.2f} min | {memory} |"
+            f"| {p.label} / {ENGINES[p.engine]} | {p.household_passed}/{p.household_attempts} ({p.household_success_percent:.1f}%) | {p.python_passed}/{p.python_attempts} ({p.python_success_percent:.1f}%) | {p.task_seconds:.2f} s | {p.wall_minutes:.2f} min | {memory} |"
         )
     lines.extend(
         [
@@ -475,6 +501,8 @@ def export(root: Path, spec: dict[str, Any], summary: Path, output: Path) -> Non
             "## Reading the costs and quality",
             "",
             "Time includes startup/native admission and both tracks, excluding the separate 30-second baseline. Memory is the peak observed system-wide wired-byte increase over median baseline; background activity can affect it. It is partial accounting, not total model memory. GPU allocations are not reliably captured by process RSS/footprint. Weight storage is separate; no counters are added together.",
+            "",
+            "Mean task duration averages all 15 task wall times in each run, including failed attempts, then gives both runs equal weight. It excludes model startup/native admission and is separate from full-run time and decode TPS. Faster failed tasks still count in duration; read the separate success rates alongside it.",
             "",
             "The graph averages the two per-run peak memory increases; it is not the maximum across both runs. Each repeat has 12 household and 3 Python tasks, so pooled task weighting gives each run 50% weight. All attempts, including failed tasks and missing script submissions, count. There is no weighting by success, response count, tokens, telemetry sample count or duration, and no composite quality score. Two repeats do not establish independence or statistical superiority.",
             "",

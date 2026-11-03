@@ -74,12 +74,22 @@ tracks, excluding the separate 30-second baseline. One full run took 8.3–11.1
 minutes; all eight together took about 79 minutes of measured run time, before
 baselines, audits and publication.
 
+Mean task duration is separate: average all 12 household and 3 Python task wall
+times in each run, including failures, then give both runs 50% weight. It excludes
+startup/native admission and the baseline. On this same published cohort, it is
+34.27 seconds for Qwen, 38.91 for Ornith, 39.19 for Groot and 36.92 for Logics.
+Faster failed attempts still count; household/Python success remains separate.
+[Duration chart and reproducible data](../results/charts/four-model-v9.10-duration/metrics.json).
+
 Each run’s memory delta is peak recorded host wired bytes minus its median pre-run baseline,
 using the recorded VM page size. It is system-wide partial accounting, affected
 by background activity, not exact model RAM. RSS/physical footprint do not
 reliably include GPU allocations. Weight storage is reported separately and no
-counters are added together. The 512 MiB Mei prefix budget is resident state;
-its generated disk tier was inventoried then removed after exit, with receipts.
+counters are added together. The historical rc.2 512 MiB prefix byte limit covered paged KV and rotating
+companions; source review later found separate SSM snapshots were only entry
+bounded and therefore outside that byte limit. That gap is under repair; these
+observed memory figures are not proof of a total cache ceiling. The generated
+disk tier was inventoried then removed after exit, with receipts.
 
 PNG/SVG charts and JSON/CSV metrics are generated from the explicit cohort
 selection by runner/build_four_model_summary.py. Circles mean Mei (Swift/MLX),
