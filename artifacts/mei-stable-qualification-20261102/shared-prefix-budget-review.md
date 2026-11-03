@@ -1,0 +1,44 @@
+# Shared retained-prefix byte budget
+
+The old published pin limited paged KV/rotating companions by bytes, but separate
+SSM snapshots only by entry count. A real-Metal regression retained 1,310,720
+logical SSM bytes against a 131,072-byte coordinator allowance.
+[Reproduction](shared-prefix-budget-reproduction.json).
+
+The reviewed fix shares one internal byte account across both tiers. Optional
+SSM copies reserve first; replacement, eviction, hydration, clear and destruction
+return charges. Tiers evict their own entries without cross-tier callbacks;
+cold data in another tier can therefore cost a retention opportunity. Nil keeps
+the old entry/block policy. Zero or oversized RAM admission still allows disk
+persistence and linked restore. The existing Mei prefix knob is reused, with
+shared/SSM accounting in status. This ceiling excludes weights, active requests,
+workspace and allocator buffers; it is not a physical-memory reservation.
+
+Thirteen focused regressions cover mixed tiers, the real I/O-gated in-flight
+reservation/clear race, companion replacement/shrink/removal, independent backing
+bytes, disk-only/hydration, nil/zero, failed allocation, lifetime, overflow and
+status JSON. All three core reviews completed and requested coverage was added.
+Final published-pin validation passed 478 XCTest cases (two existing retired-Flint
+skips) and three Swift Testing cases. [Exact logs/pins](shared-prefix-budget-offline-verification.json).
+
+Mei `3c046a7` consumes vmlx `1ace1156` and unchanged MLX core `bbdcd4d`.
+The [frozen build](shared-prefix-runtime.json) is binary SHA-256
+`29d8b823a4a512bea10b77f3a4d6a0d3f08c47b58bac2d5baa1eec3b7ec49ca4`;
+Metal remains `e87ac8aa940ace7dd1f9945c4b6a3238c3d94604391e0f36a0ac51259bd76f32`.
+These are qualification artifacts, not a published stable release.
+
+The next [single-source screen](shared-prefix-screen.json) retains the interrupted
+Ornith allocator128/prefill128 profile: same weights, FP16 KV, 65K context,
+prefix512MiB, compilation off, tracing, allowances and guards. Only source/binary
+and owned paths change. Three static reviews and [preflight](shared-prefix-screen-preflight.json)
+verify config/control/runtime pins, eleven model hashes and fresh paths. Require
+14 raw requests, five measured per context, A1 parity and observed shared charge
+within512MiB. Traced rates stay outside final figures. Preserve/review partials.
+The retention gap is not established as the cause of earlier pressure stops.
+Full native/context/performance qualification and stable publication remain open.
+
+The campaign helper can reuse [pinned A1 greedy controls](shared-prefix-greedy-controls.json)
+while obtaining every timing from fresh candidate processes. It pins config and
+audit bytes, reproduces raw coverage/parity, and verifies recorded model, command
+and pre/post runtime identities. Relabeling mutants reject; 754 harness tests,
+Ruff and ty pass. [Verification](baseline-references-verification.json).

@@ -1,12 +1,16 @@
 """Sequential qualification cells with terminal preservation and parity audit."""
 
 import argparse
+import hashlib
 import json
+import shlex
 import statistics
 import subprocess
 import sys
 import time
 from pathlib import Path
+
+import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 PREP = Path(__file__).resolve().parent
@@ -83,6 +87,66 @@ def save_progress(progress, destination):
     temporary.replace(destination)
 
 
+def baseline_references(matrix):
+    """Reuse explicit audited greedy controls, never their old timing values."""
+    declared = matrix.get("baselines", {})
+    if not isinstance(declared, dict):
+        raise TypeError("baselines must be an explicit model-to-audit mapping")
+    models = {cell["model"] for cell in matrix["cells"]}
+    if declared and declared.keys() != models:
+        raise ValueError("declare a saved control for every model or none")
+    references = {}
+    for model, spec in declared.items():
+        path = (ROOT / spec["audit"]).resolve()
+        if (
+            not path.is_relative_to(ROOT.resolve())
+            or path.name != "qualification-audit.json"
+        ):
+            raise ValueError("saved control must be a contained qualification audit")
+        if hashlib.sha256(path.read_bytes()).hexdigest() != spec["sha256"]:
+            raise ValueError("saved control audit hash mismatch")
+        stored = json.loads(path.read_text())
+        checked = audit(path.parent, None)
+        if stored != checked:
+            raise ValueError("saved control does not reproduce its complete raw audit")
+        snapshot = (path.parent / "config.yaml").read_bytes()
+        config_sha = hashlib.sha256(snapshot).hexdigest()
+        invocation = json.loads((path.parent / "invocation.json").read_text())
+        if (
+            config_sha != spec["config_sha256"]
+            or config_sha != invocation["config_sha256"]
+        ):
+            raise ValueError("saved control configuration hash mismatch")
+        control = yaml.safe_load(snapshot)
+        result = json.loads((path.parent / "qualification.json").read_text())
+        if result["model"] != control["orchestration"]["served_model_id"] or result[
+            "command"
+        ] != shlex.split(control["benchmark_launch_command"]):
+            raise ValueError("saved control served model/command identity mismatch")
+        expected = {
+            "mei_source_commit": control["mei_source_commit"],
+            "vmlx_commit": control["vmlx_commit"],
+            "binary_sha256": control["mei_release_artifact"]["binary_sha256"],
+            "metallib_sha256": control["mei_release_artifact"]["metallib_sha256"],
+        }
+        post = json.loads(
+            (path.parent / "post-run-runtime-verification.json").read_text()
+        )
+        if any(
+            any(observed.get(key) != value for key, value in expected.items())
+            for observed in (result["runtime_identity"], post)
+        ):
+            raise ValueError("saved control runtime identity mismatch")
+        for cell in matrix["cells"]:
+            if cell["model"] != model:
+                continue
+            candidate = yaml.safe_load((ROOT / cell["config"]).read_text())
+            if any(control[k] != candidate[k] for k in ("model", "source_revision")):
+                raise ValueError("saved control model/revision differs from candidate")
+        references[model] = checked["reference"]
+    return references
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--matrix", type=Path, default=PREP / "matrix.json")
@@ -99,7 +163,7 @@ def main():
         "completed": [],
         "current": None,
     }
-    baseline = {}
+    baseline = baseline_references(matrix)
     save_progress(progress, args.progress)
     for cell in matrix["cells"]:
         progress["current"] = cell
