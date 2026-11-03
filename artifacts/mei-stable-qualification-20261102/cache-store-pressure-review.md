@@ -15,13 +15,22 @@ flat and all eleven model files rehashed correctly. Its reported MLX peak was
 fitting profile. After exit, 64,876,401 bytes of owned KV were inventoried and
 removed. [Terminal review](../mei-stable-ornith-pressure-prefill128-20261103/screen-review.json).
 
-The next [allocator-pool screen](pressure-pool128-screen.json) reduces only the
-allocator cache allowance from 512 to 128 MiB, with fresh owned paths. It keeps
-prefill128, binary/source/Metal/model, tracing, FP16 KV, 65K context, prefix512MiB,
-workspace/host reserve and safety rules unchanged. The byte-plan allowance
-changes accordingly. Its [preflight](pressure-pool128-preflight.json) verifies
-these boundaries. This remains a diagnostic; all rates are excluded from final
-TPS figures and full native/context/performance qualification remains pending.
+The [128 MiB allocator-pool screen](pressure-pool128-screen.json) completed ten
+raw requests, including three measured pairs, before the unchanged sustained
+warning guard stopped it. All ten outputs match A1; six optional stores were
+vetoed, swap stayed flat, and eleven post-run model hashes match. After exit,
+743,714,615 bytes of owned KV were inventoried and removed. The reported MLX
+peak was 22,128,679,097 bytes. It progressed further but remains partial and
+excluded from final TPS aggregates. [Terminal review](../mei-stable-ornith-pressure-pool128-20261103/screen-review.json).
+
+Source review then found a separate retention gap: `maxCacheBytes` limits
+`PagedCacheManager`, including rotating companions, while `SSMStateCache` is
+constructed with only `ssmMaxEntries` (default 50). Separate recurrent snapshots
+therefore sit outside the operator's prefix byte allowance, including direct
+stores and disk hydration. This is a confirmed policy gap, not yet proof of
+causality for the interrupted screen. A shared retained-byte budget and focused
+regressions are being implemented before another model load. Precision, context
+and pressure/swap/disk rules stay unchanged.
 
 The safety review found a pre-existing gap in the process-only store budget:
 physical RAM minus this process's footprint is not host headroom. Other host
@@ -65,6 +74,6 @@ byte/count/finish parity before calling the screen complete. A preflight decline
 or early interruption remains diagnostic partial evidence even if no
 qualification JSON exists. Review before another load. A normal-only success
 would not demonstrate that the live veto ran; neither success nor an observed
-veto establishes full native/context/performance qualification. The 128-prefill screen is preserved as interrupted; the smaller allocator pool
-is the next unexecuted screen. Stable distribution,
+veto establishes full native/context/performance qualification. All three traced screens are preserved as interrupted. The retained SSM-byte
+budget gap is the next fix under review. Stable distribution,
 eight fresh task runs and the final four-model graphs remain pending.
