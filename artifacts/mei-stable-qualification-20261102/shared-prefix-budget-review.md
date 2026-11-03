@@ -6,14 +6,16 @@ all eleven post-run model hashes match. Two bounded status samples reported
 shared retained bytes0, and both optional-store vetoes ran. After exit,
 64,876,407 bytes of owned KV were inventoried and removed.
 [Terminal review](../mei-stable-ornith-shared-prefix-screen-20261103/screen-review.json).
-The retention fix is verified independently; its role in this pressure stop
-remains unestablished. The next [cache-off diagnostic](cache-off-screen.json)
-disables prefix reuse/persistence while preserving the active-request model,
-precision,65Kcontext,chunk/pool sizes,trace and guards. It removes the conflicting
-explicit KV path and uses fresh owned paths. The conservative byte plan remains.
-This tests active-request memory versus optional checkpoint/boundary work;
-cache-reuse admission and final TPS are inapplicable. Full model/native/stable
-qualification remains open.
+The [cache-off diagnostic](cache-off-screen.json) then also stopped under
+sustained warning after two matching cold requests, with flat swap and no KV
+files. Status and the launch log confirm prefix caching was disabled. Reported
+MLX peak was 21,431,918,573 bytes; peak host wired was 25,023,299,584 bytes.
+[Terminal review](../mei-stable-ornith-cache-off-screen-20261103/screen-review.json).
+Optional prefix work is insufficient to explain this pressure. Active cache
+backing, dtype and asynchronous lifetime are under investigation before testing
+an existing affine8-bit KV profile. This changes runtime KV precision and needs
+fresh qualification; model weights and the context cap remain pinned. No fitting
+profile, full admission or stable release follows from these partials.
 
 
 The old published pin limited paged KV/rotating companions by bytes, but separate
