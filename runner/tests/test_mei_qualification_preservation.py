@@ -28,6 +28,14 @@ class PreservationTests(unittest.TestCase):
             with self.subTest(scenario=scenario):
                 self.run_fixture(scenario)
 
+    def test_cache_off_preserves_evidence_without_a_kv_directory(self):
+        self.run_fixture("off")
+
+    def test_absent_kv_flag_never_authorizes_removing_unexpected_storage(self):
+        for scenario in ("off_unexpected", "missing"):
+            with self.subTest(scenario=scenario):
+                self.run_fixture(scenario)
+
     def run_fixture(self, scenario):
         spec = importlib.util.spec_from_file_location(
             "qualification_preservation_fixture", SCRIPT
@@ -85,11 +93,18 @@ class PreservationTests(unittest.TestCase):
             (output / "outcome.json").write_text(
                 json.dumps({"returncode": 0, "status": "passed"})
             )
+            command = f"launcher --model-dir {model} --kv-cache-dir {kv}"
+            if scenario in ("off", "off_unexpected", "missing"):
+                command = f"launcher --model-dir {model}"
+                if scenario != "missing":
+                    command += " --cache-mode off"
+                if scenario == "off":
+                    shutil.rmtree(kv)
             (output / "config.yaml").write_text(
                 yaml.safe_dump(
                     {
                         "required_runner_environment": {"MEI_RUNTIME_BASE": str(base)},
-                        "benchmark_launch_command": f"launcher --model-dir {model} --kv-cache-dir {kv}",
+                        "benchmark_launch_command": command,
                     }
                 )
             )
@@ -117,31 +132,38 @@ class PreservationTests(unittest.TestCase):
                 patch.object(sys, "argv", args),
                 patch("builtins.print"),
             ):
-                if scenario == "success":
+                if scenario in ("success", "off"):
                     module.main()
                 else:
                     expected_error = {
                         "live": "Mei must have exited",
                         "symlink": "KV path must remain",
                         "wrong_model": "model hash manifest does not match",
+                        "off_unexpected": "unexpected KV data",
+                        "missing": "absent KV path requires explicit cache mode off",
                     }[scenario]
                     with self.assertRaisesRegex(ValueError, expected_error):
                         module.main()
             self.assertEqual((outside / "keep").read_text(), "unrelated")
             self.assertEqual(weights.read_bytes(), b"synthetic weights")
-            if scenario == "success":
+            if scenario in ("success", "off"):
                 self.assertFalse(kv.exists())
                 self.assertTrue(
                     json.loads((output / "owned-kv-cleanup.json").read_text())[
                         "deleted"
                     ]
                 )
-                self.assertEqual(
-                    json.loads((output / "owned-kv-index-summary.json").read_text())[0][
-                        "rows_per_table"
-                    ],
-                    {"entries": 2},
-                )
+                index = json.loads((output / "owned-kv-index-summary.json").read_text())
+                if scenario == "off":
+                    self.assertEqual(index, [])
+                    self.assertEqual(
+                        json.loads((output / "owned-kv-cleanup.json").read_text())[
+                            "bytes"
+                        ],
+                        0,
+                    )
+                else:
+                    self.assertEqual(index[0]["rows_per_table"], {"entries": 2})
                 self.assertEqual((output / "server.log").read_text(), "fixture\n")
                 self.assertTrue(
                     json.loads((output / "post-run-model-hashes.json").read_text())[

@@ -69,8 +69,22 @@ def main():
     declared_model = Path(argv[argv.index("--model-dir") + 1]).resolve()
     if Path(before["directory"]).resolve() != declared_model:
         raise ValueError("model hash manifest does not match the launched model")
-    if Path(argv[argv.index("--kv-cache-dir") + 1]) != base / "kv":
-        raise ValueError("KV launch path does not match the owned runtime")
+    if "--kv-cache-dir" in argv:
+        if (
+            argv.count("--kv-cache-dir") != 1
+            or Path(argv[argv.index("--kv-cache-dir") + 1]) != base / "kv"
+        ):
+            raise ValueError("KV launch path does not match the owned runtime")
+    else:
+        if (
+            argv.count("--cache-mode") != 1
+            or argv[argv.index("--cache-mode") + 1] != "off"
+        ):
+            raise ValueError("absent KV path requires explicit cache mode off")
+        if (base / "kv").exists() or (base / "kv").is_symlink():
+            raise ValueError(
+                "cache-off runtime contains unexpected KV data; refuse cleanup"
+            )
     rows = []
     for row in before["files"]:
         file = Path(before["directory"]) / row["file"]

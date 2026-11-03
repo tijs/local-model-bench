@@ -1,5 +1,21 @@
 # Shared retained-prefix byte budget
 
+The first live screen on this source stopped under sustained warning after
+three matching cold/warmup outputs and zero measured repeats. Swap stayed flat;
+all eleven post-run model hashes match. Two bounded status samples reported
+shared retained bytes0, and both optional-store vetoes ran. After exit,
+64,876,407 bytes of owned KV were inventoried and removed.
+[Terminal review](../mei-stable-ornith-shared-prefix-screen-20261103/screen-review.json).
+The retention fix is verified independently; its role in this pressure stop
+remains unestablished. The next [cache-off diagnostic](cache-off-screen.json)
+disables prefix reuse/persistence while preserving the active-request model,
+precision,65Kcontext,chunk/pool sizes,trace and guards. It removes the conflicting
+explicit KV path and uses fresh owned paths. The conservative byte plan remains.
+This tests active-request memory versus optional checkpoint/boundary work;
+cache-reuse admission and final TPS are inapplicable. Full model/native/stable
+qualification remains open.
+
+
 The old published pin limited paged KV/rotating companions by bytes, but separate
 SSM snapshots only by entry count. A real-Metal regression retained 1,310,720
 logical SSM bytes against a 131,072-byte coordinator allowance.
