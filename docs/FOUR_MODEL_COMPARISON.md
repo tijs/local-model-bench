@@ -181,6 +181,18 @@ context: its largest request is about 4.3K tokens. Those traces cannot supply a
 controlled 30K comparison. Obtain matched observations for all four profiles,
 including Logics/llama.cpp, on the runtime used for the fresh task cohort.
 
+The Logics collector is `runner/qualify_llama_context.py`, with two declared
+profiles in `configs/mei-stable-qualification-20261102/logics-context-{1,2}.yaml`
+and [the exact selection](../artifacts/mei-stable-qualification-20261102/logics-context-screen.json).
+It reuses the owned resource supervisor, verifies the pinned GGUF/runtime before
+and after serving, tokenizes natively, requests uncached greedy raw completions,
+and rejects partial, cached, truncated or wrong-length evidence. Each process
+must complete five measured decodes per context after cold requests/warmups.
+These declarations are preparation, not completed measurements. Keep each
+engine's native decode timing convention explicit; llama.cpp may exclude its
+first sampled token from the measured decode numerator. Do not replace its rate
+with output tokens divided by full request wall time.
+
 A clearly marked [qualification layout preview](../artifacts/mei-stable-qualification-20261102/context-speed-layout-preview.png)
 uses actual unreleased candidate-only Mei measurements at 17/30,000 input
 tokens. It excludes Logics and carries no task score or stable-release claim.
