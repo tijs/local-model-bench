@@ -51,7 +51,12 @@ def main():
     owned = Path.home() / ".local/share/local-model-bench/mei-runtime"
     relative = base.relative_to(owned)
     if len(relative.parts) != 1 or not relative.name.startswith(
-        ("groot-stable-", "qwen-stable-", "ornith-stable-")
+        (
+            "groot-stable-",
+            "qwen-stable-",
+            "ornith-stable-",
+            "ornith-mlxpress70-screen-",
+        )
     ):
         raise ValueError("requires this campaign's direct owned runtime directory")
     if base.resolve() != base or (base / "server.pid").exists():
