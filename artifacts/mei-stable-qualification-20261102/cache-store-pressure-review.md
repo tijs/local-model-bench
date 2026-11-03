@@ -1,5 +1,19 @@
 # Optional cache stores: host-pressure veto
 
+The traced 256-prefill check was resource-interrupted after three matching
+cold/warmup outputs and zero measured repeats. It logged two real kernel-warning
+vetoes: the 678,789,120-byte long checkpoint and a 64,737,280-byte short checkpoint
+were declined. The unchanged two-consecutive-warning guard still stopped the
+process, with flat swap. All eleven post-run model hashes match, and 64,876,557
+bytes of owned KV were preserved and removed after exit. [Terminal review](../mei-stable-ornith-pressure-screen-20261103/screen-review.json).
+
+The reviewed [fallback declaration](pressure-prefill128-screen.json) changes only
+the prefill chunk from 256 to 128 plus fresh owned paths, keeping the new runtime,
+trace, FP16 KV, 65K context, cache allowances, byte plan and guards fixed. Its
+[preflight](pressure-prefill128-preflight.json) verifies those boundaries. This
+remains a diagnostic; full native/context/performance qualification and scores
+are pending.
+
 The safety review found a pre-existing gap in the process-only store budget:
 physical RAM minus this process's footprint is not host headroom. Other host
 use and GPU allocations absent from process accounting cannot affect that
@@ -28,7 +42,7 @@ contains the new guard's skip message. The source checkout and rebuilt native
 HTTP client are pinned separately. These are qualification builds, not a
 published stable release.
 
-The next [diagnostic declaration](pressure-guard-screen.json) retains the stopped
+The original [diagnostic declaration](pressure-guard-screen.json) retained the stopped
 Ornith C2 settings: prefill 256, compilation off, FP16 KV, context 65,536, 512 MiB
 allocator/prefix allowances and backend-auto total limit. Store tracing observes
 the veto; these rates cannot enter final TPS averages. The conservative host
