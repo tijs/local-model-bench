@@ -2,6 +2,7 @@
 
 import copy
 import json
+import subprocess
 import sys
 import tempfile
 import threading
@@ -20,6 +21,201 @@ from qualify_mei_release import observable, qualification_settings, succeeded
 
 
 class QualificationTests(unittest.TestCase):
+    def test_interrupt_during_stop_keeps_failure_evidence_and_terminates(self):
+        with tempfile.TemporaryDirectory() as folder:
+            output = Path(folder)
+            (output / "invocation.json").write_text(
+                json.dumps({"runner_git_sha": "a" * 12})
+            )
+            process = Mock()
+            receipt = {
+                "actual_command": ["/bin/bash"],
+                "environment": {},
+                "stop_command": ["/bin/bash"],
+            }
+            cfg = {
+                "context_cap": 65536,
+                "benchmark_endpoint": "http://127.0.0.1:1/v1",
+                "orchestration": {"served_model_id": "fixture"},
+                "benchmark_launch_command": "bash runner/start_mei_server.sh --model-dir /fixture",
+                "required_runner_environment": {"MEI_RUNTIME_BASE": folder},
+                "mei_clean_speed_launch": {"mode": "fixture"},
+                "mei_qualification": {
+                    "repeats": 1,
+                    "loaded_tokens": 1024,
+                    "decode_tokens": 32,
+                    "status_timeout": 1,
+                },
+            }
+            original_write = qualification.write_json
+            qualification_writes = 0
+
+            def flaky_write(path, value):
+                nonlocal qualification_writes
+                if path.name == "qualification.json":
+                    qualification_writes += 1
+                    if qualification_writes == 2:
+                        raise OSError("injected checkpoint failure")
+                return original_write(path, value)
+
+            with (
+                patch.object(
+                    qualification,
+                    "prepare_prompts",
+                    return_value={"short": "short", "loaded": "long"},
+                ),
+                patch.object(qualification, "acceptance_identity", return_value=None),
+                patch.object(
+                    qualification, "launch_receipt", return_value=(b"launch", receipt)
+                ),
+                patch.object(qualification, "git_bytes", return_value=b"stop"),
+                patch.object(qualification, "write_json", side_effect=flaky_write),
+                patch.object(qualification.subprocess, "Popen", return_value=process),
+                patch.object(
+                    qualification.subprocess, "run", side_effect=KeyboardInterrupt
+                ),
+                patch.object(
+                    qualification,
+                    "wait_ready",
+                    side_effect=RuntimeError("fixture stop"),
+                ),
+            ):
+                self.assertEqual(qualification.child(cfg, output), 1)
+            result = json.loads((output / "qualification.json").read_text())
+            self.assertEqual(result["status"], "failed")
+            self.assertFalse(result["server_stopped"])
+            self.assertIn("injected checkpoint failure", result["evidence_error"])
+            process.terminate.assert_called_once()
+
+    def test_failed_teardown_still_terminates_owned_process_after_interrupt(self):
+        with tempfile.TemporaryDirectory() as folder:
+            output = Path(folder)
+            (output / "invocation.json").write_text(
+                json.dumps({"runner_git_sha": "a" * 12})
+            )
+            process = Mock()
+            receipt = {
+                "actual_command": ["/bin/bash"],
+                "environment": {},
+                "stop_command": ["/bin/bash"],
+            }
+            cfg = {
+                "context_cap": 65536,
+                "benchmark_endpoint": "http://127.0.0.1:1/v1",
+                "orchestration": {"served_model_id": "fixture/model"},
+                "benchmark_launch_command": "bash runner/start_mei_server.sh --model-dir /fixture",
+                "required_runner_environment": {"MEI_RUNTIME_BASE": folder},
+                "mei_clean_speed_launch": {"mode": "fixture"},
+                "mei_qualification": {
+                    "repeats": 1,
+                    "loaded_tokens": 1024,
+                    "decode_tokens": 32,
+                    "status_timeout": 1,
+                },
+            }
+
+            def delayed_failure(*args, **kwargs):
+                partial = json.loads((output / "qualification.json").read_text())
+                self.assertEqual(partial["status"], "failed")
+                self.assertFalse(partial["server_stopped"])
+                self.assertIn("KeyboardInterrupt", partial["error"])
+                self.assertEqual(kwargs["timeout"], 7)
+                return Mock(returncode=1, stderr=b"failed")
+
+            with (
+                patch.object(
+                    qualification,
+                    "prepare_prompts",
+                    return_value={"short": "short", "loaded": "long"},
+                ),
+                patch.object(qualification, "acceptance_identity", return_value=None),
+                patch.object(
+                    qualification, "launch_receipt", return_value=(b"launch", receipt)
+                ),
+                patch.object(qualification, "git_bytes", return_value=b"stop"),
+                patch.object(qualification.subprocess, "Popen", return_value=process),
+                patch.object(
+                    qualification.subprocess, "run", side_effect=delayed_failure
+                ),
+                patch.object(
+                    qualification, "wait_ready", side_effect=KeyboardInterrupt
+                ),
+            ):
+                self.assertEqual(qualification.child(cfg, output), 1)
+            process.terminate.assert_called_once()
+            process.wait.assert_called_once()
+            result = json.loads((output / "qualification.json").read_text())
+            self.assertFalse(result["server_stopped"])
+            self.assertIn("teardown failed", result["cleanup_error"])
+
+    def test_opt_in_clean_launch_streams_verified_bytes_and_tears_down_on_error(self):
+        with tempfile.TemporaryDirectory() as folder:
+            output = Path(folder)
+            (output / "invocation.json").write_text(
+                json.dumps({"runner_git_sha": "a" * 12})
+            )
+            process = Mock()
+            payload = b"# committed fixture launcher\n"
+            receipt = {
+                "mode": "fixture",
+                "actual_command": ["/bin/bash", "-s", "--", "--model-dir", "/fixture"],
+                "environment": {
+                    "HOME": "/tmp",
+                    "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+                },
+                "stop_command": ["/bin/bash", "-s", "--", "--runtime-base", folder],
+            }
+            cfg = {
+                "context_cap": 65536,
+                "benchmark_endpoint": "http://127.0.0.1:1/v1",
+                "orchestration": {"served_model_id": "fixture/model"},
+                "benchmark_launch_command": "bash runner/start_mei_server.sh --model-dir /fixture",
+                "required_runner_environment": {"MEI_RUNTIME_BASE": folder},
+                "mei_clean_speed_launch": {"mode": "fixture"},
+                "mei_qualification": {
+                    "repeats": 1,
+                    "loaded_tokens": 1024,
+                    "decode_tokens": 32,
+                    "status_timeout": 1,
+                },
+            }
+            with (
+                patch.object(
+                    qualification,
+                    "prepare_prompts",
+                    return_value={"short": "short", "loaded": "long"},
+                ),
+                patch.object(qualification, "acceptance_identity", return_value=None),
+                patch.object(
+                    qualification, "launch_receipt", return_value=(payload, receipt)
+                ),
+                patch.object(
+                    qualification, "git_bytes", return_value=b"# fixture stopper\n"
+                ),
+                patch.object(
+                    qualification.subprocess, "Popen", return_value=process
+                ) as launch,
+                patch.object(
+                    qualification.subprocess, "run", return_value=Mock(returncode=0)
+                ),
+                patch.object(
+                    qualification,
+                    "wait_ready",
+                    side_effect=RuntimeError("fixture stop"),
+                ),
+            ):
+                self.assertEqual(qualification.child(cfg, output), 1)
+            self.assertEqual((output / "launcher-executed.sh").read_bytes(), payload)
+            self.assertEqual(
+                json.loads((output / "clean-speed-launch.json").read_text()), receipt
+            )
+            self.assertEqual(launch.call_args.args[0], receipt["actual_command"])
+            self.assertEqual(launch.call_args.kwargs["env"], receipt["environment"])
+            self.assertEqual(launch.call_args.kwargs["stdin"], subprocess.PIPE)
+            process.stdin.write.assert_called_once_with(payload)
+            process.stdin.close.assert_called_once()
+            process.terminate.assert_called_once()
+
     def test_explicit_total_memory_limit_must_take_effect_independently_of_cache(self):
         requested = 24 * 1024**3
         command = ["mei", "--memory-limit-bytes", str(requested)]
@@ -307,6 +503,15 @@ class QualificationTests(unittest.TestCase):
                 return succeeded(output)
 
             self.assertTrue(check(evidence))
+            (output / "config.yaml").write_text("invalid: [yaml")
+            self.assertFalse(check(evidence))
+            (output / "config.yaml").unlink()
+            self.assertFalse(
+                check(
+                    evidence
+                    | {"clean_speed_launch_required": True, "clean_speed_launch": {}}
+                )
+            )
             self.assertFalse(check(evidence | {"swift_acceptance_required": True}))
             self.assertTrue(
                 check(

@@ -6,6 +6,7 @@ import tempfile
 import unittest
 from dataclasses import asdict, replace
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -60,7 +61,7 @@ class ComparisonCoverageTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
-        self.spec = {
+        self.spec: dict[str, Any] = {
             "models": {str(i): name for i, name in enumerate(COLORS)},
             "seeds": [17, 29],
             "cohorts": ["seed17.json", "seed29.json"],
@@ -220,6 +221,90 @@ class ComparisonCoverageTests(unittest.TestCase):
         ):
             with self.subTest(invalid=invalid), self.assertRaises(ValueError):
                 aggregate_points(invalid)
+
+    def test_explicit_fifth_model_requires_both_complete_repeats(self):
+        points = self.load()
+        extra = [
+            replace(points[0], label="MiniCPM", seed=17, engine="llama.cpp"),
+            replace(points[1], label="MiniCPM", seed=29, engine="llama.cpp"),
+        ]
+        labels = [*COLORS, "MiniCPM"]
+        averages = aggregate_points([*points, *extra], labels)
+        self.assertEqual([p.label for p in averages], labels)
+        self.assertEqual(averages[-1].run_weights, (0.5, 0.5))
+        with self.assertRaises(ValueError):
+            aggregate_points([*points, extra[0]], labels)
+        with self.assertRaises(ValueError):
+            aggregate_points([*points, *extra])
+
+    def test_five_profile_load_and_export_uses_only_complete_fresh_runs(self):
+        self.spec["models"]["4"] = "MiniCPM"
+        self.spec["colors"] = {**COLORS, "MiniCPM": "#b74779"}
+        self.spec["reports"] = ["seed17-report.md", "seed29-report.md"]
+        for seed in (17, 29):
+            stem = f"model4-seed{seed}"
+            entry = {
+                "model": "4",
+                "engine": "llama.cpp",
+                "household_run": stem + "-h",
+                "python_run": stem + "-p",
+                "config": stem + ".yaml",
+                "supervision": stem,
+            }
+            (self.root / entry["config"]).write_text(
+                '{"model_bytes": 1000000, "resource_monitor_policy": {"admission_mode": "capacity"}}'
+            )
+            for folder, key, count in (
+                ("standin", "household_run", 12),
+                ("automation", "python_run", 3),
+            ):
+                directory = self.root / "results" / folder / "runs" / entry[key]
+                directory.mkdir(parents=True)
+                (directory / "manifest.json").write_text(
+                    json.dumps(
+                        {
+                            "status": "completed",
+                            "generation_overrides": {"seed": seed},
+                            "runtime_identity": {"binary": "4"},
+                        }
+                    )
+                )
+                with (self.root / "results" / folder / "log.jsonl").open("a") as stream:
+                    for _ in range(count):
+                        stream.write(
+                            json.dumps(
+                                {"run_id": entry[key], "pass": True, "wall_seconds": 10}
+                            )
+                            + "\n"
+                        )
+            directory = self.root / stem
+            directory.mkdir()
+            (directory / "outcome.json").write_text(
+                json.dumps(
+                    {"returncode": 0, "stop_reason": None, "elapsed_seconds": 600}
+                )
+            )
+            (directory / "baseline.jsonl").write_text(json.dumps(sample(100)) + "\n")
+            (directory / "invocation.json").write_text(
+                json.dumps({"initial": sample(100)})
+            )
+            (directory / "resources.jsonl").write_text(json.dumps(sample(300)) + "\n")
+            cohort_path = self.root / f"seed{seed}.json"
+            cohort = json.loads(cohort_path.read_text())
+            cohort["models"].append(entry)
+            cohort_path.write_text(json.dumps(cohort))
+        output = self.root / "results/charts"
+        output.mkdir()
+        with patch("build_four_model_summary.render_campaign"):
+            export(self.root, self.spec, self.root / "results/SUMMARY.md", output)
+        data = json.loads((output / "metrics.json").read_text())
+        self.assertEqual(len(data["observations"]), 10)
+        self.assertEqual(len(data["model_averages"]), 5)
+        self.assertIn("MiniCPM", (output / "quality-tracks.svg").read_text())
+        text = (self.root / "results/SUMMARY.md").read_text()
+        self.assertIn("10 complete runs", text)
+        self.assertIn("seed17-report.md", text)
+        self.assertNotIn("MiniCPM remains a tested alternative", text)
 
     def test_export_keeps_all_observations_and_adds_four_model_averages(self):
         original = [asdict(p) for p in self.load()]

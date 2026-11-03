@@ -69,12 +69,19 @@ class ModelAverage:
     task_seconds: float
 
 
-def aggregate_points(points: list[Point]) -> list[ModelAverage]:
+def aggregate_points(
+    points: list[Point], labels: list[str] | None = None
+) -> list[ModelAverage]:
     """Pool task success; equally weight the two complete, equal-coverage runs."""
-    if len(points) != 8 or {p.label for p in points} != set(COLORS):
-        raise ValueError("Averages require all eight selected latest-release runs")
+    labels = list(COLORS) if labels is None else labels
+    if not labels or len(labels) != len(set(labels)):
+        raise ValueError("Averages require distinct declared labels")
+    if len(points) != 2 * len(labels) or {p.label for p in points} != set(labels):
+        raise ValueError(
+            "Averages require both selected runs for every declared profile"
+        )
     averages = []
-    for label in COLORS:
+    for label in labels:
         group = sorted((p for p in points if p.label == label), key=lambda p: p.seed)
         if [p.seed for p in group] != [17, 29]:
             raise ValueError("Averages require exactly one run for each declared seed")
@@ -138,12 +145,19 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
 
 def load_points(root: Path, specification: dict[str, Any]) -> list[Point]:
     labels = specification["models"]
+    colors = specification.get("colors", COLORS)
     if (
-        len(labels) != 4
+        not isinstance(labels, dict)
+        or not labels
+        or len(set(labels.values())) != len(labels)
+        or not isinstance(colors, dict)
+        or set(labels.values()) - set(colors)
         or set(specification["seeds"]) != {17, 29}
         or len(specification["cohorts"]) != 2
     ):
-        raise ValueError("Require four retained profiles and two declared seed cohorts")
+        raise ValueError(
+            "Require distinct colored profiles and two declared seed cohorts"
+        )
     points = []
     seen = set()
     runtime_ids: dict[str, dict[str, Any]] = {}
@@ -162,7 +176,7 @@ def load_points(root: Path, specification: dict[str, Any]) -> list[Point]:
             raise ValueError("Cohort is missing a requested contender")
         for entry in cohort["models"]:
             label = labels[entry["model"]]
-            if label not in COLORS or entry["engine"] not in ENGINES:
+            if label not in colors or entry["engine"] not in ENGINES:
                 raise ValueError("Unknown model/engine label")
             tracks = []
             manifests = []
@@ -258,8 +272,9 @@ def load_points(root: Path, specification: dict[str, Any]) -> list[Point]:
                 )
             )
     if seen != {(model, seed) for model in labels for seed in specification["seeds"]}:
-        raise ValueError("Not all eight predeclared observations are present")
-    return sorted(points, key=lambda x: (list(COLORS).index(x.label), x.seed))
+        raise ValueError("Not all predeclared observations are present")
+    order = list(labels.values())
+    return sorted(points, key=lambda x: (order.index(x.label), x.seed))
 
 
 def figures(
@@ -268,7 +283,9 @@ def figures(
     title_prefix: str = "",
     *,
     benchmark_release: str = "benchmark-v9.10",
+    colors: dict[str, str] | None = None,
 ) -> list[str]:
+    colors = COLORS if colors is None else colors
     output.mkdir(parents=True, exist_ok=True)
     plt.rcParams.update(
         {
@@ -317,12 +334,12 @@ def figures(
                 s=110,
                 facecolors="none",
                 marker=MARKERS[point.engine],
-                edgecolors=COLORS[point.label],
+                edgecolors=colors[point.label],
                 linewidths=1.8,
                 zorder=3,
             )
             offset = (
-                memory_labels[point.label]
+                memory_labels.get(point.label, (7, 9))
                 if metric == "wired_increase_gib"
                 else (7, -17)
                 if point.label == "Ornith1.5"
@@ -334,8 +351,8 @@ def figures(
                 xytext=offset,
                 textcoords="offset points",
                 fontsize=8,
-                color=COLORS[point.label],
-                arrowprops={"arrowstyle": "-", "color": COLORS[point.label], "lw": 0.65}
+                color=colors[point.label],
+                arrowprops={"arrowstyle": "-", "color": colors[point.label], "lw": 0.65}
                 if metric == "wired_increase_gib"
                 else None,
             )
@@ -385,7 +402,7 @@ def figures(
         for i, p in enumerate(points):
             value = getattr(p, field)
             ax.scatter(
-                i, value, c=COLORS[p.label], marker=MARKERS[p.engine], s=90, zorder=3
+                i, value, c=colors[p.label], marker=MARKERS[p.engine], s=90, zorder=3
             )
             ax.annotate(
                 f"{value:.1f}%",
@@ -395,7 +412,7 @@ def figures(
                 ha="center",
                 fontsize=9,
             )
-        ax.set_xticks(range(4), list(COLORS), rotation=18)
+        ax.set_xticks(range(len(points)), [p.label for p in points], rotation=18)
         ax.set_ylim(-3, 113)
         ax.set_yticks([0, 25, 50, 75, 100])
         ax.set_ylabel("Task success (%) across both repeats")
@@ -417,8 +434,16 @@ def figures(
 
 def export(root: Path, spec: dict[str, Any], summary: Path, output: Path) -> None:
     points = load_points(root, spec)
-    averages = aggregate_points(points)
-    names = figures(averages, output, benchmark_release=spec["benchmark_release"])
+    labels = list(spec["models"].values())
+    averages = aggregate_points(points, labels)
+    if len(labels) != 4 and len(spec.get("reports", [])) != len(spec["cohorts"]):
+        raise ValueError("Non-four-model cohorts require explicit report paths")
+    names = figures(
+        averages,
+        output,
+        benchmark_release=spec["benchmark_release"],
+        colors=spec.get("colors", COLORS),
+    )
     data = [asdict(p) for p in points]
     (output / "metrics.json").write_text(
         json.dumps(
@@ -453,13 +478,26 @@ def export(root: Path, spec: dict[str, Any], summary: Path, output: Path) -> Non
         writer.writerows(rows)
     relative = output.relative_to(summary.parent)
     lines = [
-        "# Four-model local agent comparison",
+        "# Four-model local agent comparison"
+        if len(labels) == 4
+        else f"# {len(labels)}-model local agent comparison",
         "",
-        f"Frozen benchmark **{spec['benchmark_release']}**; two fresh declared seeds per profile, eight complete runs.",
+        f"Frozen benchmark **{spec['benchmark_release']}**; two fresh declared seeds per profile, "
+        + ("eight" if len(points) == 8 else str(len(points)))
+        + " complete runs.",
         "",
-        "All four remain retained contenders. These compare serving profiles, not pure model weights or Peixinho application acceptance.",
+        ("All four remain retained contenders. " if len(labels) == 4 else "")
+        + "These compare serving profiles, not pure model weights or Peixinho application acceptance.",
         "",
-        "MiniCPM remains a tested alternative: its historical v9.5 profile passed 11/12 household and 3/3 Python in 9m38s, in one trajectory. ThinkingCap's latest completed evidence is also in the [six-model v9.5 report](AGENT_V9.md). Neither has fresh repeats on this comparison's frozen release, so neither is plotted here. MiniCPM is queued for fresh repeats and paired context-speed measurements after Mei stable, then inclusion in the current averages and graphs. [Roster and historical results](../docs/ROSTER.md).",
+        (
+            "MiniCPM remains a tested alternative: its historical v9.5 profile passed 11/12 household and 3/3 Python in 9m38s, in one trajectory. ThinkingCap's latest completed evidence is also in the [six-model v9.5 report](AGENT_V9.md). Neither has fresh repeats on this comparison's frozen release, so neither is plotted here. MiniCPM is queued for fresh repeats and paired context-speed measurements after Mei stable, then inclusion in the current averages and graphs. [Roster and historical results](../docs/ROSTER.md)."
+            if not any(
+                "minicpm" in value.lower()
+                for item in spec["models"].items()
+                for value in item
+            )
+            else "[Historical six-model evidence](AGENT_V9.md) remains separate from these fresh repeats."
+        ),
         "",
         f"Each graph shows one weighted-average point per model, using only its two fresh {spec['benchmark_release']} repeats. Each run has identical coverage and receives 50% weight. Quality pools task attempts separately for household and Python; time and memory are means across runs. Individual observations remain below.",
         "",
@@ -512,13 +550,15 @@ def export(root: Path, spec: dict[str, Any], summary: Path, output: Path) -> Non
             "",
             "The graph averages the two per-run peak memory increases; it is not the maximum across both runs. Each repeat has 12 household and 3 Python tasks, so pooled task weighting gives each run 50% weight. All attempts, including failed tasks and missing script submissions, count. There is no weighting by success, response count, tokens, telemetry sample count or duration, and no composite quality score. Two repeats do not establish independence or statistical superiority.",
             "",
-            "Qwen/Ornith retain their T0.6 sampler; Groot/Logics retain T1 and their declared penalties. Quants, engines and cache settings differ explicitly. No best-run selection or universal winner is implied.",
+            "Qwen/Ornith retain their T0.6 sampler; Groot/Logics retain T1 and their declared penalties. Quants, engines and cache settings differ explicitly. No best-run selection or universal winner is implied."
+            if len(labels) == 4 and set(labels) == set(COLORS)
+            else "Samplers, quants, engines and cache settings may differ as declared in each serving profile. No best-run selection or universal winner is implied.",
             "",
             "## Provenance and failures",
             "",
         ]
     )
-    for path in spec["cohorts"]:
+    for index, path in enumerate(spec["cohorts"]):
         cohort = json.loads((root / path).read_text())
         seed = json.loads(
             (
@@ -529,9 +569,14 @@ def export(root: Path, spec: dict[str, Any], summary: Path, output: Path) -> Non
             ).read_text()
         )["generation_overrides"]["seed"]
         report = spec["benchmark_release"].replace("benchmark-", "").upper()
+        report_path = (
+            spec["reports"][index]
+            if "reports" in spec
+            else f"FOUR_MODEL_{report}_SEED{seed}.md"
+        )
         lines.extend(
             [
-                f"- Seed {seed}: [validated report](FOUR_MODEL_{report}_SEED{seed}.md), [exact selection](../{path}).",
+                f"- Seed {seed}: [validated report]({report_path}), [exact selection](../{path}).",
             ]
         )
     lines.extend(
@@ -539,9 +584,13 @@ def export(root: Path, spec: dict[str, Any], summary: Path, output: Path) -> Non
             "",
             "Each per-run review records the frozen grade/tool-journal audit, submitted-script replay and missing submissions. Execution replay is not applicable when no script was submitted. Denied attempts and invalid calls still fail their tasks, even when containment holds or a corrected script later works.",
             "",
-            "All eight selected supervisors exited normally. The linked cohort reports retain pressure, swap and disk eligibility; each audit retains post-run model/runtime hashes and owned-cache cleanup receipts. These short tasks do not establish near-64K quality or maximum context capacity.",
+            "All "
+            + ("eight" if len(points) == 8 else str(len(points)))
+            + " selected supervisors exited normally. The linked cohort reports retain pressure, swap and disk eligibility; each audit retains post-run model/runtime hashes and owned-cache cleanup receipts. These short tasks do not establish near-64K quality or maximum context capacity.",
             "",
-            "[Interpretation, failed checks and serving profiles](../docs/FOUR_MODEL_COMPARISON.md) · [Original v9.9 attempts](FOUR_MODEL_V9.9_INTERRUPTED.md) · [Historical v8.3.1 summary](AGENT_SUMMARY_V8.3.1.md).",
+            "[Interpretation, failed checks and serving profiles](../docs/FOUR_MODEL_COMPARISON.md) · [Original v9.9 attempts](FOUR_MODEL_V9.9_INTERRUPTED.md) · [Historical v8.3.1 summary](AGENT_SUMMARY_V8.3.1.md)."
+            if len(labels) == 4
+            else "[Historical four-model interpretation](../docs/FOUR_MODEL_COMPARISON.md) · [Earlier six-model evidence](AGENT_V9.md) · [Historical v8.3.1 summary](AGENT_SUMMARY_V8.3.1.md).",
         ]
     )
     lines.extend(
@@ -571,8 +620,13 @@ def main() -> None:
     release = spec["benchmark_release"]
     if not re.fullmatch(r"benchmark-v\d+(?:\.\d+)*", release):
         raise ValueError("require a benchmark-vN[.N] release for the chart directory")
+    chart_prefix = (
+        "four-model-"
+        if not spec.get("models") or len(spec["models"]) == 4
+        else "model-comparison-"
+    )
     output = args.figures or REPO / "results/charts" / (
-        "four-model-" + release.removeprefix("benchmark-")
+        chart_prefix + release.removeprefix("benchmark-")
     )
     export(
         REPO,

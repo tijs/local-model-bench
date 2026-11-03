@@ -69,6 +69,17 @@ remain failures. Model/runtime hashes matched after every run.
 
 ## Metric definitions
 
+For a future paired-context graph, `runner/build_context_speed_cohort.py` accepts
+an explicit cohort specification and validates both complete processes for each
+profile before exporting. It checks prompt and runtime identities, raw observations
+and resource evidence; partial runs are not plotted. Mei's opt-in clean speed
+launch records the audited scripts and an explicit environment so inherited
+tracing cannot silently affect timing. That launch is pinned to the reviewed
+runtime and launcher revisions; a new revision needs a new audit. The recorded
+project and lock files do not independently attest installed Python packages.
+Engine-native decode rates have different timing conventions and should be read
+with their engine and prompt lengths. The older v9.10 charts remain unchanged.
+
 Graphs show one point per model, using only the two complete, selected v9.10
 runs. Household quality pools passes over 24 task attempts; Python pools passes
 over 6 attempts. These tracks remain separate. Each run has identical 12+3

@@ -25,6 +25,8 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
+import yaml
+from mei_clean_speed import STOPPER, git_bytes, launch_receipt, verify_receipt
 from mei_provenance import verify_mei_runtime
 from run_mei_acceptance import (
     REPO,
@@ -188,6 +190,32 @@ def acceptance_identity(cfg: dict) -> dict | None:
 def succeeded(output: Path) -> bool:
     try:
         result = json.loads((output / "qualification.json").read_text())
+        config_path = output / "config.yaml"
+        config_bytes = config_path.read_bytes() if config_path.exists() else None
+        cfg = yaml.safe_load(config_bytes) if config_bytes is not None else {}
+        if (
+            result.get("clean_speed_launch_required", False)
+            or "mei_clean_speed_launch" in cfg
+        ):
+            if result.get("clean_speed_launch_required") is not True:
+                return False
+            invocation = json.loads((output / "invocation.json").read_text())
+            if config_bytes is None or hashlib.sha256(
+                config_bytes
+            ).hexdigest() != invocation.get("config_sha256"):
+                return False
+            receipt = json.loads((output / "clean-speed-launch.json").read_text())
+            if result.get("clean_speed_launch") != receipt:
+                return False
+            verify_receipt(
+                REPO,
+                cfg,
+                split_launch_command(cfg["benchmark_launch_command"]),
+                invocation,
+                receipt,
+                output / "launcher-executed.sh",
+                output / "stopper-executed.sh",
+            )
         settings = result["settings"]
         measurements = [row for row in result["rows"] if row["phase"] == "measured"]
         expected = {
@@ -210,11 +238,15 @@ def succeeded(output: Path) -> bool:
             and all(row["ok"] for row in result["status_samples"])
             and result["server_stopped"] is True
             and (
+                not result.get("clean_speed_launch_required", False)
+                or isinstance(result.get("clean_speed_launch"), dict)
+            )
+            and (
                 not result.get("swift_acceptance_required", False)
                 or result.get("swift_acceptance", {}).get("passed") is True
             )
         )
-    except (OSError, ValueError, KeyError, TypeError):
+    except (OSError, ValueError, KeyError, TypeError, yaml.YAMLError):
         return False
 
 
@@ -231,6 +263,7 @@ def child(cfg: dict, output: Path) -> int:
         "rows": [],
         "status_samples": [],
         "swift_acceptance_required": cfg.get("mei_swift_acceptance") is not None,
+        "clean_speed_launch_required": "mei_clean_speed_launch" in cfg,
         "command": command,
         "model": model,
         "parity_scope": "HTTP text bytes, generated count and finish; hidden sampled token IDs are not exposed",
@@ -238,6 +271,19 @@ def child(cfg: dict, output: Path) -> int:
     done = threading.Event()
     process = None
     sampler = None
+    clean_receipt = None
+    stopper = None
+    checkpoint_failed = False
+
+    def checkpoint() -> None:
+        nonlocal checkpoint_failed
+        try:
+            write_json(output / "qualification.json", result)
+        except OSError as exc:
+            checkpoint_failed = True
+            result.update(
+                status="failed", evidence_error=f"{type(exc).__name__}: {exc}"
+            )
 
     def status_samples():
         with (output / "status-samples.jsonl").open("x", buffering=1) as stream:
@@ -323,9 +369,44 @@ def child(cfg: dict, output: Path) -> int:
             for name, prompt in prompts.items()
         }
         with (output / "launcher.log").open("x") as log:
-            process = subprocess.Popen(
-                command, cwd=REPO, env=environment, stdout=log, stderr=subprocess.STDOUT
-            )
+            if "mei_clean_speed_launch" in cfg:
+                invocation = json.loads((output / "invocation.json").read_text())
+                launcher, receipt = launch_receipt(
+                    REPO, cfg, command, invocation, verify_worktree=True
+                )
+                # Preserve and execute the same Git-object bytes. The child has
+                # a deliberately small, declared environment; no inherited
+                # Bash functions, trace flags, credentials or shell startup.
+                with (output / "launcher-executed.sh").open("xb") as source:
+                    source.write(launcher)
+                stopper = git_bytes(REPO, invocation["runner_git_sha"], STOPPER)
+                with (output / "stopper-executed.sh").open("xb") as source:
+                    source.write(stopper)
+                with (output / "clean-speed-launch.json").open("x") as metadata:
+                    json.dump(receipt, metadata, indent=2)
+                    metadata.write("\n")
+                result["clean_speed_launch"] = receipt
+                clean_receipt = receipt
+                process = subprocess.Popen(
+                    receipt["actual_command"],
+                    cwd=REPO,
+                    env=receipt["environment"],
+                    stdin=subprocess.PIPE,
+                    stdout=log,
+                    stderr=subprocess.STDOUT,
+                )
+                if process.stdin is None:
+                    raise RuntimeError("clean-speed launcher stdin unavailable")
+                process.stdin.write(launcher)
+                process.stdin.close()
+            else:
+                process = subprocess.Popen(
+                    command,
+                    cwd=REPO,
+                    env=environment,
+                    stdout=log,
+                    stderr=subprocess.STDOUT,
+                )
         wait_ready(process, base)
         result["runtime_identity"] = verify_mei_runtime(cfg, base_url=base)
         profile_status = request_json(base + "/mei/status", timeout=5)
@@ -413,35 +494,86 @@ def child(cfg: dict, output: Path) -> int:
         subprocess.SubprocessError,
         KeyboardInterrupt,
     ) as exc:
-        result.update(status="failed", error=f"{type(exc).__name__}: {exc}")
+        result.update(
+            status="failed", error=f"{type(exc).__name__}: {exc}", server_stopped=False
+        )
+        # Preserve the interruption before any potentially slow teardown.
+        checkpoint()
     finally:
+        cleanup_interrupted = False
+
+        def defer_interrupt(_signum, _frame):
+            nonlocal cleanup_interrupted
+            cleanup_interrupted = True
+
+        old_handler = None
+        if threading.current_thread() is threading.main_thread():
+            old_handler = signal.signal(signal.SIGTERM, defer_interrupt)
         done.set()
+        result["server_stopped"] = False
+        checkpoint()
         if sampler is not None:
-            sampler.join(timeout=6)
+            try:
+                sampler.join(timeout=2 if clean_receipt is not None else 6)
+            except KeyboardInterrupt:
+                cleanup_interrupted = True
         try:
-            stop = subprocess.run(
-                [
-                    "bash",
-                    str(REPO / "runner/stop_mei_server.sh"),
-                    "--runtime-base",
-                    str(runtime),
-                ],
-                env=environment,
-                capture_output=True,
-                text=True,
-                timeout=30,
-                check=False,
-            )
+            if process is None:
+                raise RuntimeError("server process was not launched")
+            if clean_receipt is not None:
+                stop = subprocess.run(
+                    clean_receipt["stop_command"],
+                    input=stopper,
+                    env=clean_receipt["environment"],
+                    capture_output=True,
+                    timeout=7,
+                    check=False,
+                )
+            else:
+                stop = subprocess.run(
+                    [
+                        "bash",
+                        str(REPO / "runner/stop_mei_server.sh"),
+                        "--runtime-base",
+                        str(runtime),
+                    ],
+                    env=environment,
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                    check=False,
+                )
             if stop.returncode:
                 raise RuntimeError(f"server teardown failed: {stop.stderr}")
-            if process is not None:
-                process.terminate()
-                process.wait(timeout=15)
             result["server_stopped"] = True
-        except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
+        except (
+            OSError,
+            RuntimeError,
+            subprocess.SubprocessError,
+            KeyboardInterrupt,
+        ) as exc:
             result.update(status="failed", cleanup_error=str(exc), server_stopped=False)
-        write_json(output / "qualification.json", result)
-    return 0 if succeeded(output) else 1
+        finally:
+            if process is not None:
+                try:
+                    process.terminate()
+                    process.wait(timeout=2 if clean_receipt is not None else 15)
+                except (OSError, subprocess.SubprocessError, KeyboardInterrupt) as exc:
+                    result.update(
+                        status="failed", cleanup_error=str(exc), server_stopped=False
+                    )
+        if cleanup_interrupted:
+            result.update(
+                status="failed",
+                cleanup_error="interrupted during cleanup",
+                server_stopped=False,
+            )
+        try:
+            checkpoint()
+        finally:
+            if old_handler is not None:
+                signal.signal(signal.SIGTERM, old_handler)
+    return 0 if not checkpoint_failed and succeeded(output) else 1
 
 
 def main() -> int:
