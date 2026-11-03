@@ -16,7 +16,25 @@ All four remain contenders. Groot used the least observed wired-memory increase;
 Logics-SWE had the highest household total in these two trajectories. These
 observations do not establish a universal replacement or statistical superiority.
 
-ThinkingCap and MiniCPM remain alternatives. Clover remains experimental native
+MiniCPM and ThinkingCap remain tested alternatives, with these latest completed
+profiles in the [historical v9.5 report](../results/AGENT_V9.md):
+
+| Model / engine | Household | Python | Full time | Coverage |
+|---|---:|---:|---:|---|
+| MiniCPM-V4.7 Q4_K_M / llama.cpp, CPU8/q8 KV, no repacking, two checkpoints | 11/12 | 3/3 | 9m38s | One trajectory; no v9.10 repeats |
+| ThinkingCap Q4_K_M / llama.cpp | 11/12 | 3/3 | 8m47s | One trajectory; no v9.10 repeats |
+
+They were left out when the repeated comparison narrowed to four models; neither
+was retired. A fresh run on the same frozen method and declared repeat plan is
+required before either joins the current averaged graphs. Historical scores
+are preserved separately and are not evidence of how they compare on v9.10.
+
+MiniCPM is explicitly queued for two fresh same-method runs and paired short/long
+context speed measurements after Mei stable. It will rejoin the current averages
+and graphs once that evidence is complete. The follow-up is tracked in the
+[stable-release and comparison plan](kiem://note/e48c7c4e-eb1a-4989-be5f-10e2047be86e).
+
+Clover remains experimental native
 Kapitsa/Metal diffusion, not a Mei implementation. Flint/JANGH2 remains user-
 retired. No historical evidence or staged weights are deleted by this decision.
 The [v9.8.1 roster](https://github.com/tijs/local-model-bench/blob/benchmark-v9.8.1/docs/ROSTER.md)

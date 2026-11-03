@@ -4,7 +4,9 @@ Frozen benchmark **benchmark-v9.10**; two fresh declared seeds per profile, eigh
 
 All four remain retained contenders. These compare serving profiles, not pure model weights or Peixinho application acceptance.
 
-Each graph shows one weighted-average point per model, using only its two fresh v9.10 repeats. Each run has identical coverage and receives 50% weight. Quality pools task attempts separately for household and Python; time and memory are means across runs. Individual observations remain below.
+MiniCPM remains a tested alternative: its historical v9.5 profile passed 11/12 household and 3/3 Python in 9m38s, in one trajectory. ThinkingCap's latest completed evidence is also in the [six-model v9.5 report](AGENT_V9.md). Neither has fresh repeats on this comparison's frozen release, so neither is plotted here. MiniCPM is queued for fresh repeats and paired context-speed measurements after Mei stable, then inclusion in the current averages and graphs. [Roster and historical results](../docs/ROSTER.md).
+
+Each graph shows one weighted-average point per model, using only its two fresh benchmark-v9.10 repeats. Each run has identical coverage and receives 50% weight. Quality pools task attempts separately for household and Python; time and memory are means across runs. Individual observations remain below.
 
 ![quality time](charts/four-model-v9.10-duration/quality-time.png)
 

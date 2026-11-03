@@ -15,6 +15,7 @@ from build_four_model_summary import (
     aggregate_points,
     export,
     load_points,
+    main,
     memory_cost,
     wired_bytes,
 )
@@ -226,17 +227,43 @@ class ComparisonCoverageTests(unittest.TestCase):
         output.mkdir()
         with (
             patch("build_four_model_summary.render_campaign"),
-            patch("build_four_model_summary.figures", return_value=[]),
+            patch("build_four_model_summary.figures", return_value=[]) as draw,
         ):
             export(self.root, self.spec, self.root / "results/SUMMARY.md", output)
         data = json.loads((output / "metrics.json").read_text())
         self.assertEqual(data["observations"], original)
         self.assertEqual(len(data["model_averages"]), 4)
+        self.assertEqual(draw.call_args.kwargs["benchmark_release"], "fixture")
+        self.assertIn(
+            "fresh fixture repeats", (self.root / "results/SUMMARY.md").read_text()
+        )
+        self.assertIn(
+            "MiniCPM remains a tested alternative",
+            (self.root / "results/SUMMARY.md").read_text(),
+        )
         self.assertEqual(data["aggregation"]["run_weights"], {"17": 0.5, "29": 0.5})
         self.assertEqual(len((output / "metrics.csv").read_text().splitlines()), 9)
         self.assertEqual(
             len((output / "model-averages.csv").read_text().splitlines()), 5
         )
+
+    def test_default_chart_directory_follows_selected_release_and_rejects_escape(self):
+        spec = self.root / "selected.json"
+        spec.write_text(json.dumps({"benchmark_release": "benchmark-v9.11"}))
+        with (
+            patch("build_four_model_summary.REPO", self.root),
+            patch("build_four_model_summary.export") as write,
+            patch.object(sys, "argv", ["summary", "--spec", str(spec)]),
+        ):
+            main()
+            self.assertEqual(
+                write.call_args.args[3],
+                (self.root / "results/charts/four-model-v9.11").resolve(),
+            )
+            spec.write_text(json.dumps({"benchmark_release": "../../outside"}))
+            with self.assertRaisesRegex(ValueError, "require a benchmark"):
+                main()
+            self.assertEqual(write.call_count, 1)
 
     def test_mismatched_seed_and_changed_runtime_refused(self):
         path = self.manifests[-1]

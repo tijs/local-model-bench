@@ -1,5 +1,12 @@
 # Four-model comparison — completed 2 November 2026
 
+This report covers the four profiles selected for fresh v9.10 repeats. MiniCPM
+and ThinkingCap remain tested alternatives in the [historical six-model v9.5
+report](../results/AGENT_V9.md), with one trajectory each. Neither has been retired;
+neither has fresh v9.10 repeats. The current graphs therefore omit them rather
+than combining results from different methods. [Latest historical results and
+roster](ROSTER.md).
+
 All four retained contenders completed two fresh full runs on frozen v9.10,
 on the same 32 GiB Apple M1 Max. Each model now has one averaged graph point; both declared seeds remain in the evidence tables. The
 measurement code, profiles, budgets and resource policy stayed fixed throughout

@@ -263,7 +263,11 @@ def load_points(root: Path, specification: dict[str, Any]) -> list[Point]:
 
 
 def figures(
-    points: list[ModelAverage], output: Path, title_prefix: str = ""
+    points: list[ModelAverage],
+    output: Path,
+    title_prefix: str = "",
+    *,
+    benchmark_release: str = "benchmark-v9.10",
 ) -> list[str]:
     output.mkdir(parents=True, exist_ok=True)
     plt.rcParams.update(
@@ -361,7 +365,7 @@ def figures(
             for k, v in ENGINES.items()
         ]
         ax.legend(handles=legend, loc="lower left", frameon=False)
-        note = "One point per model: latest v9.10 repeats, 50% weight each. Quality pools task attempts; costs average runs."
+        note = f"One point per model: {benchmark_release} repeats, 50% weight each. Quality pools task attempts; costs average runs."
         if metric == "wired_increase_gib":
             note += "\nMean of per-run (host peak minus median baseline); partial system-wide accounting, not exact model RAM."
         elif metric == "task_seconds":
@@ -400,7 +404,7 @@ def figures(
     fig.text(
         0.01,
         -0.05,
-        "Latest v9.10 repeats, 50% weight each; quality tracks remain separate. Circles: Mei; diamonds: llama.cpp.",
+        f"{benchmark_release} repeats, 50% weight each; quality tracks remain separate. Circles: Mei; diamonds: llama.cpp.",
         fontsize=8,
     )
     for extension in ("png", "svg"):
@@ -414,7 +418,7 @@ def figures(
 def export(root: Path, spec: dict[str, Any], summary: Path, output: Path) -> None:
     points = load_points(root, spec)
     averages = aggregate_points(points)
-    names = figures(averages, output)
+    names = figures(averages, output, benchmark_release=spec["benchmark_release"])
     data = [asdict(p) for p in points]
     (output / "metrics.json").write_text(
         json.dumps(
@@ -455,7 +459,9 @@ def export(root: Path, spec: dict[str, Any], summary: Path, output: Path) -> Non
         "",
         "All four remain retained contenders. These compare serving profiles, not pure model weights or Peixinho application acceptance.",
         "",
-        "Each graph shows one weighted-average point per model, using only its two fresh v9.10 repeats. Each run has identical coverage and receives 50% weight. Quality pools task attempts separately for household and Python; time and memory are means across runs. Individual observations remain below.",
+        "MiniCPM remains a tested alternative: its historical v9.5 profile passed 11/12 household and 3/3 Python in 9m38s, in one trajectory. ThinkingCap's latest completed evidence is also in the [six-model v9.5 report](AGENT_V9.md). Neither has fresh repeats on this comparison's frozen release, so neither is plotted here. MiniCPM is queued for fresh repeats and paired context-speed measurements after Mei stable, then inclusion in the current averages and graphs. [Roster and historical results](../docs/ROSTER.md).",
+        "",
+        f"Each graph shows one weighted-average point per model, using only its two fresh {spec['benchmark_release']} repeats. Each run has identical coverage and receives 50% weight. Quality pools task attempts separately for household and Python; time and memory are means across runs. Individual observations remain below.",
         "",
     ]
     for name in names:
@@ -559,15 +565,20 @@ def main() -> None:
     parser.add_argument(
         "--summary", type=Path, default=REPO / "results/AGENT_SUMMARY.md"
     )
-    parser.add_argument(
-        "--figures", type=Path, default=REPO / "results/charts/four-model-v9.10"
-    )
+    parser.add_argument("--figures", type=Path)
     args = parser.parse_args()
+    spec = json.loads(args.spec.read_text())
+    release = spec["benchmark_release"]
+    if not re.fullmatch(r"benchmark-v\d+(?:\.\d+)*", release):
+        raise ValueError("require a benchmark-vN[.N] release for the chart directory")
+    output = args.figures or REPO / "results/charts" / (
+        "four-model-" + release.removeprefix("benchmark-")
+    )
     export(
         REPO,
-        json.loads(args.spec.read_text()),
+        spec,
         args.summary.resolve(),
-        args.figures.resolve(),
+        output.resolve(),
     )
 
 

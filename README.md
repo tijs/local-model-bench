@@ -105,7 +105,14 @@ sampling, context, cache, binaries and source revisions.
 
 ## Preserved evidence
 
-ThinkingCap and MiniCPM remain alternatives with historical v9.5 evidence.
+MiniCPM remains a tested alternative: its latest completed profile passed
+**11/12 household and 3/3 Python in 9m38s**, using llama.cpp with CPU8/q8 KV,
+no CPU repacking and two recurrent checkpoints. ThinkingCap passed 11/12 and
+3/3 in 8m47s. Both results belong to the [earlier v9.5 comparison](results/AGENT_V9.md),
+with one trajectory each. Neither has the fresh v9.10 repeats needed for the
+current graphs; absence from those graphs is not retirement or a new failed run.
+MiniCPM is queued for fresh repeats and short/long-context speed measurements
+after Mei stable, followed by inclusion in the current averages and graphs.
 Clover remains experimental native Kapitsa/Metal diffusion, separate from Mei.
 Flint/JANGH2 and the Hermes runtime are retired; their evidence remains intact.
 Do not use automatic config discovery as an active-roster selector.
