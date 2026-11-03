@@ -80,6 +80,16 @@ project and lock files do not independently attest installed Python packages.
 Engine-native decode rates have different timing conventions and should be read
 with their engine and prompt lengths. The older v9.10 charts remain unchanged.
 
+Before presenting speed and task cohorts together as the same serving profiles,
+run `uv run --locked python runner/verify_combined_cohorts.py --scores <score-spec.json> --speed <speed-spec.json>`.
+It validates both cohorts and compares the saved model hashes, runtime identities,
+declared launcher arguments, and declared environment for each model and repeat.
+Differences in argument order or explicit defaults require review and aligned
+configs; the check does not infer that they are equivalent. It cannot attest
+undeclared inherited environment, equal task sampling, or identical timing
+conventions across engines. A pass does not turn a stand-in task into real-app
+evidence.
+
 Graphs show one point per model, using only the two complete, selected v9.10
 runs. Household quality pools passes over 24 task attempts; Python pools passes
 over 6 attempts. These tracks remain separate. Each run has identical 12+3
