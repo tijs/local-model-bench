@@ -174,6 +174,7 @@ def load_points(root: Path, specification: dict[str, Any]) -> list[Point]:
         )  # Full source/config/coverage/resource provenance validation.
         if {x["model"] for x in cohort["models"]} != set(labels):
             raise ValueError("Cohort is missing a requested contender")
+        cohort_seed = None
         for entry in cohort["models"]:
             label = labels[entry["model"]]
             if label not in colors or entry["engine"] not in ENGINES:
@@ -226,6 +227,10 @@ def load_points(root: Path, specification: dict[str, Any]) -> list[Point]:
                 or (entry["model"], seed) in seen
             ):
                 raise ValueError("Missing, duplicate or mismatched seed")
+            if cohort_seed is None:
+                cohort_seed = seed
+            elif cohort_seed != seed:
+                raise ValueError("Selected cohort mixes seeds across models")
             seen.add((entry["model"], seed))
             identity = manifests[0]["runtime_identity"]
             if identity != manifests[1]["runtime_identity"]:

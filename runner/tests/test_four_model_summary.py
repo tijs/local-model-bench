@@ -377,6 +377,18 @@ class ComparisonCoverageTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "duplicate"):
             self.load()
 
+    def test_cohort_cannot_mix_seeds_even_with_both_repeats_per_model(self):
+        paths = [self.root / f"seed{seed}.json" for seed in (17, 29)]
+        cohorts = [json.loads(path.read_text()) for path in paths]
+        cohorts[0]["models"][1], cohorts[1]["models"][1] = (
+            cohorts[1]["models"][1],
+            cohorts[0]["models"][1],
+        )
+        for path, cohort in zip(paths, cohorts, strict=True):
+            path.write_text(json.dumps(cohort))
+        with self.assertRaisesRegex(ValueError, "cohort mixes seeds"):
+            self.load()
+
     def test_resource_stop_conditions_refused_even_with_zero_exit(self):
         path = self.root / "model0-seed17/resources.jsonl"
         for changes in (
