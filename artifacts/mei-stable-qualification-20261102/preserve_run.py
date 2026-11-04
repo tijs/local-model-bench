@@ -54,6 +54,7 @@ def main():
         (
             "groot-stable-",
             "qwen-stable-",
+            "qwen-unused-boundary-",
             "ornith-stable-",
             "ornith-mlxpress70-screen-",
         )
