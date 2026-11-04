@@ -2,6 +2,7 @@
 
 import copy
 import hashlib
+import json
 import os
 import shutil
 import subprocess
@@ -17,6 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from mei_clean_speed import (
     AUDITED_LAUNCHER_SHA256,
     AUDITED_MEI_REVISION,
+    AUDITED_REVISION_PAIRS,
     AUDITED_VMLX_REVISION,
     FIXED_PATH,
     MODE,
@@ -233,6 +235,52 @@ class CleanSpeedLaunchTests(unittest.TestCase):
         cfg["required_runner_environment"]["VMLX_CACHE_FETCH_TRACE"] = "0"
         with self.assertRaisesRegex(ValueError, "match declared"):
             clean_environment(cfg)
+
+    def test_only_audited_revision_pairs_are_accepted(self):
+        old, new = AUDITED_REVISION_PAIRS
+        for mei, vmlx in (old, new):
+            cfg = copy.deepcopy(self.cfg)
+            cfg["mei_source_commit"], cfg["vmlx_commit"] = mei, vmlx
+            self.assertEqual(clean_environment(cfg)["PATH"], FIXED_PATH)
+        for mei, vmlx in ((old[0], new[1]), (new[0], old[1]), ([], new[1])):
+            cfg = copy.deepcopy(self.cfg)
+            cfg["mei_source_commit"], cfg["vmlx_commit"] = mei, vmlx
+            with self.assertRaisesRegex(ValueError, "requires an audit"):
+                clean_environment(cfg)
+
+    def test_historical_groot_clean_receipts_still_validate(self):
+        from build_context_speed_cohort import load_cohort
+
+        repo = Path(__file__).resolve().parents[2]
+        evidence = (
+            repo
+            / "artifacts/mei-stable-qualification-20261102/groot-clean-speed-summary.json"
+        )
+        specification = json.loads(evidence.read_text())["specification"]
+        for process in specification["profiles"][0]["processes"]:
+            invocation = json.loads(
+                (repo / process["output"] / "invocation.json").read_text()
+            )
+            try:
+                found = subprocess.run(
+                    [
+                        "git",
+                        "-C",
+                        str(repo),
+                        "cat-file",
+                        "-e",
+                        invocation["runner_git_sha"] + "^{commit}",
+                    ],
+                    capture_output=True,
+                    check=False,
+                )
+            except OSError:
+                self.skipTest("Git is required for historical receipt verification")
+            if found.returncode:
+                self.skipTest("Historical runner commit unavailable in this checkout")
+        profiles, observations = load_cohort(repo, specification)
+        self.assertEqual(len(profiles), 1)
+        self.assertEqual(len(observations), 20)
 
     def test_committed_scripts_run_fake_mei_and_cleanly_stop_it(self):
         model = self.root / "model"

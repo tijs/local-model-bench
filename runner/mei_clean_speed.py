@@ -23,6 +23,13 @@ AUDITED_STOPPER_SHA256 = (
 )
 AUDITED_MEI_REVISION = "f57c4ef0a5078d9399a855cfb2f36d0fd45a959a"
 AUDITED_VMLX_REVISION = "f32e53b38a811c7c589cd110b9b7a643273d2da3"
+AUDITED_REVISION_PAIRS = (
+    (AUDITED_MEI_REVISION, AUDITED_VMLX_REVISION),
+    (
+        "b5451a8e5cf58e0d9bb6da142df39a9a98bd51b4",
+        "9db62ce10416db4a33ff0108dca6fc00bdadfff7",
+    ),
+)
 AUDITED_LAUNCHER_SHA256 = (
     "cfc685b7f2203bd329dbc1f0b1e4e9130cc031b1c58ebc71b31476e8c18467b5"
 )
@@ -76,9 +83,9 @@ def clean_environment(cfg: dict[str, Any]) -> dict[str, str]:
     if spec["mode"] != MODE or spec["launcher_sha256"] != AUDITED_LAUNCHER_SHA256:
         raise ValueError("invalid clean-speed mode or launcher SHA256")
     if (
-        cfg.get("mei_source_commit") != AUDITED_MEI_REVISION
-        or cfg.get("vmlx_commit") != AUDITED_VMLX_REVISION
-    ):
+        cfg.get("mei_source_commit"),
+        cfg.get("vmlx_commit"),
+    ) not in AUDITED_REVISION_PAIRS:
         raise ValueError(
             "clean-speed environment requires an audit for these source revisions"
         )
