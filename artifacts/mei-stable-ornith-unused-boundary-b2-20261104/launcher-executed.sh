@@ -1,0 +1,294 @@
+#!/usr/bin/env bash
+# Start an isolated Mei server for local-model-bench.
+#
+# Conventions: dedicated port (8024),
+# dedicated logs/runtime base, pid file at BASE/server.pid, refuses to
+# start when the port is already listening, and never touches the ports or
+# processes of other engines. Builds the pinned Swift package on demand.
+set -euo pipefail
+
+MEI_REPO_DEFAULT="${MEI_REPO:-$HOME/projects/mei}"
+RUNTIME_BASE_DEFAULT="$HOME/.local/share/local-model-bench/mei-runtime"
+# Pinned-scratch default: resolves vmlx-swift from the remote fork at the
+# exact Package.swift revision (91fed8be), NOT from any local clone — a
+# scratch dir built once against a local-path Package.swift leaks that
+# identity into every later build and dirties ~/projects/mei/Package.resolved.
+BUILD_DIR_DEFAULT="$HOME/.local/share/local-model-bench/mei-build-pinned-91fed8be"
+
+usage() {
+  cat <<'EOF'
+Usage: start_mei_server.sh --model-dir ROOT --served-model-id ID --port PORT \
+  --context-cap TOKENS [options]
+
+Options:
+  --prefill-step-size N     Chunked prefill window (default: unset -> Mei
+                            decides, from --model-profile or architecture)
+  --max-tokens N            Server-side generation cap (default: unset -> Mei
+                            decides, from --model-profile or its own default)
+  --temperature F --top-p F --top-k N --min-p F
+  --emit-reasoning BOOL     Expose reasoning_content (default: true)
+  --enable-thinking BOOL    Force template enable_thinking (default: none ->
+                            not passed; nil = template default, which for the
+                            staged Laguna-XS-2.1 chat_template.jinja is FALSE)
+  --cache-mode MODE         Prefix policy: auto/off/memory/disk (Mei policy API).
+  --mlxpress POLICY         Weight advice: off/auto/1..95 (Mei policy API).
+  --cache-reuse BOOL        Legacy KV/prefix reuse flag (default: true)
+  --kv-bits N               KV quantization bits (default: none)
+  --kv-cache-dir DIR        Explicit disk prefix-cache directory. When omitted,
+                            Mei's cache mode selects the tier; auto may use an
+                            instance-specific temporary disk tier for hybrids.
+  --model-profile NAME   Mei model profile (Mei 0.5.0+): selects the measured
+                       settings for a supported model — architecture, prefill
+                       step, anchors and generation cap together.
+                            (default: none -> not passed; Mei auto picks it.
+                            generic is the Nemotron gate operating point)
+  --memory-limit-bytes N    Explicit MLX allocator limit in bytes
+                            (default: none -> not passed; Mei uses its own
+                            backend default, visible in /v1/mei/status)
+  --prefix-cache-limit-bytes N Retained prefix KV/rotating companion budget
+                            (strictly positive; default: unset -> Mei decides)
+  --cache-limit-bytes N     Freed allocator buffer-pool limit in bytes
+                            (omitted -> backend default; explicit 0 disables
+                            the pool on Mei builds with the policy API)
+  --log-requests BOOL  Mei's own per-request stdout logging (prompt token
+                       counts, and on research builds the chosen adaptive
+                       stable boundary). Distinct from --request-log, which
+                       writes the machine-readable JSONL.
+  --seed N             Legacy server flag for research builds that accept it.
+                       Standard Mei uses HTTP request seeds instead; declare
+                       generation_profiles.<name>.seed in scored configs.
+  --request-log PATH   Append one JSON line per generation run (Mei 0.4.1+):
+                       prompt/cached/completion tokens, prefill_ms,
+                       generate_ms, wall_ms. Decompose it with
+                       runner/analyze_request_log.py.
+  --ssm-anchor-boundaries K Cross-conversation prefix reuse (Mei 0.4.0+;
+                            default off). K anchors at the first K role-turn
+                            boundaries.
+  --compiled-decode BOOL    Graph-traced compiled decode (default: none -> not
+                            passed; Mei default false)
+  --enable-flint-jangh BOOL Separately enable the JANGH2 packed adapter
+  --enable-flint BOOL       Explicit Flint gate (true or false; default: none
+                            -> not passed; Mei default false)
+  --load-mmap BOOL          Safetensors load-path override (default: none ->
+                            not passed; Mei decides). false materializes the
+                            weights into RAM instead of mmap'ing the shards —
+                            the Qwen3.6 OptiQ gate needed it (5/5 unaligned
+                            shards; the default mmap path realigned ~16.6 GiB
+                            of temporary copies and OOM'd the GPU allocator)
+  --mei-repo PATH           Mei checkout (default: ~/projects/mei)
+  --mei-binary PATH         Use this existing executable without building;
+                            scored configs must pin its release artifact hashes
+  --runtime-base PATH       Mei runtime root (default: ~/.local/share/local-model-bench/mei-runtime)
+  --build-dir PATH          SwiftPM scratch/build dir (default: .../mei-build-pinned-91fed8be)
+  --dry-run                 Validate and print, but do not launch
+EOF
+}
+
+MODEL_DIR=""
+SERVED_MODEL_ID=""
+PORT=""
+CONTEXT_CAP=""
+PREFILL_STEP_SIZE=""
+MAX_TOKENS=""
+TEMPERATURE="0.6"
+TOP_P="0.95"
+TOP_K="20"
+MIN_P=""
+EMIT_REASONING="true"
+ENABLE_THINKING=""
+CACHE_REUSE=""
+CACHE_MODE=""
+MLXPRESS_POLICY=""
+KV_BITS=""
+KV_CACHE_DIR=""
+MODEL_PROFILE=""
+MEMORY_LIMIT_BYTES=""
+CACHE_LIMIT_BYTES=""
+PREFIX_CACHE_LIMIT_BYTES=""
+COMPILED_DECODE=""
+ENABLE_FLINT=""
+ENABLE_FLINT_JANGH=""
+LOAD_MMAP=""
+SSM_ANCHOR_BOUNDARIES=""
+REQUEST_LOG=""
+LOG_REQUESTS=""
+SEED=""
+MEI_REPO="$MEI_REPO_DEFAULT"
+MEI_BINARY=""
+RUNTIME_BASE="$RUNTIME_BASE_DEFAULT"
+BUILD_DIR="$BUILD_DIR_DEFAULT"
+DRY_RUN=0
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --model-dir) MODEL_DIR="${2:?missing value}"; shift 2 ;;
+    --served-model-id) SERVED_MODEL_ID="${2:?missing value}"; shift 2 ;;
+    --port) PORT="${2:?missing value}"; shift 2 ;;
+    --context-cap) CONTEXT_CAP="${2:?missing value}"; shift 2 ;;
+    --prefill-step-size) PREFILL_STEP_SIZE="${2:?missing value}"; shift 2 ;;
+    --max-tokens) MAX_TOKENS="${2:?missing value}"; shift 2 ;;
+    --temperature) TEMPERATURE="${2:?missing value}"; shift 2 ;;
+    --top-p) TOP_P="${2:?missing value}"; shift 2 ;;
+    --top-k) TOP_K="${2:?missing value}"; shift 2 ;;
+    --min-p) MIN_P="${2:?missing value}"; shift 2 ;;
+    --emit-reasoning) EMIT_REASONING="${2:?missing value}"; shift 2 ;;
+    --enable-thinking) ENABLE_THINKING="${2:?missing value}"; shift 2 ;;
+    --cache-reuse) CACHE_REUSE="${2:?missing value}"; shift 2 ;;
+    --cache-mode)
+      case "${2-}" in
+        auto|off|memory|disk) CACHE_MODE="$2"; shift 2 ;;
+        *) echo "FATAL: --cache-mode expects auto, off, memory, or disk" >&2; exit 2 ;;
+      esac ;;
+    --mlxpress) MLXPRESS_POLICY="${2:?missing value}"; shift 2 ;;
+    --kv-bits) KV_BITS="${2:?missing value}"; shift 2 ;;
+    --kv-cache-dir) KV_CACHE_DIR="${2:?missing value}"; shift 2 ;;
+    --model-profile) MODEL_PROFILE="${2:?missing value}"; shift 2 ;;
+    --memory-limit-bytes) MEMORY_LIMIT_BYTES="${2:?missing value}"; shift 2 ;;
+    --cache-limit-bytes) CACHE_LIMIT_BYTES="${2:?missing value}"; shift 2 ;;
+    --prefix-cache-limit-bytes)
+      if [[ ! "${2-}" =~ ^[1-9][0-9]*$ ]]; then
+        echo "FATAL: --prefix-cache-limit-bytes must be a positive integer" >&2
+        exit 2
+      fi
+      PREFIX_CACHE_LIMIT_BYTES="$2"; shift 2 ;;
+    --compiled-decode) COMPILED_DECODE="${2:?missing value}"; shift 2 ;;
+    --enable-flint-jangh)
+      case "${2-}" in
+        true|false) ENABLE_FLINT_JANGH="$2"; shift 2 ;;
+        *) echo "FATAL: --enable-flint-jangh must be true or false" >&2; exit 2 ;;
+      esac ;;
+    --enable-flint)
+      case "${2-}" in
+        true|false) ENABLE_FLINT="$2"; shift 2 ;;
+        *) echo "FATAL: --enable-flint must be true or false" >&2; exit 2 ;;
+      esac ;;
+    --load-mmap) LOAD_MMAP="${2:?missing value}"; shift 2 ;;
+    --ssm-anchor-boundaries) SSM_ANCHOR_BOUNDARIES="${2:?missing value}"; shift 2 ;;
+    --request-log) REQUEST_LOG="${2:?missing value}"; shift 2 ;;
+    --log-requests) LOG_REQUESTS="${2:?missing value}"; shift 2 ;;
+    --seed) SEED="${2:?missing value}"; shift 2 ;;
+    --mei-repo) MEI_REPO="${2:?missing value}"; shift 2 ;;
+    --mei-binary) MEI_BINARY="${2:?missing value}"; shift 2 ;;
+    --runtime-base) RUNTIME_BASE="${2:?missing value}"; shift 2 ;;
+    --build-dir) BUILD_DIR="${2:?missing value}"; shift 2 ;;
+    --dry-run) DRY_RUN=1; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "FATAL: unknown option: $1" >&2; usage >&2; exit 2 ;;
+  esac
+done
+
+for field in MODEL_DIR SERVED_MODEL_ID PORT CONTEXT_CAP; do
+  if [[ -z "${!field}" ]]; then
+    echo "FATAL: a required launch argument is missing ($field)" >&2
+    usage >&2
+    exit 2
+  fi
+done
+[[ "$PORT" =~ ^[0-9]+$ ]] || { echo "FATAL: port must be numeric" >&2; exit 2; }
+[[ "$CONTEXT_CAP" =~ ^[0-9]+$ ]] || { echo "FATAL: context cap must be numeric" >&2; exit 2; }
+
+[[ -d "$MEI_REPO" ]] || { echo "FATAL: Mei checkout missing: $MEI_REPO" >&2; exit 1; }
+[[ -f "$MEI_REPO/Package.swift" ]] || { echo "FATAL: $MEI_REPO is not a Swift package" >&2; exit 1; }
+[[ -d "$MODEL_DIR" ]] || { echo "FATAL: model directory missing: $MODEL_DIR" >&2; exit 1; }
+[[ -f "$MODEL_DIR/config.json" ]] || { echo "FATAL: missing config.json: $MODEL_DIR/config.json" >&2; exit 1; }
+
+if (( ! DRY_RUN )) && /usr/sbin/lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
+  echo "FATAL: port $PORT is already listening; refuse to attach to a stale process" >&2
+  /usr/sbin/lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >&2 || true
+  exit 1
+fi
+
+BIN="$BUILD_DIR/release/mei"
+if [[ -n "$MEI_BINARY" ]]; then
+  [[ "$MEI_BINARY" = /* && -x "$MEI_BINARY" ]] || {
+    echo "FATAL: --mei-binary requires an absolute executable path" >&2; exit 2;
+  }
+  BIN="$MEI_BINARY"
+fi
+
+# Build the argument vector BEFORE building, so --dry-run can print the exact
+# launch line (with every gate control) without compiling the Swift package or
+# starting a server. Only explicitly-provided values are forwarded — no default
+# overrides a current config's behavior.
+ARGS=(--model-dir "$MODEL_DIR" --served-model-id "$SERVED_MODEL_ID"
+  --host 127.0.0.1 --port "$PORT"
+  --context-cap "$CONTEXT_CAP"
+  --temperature "$TEMPERATURE" --top-p "$TOP_P" --top-k "$TOP_K"
+  --emit-reasoning "$EMIT_REASONING")
+# Forwarded ONLY when the config asks for them. These two used to carry
+# hardcoded defaults (512 / 32768) that were always forwarded, which made them
+# explicit flags from Mei's point of view — and an explicit flag beats
+# --model-profile. A config naming a model would therefore have silently got
+# 512/32768 instead of the profile's measured numbers, defeating the flag on
+# precisely the settings it exists to carry. Every config in this repo passes
+# both in its launch block, so leaving them unset here changes nothing for any
+# of them; it only stops the runner from overriding a profile it knows nothing
+# about. Mei resolves its own defaults when neither is given.
+[[ -n "$CACHE_REUSE" ]] && ARGS+=(--cache-reuse "$CACHE_REUSE")
+[[ -n "$CACHE_MODE" ]] && ARGS+=(--cache-mode "$CACHE_MODE")
+[[ -n "$MLXPRESS_POLICY" ]] && ARGS+=(--mlxpress "$MLXPRESS_POLICY")
+[[ -n "$MAX_TOKENS" ]] && ARGS+=(--max-tokens "$MAX_TOKENS")
+[[ -n "$PREFILL_STEP_SIZE" ]] && ARGS+=(--prefill-step-size "$PREFILL_STEP_SIZE")
+[[ -n "$MIN_P" ]] && ARGS+=(--min-p "$MIN_P")
+[[ -n "$ENABLE_THINKING" ]] && ARGS+=(--enable-thinking "$ENABLE_THINKING")
+[[ -n "$KV_BITS" ]] && ARGS+=(--kv-bits "$KV_BITS")
+[[ -n "$KV_CACHE_DIR" ]] && ARGS+=(--kv-cache-dir "$KV_CACHE_DIR")
+[[ -n "$MODEL_PROFILE" ]] && ARGS+=(--model-profile "$MODEL_PROFILE")
+[[ -n "$MEMORY_LIMIT_BYTES" ]] && ARGS+=(--memory-limit-bytes "$MEMORY_LIMIT_BYTES")
+[[ -n "$CACHE_LIMIT_BYTES" ]] && ARGS+=(--cache-limit-bytes "$CACHE_LIMIT_BYTES")
+[[ -n "$PREFIX_CACHE_LIMIT_BYTES" ]] && ARGS+=(--prefix-cache-limit-bytes "$PREFIX_CACHE_LIMIT_BYTES")
+[[ -n "$COMPILED_DECODE" ]] && ARGS+=(--compiled-decode "$COMPILED_DECODE")
+# Flint remains Mei's default-off behavior unless the config opts in explicitly.
+[[ -n "$ENABLE_FLINT" ]] && ARGS+=(--enable-flint "$ENABLE_FLINT")
+[[ -n "$ENABLE_FLINT_JANGH" ]] && ARGS+=(--enable-flint-jangh "$ENABLE_FLINT_JANGH")
+# Safetensors load-path override (accepted by the Mei 0.5.0 binary though not
+# listed in its --help). Forwarded ONLY when the config asks for it. The OptiQ
+# Qwen3.6 bundle is 5/5-unaligned: the default mmap path realigned ~16.6 GiB
+# of temporary copies into RAM at load and exhausted the GPU allocator, so its
+# gate pinned false (with MLX_SAFETENSORS_MMAP=0 as the env-level backstop).
+[[ -n "$LOAD_MMAP" ]] && ARGS+=(--load-mmap "$LOAD_MMAP")
+# Cross-conversation prefix reuse (Mei 0.4.0+, default off in the server).
+# Stores SSM anchors at the first K chat role-turn boundaries so the shared
+# system+tools prefix restores across conversations instead of cold-prefilling.
+[[ -n "$SSM_ANCHOR_BOUNDARIES" ]] && ARGS+=(--ssm-anchor-boundaries "$SSM_ANCHOR_BOUNDARIES")
+[[ -n "$REQUEST_LOG" ]] && ARGS+=(--request-log "$REQUEST_LOG")
+[[ -n "$LOG_REQUESTS" ]] && ARGS+=(--log-requests "$LOG_REQUESTS")
+# Sampling seed (Mei research/request-seed onward). Without it the seed is
+# fixed, so a whole suite is ONE trajectory sample and a re-pin comparison
+# cannot separate "this build is worse" from "this build drew worse". Vary it
+# across runs to get a distribution.
+[[ -n "$SEED" ]] && ARGS+=(--seed "$SEED")
+
+printf 'mei isolated launch: '
+printf '%q ' "$BIN" "${ARGS[@]}"
+printf '\n'
+if (( DRY_RUN )); then
+  exit 0
+fi
+
+mkdir -p "$RUNTIME_BASE" "$RUNTIME_BASE/logs"
+LOG_DIR="$RUNTIME_BASE/logs"
+PID_FILE="$RUNTIME_BASE/server.pid"
+
+if [[ -z "$MEI_BINARY" ]]; then
+  mkdir -p "$BUILD_DIR"
+  echo "mei: building (release, scratch: $BUILD_DIR) ..."
+  "${MEI_SWIFT:-swift}" build -c release --scratch-path "$BUILD_DIR" --package-path "$MEI_REPO" \
+    > "$LOG_DIR/build.log" 2>&1 || {
+    echo "FATAL: swift build failed — see $LOG_DIR/build.log" >&2
+    exit 1
+  }
+  [[ -x "$BIN" ]] || { echo "FATAL: built binary missing at $BIN" >&2; exit 1; }
+  bash "$MEI_REPO/scripts/prepare_metallib.sh" "$BUILD_DIR/release" || { echo "FATAL: missing Metal kernel library" >&2; exit 1; }
+else
+  [[ -f "$(dirname "$BIN")/mlx.metallib" ]] || {
+    echo "FATAL: released Mei binary has no adjacent mlx.metallib" >&2; exit 1;
+  }
+  echo "mei: using existing executable $BIN (no build)"
+fi
+
+"$BIN" "${ARGS[@]}" >> "$LOG_DIR/server.log" 2>&1 &
+SERVER_PID=$!
+printf '%s\n' "$SERVER_PID" > "$PID_FILE"
+trap 'rm -f "$PID_FILE"' EXIT INT TERM
+wait "$SERVER_PID"
