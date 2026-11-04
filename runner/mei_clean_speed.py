@@ -29,6 +29,10 @@ AUDITED_REVISION_PAIRS = (
         "b5451a8e5cf58e0d9bb6da142df39a9a98bd51b4",
         "9db62ce10416db4a33ff0108dca6fc00bdadfff7",
     ),
+    (
+        "360542ef23058f60f1164070752b8d13f3f2b97f",
+        "9db62ce10416db4a33ff0108dca6fc00bdadfff7",
+    ),
 )
 AUDITED_LAUNCHER_SHA256 = (
     "cfc685b7f2203bd329dbc1f0b1e4e9130cc031b1c58ebc71b31476e8c18467b5"

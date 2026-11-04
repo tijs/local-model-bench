@@ -78,8 +78,10 @@ tracing cannot silently affect timing. That launch is pinned to the reviewed
 runtime and launcher revisions; a new revision needs a new audit. The recorded
 project and lock files do not independently attest installed Python packages.
 The clean environment is also audited for Mei `b5451a8` with vmlx `9db62ce`;
-the previous audited pair remains supported for historical receipts. This audit
-does not qualify the new binary or establish a released-runtime speed result.
+its release-preparation descendant `360542e` has identical runtime source and
+dependency pins, so that exact pair is also permitted. The previous audited pair
+remains supported for historical receipts. This audit does not qualify the new
+binary or establish a released-runtime speed result.
 Engine-native decode rates have different timing conventions and should be read
 with their engine and prompt lengths. The older v9.10 charts remain unchanged.
 

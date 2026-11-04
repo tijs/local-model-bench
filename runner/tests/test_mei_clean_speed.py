@@ -237,12 +237,17 @@ class CleanSpeedLaunchTests(unittest.TestCase):
             clean_environment(cfg)
 
     def test_only_audited_revision_pairs_are_accepted(self):
-        old, new = AUDITED_REVISION_PAIRS
-        for mei, vmlx in (old, new):
+        old, new, release_prep = AUDITED_REVISION_PAIRS
+        for mei, vmlx in (old, new, release_prep):
             cfg = copy.deepcopy(self.cfg)
             cfg["mei_source_commit"], cfg["vmlx_commit"] = mei, vmlx
             self.assertEqual(clean_environment(cfg)["PATH"], FIXED_PATH)
-        for mei, vmlx in ((old[0], new[1]), (new[0], old[1]), ([], new[1])):
+        for mei, vmlx in (
+            (old[0], new[1]),
+            (new[0], old[1]),
+            (release_prep[0], old[1]),
+            ([], new[1]),
+        ):
             cfg = copy.deepcopy(self.cfg)
             cfg["mei_source_commit"], cfg["vmlx_commit"] = mei, vmlx
             with self.assertRaisesRegex(ValueError, "requires an audit"):
