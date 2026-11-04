@@ -69,6 +69,12 @@ remain failures. Model/runtime hashes matched after every run.
 
 ## Metric definitions
 
+The score-summary exporter requires fresh chart and metric output paths; it
+refuses to overwrite existing files or symlinks. It can update the regular
+`results/AGENT_SUMMARY.md` current view, but refuses to overwrite other existing
+summary files. Choose a new summary path to preserve a historical report. These
+checks do not coordinate concurrent writers; publish one report at a time.
+
 For a future paired-context graph, `runner/build_context_speed_cohort.py` accepts
 an explicit cohort specification and validates both complete processes for each
 profile before exporting. It checks prompt and runtime identities, raw observations

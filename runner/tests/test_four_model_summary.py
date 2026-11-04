@@ -12,6 +12,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from build_four_model_summary import (
     COLORS,
+    FIGURE_NAMES,
     GIB,
     aggregate_points,
     export,
@@ -300,6 +301,9 @@ class ComparisonCoverageTests(unittest.TestCase):
         data = json.loads((output / "metrics.json").read_text())
         self.assertEqual(len(data["observations"]), 10)
         self.assertEqual(len(data["model_averages"]), 5)
+        for name in FIGURE_NAMES:
+            for extension in ("png", "svg"):
+                self.assertTrue((output / f"{name}.{extension}").is_file())
         self.assertIn("MiniCPM", (output / "quality-tracks.svg").read_text())
         text = (self.root / "results/SUMMARY.md").read_text()
         self.assertIn("10 complete runs", text)
@@ -331,6 +335,86 @@ class ComparisonCoverageTests(unittest.TestCase):
         self.assertEqual(
             len((output / "model-averages.csv").read_text().splitlines()), 5
         )
+
+    def test_export_refuses_existing_chart_or_metrics_before_changing_summary(self):
+        output = self.root / "results/charts"
+        output.mkdir()
+        summary = self.root / "results/SUMMARY.md"
+        summary.write_text("existing summary")
+        artifacts = ["metrics.json", "metrics.csv", "model-averages.csv"]
+        artifacts.extend(
+            f"{name}.{ext}" for name in FIGURE_NAMES for ext in ("png", "svg")
+        )
+        for name in artifacts:
+            with self.subTest(name=name):
+                existing = output / name
+                existing.write_bytes(b"existing evidence")
+                with (
+                    patch("build_four_model_summary.load_points") as load,
+                    self.assertRaises(FileExistsError),
+                ):
+                    export(self.root, self.spec, summary, output)
+                load.assert_not_called()
+                self.assertEqual(existing.read_bytes(), b"existing evidence")
+                self.assertEqual(summary.read_text(), "existing summary")
+                existing.unlink()
+
+    def test_export_updates_current_summary_with_fresh_artifacts(self):
+        output = self.root / "results/charts"
+        output.mkdir()
+        summary = self.root / "results/AGENT_SUMMARY.md"
+        summary.write_text("previous current view")
+        with (
+            patch("build_four_model_summary.render_campaign"),
+            patch("build_four_model_summary.figures", return_value=[]),
+        ):
+            export(self.root, self.spec, summary, output)
+        self.assertIn("fresh fixture repeats", summary.read_text())
+        self.assertTrue((output / "metrics.json").exists())
+
+    def test_export_refuses_existing_non_current_summary(self):
+        summary = self.root / "results/historical.md"
+        summary.write_text("historical evidence")
+        output = self.root / "results/charts"
+        with self.assertRaisesRegex(FileExistsError, "non-current summary"):
+            export(self.root, self.spec, summary, output)
+        self.assertEqual(summary.read_text(), "historical evidence")
+        self.assertFalse(output.exists())
+
+    def test_dangling_chart_symlink_is_not_overwritten(self):
+        output = self.root / "results/charts"
+        output.mkdir()
+        summary = self.root / "results/SUMMARY.md"
+        summary.write_text("existing summary")
+        link = output / "quality-time.png"
+        link.symlink_to(output / "missing.png")
+        with self.assertRaises(FileExistsError):
+            export(self.root, self.spec, summary, output)
+        self.assertTrue(link.is_symlink())
+        self.assertEqual(summary.read_text(), "existing summary")
+
+    def test_unlinkable_output_is_rejected_before_writes(self):
+        summary = self.root / "results/AGENT_SUMMARY.md"
+        summary.write_text("existing summary")
+        output = self.root / "elsewhere/charts"
+        with self.assertRaises(ValueError):
+            export(self.root, self.spec, summary, output)
+        self.assertFalse(output.exists())
+        self.assertEqual(summary.read_text(), "existing summary")
+
+    def test_current_summary_symlink_is_not_followed(self):
+        summary = self.root / "results/AGENT_SUMMARY.md"
+        target = self.root / "results/other.md"
+        target.write_text("other evidence")
+        summary.symlink_to(target)
+        with self.assertRaises(FileExistsError):
+            export(self.root, self.spec, summary, self.root / "results/charts")
+        self.assertEqual(target.read_text(), "other evidence")
+
+    def test_export_refuses_summary_pointing_at_new_metric(self):
+        output = self.root / "results/charts"
+        with self.assertRaisesRegex(ValueError, "summary must not"):
+            export(self.root, self.spec, output / "metrics.json", output)
 
     def test_default_chart_directory_follows_selected_release_and_rejects_escape(self):
         spec = self.root / "selected.json"

@@ -32,7 +32,7 @@ fresh v9.10 runs, quality-versus-time/memory graphs with one averaged point per 
 - [Candidate campaign](CANDIDATE_CAMPAIGN.md): Groot, ThinkingCap, Logics-SWE,
   Clover and reference retests, with evidence links and open qualification work.
 - [Release history](releases/): method and tooling changes. Current release:
-  [benchmark-v9.11.4](https://github.com/tijs/local-model-bench/releases/tag/benchmark-v9.11.4);
+  [benchmark-v9.11.5](https://github.com/tijs/local-model-bench/releases/tag/benchmark-v9.11.5);
   the current scored comparison remains on the frozen v9.10 method.
 
 ## Running and understanding the benchmark

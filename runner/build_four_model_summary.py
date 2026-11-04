@@ -7,6 +7,7 @@ import csv
 import hashlib
 import json
 import math
+import os
 import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -30,6 +31,12 @@ COLORS = {
 }
 MARKERS = {"mei": "o", "llama.cpp": "D"}
 ENGINES = {"mei": "Mei (Swift/MLX)", "llama.cpp": "llama.cpp (GGUF)"}
+FIGURE_NAMES = (
+    "quality-time",
+    "quality-task-duration",
+    "quality-memory",
+    "quality-tracks",
+)
 
 
 @dataclass(frozen=True)
@@ -438,6 +445,28 @@ def figures(
 
 
 def export(root: Path, spec: dict[str, Any], summary: Path, output: Path) -> None:
+    # The summary is the deliberately updated current view. Chart and metric
+    # files are historical evidence and must use a fresh output directory/stem.
+    artifacts = [
+        output / name for name in ("metrics.json", "metrics.csv", "model-averages.csv")
+    ]
+    artifacts.extend(
+        output / f"{name}.{ext}" for name in FIGURE_NAMES for ext in ("png", "svg")
+    )
+    if any(os.path.lexists(path) for path in artifacts):
+        raise FileExistsError(
+            "refuse to overwrite existing comparison chart or metric evidence"
+        )
+    if any(summary.resolve() == path.resolve() for path in artifacts):
+        raise ValueError("summary must not be a chart or metric evidence path")
+    if os.path.lexists(summary) and (
+        summary != root / "results/AGENT_SUMMARY.md" or summary.is_symlink()
+    ):
+        raise FileExistsError(
+            "refuse to overwrite an existing non-current summary or symlink"
+        )
+    # Validate link construction before creating any output artifacts.
+    relative = output.relative_to(summary.parent)
     points = load_points(root, spec)
     labels = list(spec["models"].values())
     averages = aggregate_points(points, labels)
@@ -481,7 +510,6 @@ def export(root: Path, spec: dict[str, Any], summary: Path, output: Path) -> Non
         writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
         writer.writeheader()
         writer.writerows(rows)
-    relative = output.relative_to(summary.parent)
     lines = [
         "# Four-model local agent comparison"
         if len(labels) == 4
@@ -636,7 +664,7 @@ def main() -> None:
     export(
         REPO,
         spec,
-        args.summary.resolve(),
+        args.summary.absolute(),
         output.resolve(),
     )
 

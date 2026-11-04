@@ -6,7 +6,7 @@ agent task quality, full-run time, memory and tool reliability with **Mei
 it is still a design, so the current tests use synthetic household workflows
 and real, contained Python automation.
 
-Current tooling release: [**benchmark-v9.11.4**](https://github.com/tijs/local-model-bench/releases/tag/benchmark-v9.11.4).
+Current tooling release: [**benchmark-v9.11.5**](https://github.com/tijs/local-model-bench/releases/tag/benchmark-v9.11.5).
 The scored comparison below still uses frozen **benchmark-v9.10**: all eight
 measurements predate the latest tooling release. Later releases prepare audited
 reporting and context-speed measurements; they do not supply a new scored cohort.
