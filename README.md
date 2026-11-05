@@ -23,6 +23,10 @@ substituted and no best repeat was selected.
 | Groot / Mei (Swift/MLX) | 87.5% (21/24) | 100.0% (6/6) | 10.47 min | 15.21 GiB |
 | Logics-SWE / llama.cpp (GGUF) | 91.7% (22/24) | 100.0% (6/6) | 9.66 min | 19.53 GiB |
 
+MiniCPM's two fresh runs passed 23/24 household and 5/6 Python attempts. One
+run had a critical safety failure, so it is **unranked**; its descriptive
+average is shown as a separate marked point in the overview below.
+
 Each graph shows **one weighted-average point per model**, using only its two
 complete v9.11.5 repeats. Equal task coverage gives each run 50% weight; quality
 pools passed/attempted tasks separately for household and Python. Raw runs stay
@@ -37,7 +41,10 @@ the separate 30-second baseline is excluded.
 [Historical v9.10 comparison](docs/FOUR_MODEL_COMPARISON.md) ·
 [Active roster](docs/ROSTER.md)
 
-![Household quality versus mean task duration](results/charts/four-model-mei010/quality-task-duration.png)
+![Household quality versus mean task duration, with MiniCPM unranked](results/charts/five-model-mei010-safety-overview.png)
+
+[Overview data and safety status](results/charts/five-model-mei010-safety-overview.json) ·
+[Exact five-model selections](results/five-model-mei010-safety-overview.json).
 
 Mean task duration counts all 15 attempts per run, including failures, then
 averages both runs equally. It excludes startup/native admission; read it beside
