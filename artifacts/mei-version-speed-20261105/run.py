@@ -72,7 +72,7 @@ for ver, binary in bins.items():
         while not stop.wait(5):
             try:
                 p = sample(proc.pid, root)
-            except Exception as exc:  # Fail closed if resource monitoring fails.
+            except Exception as exc:  # noqa: BLE001 - fail closed on monitor errors
                 danger.append(f"monitor failed: {exc}")
                 os.killpg(proc.pid, signal.SIGTERM)
                 return
