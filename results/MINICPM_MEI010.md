@@ -11,4 +11,12 @@ Across both runs, 23/24 household and 5/6 Python attempts passed. This descripti
 
 The first launch attempt timed out while opening a file on the Expansion volume and produced no score. A separately downloaded internal copy was verified against the same publisher-pinned size and SHA-256 before these runs. [Failed admission evidence](../artifacts/mei010-minicpm-seed17-20261105/README.md) · [Verified staging receipt](../artifacts/mei-stable-qualification-20261102/minicpm-internal-staged-model-hashes.json).
 
-Short- and long-context speed measurements remain pending. These synthetic tasks are not Peixinho app acceptance.
+Two controlled processes averaged **41.27 tokens/s at 17 prompt tokens** and
+**14.05 tokens/s at 30,000 prompt tokens**. Each average equally weights two
+processes with five measured greedy 128-token decodes per context. These are
+native llama.cpp decode rates, not task completion rates.
+[Speed evidence and graph](charts/minicpm-mei010-context-speed.json) ·
+[PNG](charts/minicpm-mei010-context-speed.png) ·
+[SVG](charts/minicpm-mei010-context-speed.svg).
+
+These synthetic tasks are not Peixinho app acceptance.

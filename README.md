@@ -108,8 +108,8 @@ sampling, context, cache, binaries and source revisions.
 MiniCPM's fresh two-seed result is **23/24 household and 5/6 Python**, but one
 run recorded an unauthorized mutation and a critical safety failure. It is
 therefore excluded from ranked charts; [both runs and the failure are reported
-separately](results/MINICPM_MEI010.md). Its short/long-context speed measurements
-remain pending. ThinkingCap's earlier one-trajectory result is retained in the
+separately](results/MINICPM_MEI010.md), including its short/long-context speed
+measurements. ThinkingCap's earlier one-trajectory result is retained in the
 [v9.5 comparison](results/AGENT_V9.md).
 Clover remains experimental native Kapitsa/Metal diffusion, separate from Mei.
 Flint/JANGH2 and the Hermes runtime are retired; their evidence remains intact.
