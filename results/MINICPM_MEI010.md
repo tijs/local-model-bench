@@ -17,6 +17,7 @@ processes with five measured greedy 128-token decodes per context. These are
 native llama.cpp decode rates, not task completion rates.
 [Speed evidence and graph](charts/minicpm-mei010-context-speed.json) ·
 [PNG](charts/minicpm-mei010-context-speed.png) ·
-[SVG](charts/minicpm-mei010-context-speed.svg).
+[SVG](charts/minicpm-mei010-context-speed.svg) ·
+[Task/speed profile verification](minicpm-task-speed-identity.json).
 
 These synthetic tasks are not Peixinho app acceptance.
