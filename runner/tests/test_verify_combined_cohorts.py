@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from verify_combined_cohorts import (
     compare,
     declared_profile,
+    matching_speed_profile,
     model_files,
     verify_task_runtime,
 )
@@ -147,6 +148,25 @@ class CombinedProfileTests(unittest.TestCase):
         self.speed_patch.start()
         self.addCleanup(self.score_patch.stop)
         self.addCleanup(self.speed_patch.stop)
+
+    def test_source_equivalence_requires_identical_build_inputs_and_binary(self):
+        task = copy.deepcopy(self.config)
+        task["mei_source_commit"] = "a" * 40
+        speed = copy.deepcopy(task)
+        speed["mei_source_commit"] = "b" * 40
+        left, right = declared_profile(task), declared_profile(speed)
+        with patch("verify_combined_cohorts.subprocess.run") as run:
+            run.return_value.returncode = 0
+            run.return_value.stdout = "same-git-object\n"
+            self.assertTrue(matching_speed_profile(left, right, task))
+            self.assertEqual(run.call_count, 6)
+            run.side_effect = [
+                type("R", (), {"returncode": 0, "stdout": x})()
+                for x in ("one", "different")
+            ]
+            self.assertFalse(matching_speed_profile(left, right, task))
+        speed["mei_release_artifact"]["binary_sha256"] = "3" * 64
+        self.assertFalse(matching_speed_profile(left, declared_profile(speed), task))
 
     def test_matching_profiles_ignore_only_owned_paths(self):
         self.assertEqual(compare(self.root, self.score, self.speed)["status"], "passed")

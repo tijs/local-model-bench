@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -118,6 +119,42 @@ def model_files(record: dict[str, Any], *, directory: str | None = None) -> tupl
     return tuple(sorted(rows))
 
 
+def matching_speed_profile(expected: tuple, candidate: tuple, task_cfg: dict) -> bool:
+    """Allow different Mei source commits only when build inputs are identical.
+
+    The binary, Metal library, dependency pin, flags and environment must still
+    match exactly. Resolve the runtime source tree and package files directly
+    from both commits, rather than relying on a claim in either configuration.
+    """
+    if candidate == expected:
+        return True
+    if expected[:6] != candidate[:6] or expected[2] != "mei":
+        return False
+    left, right = expected[6], candidate[6]
+    if left[:2] != right[:2] or left[3] != right[3]:
+        return False
+    commits = (left[2], right[2])
+    if any(not re.fullmatch(r"[0-9a-f]{40}", c) for c in commits):
+        return False
+    command = split_launch_command(task_cfg["benchmark_launch_command"])
+    repo = command[command.index("--mei-repo") + 1]
+    for path in ("Sources", "Package.swift", "Package.resolved"):
+        ids = []
+        for commit in commits:
+            result = subprocess.run(
+                ["git", "-C", repo, "rev-parse", "--verify", f"{commit}:{path}"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if result.returncode:
+                return False
+            ids.append(result.stdout.strip())
+        if ids[0] != ids[1]:
+            return False
+    return True
+
+
 def verify_task_runtime(cfg: dict[str, Any], manifest: dict[str, Any]) -> None:
     """Bind observed task runtime fields to the config being compared."""
     actual = manifest["runtime_identity"]
@@ -193,11 +230,12 @@ def compare(root: Path, score_spec: dict, speed_spec: dict) -> dict:
                 raise ValueError(
                     f"{label}: score seeds have different profiles or model files"
                 )
+        task_cfg = cfg
         for process in item["processes"]:
             cfg = yaml.safe_load(
                 contained(root, process["config"], "configs").read_text()
             )
-            if declared_profile(cfg) != expected:
+            if not matching_speed_profile(expected, declared_profile(cfg), task_cfg):
                 raise ValueError(f"{label}: speed and task declared profiles differ")
             if cfg["inference_engine"] == "mei":
                 saved = json.loads(

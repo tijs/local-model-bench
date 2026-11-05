@@ -33,7 +33,7 @@ baseline**: partial, system-wide accounting, not exact model RAM. Background
 activity can affect it. Time includes startup, admission and both task tracks;
 the separate 30-second baseline is excluded.
 
-[Full summary, exact observations and audit links](results/FOUR_MODEL_MEI010_CURRENT.md) ·
+[Full summary, exact observations and audit links](results/FOUR_MODEL_MEI010_FINAL.md) ·
 [Historical v9.10 comparison](docs/FOUR_MODEL_COMPARISON.md) ·
 [Active roster](docs/ROSTER.md)
 
@@ -41,9 +41,13 @@ the separate 30-second baseline is excluded.
 
 Mean task duration counts all 15 attempts per run, including failures, then
 averages both runs equally. It excludes startup/native admission; read it beside
-success rates. Short/long decode
-TPS will be shown as connected endpoints once the new runtime's complete,
-controlled measurements cover all four profiles.
+success rates. Controlled short/long decode rates are shown separately:
+
+![Decode speeds at short and long context](results/charts/five-model-mei010-context-speed.png)
+
+[Speed method, exact observations and limitations](results/CONTEXT_SPEED_MEI010.md).
+MiniCPM appears in the speed chart but its critical safety failure excludes it
+from the ranked quality chart.
 
 ![Household quality versus full-run time](results/charts/four-model-mei010/quality-time.png)
 
