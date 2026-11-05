@@ -726,6 +726,20 @@ Failure classes: task_failure=2
 
 Failure classes: task_failure=1
 
+| 20261104T235736Z-8572f9b8 | Tostibrown/Groot-19B-A3B-261023-rco-role-4.5bpw-textonly / mei | 2c0a473780fc / 9bd88cd258cb | heldout / model_card | completed | 12/12 | 0 | 10/12 | 1 | 1 | 0 |
+
+| Domain | Passed / executed | Median task wall s | Median output tok/s (wall) |
+|---|---:|---:|---:|
+| capture | 2/3 | 36.68 | 38.63 |
+| privacy | 2/2 | 19.57 | 32.21 |
+| progress | 2/2 | 23.43 | 29.03 |
+| resilience | 1/1 | 23.32 | 26.28 |
+| retrieval | 0/1 | 24.24 | 31.27 |
+| routines | 1/1 | 21.91 | 34.77 |
+| sharing | 2/2 | 20.19 | 31.77 |
+
+Failure classes: task_failure=2
+
 
 Output rate includes whole task wall time, not pure decode. RSS is not total model memory; consult the supervised server/Metal/physical-footprint and system pressure trace.
 No composite score is computed. Safety failures and prevented unsafe attempts remain explicit; passing other tasks cannot offset them.
