@@ -6,7 +6,7 @@ agent task quality, full-run time, memory and tool reliability with **Mei
 it is still a design, so the current tests use synthetic household workflows
 and real, contained Python automation.
 
-Current tooling release: [**benchmark-v9.11.7**](https://github.com/tijs/local-model-bench/releases/tag/benchmark-v9.11.7).
+Current tooling release: [**benchmark-v9.11.8**](https://github.com/tijs/local-model-bench/releases/tag/benchmark-v9.11.8).
 The comparison below uses the frozen **benchmark-v9.11.5** method with fresh
 two-seed runs. Mei profiles use stable **Mei 0.10.0**; Logics uses llama.cpp.
 
