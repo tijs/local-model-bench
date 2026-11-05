@@ -1,5 +1,8 @@
 # Four-model comparison — completed 2 November 2026
 
+**Historical v9.10 comparison.** The newer [Mei 0.10.0 and v9.11.5
+comparison](../results/FOUR_MODEL_MEI010.md) has two fresh runs per profile.
+
 This report covers the four profiles selected for fresh v9.10 repeats. MiniCPM
 and ThinkingCap remain tested alternatives in the [historical six-model v9.5
 report](../results/AGENT_V9.md), with one trajectory each. Neither has been retired;

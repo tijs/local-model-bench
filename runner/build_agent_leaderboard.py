@@ -138,7 +138,17 @@ def track_result(
     manifest = json.loads((directory / "manifest.json").read_text())
     config_bytes = (directory / "config.yaml").read_bytes()
     config_path = relative_path(selection["config"])
-    released_config = reader(campaign["release_commit"], config_path.as_posix())
+    source = campaign.get("config_source", "release")
+    if source not in ("release", "run_commit"):
+        raise ValueError("unknown config provenance policy")
+    revision = (
+        campaign["release_commit"]
+        if source == "release"
+        else manifest.get("runner_git_sha", "")
+    )
+    if not re.fullmatch("[0-9a-f]{12,40}", revision):
+        raise ValueError("config source must be a clean committed revision")
+    released_config = reader(revision, config_path.as_posix())
     config = yaml.safe_load(released_config)
     if config.get("resource_probe", False) or config.get("diagnostic_only", False):
         raise ValueError(
@@ -313,7 +323,17 @@ def resources(
         or any(track.get("supervision_id") != identifier for track in tracks)
     ):
         raise ValueError("resource supervision identity does not match selected runs")
-    content = reader(campaign["release_commit"], selection["config"])
+    source = campaign.get("config_source", "release")
+    if source not in ("release", "run_commit"):
+        raise ValueError("unknown config provenance policy")
+    revision = (
+        campaign["release_commit"]
+        if source == "release"
+        else invocation.get("supervisor_git_sha", "")
+    )
+    if not re.fullmatch("[0-9a-f]{12,40}", revision):
+        raise ValueError("config source must be a clean committed revision")
+    content = reader(revision, selection["config"])
     if (
         (directory / "config.yaml").read_bytes() != content
         or invocation.get("config_sha256") != hashlib.sha256(content).hexdigest()

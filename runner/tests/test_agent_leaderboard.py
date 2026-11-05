@@ -25,11 +25,15 @@ class CapacityPolicyTests(unittest.TestCase):
     def test_additive_verifier_coverage_comes_from_frozen_release_source(self):
         for track in TRACKS:
             old = released_version_names(track, lambda *_: b"old entrypoint", "old")
-            new = released_version_names(track, lambda *_: b'"kapitsa_provenance.py"', "new")
+            new = released_version_names(
+                track, lambda *_: b'"kapitsa_provenance.py"', "new"
+            )
             self.assertEqual(old, TRACKS[track][3])
             self.assertEqual(new, old | {"kapitsa_provenance.py"})
             with self.assertRaisesRegex(ValueError, "without fingerprinting"):
-                released_version_names(track, lambda *_: b"from kapitsa_provenance import verify", "bad")
+                released_version_names(
+                    track, lambda *_: b"from kapitsa_provenance import verify", "bad"
+                )
 
     def test_capacity_replays_runtime_policy_instead_of_requiring_every_sample_normal(
         self,
@@ -279,10 +283,39 @@ class AgentLeaderboardTests(unittest.TestCase):
         self.assertIn("3/3", text)
         self.assertIn("| 1 | fixture-model", text)
 
+    def test_run_commit_config_is_pinned_to_both_recorded_sources(self):
+        self.campaign["config_source"] = "run_commit"
+
+        def reader(commit, path):
+            if path == self.cfg_path and commit == self.commit:
+                raise AssertionError("config is not in the method release")
+            return self.reader(commit, path)
+
+        self.assertIn("12/12", render_campaign(self.root, self.campaign, reader))
+        monitor = self.root / "artifacts/supervision/invocation.json"
+        invocation = json.loads(monitor.read_text())
+        invocation["supervisor_git_sha"] = "dirty"
+        monitor.write_text(json.dumps(invocation))
+        with self.assertRaisesRegex(ValueError, "clean committed revision"):
+            render_campaign(self.root, self.campaign, reader)
+
+    def test_run_commit_config_must_match_recorded_snapshot(self):
+        self.campaign["config_source"] = "run_commit"
+
+        def reader(commit, path):
+            if path == self.cfg_path:
+                return self.cfg + b"changed: true\n"
+            return self.reader(commit, path)
+
+        with self.assertRaisesRegex(ValueError, "config bytes"):
+            render_campaign(self.root, self.campaign, reader)
+
     def test_method_note_is_visible_before_score_table(self):
         self.campaign["method_notes"] = ["Known grader defect; fresh trial required."]
         report = self.report()
-        self.assertIn("**Method note:** Known grader defect; fresh trial required.", report)
+        self.assertIn(
+            "**Method note:** Known grader defect; fresh trial required.", report
+        )
         self.assertLess(report.index("**Method note:**"), report.index("| Order |"))
 
     def test_method_notes_reject_malformed_values(self):

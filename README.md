@@ -7,9 +7,8 @@ it is still a design, so the current tests use synthetic household workflows
 and real, contained Python automation.
 
 Current tooling release: [**benchmark-v9.11.5**](https://github.com/tijs/local-model-bench/releases/tag/benchmark-v9.11.5).
-The scored comparison below still uses frozen **benchmark-v9.10**: all eight
-measurements predate the latest tooling release. Later releases prepare audited
-reporting and context-speed measurements; they do not supply a new scored cohort.
+The comparison below uses the frozen **benchmark-v9.11.5** method with fresh
+two-seed runs. Mei profiles use stable **Mei 0.10.0**; Logics uses llama.cpp.
 
 ## Four retained contenders
 
@@ -19,13 +18,13 @@ substituted and no best repeat was selected.
 
 | Profile / engine | Household success | Python success | Mean full-run time | Mean peak wired increase |
 |---|---:|---:|---:|---:|
-| Base Qwen3.6 / Mei (Swift/MLX) | 83.3% (20/24) | 66.7% (4/6) | 9.05 min | 20.00 GiB |
-| Ornith1.5 / Mei (Swift/MLX) | 83.3% (20/24) | 66.7% (4/6) | 10.23 min | 20.03 GiB |
-| Groot / Mei (Swift/MLX) | 87.5% (21/24) | 100.0% (6/6) | 10.32 min | 15.06 GiB |
-| Logics-SWE / llama.cpp (GGUF) | 91.7% (22/24) | 100.0% (6/6) | 9.76 min | 19.54 GiB |
+| Base Qwen3.6 / Mei (Swift/MLX) | 83.3% (20/24) | 66.7% (4/6) | 10.55 min | 20.42 GiB |
+| Ornith1.5 / Mei (Swift/MLX) | 83.3% (20/24) | 33.3% (2/6) | 13.14 min | 20.29 GiB |
+| Groot / Mei (Swift/MLX) | 87.5% (21/24) | 100.0% (6/6) | 10.47 min | 15.21 GiB |
+| Logics-SWE / llama.cpp (GGUF) | 91.7% (22/24) | 100.0% (6/6) | 9.66 min | 19.53 GiB |
 
 Each graph shows **one weighted-average point per model**, using only its two
-complete v9.10 repeats. Equal task coverage gives each run 50% weight; quality
+complete v9.11.5 repeats. Equal task coverage gives each run 50% weight; quality
 pools passed/attempted tasks separately for household and Python. Raw runs stay
 in the linked summary. Time and memory are averaged across the two runs.
 
@@ -34,26 +33,27 @@ baseline**: partial, system-wide accounting, not exact model RAM. Background
 activity can affect it. Time includes startup, admission and both task tracks;
 the separate 30-second baseline is excluded.
 
-[Full summary, exact observations and audit links](results/AGENT_SUMMARY.md) ·
-[Interpretation and method](docs/FOUR_MODEL_COMPARISON.md) ·
+[Full summary, exact observations and audit links](results/FOUR_MODEL_MEI010.md) ·
+[Historical v9.10 comparison](docs/FOUR_MODEL_COMPARISON.md) ·
 [Active roster](docs/ROSTER.md)
 
-![Household quality versus mean task duration](results/charts/four-model-v9.10-duration/quality-task-duration.png)
+![Household quality versus mean task duration](results/charts/four-model-mei010/quality-task-duration.png)
 
 Mean task duration counts all 15 attempts per run, including failures, then
 averages both runs equally. It excludes startup/native admission; read it beside
-success rates. The current scored cohort still uses Mei rc.2. Short/long decode
+success rates. Short/long decode
 TPS will be shown as connected endpoints once the new runtime's complete,
 controlled measurements cover all four profiles.
 
-![Household quality versus full-run time](results/charts/four-model-v9.10/quality-time.png)
+![Household quality versus full-run time](results/charts/four-model-mei010/quality-time.png)
 
-![Household quality versus wired-memory increase](results/charts/four-model-v9.10/quality-memory.png)
+![Household quality versus wired-memory increase](results/charts/four-model-mei010/quality-memory.png)
 
 Logics-SWE reached 11/12 household and 3/3 Python on both trajectories. Groot
 used the least observed wired-memory increase and the smallest weight files,
-with 10–11/12 household and 3/3 Python. Qwen and Ornith each reached 9–11/12
-household; their Python results were 2/3 both runs and 3/3 then 1/3 respectively.
+with 10–11/12 household and 3/3 Python. Qwen reached 9/12 and 11/12 household,
+with 2/3 Python on both runs. Ornith reached 10/12 household on both runs and
+0/3 then 2/3 Python.
 **All four remain contenders.** Two runs do not establish statistical superiority.
 Samplers, quantization, model sizes and engines differ; these compare complete
 serving profiles, rather than isolating model weights.
