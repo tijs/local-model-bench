@@ -523,7 +523,10 @@ def export(root: Path, spec: dict[str, Any], summary: Path, output: Path) -> Non
         + "These compare serving profiles, not pure model weights or Peixinho application acceptance.",
         "",
         (
-            "MiniCPM remains a tested alternative: its historical v9.5 profile passed 11/12 household and 3/3 Python in 9m38s, in one trajectory. ThinkingCap's latest completed evidence is also in the [six-model v9.5 report](AGENT_V9.md). Neither has fresh repeats on this comparison's frozen release, so neither is plotted here. MiniCPM is queued for fresh repeats and paired context-speed measurements after Mei stable, then inclusion in the current averages and graphs. [Roster and historical results](../docs/ROSTER.md)."
+            spec.get(
+                "alternative_note",
+                "MiniCPM remains a tested alternative: its historical v9.5 profile passed 11/12 household and 3/3 Python in 9m38s, in one trajectory. ThinkingCap's latest completed evidence is also in the [six-model v9.5 report](AGENT_V9.md). Neither has fresh repeats on this comparison's frozen release, so neither is plotted here. MiniCPM is queued for fresh repeats and paired context-speed measurements after Mei stable, then inclusion in the current averages and graphs. [Roster and historical results](../docs/ROSTER.md).",
+            )
             if not any(
                 "minicpm" in value.lower()
                 for item in spec["models"].items()

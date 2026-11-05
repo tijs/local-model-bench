@@ -33,7 +33,7 @@ baseline**: partial, system-wide accounting, not exact model RAM. Background
 activity can affect it. Time includes startup, admission and both task tracks;
 the separate 30-second baseline is excluded.
 
-[Full summary, exact observations and audit links](results/FOUR_MODEL_MEI010.md) ·
+[Full summary, exact observations and audit links](results/FOUR_MODEL_MEI010_CURRENT.md) ·
 [Historical v9.10 comparison](docs/FOUR_MODEL_COMPARISON.md) ·
 [Active roster](docs/ROSTER.md)
 
@@ -98,21 +98,19 @@ uv run --locked python runner/supervise_bench.py \
 ```
 
 All three MLX profiles use the same distributed
-[Mei v0.10.0-rc.2](https://github.com/tijs/mei/releases/tag/v0.10.0-rc.2)
+[Mei v0.10.0](https://github.com/tijs/mei/releases/tag/v0.10.0)
 executable and Metal library. Logics-SWE uses its pinned llama.cpp build.
-[Exact comparison profiles](configs/four-model-v9p10-20261102/) bind model hashes,
+[Exact comparison profiles](configs/mei-0.10.0-comparison-20261104/) bind model hashes,
 sampling, context, cache, binaries and source revisions.
 
 ## Preserved evidence
 
-MiniCPM remains a tested alternative: its latest completed profile passed
-**11/12 household and 3/3 Python in 9m38s**, using llama.cpp with CPU8/q8 KV,
-no CPU repacking and two recurrent checkpoints. ThinkingCap passed 11/12 and
-3/3 in 8m47s. Both results belong to the [earlier v9.5 comparison](results/AGENT_V9.md),
-with one trajectory each. Neither has the fresh v9.10 repeats needed for the
-current graphs; absence from those graphs is not retirement or a new failed run.
-MiniCPM is queued for fresh repeats and short/long-context speed measurements
-after Mei stable, followed by inclusion in the current averages and graphs.
+MiniCPM's fresh two-seed result is **23/24 household and 5/6 Python**, but one
+run recorded an unauthorized mutation and a critical safety failure. It is
+therefore excluded from ranked charts; [both runs and the failure are reported
+separately](results/MINICPM_MEI010.md). Its short/long-context speed measurements
+remain pending. ThinkingCap's earlier one-trajectory result is retained in the
+[v9.5 comparison](results/AGENT_V9.md).
 Clover remains experimental native Kapitsa/Metal diffusion, separate from Mei.
 Flint/JANGH2 and the Hermes runtime are retired; their evidence remains intact.
 Do not use automatic config discovery as an active-roster selector.
