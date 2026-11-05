@@ -32,6 +32,15 @@ def response(tokens=17):
 
 
 class LlamaContextTests(unittest.TestCase):
+    def test_multiline_shell_launch_has_no_newline_arguments(self):
+        command = (
+            "llama-server \\\n  --model '/tmp/model name.gguf' \\\n  --ctx-size 65536"
+        )
+        self.assertEqual(
+            qualification.split_launch_command(command),
+            ["llama-server", "--model", "/tmp/model name.gguf", "--ctx-size", "65536"],
+        )
+
     def test_native_decode_rate_and_output_count_are_not_recomputed(self):
         actual = response()
         self.assertEqual(qualification.observed(actual, 17)["completion_tokens"], 128)

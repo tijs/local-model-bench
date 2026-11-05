@@ -11,7 +11,6 @@ from __future__ import annotations
 import argparse
 import json
 import re
-import shlex
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +18,7 @@ import yaml
 from bench_common import REPO
 from build_context_speed_cohort import contained, load_cohort
 from build_four_model_summary import load_points
+from run_mei_acceptance import split_launch_command
 
 OWNED_FLAGS = {
     "--mei-binary",
@@ -38,7 +38,7 @@ def declared_profile(cfg: dict[str, Any]) -> tuple[Any, ...]:
     engine = cfg["inference_engine"]
     if engine not in {"mei", "llama.cpp"}:
         raise ValueError("unsupported engine")
-    command = shlex.split(cfg["benchmark_launch_command"])
+    command = split_launch_command(cfg["benchmark_launch_command"])
     if engine == "llama.cpp":
         if not command:
             raise ValueError("empty llama.cpp command")
@@ -180,10 +180,10 @@ def compare(root: Path, score_spec: dict, speed_spec: dict) -> dict:
                 )
             saved = json.loads((directory / "post-run-model-hashes.json").read_text())
             if cfg["inference_engine"] == "mei":
-                command = shlex.split(cfg["benchmark_launch_command"])
+                command = split_launch_command(cfg["benchmark_launch_command"])
                 model_dir = command[command.index("--model-dir") + 1]
             else:
-                command = shlex.split(cfg["benchmark_launch_command"])
+                command = split_launch_command(cfg["benchmark_launch_command"])
                 model_dir = str(Path(command[command.index("--model") + 1]).parent)
             files = model_files(saved, directory=model_dir)
             profile = declared_profile(cfg)

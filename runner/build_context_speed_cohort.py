@@ -12,7 +12,6 @@ import hashlib
 import importlib
 import json
 import re
-import shlex
 import subprocess
 import sys
 import textwrap
@@ -252,11 +251,7 @@ def load_cohort(
                 or cfg.get("source_revision") != spec["model_revision"]
             ):
                 raise ValueError("model, engine or revision differs from declaration")
-            command = (
-                split_launch_command(cfg["benchmark_launch_command"])
-                if engine == "mei"
-                else shlex.split(cfg["benchmark_launch_command"])
-            )
+            command = split_launch_command(cfg["benchmark_launch_command"])
             if engine == "mei":
                 receipt = read_json(output / "clean-speed-launch.json")
                 verify_receipt(
@@ -318,7 +313,9 @@ def load_cohort(
                 ):
                     raise ValueError("llama.cpp identity or complete raw audit failed")
                 result = read_json(output / "qualification.json")
-                if result["command"] != shlex.split(cfg["benchmark_launch_command"]):
+                if result["command"] != split_launch_command(
+                    cfg["benchmark_launch_command"]
+                ):
                     raise ValueError("llama.cpp observed launch differs")
                 prompts = read_json(output / "prompts.json")
                 if (

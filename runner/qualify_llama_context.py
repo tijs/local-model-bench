@@ -11,7 +11,6 @@ import argparse
 import hashlib
 import json
 import math
-import shlex
 import signal
 import socket
 import subprocess
@@ -25,7 +24,13 @@ from capacity_admission import capacity_plan
 from llama_provenance import verify_llama_runtime
 from mei_provenance import sha256
 from qualify_mei_release import request_json
-from run_mei_acceptance import REPO, committed_native_config, monitor_child, wait_ready
+from run_mei_acceptance import (
+    REPO,
+    committed_native_config,
+    monitor_child,
+    split_launch_command,
+    wait_ready,
+)
 from run_standin_suite import write_json
 
 SHORT_PROMPT = "List the integers from 1 to 100, separated by commas:\n"
@@ -178,7 +183,7 @@ def succeeded(output: Path) -> bool:
 
 def child(cfg: dict[str, Any], output: Path) -> int:
     values = settings(cfg)
-    command = shlex.split(cfg["benchmark_launch_command"])
+    command = split_launch_command(cfg["benchmark_launch_command"])
     model = Path(command[command.index("--model") + 1])
     base = cfg["benchmark_endpoint"].removesuffix("/v1").rstrip("/")
     q: dict[str, Any] = {
