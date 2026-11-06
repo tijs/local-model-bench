@@ -76,3 +76,13 @@ speed candidate arms now reference the new artifact, while controls remain
 stable0.10. Source/environment/config checks pass and822 model-free runner
 tests pass. The prebuilt nine-case HTTP client retains its separate47f build
 identity and will exercise the new server during speed/API qualification.
+
+The57b620b/9dd023d3 native campaign PASSED13/13 for each of Qwen, Ornith
+and Groot (244.53s /494.05s /218.91s). All42 model files rehashed unchanged,
+owned servers exited and KV cleanup receipts/logs are preserved. Qwen and
+Ornith each had one warning-pressure sample, below the unchanged sustained
+stop threshold; no critical samples. Groot stayed normal. These are native
+correctness/admission results, not task scores or throughput comparisons.
+A passive Groot status observation recorded64 successful GETs,63 during active
+generation including the65536-token prefill; maximum observed response21.13ms.
+The full speed/determinism/nine-case live API matrix remains to run.
