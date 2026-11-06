@@ -59,6 +59,7 @@ def main():
         f"{model}-upstream011-media-prefix-off-native-20261106"
         for model in ("qwen", "ornith", "groot")
     }
+    allowed.add("ornith-upstream011-cold-hash-native-20261106")
     if len(relative.parts) != 1 or relative.name not in allowed:
         raise ValueError("requires this campaign's exact owned runtime directory")
     if base.resolve() != base or (base / "server.pid").exists():
