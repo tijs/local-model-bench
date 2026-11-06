@@ -84,6 +84,13 @@ of the long-request difference remains unresolved; decode improvements alone
 do not establish a regression-free release. Finish the remaining model groups,
 then investigate with controlled diagnostics before promotion.
 
+The [separate historical prefill diagnostic](qwen-prefill-history-diagnostic.json)
+retains all eight labeled process groups from the earlier and current campaigns,
+with source-file hashes. Candidate prefill means exceed both controls in each
+campaign. The difference therefore predates the latest command-budget retune;
+that retune cannot be its sole origin. This is a diagnostic clue, not a pooled
+release estimate or identification of the responsible patch.
+
 ## Previous comparison and preserved regression
 
 The previous candidate passes the full offline suite, native admission and all
