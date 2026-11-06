@@ -44,8 +44,14 @@ shows only normal sampled pressure, flat1757.81 MiB host swap and peak owned
 Mei physical footprint15,691,359,328 bytes. All64 passive status GETs succeed
 during active generation/65536 prefill, maximum observed24.72 ms; this is
 bounded responsiveness evidence, not a worst-case guarantee. The owned server
-exited, and KV cleanup followed preservation. Qwen/Ornith native and all new
-ABBA observations remain pending; no old timings qualify this artifact.
+exited, and KV cleanup followed preservation.
+
+[Qwen native](../mei011-qwen-batched-native-20261106/) also passes13 checks;
+all15 files rehash unchanged. One warning-pressure sample is below the unchanged
+two-sample stop; no critical sample occurs. Host swap peaks at2534.31 MiB from a
+1757.81 MiB baseline, below the2 GiB growth stop. Its server exited and owned KV
+was removed only after preservation. Ornith native and all new ABBA observations
+remain pending; no old timings qualify this artifact.
 
 ## Previous comparison and preserved regression
 
