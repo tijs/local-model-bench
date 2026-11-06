@@ -7,11 +7,15 @@ model-card sampling and the unchanged benchmark method, and be committed before
 launch. The current untraced release qualification must finish and be reviewed
 first. Logics remains a separately pinned GGUF/llama.cpp control.
 
-Ornith/Groot previously scored with128MiB allocator pools; the current release
-gates use512MiB on both old/new legs. This planned cohort uses the new qualified
-512MiB profile and discloses that change. Its results describe the serving
-profile, with no pure-source or single-patch attribution. Kiem owns project
-progress; this file is only an experiment declaration.
+The committed native and old/new speed profiles use512MiB allocator pools for
+Qwen/Groot and128MiB for Ornith. The planned cohort preserves those per-model
+values. Only Groot changes from its prior scored128MiB pool; Qwen stays512MiB
+and Ornith stays128MiB. An earlier version of this prose incorrectly described
+all three as512MiB; the executable configs and declaration's per-cell values
+were already correct. Results describe each serving profile, with no pure-source
+or single-patch attribution. Kiem owns project progress; this file is only an
+experiment declaration. Run [the preparation verifier](verify_preparation.py)
+to compare declared fields with the actual qualified launch templates.
 
 The combined task/speed verifier retains flag order and environment, ignoring
 only owned paths. New task launch declarations should derive from the qualified
