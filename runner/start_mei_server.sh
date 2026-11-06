@@ -69,12 +69,10 @@ Options:
   --enable-flint-jangh BOOL Separately enable the JANGH2 packed adapter
   --enable-flint BOOL       Explicit Flint gate (true or false; default: none
                             -> not passed; Mei default false)
-  --load-mmap BOOL          Safetensors load-path override (default: none ->
-                            not passed; Mei decides). false materializes the
-                            weights into RAM instead of mmap'ing the shards —
-                            the Qwen3.6 OptiQ gate needed it (5/5 unaligned
-                            shards; the default mmap path realigned ~16.6 GiB
-                            of temporary copies and OOM'd the GPU allocator)
+  --keep-model-in-memory BOOL  Bounded weight residency request (new runtime);
+                               omitted leaves the pinned Mei default unchanged
+  --load-mmap BOOL          Legacy load-path override for old pinned binaries.
+                            The owned-storage Mei runtime rejects true.
   --mei-repo PATH           Mei checkout (default: ~/projects/mei)
   --mei-binary PATH         Use this existing executable without building;
                             scored configs must pin its release artifact hashes
@@ -109,6 +107,7 @@ COMPILED_DECODE=""
 ENABLE_FLINT=""
 ENABLE_FLINT_JANGH=""
 LOAD_MMAP=""
+KEEP_MODEL_IN_MEMORY=""
 SSM_ANCHOR_BOUNDARIES=""
 REQUEST_LOG=""
 LOG_REQUESTS=""
@@ -161,6 +160,11 @@ while [[ $# -gt 0 ]]; do
       case "${2-}" in
         true|false) ENABLE_FLINT="$2"; shift 2 ;;
         *) echo "FATAL: --enable-flint must be true or false" >&2; exit 2 ;;
+      esac ;;
+    --keep-model-in-memory)
+      case "${2-}" in
+        true|false) KEEP_MODEL_IN_MEMORY="$2"; shift 2 ;;
+        *) echo "FATAL: --keep-model-in-memory must be true or false" >&2; exit 2 ;;
       esac ;;
     --load-mmap) LOAD_MMAP="${2:?missing value}"; shift 2 ;;
     --ssm-anchor-boundaries) SSM_ANCHOR_BOUNDARIES="${2:?missing value}"; shift 2 ;;
@@ -247,6 +251,7 @@ ARGS=(--model-dir "$MODEL_DIR" --served-model-id "$SERVED_MODEL_ID"
 # of temporary copies into RAM at load and exhausted the GPU allocator, so its
 # gate pinned false (with MLX_SAFETENSORS_MMAP=0 as the env-level backstop).
 [[ -n "$LOAD_MMAP" ]] && ARGS+=(--load-mmap "$LOAD_MMAP")
+[[ -n "$KEEP_MODEL_IN_MEMORY" ]] && ARGS+=(--keep-model-in-memory "$KEEP_MODEL_IN_MEMORY")
 # Cross-conversation prefix reuse (Mei 0.4.0+, default off in the server).
 # Stores SSM anchors at the first K chat role-turn boundaries so the shared
 # system+tools prefix restores across conversations instead of cold-prefilling.

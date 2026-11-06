@@ -184,6 +184,19 @@ class StartMeiServerForwardingTests(unittest.TestCase):
             self.assertIn(flag, res.stdout)
             self.assertIn(val, res.stdout)
 
+    def test_residency_request_is_explicit_and_validated(self):
+        _, result = _dry_run([])
+        self.assertNotIn("--keep-model-in-memory", result.stdout)
+        for value in ("true", "false"):
+            _, result = _dry_run(["--keep-model-in-memory", value])
+            self.assertEqual(result.returncode, 0, result.stderr)
+            argv = shlex.split(result.stdout.split("mei isolated launch:", 1)[1].strip())
+            self.assertEqual(argv[argv.index("--keep-model-in-memory") + 1], value)
+        for values in (["auto"], [], ["--dry-run"]):
+            base, result = _run_launcher(["--keep-model-in-memory", *values], dry_run=False)
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            self.assertFalse((base / "runtime").exists())
+
     def test_dry_run_forwards_load_mmap_when_explicit(self):
         # --load-mmap is a hidden Mei 0.5.0+ load-path override: it must reach
         # the launch line verbatim when a config pins it (the OptiQ gate's
