@@ -65,3 +65,14 @@ samples were normal, swap ended below baseline, and all16 model files rehashed
 unchanged. This completes rebuilt native admission for the three Mei profiles.
 Owned runtimes exited and KV evidence was preserved before cleanup. Clean-base
 contribution builds/tests and the declared speed/API matrix remain open.
+
+The paged-I/O review fix now has its own frozen artifact: Mei57b620b /
+vMLX9dd023d3, binary20657dac…, unchanged source-built Metal5be6b742….
+The release build passed393.34s;495 offline XCTest cases (two skipped) and
+four Swift Testing cases pass. New native configs use a detached exact57b
+source checkout and new output/runtime paths. The three-model native campaign
+has not started yet; prior47f/3fa results remain historical. The unstarted
+speed candidate arms now reference the new artifact, while controls remain
+stable0.10. Source/environment/config checks pass and822 model-free runner
+tests pass. The prebuilt nine-case HTTP client retains its separate47f build
+identity and will exercise the new server during speed/API qualification.
