@@ -78,8 +78,9 @@ def main():
         f"{model}-upstream011-paged-io-native-20261106"
         for model in ("qwen", "ornith", "groot")
     )
+    allowed.update(f"groot-upstream011-phase-{arm}-20261106" for arm in ("a", "b"))
     allowed.update(
-        f"groot-upstream011-phase-{arm}-20261106" for arm in ("a", "b")
+        f"groot-upstream011-phase-mirror-{arm}-20261106" for arm in ("a", "b")
     )
     if len(relative.parts) != 1 or relative.name not in allowed:
         raise ValueError("requires this campaign's exact owned runtime directory")

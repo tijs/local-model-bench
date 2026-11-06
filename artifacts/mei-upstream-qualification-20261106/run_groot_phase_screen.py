@@ -1,5 +1,6 @@
 """Run the predeclared Groot phase diagnostics; never rank profiled timings."""
 
+import argparse
 import json
 import subprocess
 import sys
@@ -16,12 +17,13 @@ def save(path, value):
     temporary.replace(path)
 
 
-def validate_matrix(matrix):
+def validate_matrix(matrix, mirrored=False):
+    suffix = "-mirror" if mirrored else ""
     expected = [
         {
             "arm": arm,
-            "config": f"configs/mei-upstream-qualification-20261106/groot-phase-{arm}.yaml",
-            "output": f"artifacts/mei011-groot-phase-{arm}-20261106",
+            "config": f"configs/mei-upstream-qualification-20261106/groot-phase{suffix}-{arm}.yaml",
+            "output": f"artifacts/mei011-groot-phase{suffix}-{arm}-20261106",
         }
         for arm in ("a", "b")
     ]
@@ -30,13 +32,17 @@ def validate_matrix(matrix):
 
 
 def main():
-    progress_path = PREP / "groot-phase-screen-progress.json"
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--mirrored", action="store_true")
+    args = parser.parse_args()
+    screen = "groot-phase-mirrored-screen" if args.mirrored else "groot-phase-screen"
+    progress_path = PREP / f"{screen}-progress.json"
     if progress_path.exists():
         raise ValueError(
             "inspect the existing process/outcome; do not restart this screen"
         )
-    matrix = json.loads((PREP / "groot-phase-screen.json").read_text())
-    validate_matrix(matrix)
+    matrix = json.loads((PREP / f"{screen}.json").read_text())
+    validate_matrix(matrix, args.mirrored)
     baseline = json.loads((ROOT / matrix["control_reference"]).read_text())["reference"]
     progress = {"status": "running", "started_epoch": time.time(), "completed": []}
     environment = {"HOME": str(Path.home()), "PATH": "/usr/bin:/bin:/usr/sbin:/sbin"}
