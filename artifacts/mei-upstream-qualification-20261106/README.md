@@ -37,6 +37,16 @@ next-turn suffix forwarding,512/513 prompt-entry retention, width-policy opt-ins
 and valid NoPE cached-key rotation. No live Ripple or speculative speed/support
 claim is made; the preferred roster and ToolSpace/Gemma queue stay unchanged.
 
+The new [Groot native gate](../mei011-groot-batched-native-20261106/) now passes
+all13 checks, including65536-token context; all16 files rehash unchanged. Its
+[resource review](../mei011-groot-batched-native-20261106/review-summary.json)
+shows only normal sampled pressure, flat1757.81 MiB host swap and peak owned
+Mei physical footprint15,691,359,328 bytes. All64 passive status GETs succeed
+during active generation/65536 prefill, maximum observed24.72 ms; this is
+bounded responsiveness evidence, not a worst-case guarantee. The owned server
+exited, and KV cleanup followed preservation. Qwen/Ornith native and all new
+ABBA observations remain pending; no old timings qualify this artifact.
+
 ## Previous comparison and preserved regression
 
 The previous candidate passes the full offline suite, native admission and all
