@@ -40,3 +40,22 @@ peaked21,520,464,608 bytes. All11 model files rehashed unchanged and the
 owned server exited; KV logs/metadata were preserved before cleanup.
 Residency-off failures remain separate; this is neither a throughput nor
 a scored-task result. The public default remains true.
+
+The clean-launch audit fix is released as benchmark-v9.11.9 after816
+model-free tests. Qwen rebuilt-artifact default residency also PASSED13/13
+in235.21s, all normal pressure; all15 model hashes match. Its first attempt
+failed the exact-source guard before load after a documentation commit moved
+the checkout. A dedicated immutable source checkout resolved that harness
+error without changing the binary or relaxing provenance.
+
+The speed matrix is predeclared, not yet started. For each of Qwen, Ornith
+and Groot, process order is stable0.10 A1 / candidate0.11 B1 / B2 / A2. Each
+process measures five repeats per short and30000-token context, giving ten
+measured observations per version/context, plus separate cold and warmup rows.
+The mandatory storage-policy migration is part of the aggregate upgrade, not
+an isolated patch comparison. All arms use clean audited environments, exact
+source/binary/Metal pins and the same model, precision, samplers and budgets.
+Each cell also checks nine prebuilt Swift API cases and status during long
+prefill. Within-process and cross-process greedy HTTP output/count/finish must
+match, otherwise the campaign preserves evidence and halts for review.
+No earlier timings are reused and no best-repeat selection is allowed.
