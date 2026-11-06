@@ -9,6 +9,13 @@ Testing cases. **All three fresh native gates pass; the untraced performance/API
 comparison is running. Mei0.11 is not released.** Stable remains0.10.0, with no
 new0.11 task scores.
 
+The refreshed upstream-head audit also found three Apple MLX Swift commits
+beyond release0.33.0: JACCL opt-out, test migration and empty-result recovery.
+Their merge is prepared on a separate vMLX branch through243cb4f2; execution and
+Mei consumption are pending. The live5884134/71074155 measurements keep their
+original identity and do not qualify that additional source. See the
+[source-only integration review](https://github.com/tijs/mei/tree/codex/dependency-refresh-20261106/artifacts/upstream-refresh-20261106/apple-main-integration).
+
 [New exact artifact](batched-artifact.json) ·
 [Metal provenance](batched-metallib.provenance) ·
 [Fresh native campaign](batched-native-campaign.json) ·
