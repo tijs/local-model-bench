@@ -30,6 +30,9 @@ def review(model):
     groups = defaultdict(list)
     checked_cells = []
     hash_checks = 0
+    model_identity = None
+    model_files = None
+    prompts = None
     for cell in cells:
         output = (ROOT / cell["output"]).resolve()
         config = (ROOT / cell["config"]).resolve()
@@ -41,6 +44,25 @@ def review(model):
             )
         raw = config.read_bytes()
         cfg = yaml.safe_load(raw)
+        identity = tuple(
+            cfg[k]
+            for k in (
+                "model",
+                "source_revision",
+                "quant_family",
+                "context_cap",
+                "prefill_step_size",
+                "temperature",
+                "model_bytes",
+            )
+        )
+        current_prompts = json.loads((output / "prompts.json").read_text())
+        if model_identity is None:
+            model_identity, prompts = identity, current_prompts
+        elif identity != model_identity or current_prompts != prompts:
+            raise ValueError(
+                "model revision/precision/profile or exact prompts differ across arms"
+            )
         invocation = json.loads((output / "invocation.json").read_text())
         if (
             raw != (output / "config.yaml").read_bytes()
@@ -75,6 +97,13 @@ def review(model):
             or not cleanup["server_exited"]
         ):
             raise ValueError("model integrity or owned cleanup incomplete")
+        files = tuple(
+            sorted((r["file"], r["bytes"], r["sha256"]) for r in hashes["files"])
+        )
+        if model_files is None:
+            model_files = files
+        elif files != model_files:
+            raise ValueError("post-run model contents differ across arms")
         http = q["swift_acceptance"]
         status = q["status_samples"]
         active = [r for r in status if r["active_generations"] > 0]
