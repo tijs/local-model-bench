@@ -1,9 +1,10 @@
 # Mei upstream qualification — 2026-11-06
 
-The current candidate passes the full offline suite and native admission on
-Qwen, Ornith and Groot. The balanced runtime comparison is **still running**:
-Qwen's and Ornith's four processes pass; Groot's speed qualification is active.
-Stable remains **Mei 0.10.0**. There are no new 0.11 household/Python scores yet.
+The current candidate passes the full offline suite, native admission and all
+twelve balanced observable/API cells. **Stable promotion is on hold:** Groot's
+candidate throughput is lower in both process pairs, especially at long context.
+The component cause is not yet established. Stable remains **Mei 0.10.0**.
+There are no new 0.11 household/Python scores yet.
 
 ## Exact current artifact
 
@@ -45,8 +46,17 @@ binary. Earlier artifacts keep their original identities.
   cases pass. All 44 post-run model-file checks match. One startup warning in
   B1 precedes its first request; A1/B2/A2 stay normal. No observed mean-throughput
   regression on these pairs; the same interpretation limits apply.
+- [Complete Groot review](groot-complete-speed-review.json): observable parity
+  and all 36 API cases pass; all four processes stay at normal sampled pressure.
+  Both candidate process means are lower than both controls at short and long
+  context. Correctness passes do not resolve that performance regression.
+- [Full matrix audit](speed-matrix-summary.json): 120 measured requests and 108
+  live API cases, with all raw audits, identities and preservation rechecked.
+- [Full harness tests](final-runner-tests-823.json): 823 model-free tests pass;
+  [compressed log](final-runner-tests-823.log.gz). Mock plot messages in that log
+  belong to tests, not an actual chart regeneration failure.
 
-## Active balanced comparison
+## Completed balanced comparison
 
 The [predeclared matrix](speed-matrix.json) runs Qwen, Ornith and Groot in
 A1/B1/B2/A2 order per model: A is stable 0.10.0; B is the candidate above.
@@ -58,14 +68,15 @@ release comparison; it is not an isolated patch ablation.
 
 Each cell runs nine prebuilt live HTTP tests, samples status during the first
 long prefill and checks within/across-process observable greedy parity. Failure
-halts the campaign for review. The current progress filename on the host is
-`speed-matrix-retry-progress.json`; a progress file alone is not proof of a live
-process. Do not restart a running or interrupted attempt.
+halts the campaign for review. [Terminal progress](speed-matrix-retry-progress.json)
+records all twelve completed cells. The owned matrix process exited zero and
+its servers exited; a progress file alone is not proof of process liveness.
+Do not restart or overwrite these attempt paths.
 
 [Summary tool](summarize_speed_matrix.py) requires all twelve cells and rechecks
 raw audits, config snapshots, runtime/model identities, post-run hashes, API and
-status coverage, and owned cleanup. Its incomplete-campaign refusal was tested;
-its positive full audit remains pending. The original scope-declined preflight
+status coverage, and owned cleanup. Its incomplete-campaign refusal and positive
+full audit pass. The original scope-declined preflight
 is preserved in [the review folder](speed-scope-preflight-failure/) and
 [original stopped progress](speed-matrix-progress.json); it produced no timing
 observations. The corrected profiles are committed with the proper release
@@ -78,8 +89,11 @@ byte-plan admission, normal/flat-swap launch baselines, immediate critical stop,
 two warning samples stop, 2 GiB swap-growth / 16 GiB absolute swap stops and a
 10 GiB disk floor. Free-memory percentage remains telemetry only.
 
-Finish/review the full comparison, resolve any reproduced regression, publish
-Mei 0.11 and verify GitHub/Homebrew delivery. Then run eight fresh held-out
+Isolate and address the Groot throughput regression with controlled diagnostics,
+then requalify affected behavior before publishing Mei 0.11 and verifying
+GitHub/Homebrew delivery. Existing phase counters are the next diagnostic;
+profiled observations will not replace untraced timings or task scores.
+Then run eight fresh held-out
 15-task trajectories: Qwen, Ornith and Groot on released Mei plus pinned Logics
 GGUF control, seeds 17 and 29, using the frozen benchmark method. Preserve every
 partial/failure and publish current weighted-average results. Native admission,
