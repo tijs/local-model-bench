@@ -24,3 +24,10 @@ invalidation followed by F_NOCACHE SHA-256 leaves it cold without changing
 bytes or timestamps. The fresh Ornith cold-hash diagnostic tests this possible
 contributor with the same binary/profile and unchanged guards. This hypothesis
 is not a causal finding or a reason to change the runtime default.
+
+The cold-hash residency-off retry also stopped on sustained warning at16.06s.
+All42 files were verified unchanged with zero cached pages after hashing;
+about10.0GiB had been cached beforehand. Clearing those pages was insufficient.
+A new residency-on diagnostic uses the default requested policy and the same
+cache preconditioning, weights, binary, precision, context and guards. No default
+change or claim about root cause follows from these partials.

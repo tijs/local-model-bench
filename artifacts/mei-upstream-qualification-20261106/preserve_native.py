@@ -60,6 +60,7 @@ def main():
         for model in ("qwen", "ornith", "groot")
     }
     allowed.add("ornith-upstream011-cold-hash-native-20261106")
+    allowed.add("ornith-upstream011-cold-hash-on-native-20261106")
     if len(relative.parts) != 1 or relative.name not in allowed:
         raise ValueError("requires this campaign's exact owned runtime directory")
     if base.resolve() != base or (base / "server.pid").exists():
