@@ -31,3 +31,12 @@ about10.0GiB had been cached beforehand. Clearing those pages was insufficient.
 A new residency-on diagnostic uses the default requested policy and the same
 cache preconditioning, weights, binary, precision, context and guards. No default
 change or claim about root cause follows from these partials.
+
+Ornith default-residency control PASSED all13 probes in494.19s, including
+65536-token admission, tools, history and cache reuse. One warning sample did
+not reach the unchanged sustained threshold; no critical samples. Swap grew
+from2712.31 to a peak3040.0MiB and ended2824.0MiB. Sampled Mei footprint
+peaked21,520,464,608 bytes. All11 model files rehashed unchanged and the
+owned server exited; KV logs/metadata were preserved before cleanup.
+Residency-off failures remain separate; this is neither a throughput nor
+a scored-task result. The public default remains true.
