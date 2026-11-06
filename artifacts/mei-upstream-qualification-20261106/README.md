@@ -50,8 +50,15 @@ exited, and KV cleanup followed preservation.
 all15 files rehash unchanged. One warning-pressure sample is below the unchanged
 two-sample stop; no critical sample occurs. Host swap peaks at2534.31 MiB from a
 1757.81 MiB baseline, below the2 GiB growth stop. Its server exited and owned KV
-was removed only after preservation. Ornith native and all new ABBA observations
-remain pending; no old timings qualify this artifact.
+was removed only after preservation.
+
+[Ornith native](../mei011-ornith-batched-native-20261106/) now also passes13 checks
+and rehashes all11 files unchanged; only normal sampled pressure, no critical or
+warning sample. [Full new native audit](batched-native-review.json) verifies all
+three exact artifact identities,39 probes,42 file rehashes and exited/preserved
+servers. [Terminal native progress](batched-native-campaign-progress.json) is
+passed. The fresh twelve-cell untraced speed/API/parity campaign is running; no
+old timings, native passes or profiled diagnostics substitute for that review.
 
 ## Previous comparison and preserved regression
 
