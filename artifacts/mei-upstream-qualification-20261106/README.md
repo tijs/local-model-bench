@@ -5,8 +5,9 @@ It includes the reviewed g13s command-batch retune, latest Ripple upstream merge
 and strict NoPE declaration validation. The final release build passed;495 offline
 XCTest cases (two skipped, zero failures) and four Swift Testing cases pass.
 The selected inherited-feature tests pass62 XCTest cases (one skip) plus132 Swift
-Testing cases. **Fresh native and untraced performance qualification is pending;
-Mei0.11 is not released.** Stable remains0.10.0, with no new0.11 task scores.
+Testing cases. **All three fresh native gates pass; the untraced performance/API
+comparison is running. Mei0.11 is not released.** Stable remains0.10.0, with no
+new0.11 task scores.
 
 [New exact artifact](batched-artifact.json) ·
 [Metal provenance](batched-metallib.provenance) ·
