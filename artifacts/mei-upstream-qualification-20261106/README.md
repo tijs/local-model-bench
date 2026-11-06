@@ -74,7 +74,7 @@ post-run file checks. Both candidate process means exceed both control process
 means at short and loaded context. The controls vary substantially between
 processes; the review retains every observation and equal process weighting,
 without a statistical-superiority or universal-speedup claim. This is runtime
-qualification, not task quality. Ornith/Groot and final promotion review remain
+qualification, not task quality. Groot and final promotion review remain
 pending. The [reproducible model reviewer](review_batched_model_speed.py) also
 rechecks capacity/resource baselines and refuses incomplete model groups.
 
