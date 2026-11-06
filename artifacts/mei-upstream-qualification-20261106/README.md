@@ -98,6 +98,18 @@ campaign. The difference therefore predates the latest command-budget retune;
 that retune cannot be its sole origin. This is a diagnostic clue, not a pooled
 release estimate or identification of the responsible patch.
 
+[Ornith's complete four-process audit](ornith-batched-complete-speed-review.json)
+now also passes all56 observable rows,36 live API cases and44 post-run model-file
+hash checks. Its [request-latency review](ornith-batched-latency-review.json)
+retains every measured repeat and equal process weights: both candidate process
+means are faster than both controls for decode and request wall time at both
+contexts. The loaded-prefill means are also faster on these observations, so
+Ornith does not reproduce Qwen's prefill/whole-request slowdown. This remains
+an aggregate runtime/storage comparison, with no statistical-superiority,
+single-patch or task-quality claim. All four servers exited and owned KV was
+preserved then removed. Eight of twelve cells are now complete; Groot's four
+processes and final review remain required before any release decision.
+
 ## Previous comparison and preserved regression
 
 The previous candidate passes the full offline suite, native admission and all
