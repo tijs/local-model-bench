@@ -71,6 +71,19 @@ qualification, not task quality. Ornith/Groot and final promotion review remain
 pending. The [reproducible model reviewer](review_batched_model_speed.py) also
 rechecks capacity/resource baselines and refuses incomplete model groups.
 
+The [whole-request latency audit](qwen-batched-latency-review.json) adds an
+important qualification hold: Qwen's measured long requests average 71.014 s on
+the candidate versus 69.981 s on stable (1.48% slower), with both candidate
+process means above both controls. Backend prefill averages 68.198 s versus
+66.852 s; generation is faster. Short requests are faster overall. These are
+all measured repeats with equal process weights, not selected best values.
+The [saved-data latency reviewer](review_batched_latencies.py) first requires
+the complete identity/resource/parity audit. Backend phase counters keep their
+native conventions and must not be summed as independent intervals. The cause
+of the long-request difference remains unresolved; decode improvements alone
+do not establish a regression-free release. Finish the remaining model groups,
+then investigate with controlled diagnostics before promotion.
+
 ## Previous comparison and preserved regression
 
 The previous candidate passes the full offline suite, native admission and all
