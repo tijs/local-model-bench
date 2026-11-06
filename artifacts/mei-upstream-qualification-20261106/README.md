@@ -195,4 +195,4 @@ mechanical speed, task quality and real Peixinho acceptance remain separate.
 The [original chronology](HISTORY.md) retains older builds, negative residency
 diagnostics and their then-pending states. The [profile index](../../configs/mei-upstream-qualification-20261106/README.md)
 and [Mei contribution/feature index](https://github.com/tijs/mei/blob/codex/dependency-refresh-20261106/artifacts/upstream-refresh-20261106/README.md)
-explain configuration families and the ten issue-first upstream proposals.
+explain configuration families and the fourteen issue-first upstream proposals.
