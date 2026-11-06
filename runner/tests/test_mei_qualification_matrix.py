@@ -14,10 +14,6 @@ SCRIPT = (
     Path(__file__).resolve().parents[2]
     / "artifacts/mei-stable-qualification-20261102/run_matrix.py"
 )
-SPEC = importlib.util.spec_from_file_location("qualification_matrix", SCRIPT)
-assert SPEC is not None and SPEC.loader is not None
-matrix = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(matrix)
 
 
 def complete_result():
@@ -49,6 +45,16 @@ def complete_result():
 
 
 class MatrixAuditTests(unittest.TestCase):
+    script = SCRIPT
+
+    def setUp(self):
+        spec = importlib.util.spec_from_file_location(
+            "qualification_matrix", self.script
+        )
+        assert spec is not None and spec.loader is not None
+        self.matrix = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.matrix)
+
     def test_saved_control_requires_hash_raw_audit_and_same_model_revision(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
@@ -95,7 +101,7 @@ class MatrixAuditTests(unittest.TestCase):
                 json.dumps(identity)
             )
             (root / "candidate.yaml").write_text(json.dumps(cfg))
-            checked = matrix.audit(output, None)
+            checked = self.matrix.audit(output, None)
             audit = output / "qualification-audit.json"
             audit.write_text(json.dumps(checked))
             declared: dict[str, Any] = {
@@ -108,21 +114,21 @@ class MatrixAuditTests(unittest.TestCase):
                     }
                 },
             }
-            with patch.object(matrix, "ROOT", root):
+            with patch.object(self.matrix, "ROOT", root):
                 self.assertEqual(
-                    matrix.baseline_references(declared),
+                    self.matrix.baseline_references(declared),
                     {"example": checked["reference"]},
                 )
                 changed = copy.deepcopy(declared)
                 changed["baselines"]["example"]["sha256"] = "0" * 64
                 with self.assertRaisesRegex(ValueError, "hash mismatch"):
-                    matrix.baseline_references(changed)
+                    self.matrix.baseline_references(changed)
                 for key in ("model", "source_revision"):
                     (root / "candidate.yaml").write_text(
                         json.dumps(cfg | {key: "wrong"})
                     )
                     with self.assertRaisesRegex(ValueError, "model/revision differs"):
-                        matrix.baseline_references(declared)
+                        self.matrix.baseline_references(declared)
                 (root / "candidate.yaml").write_text(json.dumps(cfg))
                 # Relabeling a saved control cannot keep its pinned audit valid.
                 (output / "config.yaml").write_text(
@@ -132,7 +138,7 @@ class MatrixAuditTests(unittest.TestCase):
                     json.dumps(cfg | {"model": "unrelated/model"})
                 )
                 with self.assertRaisesRegex(ValueError, "configuration hash mismatch"):
-                    matrix.baseline_references(declared)
+                    self.matrix.baseline_references(declared)
                 (output / "config.yaml").write_text(json.dumps(cfg))
                 (root / "candidate.yaml").write_text(json.dumps(cfg))
                 for change, message in (
@@ -147,24 +153,24 @@ class MatrixAuditTests(unittest.TestCase):
                         json.dumps(good | change)
                     )
                     with self.assertRaisesRegex(ValueError, message):
-                        matrix.baseline_references(declared)
+                        self.matrix.baseline_references(declared)
                 (output / "qualification.json").write_text(json.dumps(good))
                 changed_raw = copy.deepcopy(good)
                 changed_raw["rows"].pop()
                 (output / "qualification.json").write_text(json.dumps(changed_raw))
                 with self.assertRaisesRegex(ValueError, "missing/duplicate"):
-                    matrix.baseline_references(declared)
+                    self.matrix.baseline_references(declared)
 
     def test_saved_controls_are_all_or_none_and_paths_stay_contained(self):
-        self.assertEqual(matrix.baseline_references({"cells": []}), {})
+        self.assertEqual(self.matrix.baseline_references({"cells": []}), {})
         with self.assertRaisesRegex(TypeError, "mapping"):
-            matrix.baseline_references({"cells": [], "baselines": []})
+            self.matrix.baseline_references({"cells": [], "baselines": []})
         with self.assertRaisesRegex(ValueError, "every model"):
-            matrix.baseline_references(
+            self.matrix.baseline_references(
                 {"cells": [{"model": "other"}], "baselines": {"example": {}}}
             )
         with self.assertRaisesRegex(ValueError, "contained"):
-            matrix.baseline_references(
+            self.matrix.baseline_references(
                 {
                     "cells": [{"model": "example"}],
                     "baselines": {
@@ -193,12 +199,14 @@ class MatrixAuditTests(unittest.TestCase):
                 ),
                 self.assertRaisesRegex(ValueError, "do not restart"),
             ):
-                matrix.main()
+                self.matrix.main()
             self.assertEqual(progress.read_text(), "preserved previous evidence")
 
     def test_repeated_output_is_complete_and_byte_identical(self):
         good = complete_result()
-        self.assertEqual(set(matrix.observable_by_context(good)), {"short", "loaded"})
+        self.assertEqual(
+            set(self.matrix.observable_by_context(good)), {"short", "loaded"}
+        )
         missing = copy.deepcopy(good)
         missing["rows"].pop()
         duplicate = copy.deepcopy(good)
@@ -207,11 +215,11 @@ class MatrixAuditTests(unittest.TestCase):
         changed["rows"][-1]["observable"]["text"] = "1,2,3"
         for bad in (missing, duplicate, changed):
             with self.assertRaises(ValueError):
-                matrix.observable_by_context(bad)
+                self.matrix.observable_by_context(bad)
 
     def test_cross_arm_parity_and_terminal_success_are_required(self):
         good = complete_result()
-        baseline = matrix.observable_by_context(good)
+        baseline = self.matrix.observable_by_context(good)
         with tempfile.TemporaryDirectory() as folder:
             output = Path(folder)
             (output / "qualification.json").write_text(json.dumps(good))
@@ -219,15 +227,42 @@ class MatrixAuditTests(unittest.TestCase):
             (output / "resources.jsonl").write_text(
                 '{"kernel_pressure_level": 1, "swap_used_mib": 1000}\n'
             )
-            checked = matrix.audit(output, baseline)
+            checked = self.matrix.audit(output, baseline)
             self.assertEqual(checked["median_decode_tps"], {"short": 43, "loaded": 43})
             changed = copy.deepcopy(baseline)
             changed["loaded"]["text"] = "1,2,3"
             with self.assertRaisesRegex(ValueError, "A1 control"):
-                matrix.audit(output, changed)
+                self.matrix.audit(output, changed)
             (output / "outcome.json").write_text('{"status": "interrupted"}')
             with self.assertRaisesRegex(ValueError, "did not complete"):
-                matrix.audit(output, baseline)
+                self.matrix.audit(output, baseline)
+
+
+class UpstreamMatrixAuditTests(MatrixAuditTests):
+    script = (
+        Path(__file__).resolve().parents[2]
+        / "artifacts/mei-upstream-qualification-20261106/run_speed_matrix.py"
+    )
+
+    def test_default_invocation_reads_the_committed_speed_matrix(self):
+        declared = self.script.parent / "speed-matrix.json"
+        self.assertTrue(declared.is_file())
+        with tempfile.TemporaryDirectory() as folder:
+            prep = Path(folder)
+            (prep / declared.name).write_bytes(declared.read_bytes())
+            with (
+                patch.object(self.matrix, "PREP", prep),
+                patch("sys.argv", [str(self.script)]),
+                patch.object(
+                    self.matrix,
+                    "baseline_references",
+                    side_effect=RuntimeError("default declaration verified"),
+                ) as audit,
+                self.assertRaisesRegex(RuntimeError, "default declaration verified"),
+            ):
+                self.matrix.main()
+            audit.assert_called_once_with(json.loads(declared.read_text()))
+            self.assertEqual({p.name for p in prep.iterdir()}, {declared.name})
 
 
 if __name__ == "__main__":

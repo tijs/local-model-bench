@@ -149,8 +149,10 @@ def baseline_references(matrix):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--matrix", type=Path, default=PREP / "matrix.json")
-    parser.add_argument("--progress", type=Path, default=PREP / "matrix-progress.json")
+    parser.add_argument("--matrix", type=Path, default=PREP / "speed-matrix.json")
+    parser.add_argument(
+        "--progress", type=Path, default=PREP / "speed-matrix-progress.json"
+    )
     args = parser.parse_args()
     matrix = json.loads(args.matrix.read_text())
     if args.progress.exists():
