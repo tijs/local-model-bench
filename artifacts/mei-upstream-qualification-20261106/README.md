@@ -15,3 +15,12 @@ is implied. Each terminal result must be preserved and checked before the next.
 A small owned-read ordering probe did not support a per-buffer API-overhead
 explanation of the full-model load-time difference. Its source, all observations
 and limits are retained; no factory-ordering change was made from that probe.
+
+The rebuilt native campaign stopped on Ornith after 16.6 seconds with two
+warning-pressure samples shortly after load. No Qwen or Groot cell started.
+All model hashes, logs and owned KV metadata are preserved. A disposable-file
+probe shows normal hashing warms the file cache, while read-only clean-page
+invalidation followed by F_NOCACHE SHA-256 leaves it cold without changing
+bytes or timestamps. The fresh Ornith cold-hash diagnostic tests this possible
+contributor with the same binary/profile and unchanged guards. This hypothesis
+is not a causal finding or a reason to change the runtime default.
