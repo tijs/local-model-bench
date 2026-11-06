@@ -17,8 +17,10 @@ def save(path, value):
     temporary.replace(path)
 
 
-def validate_matrix(matrix, mirrored=False):
-    suffix = "-mirror" if mirrored else ""
+def validate_matrix(matrix, mirrored=False, batch_budget=False):
+    if mirrored and batch_budget:
+        raise ValueError("select one diagnostic screen")
+    suffix = "-batch" if batch_budget else ("-mirror" if mirrored else "")
     expected = [
         {
             "arm": arm,
@@ -33,16 +35,24 @@ def validate_matrix(matrix, mirrored=False):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--mirrored", action="store_true")
+    selection = parser.add_mutually_exclusive_group()
+    selection.add_argument("--mirrored", action="store_true")
+    selection.add_argument("--batch-budget", action="store_true")
     args = parser.parse_args()
-    screen = "groot-phase-mirrored-screen" if args.mirrored else "groot-phase-screen"
+    screen = (
+        "groot-phase-batch-screen"
+        if args.batch_budget
+        else "groot-phase-mirrored-screen"
+        if args.mirrored
+        else "groot-phase-screen"
+    )
     progress_path = PREP / f"{screen}-progress.json"
     if progress_path.exists():
         raise ValueError(
             "inspect the existing process/outcome; do not restart this screen"
         )
     matrix = json.loads((PREP / f"{screen}.json").read_text())
-    validate_matrix(matrix, args.mirrored)
+    validate_matrix(matrix, args.mirrored, args.batch_budget)
     baseline = json.loads((ROOT / matrix["control_reference"]).read_text())["reference"]
     progress = {"status": "running", "started_epoch": time.time(), "completed": []}
     environment = {"HOME": str(Path.home()), "PATH": "/usr/bin:/bin:/usr/sbin:/sbin"}

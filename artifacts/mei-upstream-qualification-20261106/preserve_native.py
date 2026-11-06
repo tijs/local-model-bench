@@ -82,6 +82,9 @@ def main():
     allowed.update(
         f"groot-upstream011-phase-mirror-{arm}-20261106" for arm in ("a", "b")
     )
+    allowed.update(
+        f"groot-upstream011-phase-batch-{arm}-20261106" for arm in ("a", "b")
+    )
     if len(relative.parts) != 1 or relative.name not in allowed:
         raise ValueError("requires this campaign's exact owned runtime directory")
     if base.resolve() != base or (base / "server.pid").exists():
