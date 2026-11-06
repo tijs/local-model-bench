@@ -12,3 +12,10 @@ gates use512MiB on both old/new legs. This planned cohort uses the new qualified
 512MiB profile and discloses that change. Its results describe the serving
 profile, with no pure-source or single-patch attribution. Kiem owns project
 progress; this file is only an experiment declaration.
+
+The combined task/speed verifier retains flag order and environment, ignoring
+only owned paths. New task launch declarations should derive from the qualified
+B1 profiles while preserving explicit model-card request overrides from each old
+seed config. Source revisions may differ for release documentation only when
+Git build inputs and binary/Metal/dependency hashes prove equivalence; do not
+weaken the verifier to join incompatible profiles.
