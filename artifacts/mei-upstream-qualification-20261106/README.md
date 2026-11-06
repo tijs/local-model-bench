@@ -2,7 +2,7 @@
 
 The current candidate passes the full offline suite and native admission on
 Qwen, Ornith and Groot. The balanced runtime comparison is **still running**:
-Qwen's four processes pass; Ornith is active; Groot's speed cells are pending.
+Qwen's and Ornith's four processes pass; Groot's speed qualification is active.
 Stable remains **Mei 0.10.0**. There are no new 0.11 household/Python scores yet.
 
 ## Exact current artifact
@@ -40,6 +40,11 @@ binary. Earlier artifacts keep their original identities.
   cases pass. There is no observed mean-throughput regression on these pairs;
   control-process variation remains visible. This does not establish hidden
   token-ID identity, task quality or a universal speedup.
+- [Complete Ornith ABBA review](ornith-complete-speed-review.json): all 56
+  timing observations match across processes/releases, and all 36 live API
+  cases pass. All 44 post-run model-file checks match. One startup warning in
+  B1 precedes its first request; A1/B2/A2 stay normal. No observed mean-throughput
+  regression on these pairs; the same interpretation limits apply.
 
 ## Active balanced comparison
 
