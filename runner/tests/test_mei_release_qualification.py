@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import Mock, patch
 
+import yaml
 from tokenizers import Tokenizer, models, pre_tokenizers
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -543,6 +544,55 @@ class QualificationTests(unittest.TestCase):
             for case in cases:
                 with self.subTest(case=case):
                     self.assertFalse(check(case))
+
+
+class DeclaredSpeedProfileTests(unittest.TestCase):
+    def test_every_speed_profile_reaches_the_diagnostic_monitor(self):
+        root = Path(__file__).resolve().parents[2]
+        matrix = json.loads(
+            (
+                root / "artifacts/mei-upstream-qualification-20261106/speed-matrix.json"
+            ).read_text()
+        )
+        with tempfile.TemporaryDirectory() as folder:
+            for index, cell in enumerate(matrix["cells"]):
+                with self.subTest(model=cell["model"], cell=cell["cell"]):
+                    path = root / cell["config"]
+                    content = path.read_bytes()
+                    cfg = yaml.safe_load(content)
+                    cfg["required_runner_environment"]["MEI_RUNTIME_BASE"] = str(
+                        Path(folder) / f"runtime-{index}"
+                    )
+                    with (
+                        patch(
+                            "sys.argv",
+                            [
+                                "qualify_mei_release.py",
+                                "--config",
+                                str(path),
+                                "--output",
+                                str(Path(folder) / f"output-{index}"),
+                            ],
+                        ),
+                        patch.object(
+                            qualification,
+                            "committed_native_config",
+                            return_value=(cfg, content),
+                        ),
+                        patch.object(qualification, "validate_owned_config"),
+                        patch.object(qualification.socket, "socket") as socket,
+                        patch.object(
+                            qualification, "monitor_child", return_value=0
+                        ) as monitor,
+                    ):
+                        socket.return_value.__enter__.return_value.connect_ex.return_value = 1
+                        self.assertEqual(qualification.main(), 0)
+                        monitor.assert_called_once()
+                        self.assertIs(
+                            monitor.call_args.kwargs["diagnostic_check"],
+                            qualification.succeeded,
+                        )
+                    self.assertFalse((Path(folder) / f"output-{index}").exists())
 
 
 if __name__ == "__main__":
