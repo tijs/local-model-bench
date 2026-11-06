@@ -85,6 +85,15 @@ def main():
     allowed.update(
         f"groot-upstream011-phase-batch-{arm}-20261106" for arm in ("a", "b")
     )
+    allowed.update(
+        f"{model}-upstream011-batched-native-20261106"
+        for model in ("qwen", "ornith", "groot")
+    )
+    allowed.update(
+        f"{model}-upstream011-batched-speed-{cell}-20261106"
+        for model in ("qwen", "ornith", "groot")
+        for cell in ("a1", "b1", "b2", "a2")
+    )
     if len(relative.parts) != 1 or relative.name not in allowed:
         raise ValueError("requires this campaign's exact owned runtime directory")
     if base.resolve() != base or (base / "server.pid").exists():

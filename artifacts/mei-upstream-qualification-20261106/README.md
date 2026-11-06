@@ -1,12 +1,51 @@
 # Mei upstream qualification — 2026-11-06
 
-The current candidate passes the full offline suite, native admission and all
+The new frozen candidate is **Mei5884134 / vMLX71074155 / coree790cca9d**.
+It includes the reviewed g13s command-batch retune, latest Ripple upstream merge
+and strict NoPE declaration validation. The final release build passed;495 offline
+XCTest cases (two skipped, zero failures) and four Swift Testing cases pass.
+The selected inherited-feature tests pass62 XCTest cases (one skip) plus132 Swift
+Testing cases. **Fresh native and untraced performance qualification is pending;
+Mei0.11 is not released.** Stable remains0.10.0, with no new0.11 task scores.
+
+[New exact artifact](batched-artifact.json) ·
+[Metal provenance](batched-metallib.provenance) ·
+[Fresh native campaign](batched-native-campaign.json) ·
+[Fresh twelve-cell ABBA declaration](batched-speed-matrix.json) ·
+[Configuration/source/artifact preflight](batched-config-preflight.json) ·
+[Latest upstream check](upstream-head-check-post-ripple-20261106.json).
+The new executable SHA-256 is
+`195e0d43b09c25fa485c0955d9beda5a4ac40a04961791a97cc45ef399e9622e`;
+source-built Metal remains
+`5be6b742d5017c31a8db5b87cdf90265c8219867039eb871b42a737908aebc61`.
+Source is frozen at `/Users/tijs/projects/mei-upstream-batched-source-20261106`.
+No historical attempt is overwritten or relabeled. New native gates run Groot,
+Qwen, Ornith; only after all three pass does the untraced Qwen/Ornith/Groot ABBA
+campaign run. Each version has two fresh processes and five measured repeats
+per context/process; old timings are not reused. Budgets/precision/context/cache
+and resource guards stay unchanged. This aggregate release comparison includes
+the required storage-policy migration; it cannot attribute every change to one
+patch. Manual performance/release review follows all observations.
+
+The batching retune is [draft core PR54](https://github.com/osaurus-ai/mlx/pull/54),
+following [vMLX issue763](https://github.com/osaurus-ai/vmlx-swift/issues/763)
+because core issues are disabled. Strict NoPE declaration validation is
+[PR765](https://github.com/osaurus-ai/vmlx-swift/pull/765), following issue764.
+Both fixes preserve the original accounting and valid model configuration.
+The new synthetic tests execute tool-boundary trim/context alignment and
+next-turn suffix forwarding,512/513 prompt-entry retention, width-policy opt-ins
+and valid NoPE cached-key rotation. No live Ripple or speculative speed/support
+claim is made; the preferred roster and ToolSpace/Gemma queue stay unchanged.
+
+## Previous comparison and preserved regression
+
+The previous candidate passes the full offline suite, native admission and all
 twelve balanced observable/API cells. **Stable promotion is on hold:** Groot's
 candidate throughput is lower in both process pairs, especially at long context.
 The component cause is not yet established. Stable remains **Mei 0.10.0**.
 There are no new 0.11 household/Python scores yet.
 
-## Exact current artifact
+## Previous artifact with completed functional gates
 
 | Component | Identity |
 |---|---|
@@ -22,11 +61,11 @@ There are no new 0.11 household/Python scores yet.
 Documentation-only commits after the frozen runtime source do not change its
 binary. Earlier artifacts keep their original identities.
 
-## Completed gates
+## Completed gates on the previous artifact
 
 - Offline Mei: 495 XCTest cases, two skipped, zero failures; four Swift Testing
   cases pass. Live-server tests are separate.
-- Current native admission: [Qwen](../mei011-qwen-paged-io-native-20261106/),
+- Previous native admission: [Qwen](../mei011-qwen-paged-io-native-20261106/),
   [Ornith](../mei011-ornith-paged-io-native-20261106/) and
   [Groot](../mei011-groot-paged-io-native-20261106/) each pass 13 checks, including
   streaming/buffered tools, history/cache reuse and the 65,536-token boundary.
