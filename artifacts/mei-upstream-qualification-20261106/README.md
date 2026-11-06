@@ -98,6 +98,18 @@ campaign. The difference therefore predates the latest command-budget retune;
 that retune cannot be its sole origin. This is a diagnostic clue, not a pooled
 release estimate or identification of the responsible patch.
 
+A [header-only projection-storage audit](qwen-projection-storage-metadata-20261107.json)
+and [predeclared same-binary row-layout screen](qwen-fused-rows-screen-20261107.json)
+prepare one bounded Qwen diagnosis. The existing row-sharing flag selects fused
+row views versus retained original projections; no kernel, quantization or
+production policy is changed. Both arms add a conservative512MiB workspace
+estimate for the426,885,120 bytes of projection tensors, keeping every resource
+guard unchanged. Static profile/one-variable/capacity checks pass. No diagnostic
+process is launched while the current campaign is live. Its exact preservation
+roots must be supported after the current process is terminal. Unchanged
+prefill timing would reject row sharing as sufficient explanation; this
+one-process-per-arm screen cannot establish a release performance verdict.
+
 [Ornith's complete four-process audit](ornith-batched-complete-speed-review.json)
 now also passes all56 observable rows,36 live API cases and44 post-run model-file
 hash checks. Its [request-latency review](ornith-batched-latency-review.json)
