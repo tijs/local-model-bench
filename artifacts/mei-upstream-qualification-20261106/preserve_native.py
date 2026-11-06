@@ -65,6 +65,10 @@ def main():
         f"{model}-upstream011-media-prefix-on-native-20261106"
         for model in ("qwen", "groot")
     )
+    allowed.update(
+        f"{model}-upstream011-media-prefix-on-pinned-native-20261106"
+        for model in ("qwen", "groot")
+    )
     if len(relative.parts) != 1 or relative.name not in allowed:
         raise ValueError("requires this campaign's exact owned runtime directory")
     if base.resolve() != base or (base / "server.pid").exists():
