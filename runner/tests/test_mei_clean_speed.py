@@ -237,8 +237,8 @@ class CleanSpeedLaunchTests(unittest.TestCase):
             clean_environment(cfg)
 
     def test_only_audited_revision_pairs_are_accepted(self):
-        old, new, release_prep = AUDITED_REVISION_PAIRS
-        for mei, vmlx in (old, new, release_prep):
+        old, new, release_prep = AUDITED_REVISION_PAIRS[:3]
+        for mei, vmlx in AUDITED_REVISION_PAIRS:
             cfg = copy.deepcopy(self.cfg)
             cfg["mei_source_commit"], cfg["vmlx_commit"] = mei, vmlx
             self.assertEqual(clean_environment(cfg)["PATH"], FIXED_PATH)
@@ -247,11 +247,21 @@ class CleanSpeedLaunchTests(unittest.TestCase):
             (new[0], old[1]),
             (release_prep[0], old[1]),
             ([], new[1]),
+            (AUDITED_REVISION_PAIRS[-1][0], new[1]),
+            (new[0], AUDITED_REVISION_PAIRS[-1][1]),
         ):
             cfg = copy.deepcopy(self.cfg)
             cfg["mei_source_commit"], cfg["vmlx_commit"] = mei, vmlx
             with self.assertRaisesRegex(ValueError, "requires an audit"):
                 clean_environment(cfg)
+
+    def test_unrecognized_launcher_hash_is_rejected(self):
+        for invalid in ("0" * 64, [], {}, None):
+            with self.subTest(invalid=invalid):
+                cfg = copy.deepcopy(self.cfg)
+                cfg["mei_clean_speed_launch"]["launcher_sha256"] = invalid
+                with self.assertRaisesRegex(ValueError, "launcher SHA256"):
+                    clean_environment(cfg)
 
     def test_historical_groot_clean_receipts_still_validate(self):
         from build_context_speed_cohort import load_cohort
@@ -312,6 +322,8 @@ class CleanSpeedLaunchTests(unittest.TestCase):
             "0",
             "--context-cap",
             "1024",
+            "--keep-model-in-memory",
+            "true",
             "--mei-repo",
             str(mei_repo),
             "--mei-binary",
@@ -381,6 +393,7 @@ class CleanSpeedLaunchTests(unittest.TestCase):
                 self.assertEqual(len(logs), 1)
                 text = logs[0].read_text()
                 self.assertIn("ARGS ", text)
+                self.assertIn("--keep-model-in-memory true", text)
                 self.assertNotIn("VMLX_CACHE_FETCH_TRACE=", text)
                 self.assertNotIn("BASH_FUNC_", text)
             finally:

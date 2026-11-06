@@ -33,9 +33,24 @@ AUDITED_REVISION_PAIRS = (
         "360542ef23058f60f1164070752b8d13f3f2b97f",
         "9db62ce10416db4a33ff0108dca6fc00bdadfff7",
     ),
+    (
+        "2018275d4d1616e4753b4497513cf5ce5cd8aa46",
+        "9db62ce10416db4a33ff0108dca6fc00bdadfff7",
+    ),
+    (
+        "47fdf020426ed7e55ae14f0b2a13d0ac28b32796",
+        "3fa3d7edbc98b31cad4e5589a35e58783c7561fe",
+    ),
 )
 AUDITED_LAUNCHER_SHA256 = (
-    "cfc685b7f2203bd329dbc1f0b1e4e9130cc031b1c58ebc71b31476e8c18467b5"
+    "bfa28f23dee9e0321b042ed1bd9435a7096880bbb41bd2aafa18b2897e6b86cc"
+)
+# Retain reproducibility of committed pre-residency launch receipts.
+AUDITED_LAUNCHER_SHA256S = frozenset(
+    (
+        AUDITED_LAUNCHER_SHA256,
+        "cfc685b7f2203bd329dbc1f0b1e4e9130cc031b1c58ebc71b31476e8c18467b5",
+    )
 )
 SOURCE_FILES = (
     "pyproject.toml",
@@ -84,7 +99,11 @@ def clean_environment(cfg: dict[str, Any]) -> dict[str, str]:
         "environment",
     }:
         raise ValueError("invalid clean-speed launch declaration")
-    if spec["mode"] != MODE or spec["launcher_sha256"] != AUDITED_LAUNCHER_SHA256:
+    if (
+        spec["mode"] != MODE
+        or not isinstance(spec["launcher_sha256"], str)
+        or spec["launcher_sha256"] not in AUDITED_LAUNCHER_SHA256S
+    ):
         raise ValueError("invalid clean-speed mode or launcher SHA256")
     if (
         cfg.get("mei_source_commit"),
