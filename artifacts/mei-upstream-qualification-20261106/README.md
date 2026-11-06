@@ -59,3 +59,9 @@ Each cell also checks nine prebuilt Swift API cases and status during long
 prefill. Within-process and cross-process greedy HTTP output/count/finish must
 match, otherwise the campaign preserves evidence and halts for review.
 No earlier timings are reused and no best-repeat selection is allowed.
+
+Groot rebuilt-artifact default residency PASSED13/13 in219.05s. All pressure
+samples were normal, swap ended below baseline, and all16 model files rehashed
+unchanged. This completes rebuilt native admission for the three Mei profiles.
+Owned runtimes exited and KV evidence was preserved before cleanup. Clean-base
+contribution builds/tests and the declared speed/API matrix remain open.
