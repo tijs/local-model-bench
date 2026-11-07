@@ -16,6 +16,7 @@ from build_context_speed_cohort import validate_resources
 from run_mei_acceptance import committed_native_config, monitor_child
 
 DECLARATION = PREP / "qwen-sdpa-operator-screen-20261107.json"
+MODEL_LAYOUT_DECLARATION = PREP / "qwen-sdpa-operator-model-layout-screen-20261107.json"
 
 
 def digest(path):
@@ -23,8 +24,9 @@ def digest(path):
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
-def output_for(arm):
-    return ROOT / "artifacts" / f"mei011-sdpa-operator-bf16-{arm}-20261107"
+def output_for(arm, case="contiguous"):
+    name = "bf16" if case == "contiguous" else "qwen-layout"
+    return ROOT / "artifacts" / f"mei011-sdpa-operator-{name}-{arm}-20261107"
 
 
 def read_observation(output, cfg, arm):
@@ -65,6 +67,18 @@ def read_observation(output, cfg, arm):
     trace = dict(token.split("=", 1) for token in traces[0].split())
     if trace["force_tk1"] != force or trace["arch"] != result["architecture"]:
         raise ValueError("kernel trace disagrees with executed test settings")
+    if model_trace := cfg.get("model_trace"):
+        ignored = {"qss", "kernel", "specialization", "force_tk1", "selected_max"}
+        if (
+            trace["ql"] != "1"
+            or any(trace[k] != v for k, v in model_trace.items() if k not in ignored)
+            or trace["kernel"].removesuffix("_tk1") != model_trace["kernel"]
+            or trace["specialization"].removesuffix("_tk1")
+            != model_trace["specialization"]
+        ):
+            raise ValueError(
+                "operator dispatch/strides do not match the actual Qwen case"
+            )
     return result, trace
 
 
@@ -93,9 +107,14 @@ def comparable_trace(trace):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--arm", choices=("a1", "b1", "b2", "a2"), required=True)
+    parser.add_argument(
+        "--case", choices=("contiguous", "model-layout"), default="contiguous"
+    )
     options = parser.parse_args()
-    arm = options.arm
-    cfg, raw = committed_native_config(DECLARATION)
+    arm, case = options.arm, options.case
+    cfg, raw = committed_native_config(
+        DECLARATION if case == "contiguous" else MODEL_LAYOUT_DECLARATION
+    )
     if (
         cfg["benchmark_scope"] != "mei-operator-diagnostic-v1"
         or cfg["diagnostic_only"] is not True
@@ -105,7 +124,7 @@ def main():
         raise ValueError("unexpected operator declaration")
     reference = None
     for prior in cfg["order"][: cfg["order"].index(arm)]:
-        _, trace = review_terminal(output_for(prior), cfg, raw, prior)
+        _, trace = review_terminal(output_for(prior, case), cfg, raw, prior)
         if reference is None:
             if trace["kernel"].endswith("_tk1"):
                 raise ValueError("default already selects TK1; no distinct treatment")
@@ -135,7 +154,7 @@ def main():
         with socket.socket() as connection:
             if connection.connect_ex(("127.0.0.1", port)) == 0:
                 raise ValueError(f"benchmark port {port} is occupied")
-    output = output_for(arm)
+    output = output_for(arm, case)
     fixture = cfg["fixture"]
     environment = {
         "HOME": str(Path.home()),
