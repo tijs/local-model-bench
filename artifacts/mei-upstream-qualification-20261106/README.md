@@ -8,7 +8,9 @@ Selected dependency, allocator and trait checks also pass. The new executable is
 `12fa6435558ce679b698804137e6c36ac9e031332408143096474405b33c1bd9`;
 its source-built Metal hash is unchanged from the preceding candidate.
 
-**Final-artifact qualification is running.** Three full native gates precede a
+**Final-artifact qualification is running.** Groot passes13/13 native checks; all
+16 model files rehash unchanged, pressure stays normal and swap stays flat.
+Qwen/Ornith are still pending. Three full native gates precede a
 fresh twelve-cell ABBA comparison with stable0.10. All15 committed profiles pass
 preflight and preserve weights, precision, samplers, budgets and resource guards.
 No earlier timing substitutes for a new cell. Mei0.11 remains unreleased, and
