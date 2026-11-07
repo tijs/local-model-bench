@@ -16,7 +16,7 @@ sys.path[:0] = [
     str(ROOT / "runner"),
     str(ROOT / "artifacts/mei011-comparison-preparation-20261106"),
 ]
-from mei_provenance import verify_mei_runtime
+from mei_provenance import sha256, verify_mei_runtime
 from run_mei_acceptance import committed_native_config, probe_succeeded
 from run_scored_cohort import (
     AUDIT,
@@ -46,7 +46,11 @@ def run(model, seed, admission=None):
     label = f"{model}-seed{seed}"
     config = CONFIGS / f"{label}.yaml"
     output = ROOT / f"artifacts/queued-{label}-20261107"
-    admission = admission or ROOT / f"artifacts/queued-{model}-native-20261107"
+    admission = (
+        admission or ROOT / f"artifacts/queued-{model}-native-20261107"
+    ).resolve()
+    if not admission.is_relative_to(ROOT / "artifacts"):
+        raise ValueError("native evidence must be inside the benchmark artifacts")
     cfg, _ = committed_native_config(config)
     native, native_bytes = committed_native_config(CONFIGS / f"{model}-native.yaml")
     head = subprocess.check_output(
@@ -81,6 +85,15 @@ def run(model, seed, admission=None):
         or cfg["generation_profiles"][cfg["standin_generation_profile"]]["seed"] != seed
     ):
         raise ValueError("scored profile differs from admission or seed declaration")
+    evidence_files = (
+        "config.yaml",
+        "outcome.json",
+        "probe.json" if gemma else "admission.json",
+    )
+    evidence = {
+        "directory": str(admission.relative_to(ROOT)),
+        "sha256": {name: sha256(admission / name) for name in evidence_files},
+    }
     check_ports()
     check_disk_headroom()
     before = verify_or_stage() if gemma else checkpoint_readback(model, cfg)
@@ -104,6 +117,7 @@ def run(model, seed, admission=None):
         check=False,
     )
     outcome = read(output / "outcome.json")
+    write(output / "native-admission-evidence.json", evidence)
     check_ports()
     if model_process_observed(cfg, output, outcome):
         if gemma:
