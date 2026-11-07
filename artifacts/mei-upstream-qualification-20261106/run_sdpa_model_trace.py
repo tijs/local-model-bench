@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import math
 import os
 import shutil
 import signal
@@ -78,9 +79,14 @@ def model_hashes(cfg):
     return observed
 
 
-def child(cfg):
+def child(cfg, output, runtime):
     result = {"status": "failed", "scope": "Dispatch trace only; no timing verdict."}
     launcher = None
+    result["requests"] = []
+    if cfg.get("arm"):
+        result["scope"] = (
+            "Controlled same-Debug-binary dispatch screen, one loaded observation per process; no release timing claim."
+        )
     try:
         checked_artifact(cfg)
         result["pre_run_model_hashes"] = model_hashes(cfg)
@@ -106,13 +112,25 @@ def child(cfg):
                 "seed": 1,
                 "stream": False,
             }
+            begin = time.monotonic()
             response = request_json(endpoint + "/completions", body)
-            write_json(OUTPUT / f"{context}-response.json", response)
+            elapsed = time.monotonic() - begin
+            write_json(output / f"{context}-response.json", response)
             if observable(response) != baseline[context]:
                 raise ValueError(
                     f"{context} observable differs from final release-qualification control"
                 )
-        log = (RUNTIME / "logs/server.log").read_text()
+            usage = response["usage"]
+            metrics = {
+                "request_wall_seconds": elapsed,
+                "decode_tps": usage["tokens_per_second"],
+                "backend_prefill_ms": usage["prefill_ms"],
+                "backend_generate_ms": usage["generate_ms"],
+            }
+            if any(not math.isfinite(v) or v <= 0 for v in metrics.values()):
+                raise ValueError("invalid diagnostic phase measurements")
+            result["requests"].append({"context": context, **metrics})
+        log = (runtime / "logs/server.log").read_text()
         lines = [
             line.split("[mei-sdpa-probe] ", 1)[1]
             for line in log.splitlines()
@@ -123,13 +141,25 @@ def child(cfg):
         trace = dict(token.split("=", 1) for token in lines[0].split())
         result["trace"] = trace
         if (
-            trace["force_tk1"] != "0"
+            trace["force_tk1"] != cfg["environment"]["MLX_SDPA_PROBE_FORCE_TK1"]
             or trace["ql"] != "1"
             or not 30000 <= int(trace["kl"]) <= 30128
         ):
             raise ValueError(
                 "first trace was outside the declared loaded decode fixture"
             )
+        if cfg.get("arm"):
+            expected = read_pinned(cfg, "pilot_trace")["trace"]
+            suffix = "_tk1" if trace["force_tk1"] == "1" else ""
+            variable = {"kernel", "specialization", "force_tk1", "selected_max"}
+            if (
+                any(trace[k] != v for k, v in expected.items() if k not in variable)
+                or trace["kernel"] != expected["kernel"] + suffix
+                or trace["specialization"] != expected["specialization"] + suffix
+            ):
+                raise ValueError(
+                    "actual Qwen dispatch differs beyond the intended TK variant"
+                )
         result["status"] = "observables_passed"
     except KeyboardInterrupt:
         result["error"] = "owned trace interrupted"
@@ -143,7 +173,7 @@ def child(cfg):
                         "bash",
                         "runner/stop_mei_server.sh",
                         "--runtime-base",
-                        str(RUNTIME),
+                        str(runtime),
                         "--timeout",
                         "8",
                     ],
@@ -160,16 +190,16 @@ def child(cfg):
                     status="failed", cleanup_error=f"{type(exc).__name__}: {exc}"
                 )
         for name in ("server.log", "requests.jsonl"):
-            source = RUNTIME / "logs" / name
+            source = runtime / "logs" / name
             if source.is_file():
-                shutil.copy2(source, OUTPUT / name)
-        write_json(OUTPUT / "trace-result.json", result)
+                shutil.copy2(source, output / name)
+        write_json(output / "trace-result.json", result)
     if result["status"] == "observables_passed":
         check_ports()
         checked_artifact(cfg)
         result["post_run_model_hashes"] = model_hashes(cfg)
         result.update(status="passed", server_stopped=True)
-        write_json(OUTPUT / "trace-result.json", result)
+        write_json(output / "trace-result.json", result)
         return 0
     return 1
 
@@ -177,26 +207,43 @@ def child(cfg):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--child", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument(
+        "--arm", choices=("trace", "a1", "b1", "b2", "a2"), default="trace"
+    )
     args = parser.parse_args()
-    cfg, raw = committed_native_config(DECLARATION)
+    arm = args.arm
+    declaration = (
+        DECLARATION if arm == "trace" else PREP / f"qwen-sdpa-model-{arm}-20261107.json"
+    )
+    output = (
+        OUTPUT
+        if arm == "trace"
+        else OUTPUT.with_name(f"mei011-qwen-sdpa-model-{arm}-20261107")
+    )
+    runtime = (
+        RUNTIME
+        if arm == "trace"
+        else RUNTIME.with_name(f"qwen-upstream011-sdpa-model-{arm}-20261107")
+    )
+    cfg, raw = committed_native_config(declaration)
     if (
         cfg["benchmark_scope"] != "mei-kernel-diagnostic-v1"
-        or cfg["environment"]["MEI_RUNTIME_BASE"] != str(RUNTIME)
-        or RUNTIME.resolve() != RUNTIME
+        or cfg["environment"]["MEI_RUNTIME_BASE"] != str(runtime)
+        or runtime.resolve() != runtime
     ):
         raise ValueError("unexpected diagnostic scope or owned runtime path")
     if args.child:
-        owned = OUTPUT / "process.json"
+        owned = output / "process.json"
         for _ in range(20):
             if owned.is_file():
                 break
             time.sleep(0.05)
-        if not owned.is_file() or (OUTPUT / "outcome.json").exists():
+        if not owned.is_file() or (output / "outcome.json").exists():
             raise ValueError("trace child requires its live resource supervisor")
         identity = json.loads(owned.read_text())
         if (
             identity != {"pid": os.getpid(), "pgid": os.getpgrp()}
-            or (OUTPUT / "config.yaml").read_bytes() != raw
+            or (output / "config.yaml").read_bytes() != raw
         ):
             raise ValueError(
                 "trace child requires its live resource-supervisor ownership"
@@ -207,10 +254,37 @@ def main():
             raise KeyboardInterrupt()
 
         signal.signal(signal.SIGTERM, interrupted)
-        return child(cfg)
+        return child(cfg, output, runtime)
+    if arm != "trace":
+        order = ["a1", "b1", "b2", "a2"]
+        force = "1" if arm.startswith("b") else "0"
+        if cfg["arm"] != arm or cfg["environment"]["MLX_SDPA_PROBE_FORCE_TK1"] != force:
+            raise ValueError("unexpected declared real-model treatment")
+        matched, _ = committed_native_config(
+            PREP / "qwen-sdpa-operator-model-layout-review-20261107.json"
+        )
+        if (
+            matched.get("both_forced_process_means_faster_than_both_default_processes")
+            is not True
+        ):
+            raise ValueError(
+                "requires the reviewed positive matched-layout operator screen"
+            )
+        for prior in order[: order.index(arm)]:
+            prior_dir = OUTPUT.with_name(f"mei011-qwen-sdpa-model-{prior}-20261107")
+            outcome = json.loads((prior_dir / "outcome.json").read_text())
+            result = json.loads((prior_dir / "trace-result.json").read_text())
+            if (
+                outcome["status"] != "passed"
+                or result["status"] != "passed"
+                or not result["server_stopped"]
+            ):
+                raise ValueError(
+                    "previous declared model arm needs review before another launch"
+                )
     check_ports()
     checked_artifact(cfg)
-    if RUNTIME.exists():
+    if runtime.exists():
         raise ValueError("refuse an existing owned runtime directory")
     os.environ.clear()
     os.environ.update(cfg["environment"])
@@ -225,7 +299,7 @@ def main():
         result = json.loads((out / "trace-result.json").read_text())
         return result["status"] == "passed" and result["server_stopped"] is True
 
-    command = [sys.executable, str(Path(__file__).resolve()), "--child"]
+    command = [sys.executable, str(Path(__file__).resolve()), "--arm", arm, "--child"]
     return monitor_child(cfg, raw, args, command, diagnostic_check=checked)
 
 
