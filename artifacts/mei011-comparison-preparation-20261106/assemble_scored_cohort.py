@@ -71,7 +71,18 @@ def prepare():
         "release_commit"
     ].startswith(declaration["method_commit_prefix"]):
         raise ValueError("prior and current cohorts must use the same released method")
-    spec = {**old, "cohorts": []}
+    spec = {
+        **old,
+        "cohorts": [],
+        "reports": [],
+        "alternative_note": (
+            "MiniCPM is a previously tested alternative. Its two Mei 0.10 comparison "
+            "runs passed 23/24 household and 5/6 Python tasks, with one critical "
+            "safety failure; it was unranked. It was not rerun for this four-model "
+            "comparison. [Full MiniCPM evidence](MINICPM_MEI010.md). "
+            "ThinkingCap remains in the [historical v9.5 report](AGENT_V9.md)."
+        ),
+    }
     outputs = {}
     for seed in (17, 29):
         entries = []
@@ -102,11 +113,11 @@ def prepare():
         }
         base = f"four-model-mei011-seed{seed}"
         path = f"results/{base}.json"
+        report = f"FOUR_MODEL_MEI011_SEED{seed}.md"
         spec["cohorts"].append(path)
+        spec["reports"].append(report)
         outputs[path] = json.dumps(cohort, indent=2) + "\n"
-        outputs[f"results/FOUR_MODEL_MEI011_SEED{seed}.md"] = render_campaign(
-            ROOT, cohort
-        )
+        outputs[f"results/{report}"] = render_campaign(ROOT, cohort)
     outputs["results/four-model-mei011-comparison.json"] = (
         json.dumps(spec, indent=2) + "\n"
     )

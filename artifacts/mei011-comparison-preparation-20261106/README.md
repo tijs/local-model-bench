@@ -1,69 +1,58 @@
-# Mei0.11 task-comparison preparation
+# Mei 0.11.0 benchmark campaign
 
-The [declaration](campaign.json) fixes the eight model/seed trajectories and
-serving-profile interpretation before results exist. It does not launch a run.
-Final YAMLs must pin the verified published release/installed artifact, preserve
-model-card sampling and the unchanged benchmark method, and be committed before
-launch. The final Apple-main runtime qualification completed all twelve cells. Its
-[artifact identity](../mei-upstream-qualification-20261106/apple-main-artifact.json)
-and B1 templates define the pending release profile. The preceding candidate
-measurements cannot qualify its new executable. Logics remains a separately pinned
-GGUF/llama.cpp control.
+The [campaign declaration](campaign.json) fixes eight held-out runs: Qwen,
+Ornith, Groot and Logics-SWE with seeds 17 and 29. Each run uses the same
+released `benchmark-v9.11.5` method as the [Mei 0.10.0 comparison](../../results/FOUR_MODEL_MEI010_FINAL.md):
+12 household workflows and three Python automation tasks. The Mei profiles
+use the [published and verified 0.11.0 release](verified-release-delivery.json).
+Logics-SWE keeps the same pinned GGUF, llama.cpp revision and launch settings.
 
-The committed native and old/new speed profiles use 512 MiB allocator pools for
-Qwen/Groot and 128 MiB for Ornith. The planned cohort preserves those per-model
-values. Only Groot changes from its prior scored 128 MiB pool; Qwen stays 512 MiB
-and Ornith stays 128 MiB. An earlier version of this prose incorrectly described
-all three as 512 MiB; the executable configs and declaration's per-cell values
-were already correct. Results describe each serving profile, with no pure-source
-or single-patch attribution. Kiem owns project progress; this file is only an
-experiment declaration. Run [the preparation verifier](verify_preparation.py)
-to compare declared fields with the actual qualified launch templates.
+The [committed configs](../../configs/mei-0.11.0-comparison-20261107/) preserve
+model-card sampling and use 512 MiB allocator pools for Qwen and Groot and
+128 MiB for Ornith. Only Groot changes from its prior scored pool of 128 MiB.
+The comparison measures serving profiles; it cannot isolate Mei source changes
+for Groot, and Logics provides a control for variation between run windows.
 
-The combined task/speed verifier retains flag order and environment, ignoring
-only owned paths. New task launch declarations should derive from the qualified
-B1 profiles while preserving explicit model-card request overrides from each old
-seed config. Source revisions may differ for release documentation only when
-Git build inputs and binary/Metal/dependency hashes prove equivalence; do not
-weaken the verifier to join incompatible profiles.
+The independent [delivery verifier](verify_release_delivery.py) downloaded the
+published assets again and checked the tag, archive, Homebrew checksum and
+installed executable and Metal library against the qualified build. The
+[scored supervisor](run_scored_cohort.py) checks the committed config and
+receipt against the released benchmark method. It runs one model at a time,
+retains the evidence and replays each task audit before starting the next run.
+The live campaign must be reviewed before any continuation; do not restart it
+or substitute earlier results for an interrupted attempt.
 
-Context-speed reporting uses the final B1/B2 observations for each MLX model
-and two predeclared fresh Logics control processes. All five measured requests
-per context and both processes receive equal weight. Logics keeps its pinned
-GGUF/runtime and launch settings. Both fresh Logics processes passed; the
-[control audit](logics-context-controls-review-20261107.json) records the exact
-runtime, model, prompts, and per-process evidence. Earlier timing values do not
-substitute for these fresh points. This qualification does not start or score the
-held-out task trajectories.
+## Context-speed evidence
 
-The [validated speed inputs](qualified-context-speed-inputs.json) for the
-preceding Apple-main candidate pass the existing cohort validator with all
-eight processes and eighty observations.
-The Mei model manifests match the current campaign's complete pre-run file
-lists by directory, relative path, byte count and digest. Use this input only
-if delivery verifies the same executable, Metal library and serving profile.
-The [production selector protocol](../mei-upstream-qualification-20261106/attention-selector-qualification-protocol-20261107.json)
-requires six new timing processes if that executable is selected for release.
-The two unchanged Logics controls still apply. The [scored supervisor](run_scored_cohort.py)
-requires a committed receipt for published and installed delivery before any
-scored run. It preserves each owned result and replays the task evidence before
-moving to the next seed or model.
+The [final release timing audit](../mei-upstream-qualification-20261106/attention-selector-final-review-20261107.json)
+and [Logics control audit](logics-context-controls-review-20261107.json) feed
+the [four-model speed specification](../../results/four-model-mei011-context-speed.json).
+Each point averages five measured decodes per context in each of two fresh
+processes. The short and long prompts are fixed across processes. This is
+separate from the scored workflow runs. The
+[preceding build's speed inputs](qualified-context-speed-inputs.json) remain
+historical and do not qualify the published executable.
 
-After publication and Homebrew installation, run
-`uv run --locked python artifacts/mei011-comparison-preparation-20261106/verify_release_delivery.py`
-with the selected qualification campaign, a clean detached release checkout,
-and the tap worktree. The [verifier](verify_release_delivery.py) downloads the
-published assets again and checks the release tag, archive, tap checksum, and
-installed executable and Metal library against the tested candidate. Commit
-its receipt together with the bound task configs before starting the cohort.
+## Rebuild the comparison
 
-After all eight task runs complete, run
-`uv run --locked python artifacts/mei011-comparison-preparation-20261106/assemble_scored_cohort.py --write`
-to validate and write the two seed manifests and the task comparison input.
+After all eight runs are terminal and reviewed, run from the repository root:
+
+```sh
+uv run --locked python artifacts/mei011-comparison-preparation-20261106/assemble_scored_cohort.py --write
+uv run --locked python runner/verify_combined_cohorts.py \
+  --scores results/four-model-mei011-comparison.json \
+  --speed results/four-model-mei011-context-speed.json
+uv run --locked python runner/build_four_model_summary.py \
+  --spec results/four-model-mei011-comparison.json \
+  --summary results/FOUR_MODEL_MEI011_FINAL.md \
+  --figures results/charts/four-model-mei011
+uv run --locked python runner/build_context_speed_cohort.py \
+  --spec results/four-model-mei011-context-speed.json \
+  --output results/charts/four-model-mei011-context-speed
+```
+
 The assembler refuses partial cohorts and checks every selected run against
-its archived outcome, config and review. Pair that input with the qualified
-context-speed input only after the combined-cohort verifier passes.
-Use a fresh chart directory such as `results/charts/four-model-mei011` for the
-task report and a separate `results/charts/four-model-mei011-context-speed`
-stem for the context plot. The benchmark method is unchanged, so the default
-method-based chart directory can already contain an earlier cohort.
+its archived outcome, config and review. The combined verifier binds the two
+reports to matching runtime, model and serving settings. Keep earlier graphs
+and their source data intact; `AGENT_SUMMARY.md` is the current-results entry
+point. Kiem tracks remaining campaign and release work.
