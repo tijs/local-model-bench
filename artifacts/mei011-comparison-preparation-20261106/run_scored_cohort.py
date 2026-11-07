@@ -280,6 +280,21 @@ def preserve(model, config, cfg, output):
         )
 
 
+def model_process_observed(cfg, output, outcome):
+    if outcome["model_started"]:
+        return True
+    if not outcome["runner_started"] or cfg["inference_engine"] != "mei":
+        return False
+    argv = shlex.split(cfg["benchmark_launch_command"])
+    binary = Path(argv[argv.index("--mei-binary") + 1]).resolve(strict=True)
+    with (output / "resources.jsonl").open() as stream:
+        return any(
+            Path(process["comm"]) == binary
+            for line in stream
+            for process in json.loads(line)["owned_processes"]
+        )
+
+
 def run(cases):
     progress = {
         "status": "running",
@@ -324,7 +339,9 @@ def run(cases):
                 check=False,
             )
             outcome = read(output / "outcome.json")
-            if outcome["model_started"] and outcome["returncode"] is not None:
+            if outcome["returncode"] is not None and model_process_observed(
+                cfg, output, outcome
+            ):
                 preserve(model, config, cfg, output)
             if (
                 result.returncode
