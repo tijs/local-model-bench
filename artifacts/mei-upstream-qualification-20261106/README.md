@@ -38,12 +38,21 @@ narrows Qwen's investigation: ordinary256-token chunks do not select the
 changed non-NAX fused D256 prefill tile. Actual decode dispatch still needs
 verification; the [operator diagnostic](qwen-sdpa-probe-preparation/) is prepared
 only and has not been applied, built or run.
-The [same-binary floor screen](qwen-floor-screen-20261107.json) is predeclared,
-with identical runtime receipts in both arms and unchanged outer resource guards.
-It has not run. A collector regression first reproduces discarded live-memory
-counters, then passes all13 focused tests after retaining them in existing status
-observations. No extra status requests or runtime changes are added. The sampler
-covers the cold loaded request, not every later measured request.
+The [same-binary floor screen](qwen-floor-screen-20261107.json) is complete.
+Its [strict review](qwen-floor-review-20261107.json) passes all28 observables,
+18 live API cases and30 model-file checks, retaining all20 measurements.
+Live telemetry confirms the enabled floor raises the scheduling guideline;
+the disabled arm holds the same startup guideline. The
+[verdict](qwen-floor-verdict-20261107.json) does not support the floor as a
+sufficient explanation for Qwen's slowdown. Keep the default enabled. One
+process per arm cannot rule out small effects or establish equivalence.
+No floor receipts occur within the measured request intervals, but any positive
+recovery would still need untraced confirmation before production attribution.
+The collector regression first reproduces discarded live-memory counters,
+then passes all13 focused tests after retaining them in existing observations.
+No extra status requests or runtime changes are added. Sampling covers the cold
+loaded request, not every later measured request. Both owned servers exited,
+evidence was preserved before KV cleanup and benchmark ports were free.
 No earlier timing substitutes for a new cell. Mei0.11 remains unreleased, and
 there are no new0.11 task scores.
 
