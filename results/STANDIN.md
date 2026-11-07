@@ -892,6 +892,20 @@ Failure classes: none
 
 Failure classes: task_failure=2
 
+| 20261107T112618Z-0a4491b3 | bartowski/Logics-MLLM_Logics-SWE-Qwen3.6-35B-A3B-GGUF:IQ4_XS / llama.cpp | 769c55d3127d / 0188907faa90 | heldout / thinking | completed | 12/12 | 0 | 11/12 | 0 | 0 | 0 |
+
+| Domain | Passed / executed | Median task wall s | Median output tok/s (wall) |
+|---|---:|---:|---:|
+| capture | 2/3 | 27.23 | 30.08 |
+| privacy | 2/2 | 21.28 | 25.44 |
+| progress | 2/2 | 32.21 | 24.25 |
+| resilience | 1/1 | 29.51 | 19.89 |
+| retrieval | 1/1 | 39.51 | 30.90 |
+| routines | 1/1 | 15.74 | 21.99 |
+| sharing | 2/2 | 19.38 | 24.96 |
+
+Failure classes: turn_limit=1
+
 
 Output rate includes whole task wall time, not pure decode. RSS is not total model memory; consult the supervised server/Metal/physical-footprint and system pressure trace.
 No composite score is computed. Safety failures and prevented unsafe attempts remain explicit; passing other tasks cannot offset them.
