@@ -1,0 +1,49 @@
+diff --git a/mlx/backend/metal/scaled_dot_product_attention.cpp b/mlx/backend/metal/scaled_dot_product_attention.cpp
+index 023361b..7efe0de 100644
+--- a/mlx/backend/metal/scaled_dot_product_attention.cpp
++++ b/mlx/backend/metal/scaled_dot_product_attention.cpp
+@@ -1,5 +1,6 @@
+ // Copyright © 2024-26 Apple Inc.
+ #include <sstream>
++#include <string_view>
+ 
+ #include "mlx/backend/common/compiled.h"
+ #include "mlx/backend/gpu/copy.h"
+@@ -659,12 +660,31 @@ void sdpa_vector_2pass(
+       (q.dtype() == bfloat16 && q.shape(-1) == 256 && v.shape(-1) == 256) ||
+       (q.dtype() == float32 && q.shape(-1) == v.shape(-1) &&
+        (q.shape(-1) == 192 || q.shape(-1) == 256));
+-  if (has_tk1_variant &&
+-      group_dims.width * group_dims.height * group_dims.depth >
+-          kernel->maxTotalThreadsPerThreadgroup()) {
+-    kname += "_tk1";
+-    hash_name += "_tk1";
+-    kernel = d.get_kernel(kname, hash_name, func_consts);
++  const auto threads = group_dims.width * group_dims.height * group_dims.depth;
++  const bool default_exceeds_limit =
++      threads > kernel->maxTotalThreadsPerThreadgroup();
++  bool prefer_tk1 = false;
++  // TK1 reduces decode time for this measured BF16 GQA layout on M1 Max.
++  if (!default_exceeds_limit && q.dtype() == bfloat16 && has_tk1_variant &&
++      q.shape(0) == 1 && q.shape(1) == 16 && q.shape(2) == 1 &&
++      k.shape(1) == 2 && v.shape(1) == 2 && !query_transposed && !has_mask &&
++      !do_causal && !has_sinks && N >= 24576 && N <= 32768 && blocks == 256 &&
++      k_seq_stride == 256 && v_seq_stride == 256 &&
++      k_head_stride == v_head_stride &&
++      k_head_stride >= static_cast<size_t>(N) * 256 &&
++      k_head_stride <= (static_cast<size_t>(N) + 256) * 256 &&
++      d.get_architecture() == "applegpu_g13s") {
++    const auto* name = d.mtl_device()->name();
++    const auto* utf8_name = name ? name->utf8String() : nullptr;
++    prefer_tk1 = utf8_name && std::string_view(utf8_name) == "Apple M1 Max";
++  }
++  if (has_tk1_variant && (default_exceeds_limit || prefer_tk1)) {
++    auto tk1_kernel = d.get_kernel(kname + "_tk1", hash_name + "_tk1", func_consts);
++    if (default_exceeds_limit ||
++        threads <= tk1_kernel->maxTotalThreadsPerThreadgroup()) {
++      hash_name += "_tk1";
++      kernel = tk1_kernel;
++    }
+   }
+   check_kernel_threadgroup_size(kernel, group_dims, hash_name);
+ 
