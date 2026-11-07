@@ -32,3 +32,20 @@ The matrix measures streaming chat separately from raw completions and
 
 [Full audited observations and process means](../artifacts/mei-upstream-qualification-20261106/qwen-stream-ttft-review-20261107.json) ·
 [Timing protocol](../artifacts/mei-upstream-qualification-20261106/QWEN_STREAMING_TTFT.md).
+
+## Prefill attribution follow-up
+
+Two separate attempts to profile the Mei 0.10.0 mmap-off control hit the
+memory guard before completing any timed request. The [first attempt](../artifacts/mei011-qwen-prefill-trace-legacy-20261107/README.md)
+stopped during load. The [retry](../artifacts/mei011-qwen-prefill-trace-legacy-retry-20261107/README.md)
+verified every checkpoint file immediately before launch and reached the
+listening state, but sustained warning pressure stopped it before a timing row
+or a generation phase record was captured. Mei 0.11.0 was not launched in this
+diagnostic pair. These stops are separate from the six successful untraced
+processes above and do not identify the cause of the timing difference.
+
+The measured tradeoff remains: the short first token is faster and long decode
+is faster, but a fresh 30K prompt takes slightly longer to reach the first
+reasoning token. There is no verified fix to promote. Further attribution
+would need a quiet measurement host with headroom to complete both profiles,
+or a lower-memory reproducer that first demonstrates the same latency change.
