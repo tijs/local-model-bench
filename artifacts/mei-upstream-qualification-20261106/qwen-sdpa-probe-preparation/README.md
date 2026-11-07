@@ -54,3 +54,7 @@ not a distinct treatment and must not be reported as a useful A/B comparison.
 If variants differ, require numerical reference checks and retain all raw samples.
 These are diagnostic hooks, not a production patch or proposed default. Remove
 them from any final fix; an operator result alone cannot qualify Mei.
+
+The trace includes the specialization key (mask/layout/block constants), not
+just the base kernel name. The Python script’s path label is a shape-based
+classification and must not be mistaken for an observed runtime variant.
