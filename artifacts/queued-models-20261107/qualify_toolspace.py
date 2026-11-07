@@ -47,6 +47,19 @@ def require(condition, reason):
         raise ValueError(reason)
 
 
+def context_completed(response, cap):
+    # With context shift disabled, the pinned llama.cpp build marks the
+    # capacity stop as truncated even after returning the one requested token.
+    timings = response["timings"]
+    return (
+        response["tokens_evaluated"] == timings["prompt_n"] == cap - 1
+        and response["tokens_predicted"] == timings["predicted_n"] == 1
+        and timings["cache_n"] == 0
+        and response["stop_type"] == "limit"
+        and isinstance(response["truncated"], bool)
+    )
+
+
 def succeeded(output):
     result = json.loads((output / "admission.json").read_text())
     return (
@@ -174,12 +187,7 @@ def exercise(cfg, output, result):
         "cache_prompt": False,
     }
     exact = save("context", request_json(base + "/completion", payload)[0])
-    require(
-        exact["tokens_evaluated"] == cap - 1
-        and exact["tokens_predicted"] == 1
-        and not exact["truncated"],
-        "full configured window was not evaluated",
-    )
+    require(context_completed(exact, cap), "full configured window was not evaluated")
     passed("context")
     try:
         request_json(base + "/completion", payload | {"prompt": tokens + tokens[-2:]})

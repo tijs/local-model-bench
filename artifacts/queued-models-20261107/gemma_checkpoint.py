@@ -4,8 +4,10 @@ import argparse
 import hashlib
 import json
 import shutil
+import struct
 import subprocess
 import sys
+from collections import Counter
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -45,6 +47,71 @@ def verify_file(path, row):
                 raise ValueError(f"publisher Git blob mismatch: {path}")
             actual = hashlib.sha256(data).hexdigest()
     return {"file": row["file"], "bytes": size, "sha256": actual}
+
+
+def check_affine_layout(directory):
+    """Check the pinned metadata against tensor headers without loading weights."""
+    config = json.loads((directory / "config.json").read_text())
+    quant = config["quantization"]
+    if (
+        config["model_type"] != "gemma4"
+        or config.get("vision_config") is not None
+        or config.get("audio_config") is not None
+        or quant != config["quantization_config"]
+        or quant["mode"] != "affine"
+    ):
+        raise ValueError("unexpected Gemma model or affine config")
+    index = json.loads((directory / "model.safetensors.index.json").read_text())[
+        "weight_map"
+    ]
+    tensors = {}
+    for shard in sorted(directory.glob("*.safetensors")):
+        with shard.open("rb") as stream:
+            size = struct.unpack("<Q", stream.read(8))[0]
+            if not 0 < size <= 16 * 1024**2:
+                raise ValueError(f"invalid header length: {shard.name}")
+            header = json.loads(stream.read(size))
+        for name, entry in header.items():
+            if name == "__metadata__":
+                continue
+            start, end = entry["data_offsets"]
+            if (
+                name in tensors
+                or index.get(name) != shard.name
+                or not 0 <= start < end <= shard.stat().st_size - 8 - size
+            ):
+                raise ValueError(f"inconsistent safetensors header or index: {name}")
+            tensors[name] = entry
+    leaves = {
+        name.removesuffix(".scales") for name in tensors if name.endswith(".scales")
+    }
+    if tensors.keys() != index.keys() or leaves != {
+        name for name, value in quant.items() if isinstance(value, dict)
+    }:
+        raise ValueError("declared and packed affine leaves differ")
+    widths = Counter()
+    for name in sorted(leaves):
+        width, group = quant[name]["bits"], quant[name]["group_size"]
+        weight, scales, biases = (
+            tensors[f"{name}.{suffix}"] for suffix in ("weight", "scales", "biases")
+        )
+        packed, scale = weight["shape"], scales["shape"]
+        if (
+            width not in {3, 4, 5, 8}
+            or group != 64
+            or weight["dtype"] != "U32"
+            or scales["dtype"] not in {"BF16", "F16", "F32"}
+            or biases["dtype"] != scales["dtype"]
+            or biases["shape"] != scale
+            or packed[:-1] != scale[:-1]
+            or packed[-1] * 32 != scale[-1] * group * width
+        ):
+            raise ValueError(f"packed affine geometry differs from metadata: {name}")
+        widths[str(width)] += 1
+    return {
+        "tensor_count": len(tensors),
+        "affine_leaves_by_width": dict(sorted(widths.items())),
+    }
 
 
 def verify_or_stage(*, stage=False):
@@ -108,6 +175,7 @@ def verify_or_stage(*, stage=False):
         "directory": str(directory),
         "revision": manifest["revision"],
         "files": files,
+        "affine_layout": check_affine_layout(directory),
     }
 
 

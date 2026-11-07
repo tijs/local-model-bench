@@ -42,11 +42,11 @@ def write(path, value):
         f.write("\n")
 
 
-def run(model, seed):
+def run(model, seed, admission=None):
     label = f"{model}-seed{seed}"
     config = CONFIGS / f"{label}.yaml"
     output = ROOT / f"artifacts/queued-{label}-20261107"
-    admission = ROOT / f"artifacts/queued-{model}-native-20261107"
+    admission = admission or ROOT / f"artifacts/queued-{model}-native-20261107"
     cfg, _ = committed_native_config(config)
     native, native_bytes = committed_native_config(CONFIGS / f"{model}-native.yaml")
     head = subprocess.check_output(
@@ -146,5 +146,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("model", choices=("toolspace", "gemma-ram13"))
     parser.add_argument("seed", type=int, choices=(17, 29))
+    parser.add_argument(
+        "--admission",
+        type=Path,
+        help="Reviewed native output when the first attempt could not complete",
+    )
     args = parser.parse_args()
-    run(args.model, args.seed)
+    run(args.model, args.seed, args.admission)
