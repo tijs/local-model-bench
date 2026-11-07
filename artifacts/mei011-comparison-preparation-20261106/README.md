@@ -48,3 +48,11 @@ The two unchanged Logics controls still apply. The [scored supervisor](run_score
 requires a committed receipt for published and installed delivery before any
 scored run. It preserves each owned result and replays the task evidence before
 moving to the next seed or model.
+
+After publication and Homebrew installation, run
+`uv run --locked python artifacts/mei011-comparison-preparation-20261106/verify_release_delivery.py`
+with the selected qualification campaign, a clean detached release checkout,
+and the tap worktree. The [verifier](verify_release_delivery.py) downloads the
+published assets again and checks the release tag, archive, tap checksum, and
+installed executable and Metal library against the tested candidate. Commit
+its receipt together with the bound task configs before starting the cohort.
