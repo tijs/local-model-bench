@@ -56,3 +56,10 @@ and the tap worktree. The [verifier](verify_release_delivery.py) downloads the
 published assets again and checks the release tag, archive, tap checksum, and
 installed executable and Metal library against the tested candidate. Commit
 its receipt together with the bound task configs before starting the cohort.
+
+After all eight task runs complete, run
+`uv run --locked python artifacts/mei011-comparison-preparation-20261106/assemble_scored_cohort.py --write`
+to validate and write the two seed manifests and the task comparison input.
+The assembler refuses partial cohorts and checks every selected run against
+its archived outcome, config and review. Pair that input with the qualified
+context-speed input only after the combined-cohort verifier passes.
