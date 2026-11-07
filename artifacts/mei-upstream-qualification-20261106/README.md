@@ -5,8 +5,8 @@ It includes the reviewed g13s command-batch retune, latest Ripple upstream merge
 and strict NoPE declaration validation. The final release build passed;495 offline
 XCTest cases (two skipped, zero failures) and four Swift Testing cases pass.
 The selected inherited-feature tests pass62 XCTest cases (one skip) plus132 Swift
-Testing cases. **All three fresh native gates pass; the untraced performance/API
-comparison is running. Mei0.11 is not released.** Stable remains0.10.0, with no
+Testing cases. **All three fresh native gates and twelve untraced observable/API
+cells pass; performance findings remain open. Mei0.11 is not released.** Stable remains0.10.0, with no
 new0.11 task scores.
 
 The refreshed upstream-head audit also found three Apple MLX Swift commits
@@ -121,6 +121,20 @@ an aggregate runtime/storage comparison, with no statistical-superiority,
 single-patch or task-quality claim. All four servers exited and owned KV was
 preserved then removed. Eight of twelve cells are now complete; Groot's four
 processes and final review remain required before any release decision.
+
+The [complete frozen-candidate review](batched-campaign-terminal-review.json)
+now reproduces all three strict model and latency audits:168 observable rows,
+120 measured requests,108 live API cases and168 post-run model-file checks.
+The owned pipeline exited zero, all servers exited and ports8017/8024 are free.
+[Terminal progress](batched-speed-progress.json) and the
+[balanced timing summary](batched-speed-summary.json) retain every cell.
+Groot's [full audit](groot-batched-complete-speed-review.json) is mixed: short
+decode improves, loaded decode remains slightly lower, and its
+[whole-request means](groot-batched-latency-review.json) are faster at both
+contexts. Do not describe that as a universal throughput recovery. Qwen's
+loaded-request slowdown and the source-only Apple merge remain open release
+work. The predeclared same-binary row-layout screen is next; these observations
+do not qualify a later executable or produce task scores.
 
 ## Previous comparison and preserved regression
 
