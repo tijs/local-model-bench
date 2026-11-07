@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import shlex
 import shutil
 import subprocess
 import sys
@@ -42,8 +43,12 @@ def write(path, value):
         f.write("\n")
 
 
-def run(model, seed, admission=None):
+def run(model, seed, admission=None, *, alias_retry=False):
     label = f"{model}-seed{seed}"
+    if alias_retry:
+        if (model, seed) != ("toolspace", 17):
+            raise ValueError("alias retry is declared only for ToolSpace seed 17")
+        label += "-alias-retry"
     config = CONFIGS / f"{label}.yaml"
     output = ROOT / f"artifacts/queued-{label}-20261107"
     admission = (
@@ -71,15 +76,23 @@ def run(model, seed, admission=None):
         new = cfg["required_runner_environment"]["MEI_RUNTIME_BASE"]
         if old == new or Path(new).exists():
             raise ValueError("Gemma requires a fresh owned runtime base")
+        expected_command = shlex.split(
+            native["benchmark_launch_command"].replace(old, new)
+        )
     else:
         if not toolspace_admitted(admission):
             raise ValueError("ToolSpace has not passed full native admission")
-        old = new = ""
+        expected_command = shlex.split(native["benchmark_launch_command"])
+        alias_index = expected_command.index("--alias")
+        del expected_command[alias_index : alias_index + 2]
+        if cfg["orchestration"].get("served_model_id"):
+            raise ValueError(
+                "frozen llama.cpp scoring owns the exact config-hash alias"
+            )
         if Path(f"/tmp/bench_{config.parent.name}_{config.stem}_server.log").exists():
             raise ValueError("stale ToolSpace server log exists")
     if (
-        native["benchmark_launch_command"].replace(old, new)
-        != cfg["benchmark_launch_command"]
+        expected_command != shlex.split(cfg["benchmark_launch_command"])
         or native["capacity_plan"] != cfg["capacity_plan"]
         or native["resource_monitor_policy"] != cfg["resource_monitor_policy"]
         or cfg["generation_profiles"][cfg["standin_generation_profile"]]["seed"] != seed
@@ -119,7 +132,16 @@ def run(model, seed, admission=None):
     outcome = read(output / "outcome.json")
     write(output / "native-admission-evidence.json", evidence)
     check_ports()
-    if model_process_observed(cfg, output, outcome):
+    model_observed = model_process_observed(cfg, output, outcome)
+    if not gemma and not model_observed and (output / "resources.jsonl").is_file():
+        binary = Path(cfg["runtime"]["binary"]).resolve(strict=True)
+        with (output / "resources.jsonl").open() as rows:
+            model_observed = any(
+                Path(child["comm"]) == binary
+                for row in rows
+                for child in json.loads(row)["owned_processes"]
+            )
+    if model_observed:
         if gemma:
             source = Path(new) / "logs"
             shutil.copytree(source, output / "runtime-logs")
@@ -161,9 +183,14 @@ if __name__ == "__main__":
     parser.add_argument("model", choices=("toolspace", "gemma-ram13"))
     parser.add_argument("seed", type=int, choices=(17, 29))
     parser.add_argument(
+        "--alias-retry",
+        action="store_true",
+        help="Use the corrected, separate ToolSpace seed 17 profile",
+    )
+    parser.add_argument(
         "--admission",
         type=Path,
         help="Reviewed native output when the first attempt could not complete",
     )
     args = parser.parse_args()
-    run(args.model, args.seed, args.admission)
+    run(args.model, args.seed, args.admission, alias_retry=args.alias_retry)
