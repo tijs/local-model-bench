@@ -4,10 +4,11 @@ The [declaration](campaign.json) fixes the eight model/seed trajectories and
 serving-profile interpretation before results exist. It does not launch a run.
 Final YAMLs must pin the verified published release/installed artifact, preserve
 model-card sampling and the unchanged benchmark method, and be committed before
-launch. The final Apple-main qualification must finish and be reviewed first. Its
+launch. The final Apple-main runtime qualification completed all twelve cells. Its
 [artifact identity](../mei-upstream-qualification-20261106/apple-main-artifact.json)
-and B1 templates now define the pending release profile; the preceding candidate
-measurements cannot qualify its new executable. Logics remains a separately pinned GGUF/llama.cpp control.
+and B1 templates define the pending release profile. The preceding candidate
+measurements cannot qualify its new executable. Logics remains a separately pinned
+GGUF/llama.cpp control.
 
 The committed native and old/new speed profiles use 512 MiB allocator pools for
 Qwen/Groot and 128 MiB for Ornith. The planned cohort preserves those per-model
@@ -29,6 +30,8 @@ weaken the verifier to join incompatible profiles.
 Context-speed reporting uses the final B1/B2 observations for each MLX model
 and two predeclared fresh Logics control processes. All five measured requests
 per context and both processes receive equal weight. Logics keeps its pinned
-GGUF/runtime and launch settings. Its configurations are committed now; runtime
-preflight and guarded launch wait until the current Mei campaign is terminal
-and reviewed. Earlier timing values do not substitute for these fresh points.
+GGUF/runtime and launch settings. Both fresh Logics processes passed; the
+[control audit](logics-context-controls-review-20261107.json) records the exact
+runtime, model, prompts, and per-process evidence. Earlier timing values do not
+substitute for these fresh points. This qualification does not start or score the
+held-out task trajectories.
