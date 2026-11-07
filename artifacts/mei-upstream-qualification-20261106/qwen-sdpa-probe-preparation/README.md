@@ -1,8 +1,11 @@
 # Prepared Qwen SDPA operator probe
 
-**Prepared only. No GPU execution, numerical result or timing result exists.**
-Do not build or run this while any owned model campaign is live. The final
-qualification matrix is terminal/reviewed; fresh Logics controls are now running.
+**Preparation inputs and executed diagnostic evidence are separate.** The
+[isolated Debug build](../../mei011-sdpa-swift-build-20261107/result.json) and
+[synthetic operator audit](../qwen-sdpa-operator-review-20261107.json) are complete.
+The Python adaptation below remains CPU-checked only. A guarded real-Qwen
+[dispatch trace](../qwen-sdpa-model-trace-20261107.json) is in progress.
+Do not overlap a build, GPU test or model run with an owned timing campaign.
 
 This reuses MLX's `benchmarks/python/sdpa_vector_bench.py` at core
 `e790cca9df907c30ff4f18b0c772b4d9f454132e`. The unmodified snapshot, license,
@@ -40,11 +43,11 @@ release admission gate. Runtime dtype/kernel selection still needs verification.
 Any proposed fix needs a reproduced mechanism, numerical regression checks,
 atomic issue-first contribution review and affected Mei qualification.
 
-## Unapplied dispatch probe
+## Dispatch probe and restored checkout
 
-`dispatch-probe.patch` applies cleanly to the pinned core; it has **not** been
-compiled or applied to any checkout. After the live campaign is terminal, use a
-separate source/build. The patch adds a one-time actual kernel/dtype/shape/thread
+`dispatch-probe.patch` was applied temporarily for the separate Debug build.
+The original core file and checkout were restored and the production assets
+rehash unchanged. The patch adds a one-time actual kernel/dtype/shape/thread
 limit trace and an opt-in selection of the existing TK1 variant. Existing dtype
 eligibility and threadgroup-size checks stay in place. Run one shape per process
 so the trace identifies that case. Both arms must use the same instrumented
@@ -60,14 +63,14 @@ The trace includes the specialization key (mask/layout/block constants), not
 just the base kernel name. The Python script’s path label is a shape-based
 classification and must not be mistaken for an observed runtime variant.
 
-## Prepared Swift adapter
+## Swift operator adapter
 
-`QwenSDPAProbeTests.swift` is an uncompiled adapter for reusing Mei's existing
-Debug dependency products instead of building separate Python bindings. It is
-kept here, outside the shipped test target. Later execution must use a temporary
-owned test-source copy, record the exact Cmlx diagnostic patch and build flags,
-and verify binary/source/Metal hashes. Restore the checkout after the probe;
-do not replace the frozen release product or leave diagnostic hooks in a release.
+`QwenSDPAProbeTests.swift` reused Mei's existing Debug dependency products
+instead of building separate Python bindings. The temporary test-target copy
+was removed after compilation; the retained source is outside the shipped
+test target. The build receipt binds the exact patch, test source, flags,
+Debug executable, test binary and production Metal hashes. Never replace the
+frozen release product or ship the diagnostic hooks.
 
 The explicit Metal override permits using the hash-verified production library.
 Defaults are BF16, GQA8/D256 and contiguous30,000-token KV. Bounded options cover
@@ -78,7 +81,9 @@ needs tracing; a synthetic fixture is not proof of it.
 
 The adapter ports the upstream reference/chaining operations and dtype-specific
 absolute+relative test tolerances, retains all150 samples, and refuses an
-existing output. There is no Swift compile, numerical pass or timing result yet.
-Run no build, GPU test or model probe during the Logics controls. As with the
-Python probe, compare only genuinely different selected variants; an ineligible
-force flag or an already-selected TK1 kernel is not a distinct treatment.
+existing output. Four guarded processes pass the numerical reference; all600
+raw samples are preserved. Both forced TK1 process means are faster than both
+defaults for this synthetic contiguous BF16 fixture. This does not establish
+actual Qwen dispatch, model TPS or a production improvement. Compare only
+genuinely distinct selected variants and confirm real layout and model behavior
+before any scoped production change.

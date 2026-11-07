@@ -36,8 +36,12 @@ took160.8 minutes; this is release qualification, not the15-task benchmark.
 The [prefill source-route inspection](qwen-apple-main-prefill-route-inspection.json)
 narrows Qwen's investigation: ordinary256-token chunks do not select the
 changed non-NAX fused D256 prefill tile. Actual decode dispatch still needs
-verification; the [operator diagnostic](qwen-sdpa-probe-preparation/) is prepared
-only and has not been applied, built or run.
+verification. The [separate Debug diagnostic](qwen-sdpa-probe-preparation/)
+was built from temporary inputs, then source was restored. The
+[guarded operator audit](qwen-sdpa-operator-review-20261107.json) passes all four
+numerical cases and retains600 samples: the two distinct forced TK1 processes
+are faster than both defaults on the synthetic BF16 fixture. Actual Qwen
+dispatch is being traced before any production inference or source change.
 The [same-binary floor screen](qwen-floor-screen-20261107.json) is complete.
 Its [strict review](qwen-floor-review-20261107.json) passes all28 observables,
 18 live API cases and30 model-file checks, retaining all20 measurements.
