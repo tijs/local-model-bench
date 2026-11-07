@@ -25,3 +25,10 @@ B1 profiles while preserving explicit model-card request overrides from each old
 seed config. Source revisions may differ for release documentation only when
 Git build inputs and binary/Metal/dependency hashes prove equivalence; do not
 weaken the verifier to join incompatible profiles.
+
+Context-speed reporting uses the final B1/B2 observations for each MLX model
+and two predeclared fresh Logics control processes. All five measured requests
+per context and both processes receive equal weight. Logics keeps its pinned
+GGUF/runtime and launch settings. Its configurations are committed now; runtime
+preflight and guarded launch wait until the current Mei campaign is terminal
+and reviewed. Earlier timing values do not substitute for these fresh points.
