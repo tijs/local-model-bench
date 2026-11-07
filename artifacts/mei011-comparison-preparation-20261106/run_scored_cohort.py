@@ -15,6 +15,12 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 PREP = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / "runner"))
+from build_agent_leaderboard import (
+    TRACKS,
+    git_reader,
+    released_version_names,
+    source_path,
+)
 from build_context_speed_cohort import committed_config
 from llama_provenance import verify_llama_runtime
 from mei_provenance import verify_mei_runtime
@@ -84,6 +90,38 @@ def check_ports():
         raise ValueError("benchmark ports are not both free")
 
 
+def verify_frozen_method(declaration, head):
+    baseline = read(ROOT / "results/four-model-mei010-comparison.json")
+    tag = declaration["method"]
+    revision = subprocess.check_output(
+        ["git", "rev-parse", f"refs/tags/{tag}^{{commit}}"], cwd=ROOT, text=True
+    ).strip()
+    if tag != baseline["benchmark_release"] or revision != baseline["release_commit"]:
+        raise ValueError(
+            "the scored comparison must use the prior cohort's released method"
+        )
+
+    def reader(commit, name):
+        return git_reader(ROOT, commit, name)
+
+    paths = {
+        "runner/run_bench.py",
+        "runner/supervise_bench.py",
+        "runner/capacity_admission.py",
+        "runner/probe_mei.py",
+    }
+    for track in TRACKS:
+        paths.update(
+            source_path(name)
+            for name in released_version_names(track, reader, revision)
+        )
+    for path in sorted(paths):
+        expected = reader(revision, path)
+        if reader(head, path) != expected or (ROOT / path).read_bytes() != expected:
+            raise ValueError(f"scored benchmark method differs from {tag}: {path}")
+    return len(paths)
+
+
 def bind_configs():
     if PROGRESS.exists():
         raise ValueError("review the existing campaign; never restart it")
@@ -98,6 +136,7 @@ def bind_configs():
     ):
         raise ValueError("the published and installed Mei release must be verified")
     declared = read(PREP / "campaign.json")
+    verify_frozen_method(declared, head)
     cases = []
     for cell in declared["cells"]:
         model, seed = cell["model"], cell["seed"]
