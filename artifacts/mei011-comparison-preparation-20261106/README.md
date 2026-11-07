@@ -62,10 +62,12 @@ uv run --locked python runner/build_four_model_summary.py \
 uv run --locked python runner/build_context_speed_cohort.py \
   --spec results/four-model-mei011-context-speed.json \
   --output results/charts/four-model-mei011-context-speed
+uv run --locked python artifacts/mei011-comparison-preparation-20261106/compare_scored_releases.py
 ```
 
 The assembler refuses partial cohorts and checks every selected run against
 its archived outcome, config and review. The combined verifier binds the two
 reports to matching runtime, model and serving settings. Keep earlier graphs
 and their source data intact; `AGENT_SUMMARY.md` is the current-results entry
-point. Kiem tracks remaining campaign and release work.
+point. The release delta compares distinct matched-seed cohorts and refuses to
+reuse the same task rows. Kiem tracks remaining campaign and release work.
