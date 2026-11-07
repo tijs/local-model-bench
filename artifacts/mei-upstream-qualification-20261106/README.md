@@ -9,8 +9,8 @@ Selected dependency, allocator and trait checks also pass. The new executable is
 its source-built Metal hash is unchanged from the preceding candidate.
 
 **All three final-artifact native gates pass13/13 each**; all42 model files
-rehash unchanged. Qwen has one warning sample below the sustained stop threshold;
-Groot and Ornith remain under normal pressure throughout. Full resource reviews
+rehash unchanged. Qwen and Ornith each have one warning sample below the
+sustained stop threshold; Groot remains under normal pressure throughout. Full resource reviews
 are retained in [the native audit](apple-main-native-review.json). The fresh
 twelve-cell ABBA comparison with stable0.10 is now running. All15 committed profiles pass
 preflight and preserve weights, precision, samplers, budgets and resource guards.
