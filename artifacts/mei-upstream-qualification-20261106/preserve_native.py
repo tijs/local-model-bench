@@ -127,6 +127,10 @@ def main():
         f"qwen-upstream011-stream-ttft-{cell}-20261107"
         for cell in ("a1", "b1", "c1", "c2", "b2", "a2")
     )
+    allowed.update(
+        f"qwen-upstream011-prefill-trace-{arm}-20261107"
+        for arm in ("legacy", "owned")
+    )
     if len(relative.parts) != 1 or relative.name not in allowed:
         raise ValueError("requires this campaign's exact owned runtime directory")
     if base.resolve() != base or (base / "server.pid").exists():
