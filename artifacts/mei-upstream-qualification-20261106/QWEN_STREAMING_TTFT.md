@@ -54,3 +54,8 @@ uv run --locked python artifacts/mei-upstream-qualification-20261106/run_speed_m
 The runner stops on any failed or incomplete cell, including a change in the
 streamed answer or token counts. Do not combine these chat measurements with
 the earlier raw-completion timings or the scored workflow cohort.
+After all six cells finish, run `review_qwen_stream_ttft.py` with the locked
+Python environment. It rechecks the launch receipts, exact model and runtime
+pins, loader readback, and parity, then reports equal-weight per-process means.
+If any repeat emits no visible answer before its output limit, that arm's
+time to first visible text is unavailable. First generated text still counts.
