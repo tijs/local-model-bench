@@ -46,10 +46,16 @@ provenance check and resource guards are the same as for raw qualification.
 After the scored campaign and transfer, and with the benchmark ports clear:
 
 ```sh
+uv run --locked python artifacts/mei-upstream-qualification-20261106/prepare_qwen_stream_readback.py &&
 uv run --locked python artifacts/mei-upstream-qualification-20261106/run_speed_matrix.py \
   --matrix artifacts/mei-upstream-qualification-20261106/qwen-stream-ttft-matrix.json \
   --progress artifacts/mei-upstream-qualification-20261106/qwen-stream-ttft-progress.json
 ```
+
+The initial readback verifies every pinned checkpoint file on Expansion before
+the first launch, matching the readback after each cell. It can warm the OS
+file cache; its elapsed time is recorded separately and is outside the timed
+requests. These measurements do not compare cold disk startup.
 
 The runner stops on any failed or incomplete cell, including a change in the
 streamed answer or token counts. Do not combine these chat measurements with

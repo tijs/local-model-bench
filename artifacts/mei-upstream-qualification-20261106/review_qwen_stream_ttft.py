@@ -81,6 +81,23 @@ def review() -> dict:
     ):
         raise ValueError("requires all six declared streaming cells to finish")
     pin = read(PREP / "qwen-media-prefix-pre-run-model-hashes.json")
+    initial = read(PREP / "qwen-stream-ttft-initial-readback.json")
+    model = Path(pin["directory"]).resolve(strict=True)
+    if (
+        initial["config"] != matrix["cells"][0]["config"]
+        or type(initial["elapsed_seconds"]) not in (int, float)
+        or not 0 < initial["elapsed_seconds"] < math.inf
+        or initial["files"]
+        != [
+            {
+                "path": str(model / row["file"]),
+                "bytes": row["bytes"],
+                "sha256": row["sha256"],
+            }
+            for row in pin["files"]
+        ]
+    ):
+        raise ValueError("initial Expansion checkpoint readback differs from its pin")
     reference = prompts = None
     result = {}
     for cell in matrix["cells"]:
@@ -147,6 +164,7 @@ def review() -> dict:
         "matched_prompt_tokens": {
             name: row["prompt_tokens"] for name, row in reference.items()
         },
+        "initial_checkpoint_readback_seconds": initial["elapsed_seconds"],
         "processes": result,
         "arm_averages": arms,
     }
