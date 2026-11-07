@@ -1,28 +1,41 @@
 # Mei upstream qualification — 2026-11-06
 
-The new frozen candidate is **Mei5884134 / vMLX71074155 / coree790cca9d**.
-It includes the reviewed g13s command-batch retune, latest Ripple upstream merge
-and strict NoPE declaration validation. The final release build passed;495 offline
-XCTest cases (two skipped, zero failures) and four Swift Testing cases pass.
-The selected inherited-feature tests pass62 XCTest cases (one skip) plus132 Swift
-Testing cases. **All three fresh native gates and twelve untraced observable/API
-cells pass; performance findings remain open. Mei0.11 is not released.** Stable remains0.10.0, with no
-new0.11 task scores.
+The final Apple-main candidate is **Mei651d7c9 / vMLX1f90918a / coree790cca9d**.
+It includes current Apple main5f117a2e and Osaurus main1bcd74ad, checked again on
+2026-11-07. The optimized build passes; the offline suite passes495 XCTest cases
+(two explicit actual-model skips, no failures) plus four Swift Testing cases.
+Selected dependency, allocator and trait checks also pass. The new executable is
+`12fa6435558ce679b698804137e6c36ac9e031332408143096474405b33c1bd9`;
+its source-built Metal hash is unchanged from the preceding candidate.
 
-The refreshed upstream-head audit also found three Apple MLX Swift commits
-beyond release0.33.0: JACCL opt-out, test migration and empty-result recovery.
-Their merge is prepared on a separate vMLX branch through243cb4f2; execution and
-Mei consumption are pending. The completed5884134/71074155 measurements keep their
-original identity and do not qualify that additional source. See the
-[source-only integration review](https://github.com/tijs/mei/tree/codex/dependency-refresh-20261106/artifacts/upstream-refresh-20261106/apple-main-integration).
+**Final-artifact qualification is running.** Three full native gates precede a
+fresh twelve-cell ABBA comparison with stable0.10. All15 committed profiles pass
+preflight and preserve weights, precision, samplers, budgets and resource guards.
+No earlier timing substitutes for a new cell. Mei0.11 remains unreleased, and
+there are no new0.11 task scores.
 
-[New exact artifact](batched-artifact.json) ·
+[Final artifact](apple-main-artifact.json) ·
+[Final native declaration](apple-main-native-campaign.json) ·
+[Final speed declaration](apple-main-speed-matrix.json) ·
+[Profile preflight](apple-main-profile-preflight.json) ·
+[Static launch-contract review](apple-main-profile-static-review.json) ·
+[Integration tests and original failures](https://github.com/tijs/mei/tree/codex/dependency-refresh-20261106/artifacts/upstream-refresh-20261106/apple-main-integration).
+
+The preceding **5884134/71074155** artifact below includes the reviewed g13s
+command-batch retune, Ripple merge and strict NoPE validation. Its three native
+gates and twelve observable/API cells pass with mixed performance findings.
+Those measurements retain their identity and do not qualify the final executable.
+Apple empty-result recovery was already upstream, so it was integrated rather
+than proposed again. The JACCL trait and test migration retain fork compiler,
+invalid-assignment and isolated allocator guarantees.
+
+[Preceding exact artifact](batched-artifact.json) ·
 [Metal provenance](batched-metallib.provenance) ·
 [Fresh native campaign](batched-native-campaign.json) ·
 [Fresh twelve-cell ABBA declaration](batched-speed-matrix.json) ·
 [Configuration/source/artifact preflight](batched-config-preflight.json) ·
 [Latest upstream check](upstream-head-check-post-ripple-20261106.json).
-The new executable SHA-256 is
+The preceding executable SHA-256 is
 `195e0d43b09c25fa485c0955d9beda5a4ac40a04961791a97cc45ef399e9622e`;
 source-built Metal remains
 `5be6b742d5017c31a8db5b87cdf90265c8219867039eb871b42a737908aebc61`.
