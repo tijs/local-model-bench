@@ -14,9 +14,11 @@ sys.path.insert(0, str(ROOT / "runner"))
 from build_context_speed_cohort import validate_resources
 
 
-def review(model):
-    matrix = json.loads((PREP / "batched-speed-matrix.json").read_text())
-    progress = json.loads((PREP / "batched-speed-progress.json").read_text())
+def review(model, campaign="batched"):
+    if campaign not in ("batched", "apple-main"):
+        raise ValueError("unknown declared campaign")
+    matrix = json.loads((PREP / f"{campaign}-speed-matrix.json").read_text())
+    progress = json.loads((PREP / f"{campaign}-speed-progress.json").read_text())
     cells = [c for c in matrix["cells"] if c["model"] == model]
     completed = [c["cell"] for c in progress["completed"] if c["model"] == model]
     if [c["cell"] for c in cells] != ["a1", "b1", "b2", "a2"] or completed != [
@@ -188,9 +190,10 @@ def review(model):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", choices=("qwen", "ornith", "groot"), required=True)
+    parser.add_argument("--campaign", choices=("batched", "apple-main"), default="batched")
     args = parser.parse_args()
-    result = review(args.model)
-    output = PREP / f"{args.model}-batched-complete-speed-review.json"
+    result = review(args.model, args.campaign)
+    output = PREP / f"{args.model}-{args.campaign}-complete-speed-review.json"
     with output.open("x") as stream:
         json.dump(result, stream, indent=2)
         stream.write("\n")

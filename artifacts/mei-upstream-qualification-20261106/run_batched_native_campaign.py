@@ -1,5 +1,6 @@
 """Sequential full native gates; halt and preserve any failed or partial cell."""
 
+import argparse
 import json
 import signal
 import subprocess
@@ -34,12 +35,15 @@ def save(path, state):
 
 def main():
     global active
-    progress = PREP / "batched-native-campaign-progress.json"
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--campaign", choices=("batched", "apple-main"), default="batched")
+    args = parser.parse_args()
+    progress = PREP / f"{args.campaign}-native-campaign-progress.json"
     if progress.exists():
         raise ValueError(
             "inspect the existing campaign; never restart a live or interrupted run"
         )
-    cells = json.loads((PREP / "batched-native-campaign.json").read_text())["cells"]
+    cells = json.loads((PREP / f"{args.campaign}-native-campaign.json").read_text())["cells"]
     for cell in cells:
         cfg, _ = committed_native_config(ROOT / cell["config"])
         validate_owned_config(cfg)

@@ -10,8 +10,8 @@ from review_batched_model_speed import review
 from run_speed_matrix import PREP, ROOT
 
 
-def latencies(model):
-    audited = review(model)
+def latencies(model, campaign="batched"):
+    audited = review(model, campaign)
     groups = defaultdict(list)
     for cell in audited["cells"]:
         result = json.loads((ROOT / cell["output"] / "qualification.json").read_text())
@@ -105,9 +105,10 @@ def latencies(model):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", choices=("qwen", "ornith", "groot"), required=True)
+    parser.add_argument("--campaign", choices=("batched", "apple-main"), default="batched")
     args = parser.parse_args()
-    result = latencies(args.model)
-    with (PREP / f"{args.model}-batched-latency-review.json").open("x") as stream:
+    result = latencies(args.model, args.campaign)
+    with (PREP / f"{args.model}-{args.campaign}-latency-review.json").open("x") as stream:
         json.dump(result, stream, indent=2)
         stream.write("\n")
     print(f"Audited {args.model} saved request and backend phase latencies")

@@ -17,12 +17,13 @@ from run_mei_acceptance import committed_native_config, validate_owned_config
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--preflight-only", action="store_true")
+    parser.add_argument("--campaign", choices=("batched", "apple-main"), default="batched")
     args = parser.parse_args()
-    native = json.loads((PREP / "batched-native-campaign.json").read_text())
-    matrix = json.loads((PREP / "batched-speed-matrix.json").read_text())
+    native = json.loads((PREP / f"{args.campaign}-native-campaign.json").read_text())
+    matrix = json.loads((PREP / f"{args.campaign}-speed-matrix.json").read_text())
     for name in (
-        "batched-native-campaign-progress.json",
-        "batched-speed-progress.json",
+        f"{args.campaign}-native-campaign-progress.json",
+        f"{args.campaign}-speed-progress.json",
     ):
         if (PREP / name).exists():
             raise ValueError("inspect the existing campaign; do not restart it")
@@ -41,22 +42,22 @@ def main():
         return 0
     environment = {"HOME": str(Path.home()), "PATH": "/usr/bin:/bin:/usr/sbin:/sbin"}
     commands = [
-        [str(PREP / "run_batched_native_campaign.py")],
+        [str(PREP / "run_batched_native_campaign.py"), "--campaign", args.campaign],
         [
             str(PREP / "run_speed_matrix.py"),
             "--matrix",
-            str(PREP / "batched-speed-matrix.json"),
+            str(PREP / f"{args.campaign}-speed-matrix.json"),
             "--progress",
-            str(PREP / "batched-speed-progress.json"),
+            str(PREP / f"{args.campaign}-speed-progress.json"),
         ],
         [
             str(PREP / "summarize_speed_matrix.py"),
             "--matrix",
-            str(PREP / "batched-speed-matrix.json"),
+            str(PREP / f"{args.campaign}-speed-matrix.json"),
             "--progress",
-            str(PREP / "batched-speed-progress.json"),
+            str(PREP / f"{args.campaign}-speed-progress.json"),
             "--output",
-            str(PREP / "batched-speed-summary.json"),
+            str(PREP / f"{args.campaign}-speed-summary.json"),
         ],
     ]
     for index, command in enumerate(commands):
@@ -67,7 +68,7 @@ def main():
             return result.returncode
         if index == 0:
             progress = json.loads(
-                (PREP / "batched-native-campaign-progress.json").read_text()
+                (PREP / f"{args.campaign}-native-campaign-progress.json").read_text()
             )
             if (
                 progress["status"] != "passed"
