@@ -37,3 +37,20 @@ See the [scored workflows](FOUR_MODEL_MEI011_FINAL.md) for quality and task time
 [SVG](charts/four-model-mei011-context-speed.svg) ·
 [Specification](four-model-mei011-context-speed.json) ·
 [Logics timing audit](../artifacts/mei011-comparison-preparation-20261106/logics-context-controls-review-20261107.json).
+
+## Qwen decode peaks across Mei releases
+
+![Peak Qwen decode speed across Mei 0.8, 0.9, 0.10 and 0.11](charts/mei-release-speed-history.png)
+
+This updates the earlier Qwen-only release chart. It shows observed peaks on a
+32 GB M1 Max, separate from the two-process averages above. All versions used
+the same 17- and 30,000-token prompts and generated 128 tokens with no cached
+prompt tokens. The older releases had three attempts per context in one
+process; the 0.11.0 bars use ten measured attempts per context across two
+processes, excluding cold requests and warmups. These runs took place in
+separate sessions. Decode speed excludes prefill and is not total response time.
+
+[Original observations](../artifacts/mei-version-speed-20261105/) ·
+[0.11.0 release evidence](../artifacts/mei-upstream-qualification-20261106/attention-selector-final-review-20261107.json) ·
+[Plot source](../artifacts/mei-version-speed-20261105/plot_release_history.py) ·
+[SVG](charts/mei-release-speed-history.svg)
