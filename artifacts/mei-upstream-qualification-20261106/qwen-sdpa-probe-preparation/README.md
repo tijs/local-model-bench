@@ -38,3 +38,19 @@ host-inclusive chained-operator probe, not loaded-model/task performance or a
 release admission gate. Runtime dtype/kernel selection still needs verification.
 Any proposed fix needs a reproduced mechanism, numerical regression checks,
 atomic issue-first contribution review and affected Mei qualification.
+
+## Unapplied dispatch probe
+
+`dispatch-probe.patch` applies cleanly to the pinned core; it has **not** been
+compiled or applied to any checkout. After the live campaign is terminal, use a
+separate source/build. The patch adds a one-time actual kernel/dtype/shape/thread
+limit trace and an opt-in selection of the existing TK1 variant. Existing dtype
+eligibility and threadgroup-size checks stay in place. Run one shape per process
+so the trace identifies that case. Both arms must use the same instrumented
+binary, precision, shapes, flags and build settings; only the force flag differs.
+
+First inspect the default dispatch. If it already selects TK1, forcing TK1 is
+not a distinct treatment and must not be reported as a useful A/B comparison.
+If variants differ, require numerical reference checks and retain all raw samples.
+These are diagnostic hooks, not a production patch or proposed default. Remove
+them from any final fix; an operator result alone cannot qualify Mei.

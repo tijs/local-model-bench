@@ -34,6 +34,8 @@ def main():
         ("sdpa_vector_bench.py", "adapted_sha256"),
     ):
         assert hashlib.sha256((ROOT / name).read_bytes()).hexdigest() == manifest[field]
+    if probe := manifest.get("dispatch_probe"):
+        assert hashlib.sha256((ROOT / probe["path"]).read_bytes()).hexdigest() == probe["sha256"]
     original = functions(ROOT / "upstream-source.py.txt")
     adapted = functions(ROOT / "sdpa_vector_bench.py")
     for name in ("run_chain", "reference_sdpa"):

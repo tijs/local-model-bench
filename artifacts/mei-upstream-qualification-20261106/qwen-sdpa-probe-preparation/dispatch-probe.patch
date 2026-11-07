@@ -1,0 +1,51 @@
+--- a/mlx/backend/metal/scaled_dot_product_attention.cpp
++++ b/mlx/backend/metal/scaled_dot_product_attention.cpp
+@@ -1,5 +1,7 @@
+ // Copyright © 2024-26 Apple Inc.
+ #include <algorithm>
++#include <cstdio>
++#include <mutex>
+ #include <sstream>
+ 
+ #include "mlx/backend/common/compiled.h"
+@@ -864,14 +866,38 @@
+       (q.dtype() == bfloat16 && q.shape(-1) == 256 && v.shape(-1) == 256) ||
+       (q.dtype() == float32 && q.shape(-1) == v.shape(-1) &&
+        (q.shape(-1) == 192 || q.shape(-1) == 256));
++  // Diagnostic-only: compare existing kernels without changing precision.
++  static const bool probe_force_tk1 =
++      env::get_var("MLX_SDPA_PROBE_FORCE_TK1", 0) == 1;
++  static const bool probe_trace =
++      env::get_var("MLX_SDPA_PROBE_TRACE", 0) == 1;
++  const size_t probe_threads =
++      group_dims.width * group_dims.height * group_dims.depth;
++  const size_t probe_default_max = kernel->maxTotalThreadsPerThreadgroup();
+   if (has_tk1_variant &&
+-      group_dims.width * group_dims.height * group_dims.depth >
+-          kernel->maxTotalThreadsPerThreadgroup()) {
++      (probe_force_tk1 || probe_threads > probe_default_max)) {
+     kname += "_tk1";
+     hash_name += "_tk1";
+     kernel = d.get_kernel(kname, hash_name, func_consts);
+   }
+   check_kernel_threadgroup_size(kernel, group_dims, hash_name);
++  if (probe_trace) {
++    static std::once_flag probe_once;
++    std::call_once(probe_once, [&] {
++      std::fprintf(
++          stderr,
++          "[mei-sdpa-probe] kernel=%s arch=%s dtype=%s qh=%d kvh=%d "
++          "ql=%d kl=%d qd=%d vd=%d threads=%zu default_max=%zu "
++          "selected_max=%zu force_tk1=%d\n",
++          kname.c_str(),
++          d.get_architecture().c_str(),
++          get_type_string(q.dtype()).c_str(),
++          q.shape(1), k.shape(1), q.shape(2), k.shape(2),
++          q.shape(-1), v.shape(-1), probe_threads, probe_default_max,
++          static_cast<size_t>(kernel->maxTotalThreadsPerThreadgroup()),
++          static_cast<int>(probe_force_tk1));
++    });
++  }
+ 
+   compute_encoder.set_compute_pipeline_state(kernel);
+ 
