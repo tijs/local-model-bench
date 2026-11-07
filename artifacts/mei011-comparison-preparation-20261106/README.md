@@ -36,8 +36,15 @@ runtime, model, prompts, and per-process evidence. Earlier timing values do not
 substitute for these fresh points. This qualification does not start or score the
 held-out task trajectories.
 
-The [validated speed inputs](qualified-context-speed-inputs.json) pass the
-existing cohort validator with all eight processes and eighty observations.
+The [validated speed inputs](qualified-context-speed-inputs.json) for the
+preceding Apple-main candidate pass the existing cohort validator with all
+eight processes and eighty observations.
 The Mei model manifests match the current campaign's complete pre-run file
 lists by directory, relative path, byte count and digest. Use this input only
 if delivery verifies the same executable, Metal library and serving profile.
+The [production selector protocol](../mei-upstream-qualification-20261106/attention-selector-qualification-protocol-20261107.json)
+requires six new timing processes if that executable is selected for release.
+The two unchanged Logics controls still apply. The [scored supervisor](run_scored_cohort.py)
+requires a committed receipt for published and installed delivery before any
+scored run. It preserves each owned result and replays the task evidence before
+moving to the next seed or model.
