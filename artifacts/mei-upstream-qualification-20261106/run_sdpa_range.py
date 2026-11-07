@@ -23,7 +23,7 @@ from build_context_speed_cohort import validate_resources
 from run_mei_acceptance import committed_native_config, monitor_child
 
 DECLARATION = PREP / "qwen-sdpa-range-20261107.json"
-OUTPUT = ROOT / "artifacts/mei011-sdpa-range-20261107"
+OUTPUT = ROOT / "artifacts/mei011-sdpa-range-corrected-20261107"
 
 
 def check_ports():
@@ -62,12 +62,17 @@ def checked_case(cfg, fixture, arm):
     actual = comparable_trace(trace)
     suffix = "_tk1" if arm.startswith("b") else ""
     capacity = fixture["kv_storage_capacity"]
+    context = fixture["context"]
+    # The existing g13s dispatch changes the block-count specialization at
+    # 8,192 and 32,768 tokens for this GQA fixture. Check it explicitly.
+    blocks = 128 if context <= 8192 else 256 if context <= 32768 else 512
+    specialization = reference["specialization"].rsplit("_", 1)[0]
     if (
         any(actual[k] != v for k, v in base.items() if k not in excluded)
         or trace["kl"] != str(fixture["context"])
         or any(trace[k] != str(capacity * 256) for k in ("khs", "vhs"))
         or trace["kernel"] != reference["kernel"] + suffix
-        or trace["specialization"] != reference["specialization"] + suffix
+        or trace["specialization"] != f"{specialization}_{blocks}{suffix}"
         or int(trace["selected_max"]) < int(trace["threads"])
     ):
         raise ValueError("range fixture did not exercise the declared dispatch")
