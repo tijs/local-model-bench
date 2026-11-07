@@ -18,7 +18,18 @@ Qwen's four-cell observable/API audit is complete. Its
 [performance finding](qwen-apple-main-performance-finding.json) remains open
 before promotion; the [policy inspection](qwen-apple-main-floor-policy-inspection.json)
 records what existing startup/allocator-peak data can and cannot exclude.
-The remaining model groups are still running.
+Ornith's [complete four-cell audit](ornith-apple-main-complete-speed-review.json)
+and [whole-request review](ornith-apple-main-latency-review.json) also pass.
+Both candidate process means are faster than both controls for decode and
+request wall time at both contexts. All56 observable rows,36 live API cases
+and44 post-run file checks pass. All repeats and equal process weights remain
+visible; this is an aggregate runtime/storage comparison, not a task score or
+isolated-patch claim. Groot's four cells remain running.
+The [prefill source-route inspection](qwen-apple-main-prefill-route-inspection.json)
+narrows Qwen's investigation: ordinary256-token chunks do not select the
+changed non-NAX fused D256 prefill tile. Actual decode dispatch still needs
+verification; the [operator diagnostic](qwen-sdpa-probe-preparation/) is prepared
+only and has not been applied, built or run.
 No earlier timing substitutes for a new cell. Mei0.11 remains unreleased, and
 there are no new0.11 task scores.
 
