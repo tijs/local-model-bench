@@ -12,7 +12,7 @@ its source-built Metal hash is unchanged from the preceding candidate.
 rehash unchanged. Qwen and Ornith each have one warning sample below the
 sustained stop threshold; Groot remains under normal pressure throughout. Full resource reviews
 are retained in [the native audit](apple-main-native-review.json). The fresh
-twelve-cell ABBA comparison with stable0.10 is now running. All15 committed profiles pass
+twelve-cell ABBA comparison with stable0.10 is now complete. All15 committed profiles pass
 preflight and preserve weights, precision, samplers, budgets and resource guards.
 Qwen's four-cell observable/API audit is complete. Its
 [performance finding](qwen-apple-main-performance-finding.json) remains open
@@ -24,12 +24,26 @@ Both candidate process means are faster than both controls for decode and
 request wall time at both contexts. All56 observable rows,36 live API cases
 and44 post-run file checks pass. All repeats and equal process weights remain
 visible; this is an aggregate runtime/storage comparison, not a task score or
-isolated-patch claim. Groot's four cells remain running.
+isolated-patch claim. Groot's [complete audit](groot-apple-main-complete-speed-review.json)
+and [whole-request review](groot-apple-main-latency-review.json) also pass:
+short decode and whole-request means improve; loaded decode is slightly lower,
+while loaded whole-request means are slightly faster. These mixed results remain
+explicit. The [terminal campaign audit](apple-main-campaign-terminal-review.json)
+reproduces every model/latency review and the saved summary:168 observable rows,
+120 measured requests,108 live API cases and168 unchanged model-file checks.
+All owned servers exited and ports8017/8024 were free. The speed/API campaign
+took160.8 minutes; this is release qualification, not the15-task benchmark.
 The [prefill source-route inspection](qwen-apple-main-prefill-route-inspection.json)
 narrows Qwen's investigation: ordinary256-token chunks do not select the
 changed non-NAX fused D256 prefill tile. Actual decode dispatch still needs
 verification; the [operator diagnostic](qwen-sdpa-probe-preparation/) is prepared
 only and has not been applied, built or run.
+The [same-binary floor screen](qwen-floor-screen-20261107.json) is predeclared,
+with identical runtime receipts in both arms and unchanged outer resource guards.
+It has not run. A collector regression first reproduces discarded live-memory
+counters, then passes all13 focused tests after retaining them in existing status
+observations. No extra status requests or runtime changes are added. The sampler
+covers the cold loaded request, not every later measured request.
 No earlier timing substitutes for a new cell. Mei0.11 remains unreleased, and
 there are no new0.11 task scores.
 
@@ -39,6 +53,8 @@ there are no new0.11 task scores.
 [Profile preflight](apple-main-profile-preflight.json) ·
 [Static launch-contract review](apple-main-profile-static-review.json) ·
 [Integration tests and original failures](https://github.com/tijs/mei/tree/codex/dependency-refresh-20261106/artifacts/upstream-refresh-20261106/apple-main-integration).
+
+## Historical candidate evidence
 
 The preceding **5884134/71074155** artifact below includes the reviewed g13s
 command-batch retune, Ripple merge and strict NoPE validation. Its three native
