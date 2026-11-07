@@ -23,7 +23,7 @@ an immutable config and fresh owned server, with native admission before the
 [Six-model v9.5 reference comparison](../results/AGENT_V9.md) ·
 [Previous v8 comparison](../results/CANDIDATES.md) ·
 [Exact reference selection](../results/agent-v9-20261101.json) ·
-[MiniCPM, Qwen and Ornith review](../results/AGENT_SUMMARY.md)
+[MiniCPM, Qwen and Ornith in the v9.10 review](../results/AGENT_SUMMARY_V9.10.md)
 
 [Latest Clover result and review](../artifacts/clover-heldout-v9p7-20261102/README.md)
 keeps its v9.7 method separate from the reference table. The original v9.6

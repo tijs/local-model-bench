@@ -1,7 +1,7 @@
 # Four-model comparison — completed 2 November 2026
 
 **Historical v9.10 comparison.** The newer [Mei 0.10.0 and v9.11.5
-comparison](../results/FOUR_MODEL_MEI010.md) has two fresh runs per profile.
+comparison](../results/FOUR_MODEL_MEI010_FINAL.md) has two fresh runs per profile.
 
 This report covers the four profiles selected for fresh v9.10 repeats. MiniCPM
 and ThinkingCap remain tested alternatives in the [historical six-model v9.5
@@ -13,7 +13,7 @@ roster](ROSTER.md).
 All four retained contenders completed two fresh full runs on frozen v9.10,
 on the same 32 GiB Apple M1 Max. Each model now has one averaged graph point; both declared seeds remain in the evidence tables. The
 measurement code, profiles, budgets and resource policy stayed fixed throughout
-these eight runs. [Main summary and graphs](../results/AGENT_SUMMARY.md).
+these eight runs. [v9.10 summary and graphs](../results/AGENT_SUMMARY_V9.10.md).
 
 | Profile / engine | Household success | Python success | Mean full-run time | Mean peak wired increase |
 |---|---:|---:|---:|---:|
@@ -178,11 +178,11 @@ summary/inventory before removing its generated KV files after owned exit.
 
 ## Main summary and charts
 
-The current comparison will live in `results/AGENT_SUMMARY.md`, linked from the
-README. The README will also embed both quality-versus-cost plots. Preserve
-the former v8.3.1 summary separately. Export standalone PNG/SVG
-charts and the underlying metric table/data, generated reproducibly from the
-explicit selected manifests and resource samples.
+The [versioned v9.10 summary](../results/AGENT_SUMMARY_V9.10.md) retains the
+quality-versus-cost plots, standalone PNG/SVG exports and metric data. The
+plots were generated from explicitly selected manifests and resource samples.
+The [current-results index](../results/AGENT_SUMMARY.md) links to the latest
+complete comparison.
 
 - Household quality versus full-suite wall time: higher success and lower time
   are favorable. Time includes startup/native admission and both tracks,

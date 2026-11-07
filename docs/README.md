@@ -6,8 +6,9 @@ automation tasks. Peixinho is still a design; these are not application tests.
 
 ## Current comparison
 
-[Four-model summary and graphs](../results/AGENT_SUMMARY.md) contains all eight
-fresh v9.10 runs, quality-versus-time/memory graphs with one averaged point per model, the weighting rule, individual observations and audit links. [Design](FOUR_MODEL_COMPARISON.md).
+[Four-model results](../results/AGENT_SUMMARY.md) links to the latest complete
+comparison, including quality, time and memory graphs with one averaged point
+per profile, plus individual observations and audit links.
 
 ## Earlier results and decisions
 
@@ -32,8 +33,8 @@ fresh v9.10 runs, quality-versus-time/memory graphs with one averaged point per 
 - [Candidate campaign](CANDIDATE_CAMPAIGN.md): Groot, ThinkingCap, Logics-SWE,
   Clover and reference retests, with evidence links and open qualification work.
 - [Release history](releases/): method and tooling changes. Current release:
-  [benchmark-v9.11.5](https://github.com/tijs/local-model-bench/releases/tag/benchmark-v9.11.5);
-  the current scored comparison remains on the frozen v9.10 method.
+  [benchmark-v9.11.9](https://github.com/tijs/local-model-bench/releases/tag/benchmark-v9.11.9);
+  the current scored comparison uses the frozen benchmark-v9.11.5 method.
 
 ## Running and understanding the benchmark
 
@@ -56,6 +57,7 @@ output and owned cache directories. Preserve failed attempts before retrying.
 
 ## Historical evidence
 
+- [Four-model v9.10 comparison and graphs](../results/AGENT_SUMMARY_V9.10.md).
 - [Previous v8 candidate comparison](../results/CANDIDATES.md).
 - [Earlier four-model summary](../results/AGENT_SUMMARY_V8.3.1.md), including Flint's
   retirement and the original MiniCPM, Qwen and Ornith trials.
