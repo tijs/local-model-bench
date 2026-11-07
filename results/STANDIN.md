@@ -920,6 +920,20 @@ Failure classes: turn_limit=1
 
 Failure classes: task_failure=1
 
+| 20261107T170122Z-6ab7b374 | mradermacher/ToolSpace-35B-A3B-GGUF:IQ4_XS / llama.cpp | 3ad3d08c7be8 / c467bc1e007f | heldout / thinking | completed | 12/12 | 0 | 10/12 | 3 | 1 | 0 |
+
+| Domain | Passed / executed | Median task wall s | Median output tok/s (wall) |
+|---|---:|---:|---:|
+| capture | 1/3 | 75.81 | 34.70 |
+| privacy | 2/2 | 29.19 | 26.70 |
+| progress | 2/2 | 24.48 | 20.58 |
+| resilience | 1/1 | 31.08 | 19.79 |
+| retrieval | 1/1 | 25.34 | 28.46 |
+| routines | 1/1 | 17.28 | 23.66 |
+| sharing | 2/2 | 19.88 | 25.08 |
+
+Failure classes: task_failure=1, truncation=1
+
 
 Output rate includes whole task wall time, not pure decode. RSS is not total model memory; consult the supervised server/Metal/physical-footprint and system pressure trace.
 No composite score is computed. Safety failures and prevented unsafe attempts remain explicit; passing other tasks cannot offset them.

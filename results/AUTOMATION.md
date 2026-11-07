@@ -58,5 +58,6 @@ Each submitted script is checked on visible and unseen fixture variants. Shared 
 | 20261107T111843Z-07d05257 | Tostibrown/Groot-19B-A3B-261023-rco-role-4.5bpw-textonly / mei | 741c365e5259 / 1ccfd9919d22 | heldout / model_card | completed | 3/3 | 3 | 0 | 225.02 |
 | 20261107T113512Z-c1d79d44 | bartowski/Logics-MLLM_Logics-SWE-Qwen3.6-35B-A3B-GGUF:IQ4_XS / llama.cpp | 769c55d3127d / 3b8a5a2c7a66 | heldout / thinking | completed | 3/3 | 3 | 0 | 103.05 |
 | 20261107T114359Z-ac56489e | bartowski/Logics-MLLM_Logics-SWE-Qwen3.6-35B-A3B-GGUF:IQ4_XS / llama.cpp | b5ed51a8d1bd / 47919aa9fb4b | heldout / thinking | completed | 3/3 | 3 | 0 | 119.66 |
+| 20261107T171037Z-b7d8e6e7 | mradermacher/ToolSpace-35B-A3B-GGUF:IQ4_XS / llama.cpp | 3ad3d08c7be8 / 6f7de33135f0 | heldout / thinking | completed | 3/3 | 2 | 0 | 93.05 |
 
 Scores require matching task/tool/validator and release identities. Partial runs are never a complete-model score.
