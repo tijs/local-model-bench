@@ -28,7 +28,8 @@ Mei profiles. The whole request includes prefill and can move differently:
 The release audit compared separate run windows. Qwen's slower prefill made
 its 128-token response take longer overall despite faster decode. The audit
 used non-streaming requests, so it does not measure client time to first
-token. Logics did not switch runtime and has no Mei-version delta. These tests
+token. A [separate streaming comparison](QWEN_MEI011_STREAMING_TTFT.md) measures
+that directly. Logics did not switch runtime and has no Mei-version delta. These tests
 do not establish task quality at 30,000 tokens or maximum context capacity.
 See the [scored workflows](FOUR_MODEL_MEI011_FINAL.md) for quality and task time.
 
