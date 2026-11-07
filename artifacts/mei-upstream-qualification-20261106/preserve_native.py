@@ -120,6 +120,10 @@ def main():
         for seed in (17, 29)
     )
     allowed.add("qwen-mei011-v9115-seed17-disk-retry-20261107")
+    allowed.update(
+        f"qwen-upstream011-stream-ttft-{cell}-20261107"
+        for cell in ("a1", "b1", "c1", "c2", "b2", "a2")
+    )
     if len(relative.parts) != 1 or relative.name not in allowed:
         raise ValueError("requires this campaign's exact owned runtime directory")
     if base.resolve() != base or (base / "server.pid").exists():

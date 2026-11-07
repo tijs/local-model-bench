@@ -57,6 +57,12 @@ AUDITED_REVISION_PAIRS = (
         "282cbf9a202d85191ffe8f5b2df95a0109934592",
         "3cb7240a39d92475345c6c1d0c9057da31a2f289",
     ),
+    # The published tag changes only release metadata/evidence from the
+    # qualified runtime source above; the source and package inputs match.
+    (
+        "ae7a7cbff369f5b705c2ea4b938e05729c30fb63",
+        "3cb7240a39d92475345c6c1d0c9057da31a2f289",
+    ),
 )
 AUDITED_LAUNCHER_SHA256 = (
     "bfa28f23dee9e0321b042ed1bd9435a7096880bbb41bd2aafa18b2897e6b86cc"
@@ -165,12 +171,21 @@ def clean_environment(cfg: dict[str, Any]) -> dict[str, str]:
 
 
 def committed_evidence(
-    root: Path, revision: Any, *, verify_worktree: bool
+    root: Path, revision: Any, *, verify_worktree: bool, streaming: bool = False
 ) -> tuple[bytes, dict[str, str]]:
     """Bind source bytes to Git and, pre-launch, require loaded files match."""
     launcher = git_bytes(root, revision, LAUNCHER)
     hashes = {}
-    for name in SOURCE_FILES:
+    stream_sources = (
+        (
+            "runner/mei_stream_timing.py",
+            "runner/run_prompt.py",
+            "runner/model_storage.py",
+        )
+        if streaming
+        else ()
+    )
+    for name in SOURCE_FILES + stream_sources:
         committed = git_bytes(root, revision, name)
         if verify_worktree and (root / name).read_bytes() != committed:
             raise ValueError(
@@ -194,7 +209,10 @@ def launch_receipt(
     environment = clean_environment(cfg)
     revision = invocation.get("runner_git_sha")
     launcher, source_hashes = committed_evidence(
-        root, revision, verify_worktree=verify_worktree
+        root,
+        revision,
+        verify_worktree=verify_worktree,
+        streaming=cfg.get("mei_uncached_streaming_timing") is True,
     )
     stopper = git_bytes(root, revision, STOPPER)
     if hashlib.sha256(stopper).hexdigest() != AUDITED_STOPPER_SHA256:

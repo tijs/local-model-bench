@@ -39,3 +39,18 @@ loader and resource limits before comparing it. Compare both 0.10.0 arms with
 explain the gap, use narrowly scoped prefill or Metal command-buffer profiling
 to locate it. Keep traced runs separate from release timing and require a fresh
 untraced comparison before changing the production default.
+
+The [matrix](qwen-stream-ttft-matrix.json) predeclares the six fresh processes
+and five measured repeats per context per process. The isolated launcher,
+provenance check and resource guards are the same as for raw qualification.
+After the scored campaign and transfer, and with the benchmark ports clear:
+
+```sh
+uv run --locked python artifacts/mei-upstream-qualification-20261106/run_speed_matrix.py \
+  --matrix artifacts/mei-upstream-qualification-20261106/qwen-stream-ttft-matrix.json \
+  --progress artifacts/mei-upstream-qualification-20261106/qwen-stream-ttft-progress.json
+```
+
+The runner stops on any failed or incomplete cell, including a change in the
+streamed answer or token counts. Do not combine these chat measurements with
+the earlier raw-completion timings or the scored workflow cohort.
