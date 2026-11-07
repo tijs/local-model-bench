@@ -94,6 +94,9 @@ def main():
         for model in ("qwen", "ornith", "groot")
         for cell in ("a1", "b1", "b2", "a2")
     )
+    allowed.update(
+        f"qwen-upstream011-fused-rows-{arm}-20261107" for arm in ("a", "b")
+    )
     if len(relative.parts) != 1 or relative.name not in allowed:
         raise ValueError("requires this campaign's exact owned runtime directory")
     if base.resolve() != base or (base / "server.pid").exists():
