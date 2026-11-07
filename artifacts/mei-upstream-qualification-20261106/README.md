@@ -12,7 +12,7 @@ new0.11 task scores.
 The refreshed upstream-head audit also found three Apple MLX Swift commits
 beyond release0.33.0: JACCL opt-out, test migration and empty-result recovery.
 Their merge is prepared on a separate vMLX branch through243cb4f2; execution and
-Mei consumption are pending. The live5884134/71074155 measurements keep their
+Mei consumption are pending. The completed5884134/71074155 measurements keep their
 original identity and do not qualify that additional source. See the
 [source-only integration review](https://github.com/tijs/mei/tree/codex/dependency-refresh-20261106/artifacts/upstream-refresh-20261106/apple-main-integration).
 
@@ -65,7 +65,7 @@ and rehashes all11 files unchanged; only normal sampled pressure, no critical or
 warning sample. [Full new native audit](batched-native-review.json) verifies all
 three exact artifact identities,39 probes,42 file rehashes and exited/preserved
 servers. [Terminal native progress](batched-native-campaign-progress.json) is
-passed. The fresh twelve-cell untraced speed/API/parity campaign is running; no
+passed. The twelve-cell untraced speed/API/parity campaign is complete; no
 old timings, native passes or profiled diagnostics substitute for that review.
 
 [Qwen’s fresh ABBA review](qwen-batched-complete-speed-review.json) is now
@@ -74,8 +74,8 @@ post-run file checks. Both candidate process means exceed both control process
 means at short and loaded context. The controls vary substantially between
 processes; the review retains every observation and equal process weighting,
 without a statistical-superiority or universal-speedup claim. This is runtime
-qualification, not task quality. Groot and final promotion review remain
-pending. The [reproducible model reviewer](review_batched_model_speed.py) also
+qualification, not task quality. Final release work remains open.
+The [reproducible model reviewer](review_batched_model_speed.py) also
 rechecks capacity/resource baselines and refuses incomplete model groups.
 
 The [whole-request latency audit](qwen-batched-latency-review.json) adds an
@@ -88,8 +88,8 @@ The [saved-data latency reviewer](review_batched_latencies.py) first requires
 the complete identity/resource/parity audit. Backend phase counters keep their
 native conventions and must not be summed as independent intervals. The cause
 of the long-request difference remains unresolved; decode improvements alone
-do not establish a regression-free release. Finish the remaining model groups,
-then investigate with controlled diagnostics before promotion.
+do not establish a regression-free release. The complete campaign is preserved;
+investigate this finding with controlled diagnostics before promotion.
 
 The [separate historical prefill diagnostic](qwen-prefill-history-diagnostic.json)
 retains all eight labeled process groups from the earlier and current campaigns,
@@ -104,9 +104,9 @@ prepare one bounded Qwen diagnosis. The existing row-sharing flag selects fused
 row views versus retained original projections; no kernel, quantization or
 production policy is changed. Both arms add a conservative512MiB workspace
 estimate for the426,885,120 bytes of projection tensors, keeping every resource
-guard unchanged. Static profile/one-variable/capacity checks pass. No diagnostic
-process is launched while the current campaign is live. Its exact preservation
-roots must be supported after the current process is terminal. Unchanged
+guard unchanged. Static profile/one-variable/capacity checks pass. The diagnostic
+is now running after the twelve-cell campaign exited and was reviewed; only its
+two exact owned roots were added to terminal preservation. Unchanged
 prefill timing would reject row sharing as sufficient explanation; this
 one-process-per-arm screen cannot establish a release performance verdict.
 
@@ -119,13 +119,14 @@ contexts. The loaded-prefill means are also faster on these observations, so
 Ornith does not reproduce Qwen's prefill/whole-request slowdown. This remains
 an aggregate runtime/storage comparison, with no statistical-superiority,
 single-patch or task-quality claim. All four servers exited and owned KV was
-preserved then removed. Eight of twelve cells are now complete; Groot's four
-processes and final review remain required before any release decision.
+preserved then removed. This is runtime qualification, not a task score or
+automatic stable promotion.
 
 The [complete frozen-candidate review](batched-campaign-terminal-review.json)
 now reproduces all three strict model and latency audits:168 observable rows,
 120 measured requests,108 live API cases and168 post-run model-file checks.
-The owned pipeline exited zero, all servers exited and ports8017/8024 are free.
+At campaign exit the owned pipeline exited zero, all servers exited and
+ports8017/8024 were verified free before starting the Qwen diagnostic.
 [Terminal progress](batched-speed-progress.json) and the
 [balanced timing summary](batched-speed-summary.json) retain every cell.
 Groot's [full audit](groot-batched-complete-speed-review.json) is mixed: short
@@ -133,7 +134,7 @@ decode improves, loaded decode remains slightly lower, and its
 [whole-request means](groot-batched-latency-review.json) are faster at both
 contexts. Do not describe that as a universal throughput recovery. Qwen's
 loaded-request slowdown and the source-only Apple merge remain open release
-work. The predeclared same-binary row-layout screen is next; these observations
+work. The predeclared same-binary row-layout screen is running; these observations
 do not qualify a later executable or produce task scores.
 
 ## Previous comparison and preserved regression
