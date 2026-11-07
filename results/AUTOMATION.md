@@ -61,5 +61,6 @@ Each submitted script is checked on visible and unseen fixture variants. Shared 
 | 20261107T171037Z-b7d8e6e7 | mradermacher/ToolSpace-35B-A3B-GGUF:IQ4_XS / llama.cpp | 3ad3d08c7be8 / 6f7de33135f0 | heldout / thinking | completed | 3/3 | 2 | 0 | 93.05 |
 | 20261107T172313Z-38c1b9fc | mradermacher/ToolSpace-35B-A3B-GGUF:IQ4_XS / llama.cpp | 6338b102a28a / a9ae50f995a9 | heldout / thinking | completed | 3/3 | 2 | 0 | 144.09 |
 | 20261107T174819Z-18784bd5 | baa-ai/Gemma-4-26B-A4B-it-RAM-13GB-MLX / mei | 0ce77593a3c7 / 223c74a2ffad | heldout / model_card | completed | 3/3 | 2 | 0 | 659.86 |
+| 20261107T181043Z-fc378a87 | baa-ai/Gemma-4-26B-A4B-it-RAM-13GB-MLX / mei | fda091497ff3 / 15738bed5ae2 | heldout / model_card | completed | 3/3 | 1 | 0 | 548.87 |
 
 Scores require matching task/tool/validator and release identities. Partial runs are never a complete-model score.

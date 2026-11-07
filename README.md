@@ -7,8 +7,19 @@ it is still a design, so the current tests use synthetic household workflows
 and real, contained Python automation.
 
 Current tooling release: [**benchmark-v9.11.10**](https://github.com/tijs/local-model-bench/releases/tag/benchmark-v9.11.10).
-The comparison below uses the frozen **benchmark-v9.11.5** method with fresh
-two-seed runs. Mei profiles use stable **Mei 0.11.0**; Logics uses llama.cpp.
+The results below use the frozen **benchmark-v9.11.5** method with two seeds
+per profile. The MLX profiles use **Mei 0.11.0**; the GGUF profiles use pinned
+llama.cpp builds.
+
+## Latest challenger results
+
+**Gemma RAM13GB** matched Groot and Logics-SWE at 22/24 household passes, but
+passed 3/6 Python tasks and averaged 72.27 s per task. **ToolSpace IQ4_XS**
+passed 18/24 household and 4/6 Python tasks, averaging 44.63 s per task.
+Both completed their native admission checks and two scored runs with normal
+memory pressure and no swap growth. The active roster is unchanged.
+
+[Six-model comparison, charts and run audits](results/QUEUED_CHALLENGERS_FINAL.md)
 
 ## Four retained contenders
 

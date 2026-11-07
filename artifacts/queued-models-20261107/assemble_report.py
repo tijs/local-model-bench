@@ -78,6 +78,9 @@ def prepare():
         "colors": dict(COLORS),
         "cohorts": [],
         "reports": [],
+        "alternative_note": base["alternative_note"].replace(
+            "for this four-model comparison", "for this comparison"
+        ),
     }
     full, critical, outputs = {}, set(), {}
     reader = lambda commit, path: git_reader(ROOT, commit, path)
@@ -110,7 +113,7 @@ def prepare():
         names = ", ".join(spec["models"].pop(model) for model in sorted(critical))
         spec["alternative_note"] = (
             f"{names} completed testing but had a critical household boundary failure and is excluded from qualified averages. The linked seed reports retain those scores. "
-            + base["alternative_note"]
+            + spec["alternative_note"]
         )
     for seed, cohort in full.items():
         path = f"results/queued-challengers-seed{seed}.json"
