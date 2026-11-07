@@ -14,6 +14,11 @@ sustained stop threshold; Groot remains under normal pressure throughout. Full r
 are retained in [the native audit](apple-main-native-review.json). The fresh
 twelve-cell ABBA comparison with stable0.10 is now running. All15 committed profiles pass
 preflight and preserve weights, precision, samplers, budgets and resource guards.
+Qwen's four-cell observable/API audit is complete. Its
+[performance finding](qwen-apple-main-performance-finding.json) remains open
+before promotion; the [policy inspection](qwen-apple-main-floor-policy-inspection.json)
+records what existing startup/allocator-peak data can and cannot exclude.
+The remaining model groups are still running.
 No earlier timing substitutes for a new cell. Mei0.11 remains unreleased, and
 there are no new0.11 task scores.
 
