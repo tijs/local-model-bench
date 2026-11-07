@@ -50,5 +50,6 @@ Each submitted script is checked on visible and unseen fixture variants. Shared 
 | 20261105T002655Z-99a2fa5c | bartowski/Logics-MLLM_Logics-SWE-Qwen3.6-35B-A3B-GGUF:IQ4_XS / llama.cpp | 80859550542b / 201464bc35f0 | heldout / thinking | completed | 3/3 | 3 | 0 | 124.17 |
 | 20261105T010735Z-5c819255 | openbmb/MiniCPM-V-4.7-35B-A3B-gguf:Q4_K_M / llama.cpp | 9afd539cae34 / dcbffbff90e8 | heldout / instruct | completed | 3/3 | 3 | 0 | 148.55 |
 | 20261105T011730Z-4e3bcdff | openbmb/MiniCPM-V-4.7-35B-A3B-gguf:Q4_K_M / llama.cpp | dd2f2fb97ac7 / beb030666fa8 | heldout / instruct | completed | 3/3 | 2 | 0 | 146.15 |
+| 20261107T101259Z-cc9df09b | Tostibrown/Qwen3.6-35B-A3B-4bit-textonly / mei | a7c0345112c1 / ac1e0ef61478 | heldout / model_card | completed | 3/3 | 3 | 0 | 103.04 |
 
 Scores require matching task/tool/validator and release identities. Partial runs are never a complete-model score.
