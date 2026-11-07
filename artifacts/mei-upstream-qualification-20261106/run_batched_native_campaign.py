@@ -36,7 +36,11 @@ def save(path, state):
 def main():
     global active
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--campaign", choices=("batched", "apple-main"), default="batched")
+    parser.add_argument(
+        "--campaign",
+        choices=("batched", "apple-main", "attention-selector"),
+        default="batched",
+    )
     args = parser.parse_args()
     progress = PREP / f"{args.campaign}-native-campaign-progress.json"
     if progress.exists():

@@ -109,6 +109,11 @@ def main():
         for model in ("qwen", "ornith", "groot")
         for cell in ("a1", "b1", "b2", "a2")
     )
+    allowed.update(
+        f"{model}-upstream011-attention-selector-{phase}-20261107"
+        for model in ("qwen", "ornith", "groot")
+        for phase in ("native", "speed-b1", "speed-b2")
+    )
     if len(relative.parts) != 1 or relative.name not in allowed:
         raise ValueError("requires this campaign's exact owned runtime directory")
     if base.resolve() != base or (base / "server.pid").exists():
