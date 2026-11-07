@@ -56,6 +56,7 @@ evidence was preserved before KV cleanup and benchmark ports were free.
 No earlier timing substitutes for a new cell. Mei0.11 remains unreleased, and
 there are no new0.11 task scores.
 
+[Current runtime comparison visual](apple-main-runtime-comparison.html) ·
 [Final artifact](apple-main-artifact.json) ·
 [Final native declaration](apple-main-native-campaign.json) ·
 [Final speed declaration](apple-main-speed-matrix.json) ·
