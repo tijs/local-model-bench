@@ -131,6 +131,11 @@ def main():
         f"qwen-upstream011-prefill-trace-{arm}-20261107"
         for arm in ("legacy", "legacy-retry", "owned")
     )
+    allowed.update(
+        f"{model}-mei-apple-core-main-20261107-{cell}"
+        for model in ("qwen", "ornith", "groot", "gemma")
+        for cell in ("native", "a1", "b1", "b2", "a2")
+    )
     if len(relative.parts) != 1 or relative.name not in allowed:
         raise ValueError("requires this campaign's exact owned runtime directory")
     if base.resolve() != base or (base / "server.pid").exists():

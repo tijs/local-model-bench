@@ -63,6 +63,12 @@ AUDITED_REVISION_PAIRS = (
         "ae7a7cbff369f5b705c2ea4b938e05729c30fb63",
         "3cb7240a39d92475345c6c1d0c9057da31a2f289",
     ),
+    # Apple core main candidate: the Mei server sources are unchanged from
+    # 0.11.0, and this exact vMLX pin retains the same launch contract.
+    (
+        "3b0689a64064001d34e8c3a7fb687ffb8dab3eb7",
+        "19379503d289cd72f51f958df9c027f3c517829a",
+    ),
 )
 AUDITED_LAUNCHER_SHA256 = (
     "bfa28f23dee9e0321b042ed1bd9435a7096880bbb41bd2aafa18b2897e6b86cc"
