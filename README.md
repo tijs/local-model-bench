@@ -79,6 +79,9 @@ cache and output paths before a rerun; the published profiles retain the exact
 measured choices. Keep one model server at a time and review any partial run
 before proceeding.
 
+Stage Mei and GGUF checkpoints on [the Expansion model store](configs/README.md#model-storage)
+and use the direct model path in the profile.
+
 ```sh
 uv sync --locked
 uv run --locked python -m unittest discover -s runner/tests -v

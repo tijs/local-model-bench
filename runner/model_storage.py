@@ -4,6 +4,8 @@ import argparse
 import os
 from pathlib import Path
 
+DEFAULT_MODEL_ROOT = "/Volumes/Expansion/local-model-bench"
+
 
 def model_root(engine: str) -> Path:
     if engine not in {"mei", "gguf"}:
@@ -17,7 +19,7 @@ def model_root(engine: str) -> Path:
         try:
             override = setting.read_text().strip()
         except FileNotFoundError:
-            return Path.home() / f".local/share/local-model-bench/{engine}-models"
+            override = DEFAULT_MODEL_ROOT
     base = Path(override)
     if not base.is_absolute() or "\n" in override:
         raise ValueError("model-root must name one absolute directory")
