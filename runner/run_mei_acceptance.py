@@ -31,12 +31,12 @@ import yaml
 from bench_common import git_sha
 from capacity_admission import capacity_fits, capacity_plan
 from mei_provenance import verify_mei_runtime
+from model_storage import model_root
 from owned_process import OwnedSession
 from run_standin_suite import write_json
 from supervise_bench import admission_settings, baseline_ready, gate_reason, sample
 
 REPO = Path(__file__).resolve().parent.parent
-MEI_MODEL_ROOT = Path("~/.local/share/local-model-bench/mei-models").expanduser()
 
 
 def committed_native_config(path: Path) -> tuple[dict[str, Any], bytes]:
@@ -111,7 +111,8 @@ def run_config(
         Path(tokenizer_args[0]).expanduser() if tokenizer_args else None
     )
     if tokenizer is None or not (tokenizer / "config.json").exists():
-        candidates = [MEI_MODEL_ROOT / model, MEI_MODEL_ROOT / model.split("/")[-1]]
+        model_store = model_root("mei")
+        candidates = [model_store / model, model_store / model.split("/")[-1]]
         tokenizer = next(
             (p for p in candidates if (p / "config.json").exists()), candidates[1]
         )

@@ -119,6 +119,7 @@ def main():
         for model in ("qwen", "ornith", "groot")
         for seed in (17, 29)
     )
+    allowed.add("qwen-mei011-v9115-seed17-disk-retry-20261107")
     if len(relative.parts) != 1 or relative.name not in allowed:
         raise ValueError("requires this campaign's exact owned runtime directory")
     if base.resolve() != base or (base / "server.pid").exists():

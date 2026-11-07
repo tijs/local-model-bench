@@ -11,8 +11,8 @@ ROOT = Path(__file__).resolve().parents[2]
 PREP = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / "runner"))
 from build_agent_leaderboard import render_campaign
+from run_scored_cohort import PROGRESS, cell_paths
 
-CONFIG_DIR = "configs/mei-0.11.0-comparison-20261107"
 TRACKS = ("peixinho-standin-v1", "python-automation-v1")
 
 
@@ -57,7 +57,7 @@ def checked_run(root, row, config):
 
 def prepare():
     declaration = load(PREP / "campaign.json")
-    progress = load(PREP / "scored-progress.json")
+    progress = load(PROGRESS)
     if progress["status"] != "complete" or progress["current"] is not None:
         raise ValueError("the eight-run campaign has not reached terminal completion")
     cells = [(row["model"], row["seed"]) for row in declaration["cells"]]
@@ -88,11 +88,10 @@ def prepare():
         entries = []
         for row in (item for item in completed if item["seed"] == seed):
             model = row["model"]
-            if row["output"] != f"artifacts/mei011-{model}-seed{seed}-20261107":
+            config, output = cell_paths(model, seed)
+            if row["output"] != str(output.relative_to(ROOT)):
                 raise ValueError("unexpected owned output")
-            entries.append(
-                checked_run(ROOT, row, f"{CONFIG_DIR}/{model}-seed{seed}.yaml")
-            )
+            entries.append(checked_run(ROOT, row, str(config.relative_to(ROOT))))
         if len(entries) != 4 or {x["model"] for x in entries} != set(spec["models"]):
             raise ValueError(
                 "the complete seed must include all four pinned contenders"

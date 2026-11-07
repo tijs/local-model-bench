@@ -24,6 +24,27 @@ bytes before execution. No prior config/result is relabelled. The stand-in runne
 writes only `results/standin/` and `results/STANDIN.md`; it never regenerates old
 model-only or historical composite reports. Full guide: `docs/PEIXINHO_STANDIN.md`.
 
+## Model storage
+
+For new profiles, use the host's configured model store and commit the exact
+model path and revision. On this benchmark Mac the store is
+`/Volumes/Expansion/local-model-bench`; its `mei-models/` and `gguf-models/`
+directories hold the weights. To look up a staging path:
+
+```sh
+uv run --locked python runner/model_storage.py mei
+uv run --locked python runner/model_storage.py gguf
+```
+
+Set the base directory in `~/.config/local-model-bench/model-root` (one
+absolute path; respects `XDG_CONFIG_HOME`) or override it for a command with
+`LOCAL_MODEL_BENCH_MODEL_ROOT`. With no setting the tools use the per-user
+model directories. A configured external volume must be mounted and the
+requested store must exist; the tools do not create a fallback on the internal
+disk. Use the returned path in `hf download --local-dir` and new configs.
+Older profiles can still use their original paths through the two store-level
+aliases on this Mac. No per-model symlink is needed.
+
 # Secondary model-only configs
 
 The `model-only-v1` scope runs `sanity` and `model_tools` over the model's HTTP

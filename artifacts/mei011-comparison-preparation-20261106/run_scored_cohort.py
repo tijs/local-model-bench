@@ -30,7 +30,17 @@ CONFIGS = ROOT / "configs/mei-0.11.0-comparison-20261107"
 RUNTIME_PREP = ROOT / "artifacts/mei-upstream-qualification-20261106"
 PRESERVE_MEI = RUNTIME_PREP / "preserve_native.py"
 AUDIT = ROOT / "artifacts/four-model-retest-v9p10-20261102/audit_run.py"
-PROGRESS = PREP / "scored-progress.json"
+INTERRUPTED_PROGRESS = PREP / "scored-progress.json"
+PROGRESS = PREP / "scored-progress-disk-retry.json"
+MIN_START_DISK = 23 * 1024**3
+
+
+def cell_paths(model, seed):
+    retry = "-disk-retry" if (model, seed) == ("qwen", 17) else ""
+    return (
+        CONFIGS / f"{model}-seed{seed}{retry}.yaml",
+        ROOT / f"artifacts/mei011-{model}-seed{seed}{retry}-20261107",
+    )
 
 
 def read(path):
@@ -90,6 +100,14 @@ def check_ports():
         raise ValueError("benchmark ports are not both free")
 
 
+def check_disk_headroom():
+    # The fixed supervisor stops at 10 GiB. The old complete runs retained
+    # up to 7.7 GiB of KV at exit; leave room for transient usage too.
+    free = shutil.disk_usage(ROOT).free
+    if free < MIN_START_DISK:
+        raise ValueError(f"need 23 GiB before launch; have {free / 1024**3:.2f} GiB")
+
+
 def verify_frozen_method(declaration, head):
     baseline = read(ROOT / "results/four-model-mei010-comparison.json")
     tag = declaration["method"]
@@ -128,6 +146,27 @@ def bind_configs():
     head = subprocess.check_output(
         ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
     ).strip()
+    interrupted = read(INTERRUPTED_PROGRESS)
+    original_output = ROOT / "artifacts/mei011-qwen-seed17-20261107"
+    for p in (
+        INTERRUPTED_PROGRESS,
+        original_output / "outcome.json",
+        original_output / "owned-kv-cleanup.json",
+    ):
+        committed_config(ROOT, str(p.relative_to(ROOT)), head, p.read_bytes())
+    if (
+        interrupted["status"] != "stopped_for_review"
+        or interrupted["completed"]
+        or interrupted["current"]
+        != {
+            "model": "qwen",
+            "seed": 17,
+            "output": str(original_output.relative_to(ROOT)),
+        }
+        or read(original_output / "outcome.json")["stop_reason"] != "disk below10GiB"
+        or not read(original_output / "owned-kv-cleanup.json")["server_exited"]
+    ):
+        raise ValueError("continuation requires the preserved Qwen disk interruption")
     committed_config(ROOT, str(RECEIPT.relative_to(ROOT)), head, RECEIPT.read_bytes())
     release = read(RECEIPT)
     if (
@@ -140,11 +179,19 @@ def bind_configs():
     cases = []
     for cell in declared["cells"]:
         model, seed = cell["model"], cell["seed"]
-        name = CONFIGS / f"{model}-seed{seed}.yaml"
+        name, output = cell_paths(model, seed)
         raw = name.read_bytes()
         committed_config(ROOT, str(name.relative_to(ROOT)), head, raw)
         cfg = yaml.safe_load(raw)
-        output = ROOT / f"artifacts/mei011-{model}-seed{seed}-20261107"
+        if (model, seed) == ("qwen", 17):
+            old_path = CONFIGS / "qwen-seed17.yaml"
+            old = old_path.read_bytes()
+            committed_config(ROOT, str(old_path.relative_to(ROOT)), head, old)
+            stem = b"qwen-mei011-v9115-seed17"
+            if old.count(stem + b"-20261107") != 4 or raw != old.replace(
+                stem + b"-20261107", stem + b"-disk-retry-20261107"
+            ):
+                raise ValueError("Qwen retry may change only its owned runtime paths")
         if (
             output.exists()
             or cfg["source_revision"] != cell["weight_revision"]
@@ -157,6 +204,8 @@ def bind_configs():
         ):
             raise ValueError(f"{model}/{seed}: unexpected or reused scoring profile")
         if cfg["inference_engine"] == "mei":
+            if Path(cfg["required_runner_environment"]["MEI_RUNTIME_BASE"]).exists():
+                raise ValueError(f"{model}/{seed}: runtime directory already exists")
             actual = verify_mei_runtime(cfg)
             expected = {
                 "binary_path": release["installed_binary"],
@@ -233,6 +282,7 @@ def run(cases):
         temporary.replace(PROGRESS)
 
     check_ports()
+    check_disk_headroom()
     with PROGRESS.open("x") as f:
         json.dump(progress, f, indent=2)
         f.write("\n")
@@ -242,6 +292,7 @@ def run(cases):
         save()
         try:
             check_ports()
+            check_disk_headroom()
             print(f"START {model} seed{seed}", flush=True)
             result = subprocess.run(
                 [

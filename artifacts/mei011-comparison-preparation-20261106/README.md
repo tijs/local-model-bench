@@ -22,6 +22,19 @@ retains the evidence and replays each task audit before starting the next run.
 The live campaign must be reviewed before any continuation; do not restart it
 or substitute earlier results for an interrupted attempt.
 
+The [initial Qwen seed 17 attempt](../mei011-qwen-seed17-20261107/README.md)
+stopped below the 10 GiB disk floor. The retry uses a fresh owned runtime and
+output path; all benchmark parameters are identical. The campaign checks for
+23 GiB of headroom before starting each run, based on complete historical runs
+leaving up to 7.7 GiB of temporary KV files. The 10 GiB supervisor stop remains
+in place. The original progress file and append-only task rows are retained.
+
+The model stores are being relocated to Expansion before the retry. Frozen
+configs keep their recorded paths through the store-level aliases. Any change
+in full-run time can include model loading and, for GGUF, file-backed reads
+from a different device. Prior controlled speed timings precede that storage
+change; task outcomes and decode timing should be read separately.
+
 ## Context-speed evidence
 
 The [final release timing audit](../mei-upstream-qualification-20261106/attention-selector-final-review-20261107.json)
