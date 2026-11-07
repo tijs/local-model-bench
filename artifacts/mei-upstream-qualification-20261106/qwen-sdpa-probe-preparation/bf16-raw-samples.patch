@@ -1,0 +1,142 @@
+--- a/benchmarks/python/sdpa_vector_bench.py
++++ b/benchmarks/python/sdpa_vector_bench.py
+@@ -9,9 +9,11 @@
+ """
+ 
+ import argparse
++import json
+ import math
+ import statistics
+ import time
++from pathlib import Path
+ 
+ import mlx.core as mx
+ 
+@@ -40,7 +42,7 @@
+         raise argparse.ArgumentTypeError(
+             "shape must be q_heads,kv_heads,context,head_dim"
+         )
+-    q_heads, kv_heads, context, head_dim = shape
++    q_heads, kv_heads, _context, _head_dim = shape
+     if min(shape) <= 0 or q_heads % kv_heads != 0:
+         raise argparse.ArgumentTypeError(
+             "shape values must be positive and q_heads divisible by kv_heads"
+@@ -87,6 +89,7 @@
+         run_chain(q, k, v, scale, chain)
+ 
+     round_medians = []
++    all_samples = []
+     best = math.inf
+     for _ in range(rounds):
+         samples = []
+@@ -95,6 +98,7 @@
+             run_chain(q, k, v, scale, chain)
+             elapsed = (time.perf_counter_ns() - start) * 1e-9 / chain
+             samples.append(elapsed)
++        all_samples.append(samples)
+         best = min(best, min(samples))
+         round_medians.append(statistics.median(samples))
+ 
+@@ -103,6 +107,7 @@
+         statistics.median(round_medians),
+         min(round_medians),
+         max(round_medians),
++        all_samples,
+     )
+ 
+ 
+@@ -110,10 +115,11 @@
+     q_heads, kv_heads, context, head_dim = shape
+     scale = 1.0 / math.sqrt(head_dim)
+ 
++    dtype = getattr(mx, args.dtype)
+     mx.random.seed(args.seed)
+-    q = mx.random.normal((1, q_heads, 1, head_dim)).astype(mx.float16)
+-    k = mx.random.normal((1, kv_heads, context, head_dim)).astype(mx.float16)
+-    v = mx.random.normal((1, kv_heads, context, head_dim)).astype(mx.float16)
++    q = mx.random.normal((1, q_heads, 1, head_dim)).astype(dtype)
++    k = mx.random.normal((1, kv_heads, context, head_dim)).astype(dtype)
++    v = mx.random.normal((1, kv_heads, context, head_dim)).astype(dtype)
+     mx.eval(q, k, v)
+ 
+     actual = mx.fast.scaled_dot_product_attention(q, k, v, scale=scale)
+@@ -123,7 +129,7 @@
+     max_abs_error = error.max().item()
+     relative_linf_error = max_abs_error / max(mx.abs(expected).max().item(), 1e-9)
+ 
+-    best, median, median_low, median_high = measure(
++    best, median, median_low, median_high, samples = measure(
+         q,
+         k,
+         v,
+@@ -137,11 +143,14 @@
+     # Logical traffic of the generic kernel: every query head streams one K
+     # and one V head. This is intentionally called logical bandwidth because
+     # shared KV heads can be served from cache on GQA shapes.
+-    itemsize = 2
++    itemsize = q.itemsize
+     logical_bytes = q_heads * context * head_dim * itemsize * 2
+     logical_gbps = logical_bytes / median / 1e9
+ 
+     return {
++        "shape": list(shape),
++        "dtype": args.dtype,
++        "samples_seconds_per_operator_by_round": samples,
+         "gqa": q_heads // kv_heads,
+         "path": kernel_path(*shape, architecture),
+         "best_us": best * 1e6,
+@@ -167,6 +176,8 @@
+         metavar="QH,KVH,CTX,D",
+         help="shape to benchmark; may be repeated",
+     )
++    parser.add_argument("--dtype", choices=("float16", "bfloat16", "float32"), default="float16")
++    parser.add_argument("--json-output", type=Path)
+     parser.add_argument("--chain", type=int, default=8)
+     parser.add_argument("--warmup", type=int, default=10)
+     parser.add_argument("--iterations", type=int, default=30)
+@@ -174,12 +185,15 @@
+     parser.add_argument("--seed", type=int, default=0)
+     args = parser.parse_args()
+ 
++    if args.json_output is not None and args.json_output.exists():
++        parser.error("refuse existing evidence output")
+     shapes = args.shape or DEFAULT_SHAPES
++    results = []
+     device_info = mx.device_info(mx.gpu)
+     architecture = device_info.get("architecture", "")
+     print(
+         f"device={device_info.get('device_name', 'unknown')} "
+-        f"architecture={architecture}"
++        f"architecture={architecture} dtype={args.dtype}"
+     )
+     print(
+         f"chain={args.chain} warmup={args.warmup} "
+@@ -192,6 +206,7 @@
+     )
+     for shape in shapes:
+         result = benchmark_shape(shape, args, architecture)
++        results.append(result)
+         q_heads, kv_heads, context, head_dim = shape
+         print(
+             f"{q_heads:>3} {kv_heads:>3} {result['gqa']:>3} "
+@@ -204,6 +219,20 @@
+             f"{result['relative_linf_error']:>9.2e}"
+         )
+ 
++    if args.json_output is not None:
++        report = {
++            "diagnostic_only": True,
++            "scope": "Host-inclusive chained operator latency; not loaded-model performance, task scores or release qualification. All raw samples retained; best samples never substitute for full-model means.",
++            "device": device_info,
++            "runtime_module": getattr(mx, "__file__", None),
++            "runtime_version": getattr(mx, "__version__", None),
++            "settings": {key: getattr(args, key) for key in ("dtype", "chain", "warmup", "iterations", "rounds", "seed")},
++            "results": results,
++        }
++        with args.json_output.open("x") as stream:
++            json.dump(report, stream, indent=2)
++            stream.write("\n")
++
+ 
+ if __name__ == "__main__":
+     main()
