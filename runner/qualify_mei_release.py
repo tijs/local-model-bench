@@ -1,4 +1,4 @@
-"""Guarded raw-completion measurements for a pinned Mei release candidate.
+"""Guarded raw-completion or streaming measurements for a pinned Mei runtime.
 
 Uses the native runner's committed-config, provenance, ownership and resource
 guards. These are runtime qualification observations, never scored task rows.
@@ -34,6 +34,7 @@ from mei_clean_speed import (
     verify_receipt,
 )
 from mei_provenance import verify_mei_runtime
+from mei_stream_timing import measure_chat_stream
 from run_mei_acceptance import (
     REPO,
     committed_native_config,
@@ -42,6 +43,7 @@ from run_mei_acceptance import (
     validate_owned_config,
     wait_ready,
 )
+from run_prompt import StreamStall
 from run_standin_suite import write_json
 from tokenizers import Tokenizer
 
@@ -65,6 +67,50 @@ def qualification_settings(cfg: dict[str, Any]) -> dict[str, int | float]:
     if settings["loaded_tokens"] + settings["decode_tokens"] > cfg["context_cap"]:
         raise ValueError("qualification prompt plus generation exceeds context cap")
     return settings
+
+
+def uncached_streaming_timing(cfg: dict[str, Any]) -> bool:
+    enabled = cfg.get("mei_uncached_streaming_timing", False)
+    if type(enabled) is not bool:
+        raise ValueError("mei_uncached_streaming_timing must be boolean")
+    if enabled:
+        command = split_launch_command(cfg["benchmark_launch_command"])
+        if (
+            command.count("--cache-mode") != 1
+            or command[command.index("--cache-mode") + 1] != "off"
+            or "--cache-reuse" in command
+            or "--kv-cache-dir" in command
+        ):
+            raise ValueError("uncached streaming timing requires cache mode off")
+    return enabled
+
+
+def stream_observable(timing: dict) -> dict:
+    usage = timing["usage"]
+    cached = usage.get("prompt_tokens_details", {}).get("cached_tokens")
+    if type(cached) is not int or cached != 0:
+        raise ValueError("uncached timing requires a reported zero cache hit")
+    if not (
+        0
+        <= timing["headers_seconds"]
+        <= timing["first_generated_seconds"]
+        <= timing["wall_seconds"]
+        < math.inf
+    ):
+        raise ValueError("invalid streaming timing boundaries")
+    visible = timing["first_visible_seconds"]
+    if (
+        visible is not None
+        and not timing["first_generated_seconds"] <= visible <= timing["wall_seconds"]
+    ):
+        raise ValueError("invalid first visible text timing")
+    return {
+        "content": timing["content"],
+        "reasoning": timing["reasoning"],
+        "prompt_tokens": usage["prompt_tokens"],
+        "completion_tokens": usage["completion_tokens"],
+        "finish_reason": timing["finish_reason"],
+    }
 
 
 def request_json(
@@ -224,6 +270,15 @@ def succeeded(output: Path) -> bool:
             )
         settings = result["settings"]
         measurements = [row for row in result["rows"] if row["phase"] == "measured"]
+        streaming = uncached_streaming_timing(cfg)
+        if result.get("measurement_mode") != (
+            "uncached_chat_stream" if streaming else None
+        ):
+            return False
+        if streaming:
+            for row in result["rows"]:
+                if row["observable"] != stream_observable(row["response"]):
+                    return False
         expected = {
             (context, repeat)
             for context in ("short", "loaded")
@@ -258,6 +313,7 @@ def succeeded(output: Path) -> bool:
 
 def child(cfg: dict, output: Path) -> int:
     settings = qualification_settings(cfg)
+    streaming = uncached_streaming_timing(cfg)
     base = cfg["benchmark_endpoint"].rstrip("/")
     model = cfg["orchestration"]["served_model_id"]
     command = split_launch_command(cfg["benchmark_launch_command"])
@@ -274,6 +330,11 @@ def child(cfg: dict, output: Path) -> int:
         "model": model,
         "parity_scope": "HTTP text bytes, generated count and finish; hidden sampled token IDs are not exposed",
     }
+    if streaming:
+        result["measurement_mode"] = "uncached_chat_stream"
+        result["parity_scope"] = (
+            "Streaming content/reasoning bytes, usage counts and finish reason"
+        )
     done = threading.Event()
     process = None
     sampler = None
@@ -337,7 +398,12 @@ def child(cfg: dict, output: Path) -> int:
         }
         started_epoch = time.time()
         start = time.monotonic()
-        response = request_json(base + "/completions", body)
+        if streaming:
+            body.pop("prompt")
+            body["messages"] = [{"role": "user", "content": prompt}]
+            response = measure_chat_stream(base, body)
+        else:
+            response = request_json(base + "/completions", body)
         with (output / "responses.jsonl").open("a") as stream:
             stream.write(
                 json.dumps(
@@ -351,15 +417,31 @@ def child(cfg: dict, output: Path) -> int:
                 )
                 + "\n"
             )
-        fields = observable(response)
-        if context == "loaded" and fields["prompt_tokens"] != settings["loaded_tokens"]:
+        fields = stream_observable(response) if streaming else observable(response)
+        if streaming:
+            if (
+                context == "loaded"
+                and abs(fields["prompt_tokens"] - settings["loaded_tokens"]) > 128
+            ):
+                raise ValueError("chat prompt length differs from its declared target")
+            reference = next(
+                (r["observable"] for r in result["rows"] if r["context"] == context),
+                fields,
+            )
+            if reference != fields:
+                raise ValueError("greedy streamed output changed between repeats")
+        elif (
+            context == "loaded" and fields["prompt_tokens"] != settings["loaded_tokens"]
+        ):
             raise ValueError("tokenizer did not produce the declared loaded context")
         row = {
             "context": context,
             "phase": phase,
             "repeat": repeat,
             "started_epoch": started_epoch,
-            "elapsed_seconds": time.monotonic() - start,
+            "elapsed_seconds": response["wall_seconds"]
+            if streaming
+            else time.monotonic() - start,
             "response": response,
             "observable": fields,
             "decode_tps": response["usage"]["tokens_per_second"],
@@ -500,6 +582,7 @@ def child(cfg: dict, output: Path) -> int:
         TypeError,
         IndexError,
         RuntimeError,
+        StreamStall,
         subprocess.SubprocessError,
         KeyboardInterrupt,
     ) as exc:
@@ -595,6 +678,7 @@ def main() -> int:
     cfg, content = committed_native_config(args.config.resolve())
     validate_owned_config(cfg)
     qualification_settings(cfg)
+    uncached_streaming_timing(cfg)
     if cfg.get("benchmark_scope") != "mei-release-qualification-v1":
         raise ValueError("qualification requires its separate diagnostic scope")
     if args.child:

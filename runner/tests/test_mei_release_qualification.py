@@ -22,6 +22,36 @@ from qualify_mei_release import observable, qualification_settings, succeeded
 
 
 class QualificationTests(unittest.TestCase):
+    def test_streaming_requires_explicit_cache_off_and_verified_zero_hits(self):
+        cfg = {
+            "mei_uncached_streaming_timing": True,
+            "benchmark_launch_command": "bash runner/start_mei_server.sh --cache-mode off",
+        }
+        self.assertTrue(qualification.uncached_streaming_timing(cfg))
+        cfg["benchmark_launch_command"] += " --kv-cache-dir /unexpected"
+        with self.assertRaisesRegex(ValueError, "requires cache mode off"):
+            qualification.uncached_streaming_timing(cfg)
+        timing = {
+            "headers_seconds": 1,
+            "first_generated_seconds": 4,
+            "first_visible_seconds": None,
+            "wall_seconds": 5,
+            "content": "",
+            "reasoning": "thinking",
+            "finish_reason": "length",
+            "usage": {
+                "prompt_tokens": 30_010,
+                "completion_tokens": 32,
+                "prompt_tokens_details": {"cached_tokens": 0},
+            },
+        }
+        self.assertEqual(
+            qualification.stream_observable(timing)["prompt_tokens"], 30_010
+        )
+        timing["usage"]["prompt_tokens_details"]["cached_tokens"] = 1024
+        with self.assertRaisesRegex(ValueError, "reported zero cache hit"):
+            qualification.stream_observable(timing)
+
     def test_interrupt_during_stop_keeps_failure_evidence_and_terminates(self):
         with tempfile.TemporaryDirectory() as folder:
             output = Path(folder)
@@ -593,8 +623,10 @@ class DeclaredSpeedProfileTests(unittest.TestCase):
                     path = root / cell["config"]
                     content = path.read_bytes()
                     cfg = yaml.safe_load(content)
-                    cfg["required_runner_environment"]["MEI_RUNTIME_BASE"] = str(
-                        Path(folder) / f"runtime-{index}"
+                    runtime = str(Path(folder) / f"runtime-{index}")
+                    cfg["required_runner_environment"]["MEI_RUNTIME_BASE"] = runtime
+                    cfg["mei_clean_speed_launch"]["environment"]["MEI_RUNTIME_BASE"] = (
+                        runtime
                     )
                     with (
                         patch(
