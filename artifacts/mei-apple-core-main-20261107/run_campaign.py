@@ -94,10 +94,16 @@ def campaign(phase):
             output = ROOT / cell["output"]
             expected = f"{cell['model']}-{LABEL}-{cell['cell']}"
             runtime = Path(cfg["required_runner_environment"]["MEI_RUNTIME_BASE"])
+            owned = (
+                Path.home() / ".local/share/local-model-bench/mei-runtime" / expected
+            )
             if (
                 output != ROOT / "artifacts" / expected
-                or runtime.name != expected
+                or runtime != owned
+                or runtime.exists()
+                or runtime.is_symlink()
                 or output.exists()
+                or output.is_symlink()
             ):
                 raise ValueError("requires a fresh owned output and runtime")
             manifest = ROOT / matrix["model_manifests"][cell["model"]]
