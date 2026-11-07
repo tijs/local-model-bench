@@ -37,6 +37,43 @@ def write(path, data):
         f.write("\n")
 
 
+def write_run_review(output, cfg, seed, outcome, audit):
+    household = audit["household"]
+    python = audit["python"]
+    lines = [
+        f"# {cfg['model']} — seed {seed}",
+        "",
+        (
+            f"Completed in {outcome['elapsed_seconds']:.1f} seconds: "
+            f"household {sum(task['passed'] for task in household)}/12, "
+            f"Python {sum(task['passed'] for task in python)}/3."
+        ),
+        "",
+        (
+            "[Task replay](audit.json) · [Supervisor outcome](outcome.json) · "
+            "[Runtime verification](post-run-runtime-verification.json) · "
+            "[Model hashes](post-run-model-hashes.json) · [Resource samples](resources.jsonl)"
+        ),
+        "",
+        "These are synthetic stand-in tasks, separate from real Peixinho acceptance.",
+    ]
+    failures = [
+        f"- {label} `{task['task']}`"
+        + (
+            f": {', '.join(task['failed_checks'])}."
+            if task.get("failed_checks")
+            else "."
+        )
+        for label, track in (("Household", household), ("Python", python))
+        for task in track
+        if not task["passed"]
+    ]
+    if failures:
+        lines.extend(["", "## Failed tasks", "", *failures])
+    with (output / "README.md").open("x") as f:
+        f.write("\n".join(lines) + "\n")
+
+
 def check_ports():
     proc = subprocess.run(
         ["lsof", "-nP", "-iTCP:8017", "-iTCP:8024", "-sTCP:LISTEN"],
@@ -206,6 +243,7 @@ def run(cases):
             audit = read(output / "audit.json")
             if len(audit["household"]) != 12 or len(audit["python"]) != 3:
                 raise ValueError("requires all fifteen audited task grades")
+            write_run_review(output, cfg, seed, outcome, audit)
             progress["completed"].append(
                 {**label, "run_ids": ids, "elapsed_seconds": outcome["elapsed_seconds"]}
             )
