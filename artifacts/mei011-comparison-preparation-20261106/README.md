@@ -63,3 +63,7 @@ to validate and write the two seed manifests and the task comparison input.
 The assembler refuses partial cohorts and checks every selected run against
 its archived outcome, config and review. Pair that input with the qualified
 context-speed input only after the combined-cohort verifier passes.
+Use a fresh chart directory such as `results/charts/four-model-mei011` for the
+task report and a separate `results/charts/four-model-mei011-context-speed`
+stem for the context plot. The benchmark method is unchanged, so the default
+method-based chart directory can already contain an earlier cohort.
