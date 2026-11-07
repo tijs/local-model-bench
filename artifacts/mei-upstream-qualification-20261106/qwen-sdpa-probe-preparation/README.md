@@ -1,7 +1,8 @@
 # Prepared Qwen SDPA operator probe
 
 **Prepared only. No GPU execution, numerical result or timing result exists.**
-Wait until campaign20319 is terminal and reviewed before building or running it.
+Do not build or run this while any owned model campaign is live. The final
+qualification matrix is terminal/reviewed; fresh Logics controls are now running.
 
 This reuses MLX's `benchmarks/python/sdpa_vector_bench.py` at core
 `e790cca9df907c30ff4f18b0c772b4d9f454132e`. The unmodified snapshot, license,
@@ -58,3 +59,26 @@ them from any final fix; an operator result alone cannot qualify Mei.
 The trace includes the specialization key (mask/layout/block constants), not
 just the base kernel name. The Python script’s path label is a shape-based
 classification and must not be mistaken for an observed runtime variant.
+
+## Prepared Swift adapter
+
+`QwenSDPAProbeTests.swift` is an uncompiled adapter for reusing Mei's existing
+Debug dependency products instead of building separate Python bindings. It is
+kept here, outside the shipped test target. Later execution must use a temporary
+owned test-source copy, record the exact Cmlx diagnostic patch and build flags,
+and verify binary/source/Metal hashes. Restore the checkout after the probe;
+do not replace the frozen release product or leave diagnostic hooks in a release.
+
+The explicit Metal override permits using the hash-verified production library.
+Defaults are BF16, GQA8/D256 and contiguous30,000-token KV. Bounded options cover
+30,000..30,128 tokens, FP16/BF16/F32 and padded KV storage up to65,536 rows, so
+later fixtures can match observed tail position and strides. The C++ trace now
+includes Q/K/V head/sequence strides. Actual model dtype/layout/dispatch still
+needs tracing; a synthetic fixture is not proof of it.
+
+The adapter ports the upstream reference/chaining operations and dtype-specific
+absolute+relative test tolerances, retains all150 samples, and refuses an
+existing output. There is no Swift compile, numerical pass or timing result yet.
+Run no build, GPU test or model probe during the Logics controls. As with the
+Python probe, compare only genuinely different selected variants; an ineligible
+force flag or an already-selected TK1 kernel is not a distinct treatment.
