@@ -8,10 +8,11 @@ Selected dependency, allocator and trait checks also pass. The new executable is
 `12fa6435558ce679b698804137e6c36ac9e031332408143096474405b33c1bd9`;
 its source-built Metal hash is unchanged from the preceding candidate.
 
-**Final-artifact qualification is running.** Groot and Qwen pass13/13 native
-checks each; all31 model files rehash unchanged. Their resource reviews retain
-all pressure/swap observations. Ornith is still pending. Three full native gates precede a
-fresh twelve-cell ABBA comparison with stable0.10. All15 committed profiles pass
+**All three final-artifact native gates pass13/13 each**; all42 model files
+rehash unchanged. Qwen has one warning sample below the sustained stop threshold;
+Groot and Ornith remain under normal pressure throughout. Full resource reviews
+are retained in [the native audit](apple-main-native-review.json). The fresh
+twelve-cell ABBA comparison with stable0.10 is now running. All15 committed profiles pass
 preflight and preserve weights, precision, samplers, budgets and resource guards.
 No earlier timing substitutes for a new cell. Mei0.11 remains unreleased, and
 there are no new0.11 task scores.
