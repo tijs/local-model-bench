@@ -264,7 +264,7 @@ def review(screen="fused-rows"):
         if screen == "fused-rows"
         else {
             "status": "complete_diagnostic_observations_review_required",
-            "scope": "Same binary/source/model, only adaptive scheduling-floor flag differs.28observable rows,20measured requests,18live API cases,30unchanged model-file checks; all repeats retained. Both arms have identical receipts/telemetry; pressure/swap/disk/capacity guards unchanged. One process/arm is a mechanism screen, not statistical equivalence, production recommendation or stable qualification. Existing status sampler covers cold loaded request only; phase counters are not additive.",
+            "scope": "Same binary/source/model, only adaptive scheduling-floor flag differs.28observable rows,20measured requests,18live API cases,30unchanged model-file checks; all repeats retained. Both arms have identical receipts/telemetry; pressure/swap/disk/capacity guards unchanged. One process/arm is a mechanism screen, not statistical equivalence, production recommendation or stable qualification. Existing status sampler covers cold loaded request only; phase counters are not additive. Runtime-receipt counts depend on raises, so any timing recovery needs untraced confirmation before production attribution.",
             "rows": rows,
         }
     )
