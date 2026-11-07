@@ -33,7 +33,7 @@ per profile, plus individual observations and audit links.
 - [Candidate campaign](CANDIDATE_CAMPAIGN.md): Groot, ThinkingCap, Logics-SWE,
   Clover and reference retests, with evidence links and open qualification work.
 - [Release history](releases/): method and tooling changes. Current release:
-  [benchmark-v9.11.9](https://github.com/tijs/local-model-bench/releases/tag/benchmark-v9.11.9);
+  [benchmark-v9.11.10](https://github.com/tijs/local-model-bench/releases/tag/benchmark-v9.11.10);
   the current scored comparison uses the frozen benchmark-v9.11.5 method.
 
 ## Running and understanding the benchmark

@@ -6,9 +6,9 @@ agent task quality, full-run time, memory and tool reliability with **Mei
 it is still a design, so the current tests use synthetic household workflows
 and real, contained Python automation.
 
-Current tooling release: [**benchmark-v9.11.9**](https://github.com/tijs/local-model-bench/releases/tag/benchmark-v9.11.9).
+Current tooling release: [**benchmark-v9.11.10**](https://github.com/tijs/local-model-bench/releases/tag/benchmark-v9.11.10).
 The comparison below uses the frozen **benchmark-v9.11.5** method with fresh
-two-seed runs. Mei profiles use stable **Mei 0.10.0**; Logics uses llama.cpp.
+two-seed runs. Mei profiles use stable **Mei 0.11.0**; Logics uses llama.cpp.
 
 ## Four retained contenders
 
@@ -16,64 +16,43 @@ All four ran fresh twice on the same 32 GiB Apple M1 Max, using seeds 17 and 29.
 Each run covers 12 household workflows and 3 Python tasks. No older result was
 substituted and no best repeat was selected.
 
-| Profile / engine | Household success | Python success | Mean full-run time | Mean peak wired increase |
-|---|---:|---:|---:|---:|
-| Base Qwen3.6 / Mei (Swift/MLX) | 83.3% (20/24) | 66.7% (4/6) | 10.55 min | 20.42 GiB |
-| Ornith1.5 / Mei (Swift/MLX) | 83.3% (20/24) | 33.3% (2/6) | 13.14 min | 20.29 GiB |
-| Groot / Mei (Swift/MLX) | 87.5% (21/24) | 100.0% (6/6) | 10.47 min | 15.21 GiB |
-| Logics-SWE / llama.cpp (GGUF) | 91.7% (22/24) | 100.0% (6/6) | 9.66 min | 19.53 GiB |
+| Model / engine | Household | Python | Mean task time | Average full time | Average peak wired increase |
+|---|---:|---:|---:|---:|---:|
+| Base Qwen3.6 / Mei (Swift/MLX) | 18/24 (75.0%) | 6/6 (100.0%) | 29.44 s | 8.74 min | 20.34 GiB |
+| Ornith1.5 / Mei (Swift/MLX) | 19/24 (79.2%) | 4/6 (66.7%) | 44.24 s | 11.91 min | 19.86 GiB |
+| Groot / Mei (Swift/MLX) | 22/24 (91.7%) | 6/6 (100.0%) | 38.90 s | 10.13 min | 13.72 GiB |
+| Logics-SWE / llama.cpp (GGUF) | 22/24 (91.7%) | 6/6 (100.0%) | 36.69 s | 9.53 min | 19.55 GiB |
 
-MiniCPM's two fresh runs passed 23/24 household and 5/6 Python attempts. One
-run had a critical safety failure, so it is **unranked**; its descriptive
-average is shown as a separate marked point in the overview below.
+Groot and Logics-SWE each passed 22/24 household and 6/6 Python tasks. Groot
+had the smallest weights and lowest observed wired-memory increase. Qwen
+completed tasks fastest on average and passed all six Python tasks, but
+passed two fewer household tasks than with Mei 0.10.0. Ornith also gained two
+Python passes and lost one household pass. Logics kept the same scores on the
+same llama.cpp runtime. These are serving profiles and two repeats do not
+establish statistical superiority.
 
-Each graph shows **one weighted-average point per model**, using only its two
-complete v9.11.5 repeats. Equal task coverage gives each run 50% weight; quality
-pools passed/attempted tasks separately for household and Python. Raw runs stay
-in the linked summary. Time and memory are averaged across the two runs.
-
-Wired increase averages each run’s peak **host wired memory above its median
-baseline**: partial, system-wide accounting, not exact model RAM. Background
-activity can affect it. Time includes startup, admission and both task tracks;
-the separate 30-second baseline is excluded.
-
-[Full summary, exact observations and audit links](results/FOUR_MODEL_MEI010_FINAL.md) ·
-[Historical v9.10 comparison](docs/FOUR_MODEL_COMPARISON.md) ·
+[Full scores and per-run audits](results/FOUR_MODEL_MEI011_FINAL.md) ·
+[Changes since Mei 0.10.0](results/MEI011_DELTA.md) ·
 [Active roster](docs/ROSTER.md)
 
-![Household quality versus mean task duration, with MiniCPM unranked](results/charts/five-model-mei010-safety-overview.png)
+![Household quality versus mean task duration for four serving profiles](results/charts/four-model-mei011/quality-task-duration.png)
 
-[Overview data and safety status](results/charts/five-model-mei010-safety-overview.json) ·
-[Exact five-model selections](results/five-model-mei010-safety-overview.json).
+Each plotted point gives equal weight to two runs. Mean task time includes all
+15 task attempts per run, including failures, and excludes startup and native
+admission. Full-run time includes startup and both task tracks. Peak wired
+increase is measured above the median host baseline; it is not model RAM.
 
-Mean task duration counts all 15 attempts per run, including failures, then
-averages both runs equally. It excludes startup/native admission; read it beside
-success rates. Controlled short/long decode rates are shown separately:
+![Decode speeds at 17 and 30,000 prompt tokens](results/charts/four-model-mei011-context-speed.png)
 
-![Decode speeds at short and long context](results/charts/five-model-mei010-context-speed.png)
+[Decode speed, prefill and full-request latency](results/CONTEXT_SPEED_MEI011.md).
+Mei 0.11.0 decoded faster at 30,000 prompt tokens on all three Mei profiles.
+Qwen's 128-token response still took slightly longer end to end because
+prefill was slower. The task and decode measurements are separate.
 
-[Speed method, exact observations and limitations](results/CONTEXT_SPEED_MEI010.md).
-MiniCPM appears in the speed chart but its critical safety failure excludes it
-from the ranked quality chart.
-
-![Household quality versus full-run time](results/charts/four-model-mei010/quality-time.png)
-
-![Household quality versus wired-memory increase](results/charts/four-model-mei010/quality-memory.png)
-
-Logics-SWE reached 11/12 household and 3/3 Python on both trajectories. Groot
-used the least observed wired-memory increase and the smallest weight files,
-with 10–11/12 household and 3/3 Python. Qwen reached 9/12 and 11/12 household,
-with 2/3 Python on both runs. Ornith reached 10/12 household on both runs and
-0/3 then 2/3 Python.
-**All four remain contenders.** Two runs do not establish statistical superiority.
-Samplers, quantization, model sizes and engines differ; these compare complete
-serving profiles, rather than isolating model weights.
-
-Every task attempt completed. All eight supervisors exited normally, all
-pressure samples were normal, and swap did not grow. Task failures include
-denied private reads, invalid operation IDs, stale-value reuse and exhausted
-budgets. Containment holding does not erase an unsafe attempt. No model passed
-every household task in these repeats; actual Peixinho acceptance remains open.
+All eight scored runs completed. Memory pressure stayed normal, swap did not
+grow, and no critical safety failure occurred. Denied unsafe attempts still
+fail their tasks. These synthetic workflows do not establish Peixinho
+application acceptance.
 
 ## What is tested
 
@@ -109,9 +88,9 @@ uv run --locked python runner/supervise_bench.py \
 ```
 
 All three MLX profiles use the same distributed
-[Mei v0.10.0](https://github.com/tijs/mei/releases/tag/v0.10.0)
+[Mei v0.11.0](https://github.com/tijs/mei/releases/tag/v0.11.0)
 executable and Metal library. Logics-SWE uses its pinned llama.cpp build.
-[Exact comparison profiles](configs/mei-0.10.0-comparison-20261104/) bind model hashes,
+[Exact comparison profiles](configs/mei-0.11.0-comparison-20261107/) bind model hashes,
 sampling, context, cache, binaries and source revisions.
 
 ## Preserved evidence
@@ -126,6 +105,8 @@ Clover remains experimental native Kapitsa/Metal diffusion, separate from Mei.
 Flint/JANGH2 and the Hermes runtime are retired; their evidence remains intact.
 Do not use automatic config discovery as an active-roster selector.
 
+[Mei 0.10.0 comparison](results/FOUR_MODEL_MEI010_FINAL.md) ·
+[Historical v9.10 comparison](docs/FOUR_MODEL_COMPARISON.md) ·
 [Earlier six-model comparison](results/AGENT_V9.md) ·
 [Earlier v9.8 repeats](docs/FINALIST_REPEATS.md) ·
 [Original v9.9 attempts and grader finding](results/FOUR_MODEL_V9.9_INTERRUPTED.md) ·
