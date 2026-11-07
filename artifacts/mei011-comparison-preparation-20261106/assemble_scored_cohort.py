@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import math
 import sys
 from pathlib import Path
 
@@ -11,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[2]
 PREP = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / "runner"))
 from build_agent_leaderboard import render_campaign
-from run_scored_cohort import PROGRESS, cell_paths
+from run_scored_cohort import PROGRESS, READBACKS, cell_paths
 
 TRACKS = ("peixinho-standin-v1", "python-automation-v1")
 
@@ -40,6 +41,21 @@ def checked_run(root, row, config):
     if raw != (directory / "config.yaml").read_bytes():
         raise ValueError("selected launch config differs from archived snapshot")
     cfg = yaml.safe_load(raw)
+    readback = READBACKS / f"{row['model']}-seed{row['seed']}.json"
+    if row["pre_run_readback"] != str(readback.relative_to(ROOT)):
+        raise ValueError("run is missing its declared checkpoint readback")
+    before = load(root / row["pre_run_readback"])
+    after = load(directory / "post-run-model-hashes.json")
+    pre = sorted((f["bytes"], f["sha256"]) for f in before["files"])
+    post = sorted((f["bytes"], f["sha256"]) for f in after["files"])
+    if (
+        not pre
+        or pre != post
+        or after["all_match"] is not True
+        or not math.isfinite(before["elapsed_seconds"])
+        or before["elapsed_seconds"] <= 0
+    ):
+        raise ValueError("pre-run and post-run checkpoint evidence differs")
     if (
         cfg["generation_profiles"][cfg["standin_generation_profile"]]["seed"]
         != row["seed"]

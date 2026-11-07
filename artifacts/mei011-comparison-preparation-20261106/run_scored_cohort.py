@@ -8,6 +8,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import yaml
@@ -24,6 +25,7 @@ from build_agent_leaderboard import (
 from build_context_speed_cohort import committed_config
 from llama_provenance import verify_llama_runtime
 from mei_provenance import verify_mei_runtime
+from run_mei_acceptance import probe_succeeded
 from verify_model_store_migration import verify as verify_model_store
 
 RECEIPT = PREP / "verified-release-delivery.json"
@@ -33,12 +35,14 @@ RUNTIME_PREP = ROOT / "artifacts/mei-upstream-qualification-20261106"
 PRESERVE_MEI = RUNTIME_PREP / "preserve_native.py"
 AUDIT = ROOT / "artifacts/four-model-retest-v9p10-20261102/audit_run.py"
 INTERRUPTED_PROGRESS = PREP / "scored-progress.json"
-PROGRESS = PREP / "scored-progress-disk-retry.json"
+DISK_RETRY_PROGRESS = PREP / "scored-progress-disk-retry.json"
+PROGRESS = PREP / "scored-progress-readback-retry.json"
+READBACKS = PREP / "scored-readbacks"
 MIN_START_DISK = 23 * 1024**3
 
 
 def cell_paths(model, seed):
-    retry = "-disk-retry" if (model, seed) == ("qwen", 17) else ""
+    retry = "-readback-retry" if (model, seed) == ("qwen", 17) else ""
     return (
         CONFIGS / f"{model}-seed{seed}{retry}.yaml",
         ROOT / f"artifacts/mei011-{model}-seed{seed}{retry}-20261107",
@@ -120,6 +124,53 @@ def check_model_store():
         raise ValueError("host model store no longer matches the verified migration")
 
 
+def checkpoint_readback(model, cfg):
+    """Verify the checkpoint before timing, with the previous model exited."""
+    started = time.monotonic()
+    argv = shlex.split(cfg["benchmark_launch_command"])
+    if cfg["inference_engine"] == "mei":
+        root = Path(argv[argv.index("--model-dir") + 1]).resolve(strict=True)
+        pin = read(RUNTIME_PREP / f"{model}-media-prefix-pre-run-model-hashes.json")
+        if root != Path(pin["directory"]).resolve(strict=True):
+            raise ValueError("checkpoint path differs from the pinned manifest")
+        files = [(root / r["file"], r["bytes"], r["sha256"]) for r in pin["files"]]
+    else:
+        path = Path(argv[argv.index("--model") + 1]).resolve(strict=True)
+        files = [(path, cfg["model_bytes"], cfg["model_sha256"])]
+    verified = []
+    for path, size, expected in files:
+        path.relative_to("/Volumes/Expansion/local-model-bench")
+        with path.open("rb") as stream:
+            digest = hashlib.file_digest(stream, "sha256").hexdigest()
+        if digest != expected or path.stat().st_size != size:
+            raise ValueError(f"checkpoint differs from its pin: {path}")
+        verified.append({"path": str(path), "bytes": size, "sha256": digest})
+    return {"files": verified, "elapsed_seconds": time.monotonic() - started}
+
+
+def verify_original_admission():
+    directory = ROOT / "artifacts/mei011-qwen-expansion-residency-on-native-20261107"
+    head = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
+    ).strip()
+    for name in ("config.yaml", "outcome.json", "probe.json", "owned-kv-cleanup.json"):
+        path = directory / name
+        committed_config(ROOT, str(path.relative_to(ROOT)), head, path.read_bytes())
+    outcome = read(directory / "outcome.json")
+    declared = (
+        ROOT
+        / "configs/mei-upstream-qualification-20261106/qwen-expansion-residency-on-native.yaml"
+    )
+    if (
+        outcome["returncode"] != 0
+        or not outcome["full_native_admission"]
+        or not probe_succeeded(directory, skip_context=False, skip_cache=False)
+        or not read(directory / "owned-kv-cleanup.json")["server_exited"]
+        or (directory / "config.yaml").read_bytes() != declared.read_bytes()
+    ):
+        raise ValueError("the original Qwen serving profile must pass on Expansion")
+
+
 def verify_frozen_method(declaration, head):
     baseline = read(ROOT / "results/four-model-mei010-comparison.json")
     tag = declaration["method"]
@@ -179,6 +230,27 @@ def bind_configs():
         or not read(original_output / "owned-kv-cleanup.json")["server_exited"]
     ):
         raise ValueError("continuation requires the preserved Qwen disk interruption")
+    stopped = read(DISK_RETRY_PROGRESS)
+    second_output = ROOT / "artifacts/mei011-qwen-seed17-disk-retry-20261107"
+    for path in (
+        DISK_RETRY_PROGRESS,
+        second_output / "outcome.json",
+        second_output / "owned-kv-cleanup.json",
+    ):
+        committed_config(ROOT, str(path.relative_to(ROOT)), head, path.read_bytes())
+    second_outcome = read(second_output / "outcome.json")
+    if (
+        stopped["status"] != "stopped_for_review"
+        or stopped["completed"]
+        or stopped["current"]
+        != {"model": "qwen", "seed": 17, "output": str(second_output.relative_to(ROOT))}
+        or second_outcome["stop_reason"] != "sustained warning memory pressure"
+        or any(second_outcome["run_ids"].values())
+        or not read(second_output / "owned-kv-cleanup.json")["server_exited"]
+    ):
+        raise ValueError(
+            "continuation requires the preserved Qwen startup interruption"
+        )
     committed_config(ROOT, str(RECEIPT.relative_to(ROOT)), head, RECEIPT.read_bytes())
     release = read(RECEIPT)
     if (
@@ -201,7 +273,7 @@ def bind_configs():
             committed_config(ROOT, str(old_path.relative_to(ROOT)), head, old)
             stem = b"qwen-mei011-v9115-seed17"
             if old.count(stem + b"-20261107") != 4 or raw != old.replace(
-                stem + b"-20261107", stem + b"-disk-retry-20261107"
+                stem + b"-20261107", stem + b"-readback-retry-20261107"
             ):
                 raise ValueError("Qwen retry may change only its owned runtime paths")
         if (
@@ -311,6 +383,8 @@ def run(cases):
     check_ports()
     check_disk_headroom()
     check_model_store()
+    verify_original_admission()
+    READBACKS.mkdir(exist_ok=False)
     with PROGRESS.open("x") as f:
         json.dump(progress, f, indent=2)
         f.write("\n")
@@ -319,6 +393,11 @@ def run(cases):
         progress["current"] = label
         save()
         try:
+            check_ports()
+            check_disk_headroom()
+            print(f"VERIFY {model} seed{seed} checkpoint", flush=True)
+            readback = READBACKS / f"{model}-seed{seed}.json"
+            write(readback, checkpoint_readback(model, cfg))
             check_ports()
             check_disk_headroom()
             print(f"START {model} seed{seed}", flush=True)
@@ -365,7 +444,12 @@ def run(cases):
                 raise ValueError("requires all fifteen audited task grades")
             write_run_review(output, cfg, seed, outcome, audit)
             progress["completed"].append(
-                {**label, "run_ids": ids, "elapsed_seconds": outcome["elapsed_seconds"]}
+                {
+                    **label,
+                    "run_ids": ids,
+                    "elapsed_seconds": outcome["elapsed_seconds"],
+                    "pre_run_readback": str(readback.relative_to(ROOT)),
+                }
             )
             save()
             print(

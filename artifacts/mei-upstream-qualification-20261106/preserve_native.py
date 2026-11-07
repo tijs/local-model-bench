@@ -120,6 +120,7 @@ def main():
         for seed in (17, 29)
     )
     allowed.add("qwen-mei011-v9115-seed17-disk-retry-20261107")
+    allowed.add("qwen-mei011-v9115-seed17-readback-retry-20261107")
     allowed.add("qwen-mei011-expansion-residency-off-native-20261107")
     allowed.add("qwen-mei011-expansion-residency-on-native-20261107")
     allowed.update(

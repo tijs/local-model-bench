@@ -29,7 +29,7 @@ output path; all benchmark parameters are identical. The campaign checks for
 leaving up to 7.7 GiB of temporary KV files. The 10 GiB supervisor stop remains
 in place. The original progress file and append-only task rows are retained.
 
-The model stores are being relocated to Expansion before the retry. Frozen
+The model stores moved to Expansion before the retry. Frozen
 configs keep their recorded paths through the store-level aliases. Any change
 in full-run time can include model loading and, for GGUF, file-backed reads
 from a different device. Prior controlled speed timings precede that storage
@@ -38,6 +38,14 @@ Before starting the retry, run the [migration verifier](verify_model_store_migra
 with `--write` and commit its receipt. It binds the verified transfer to the
 pinned checkpoint files. The scored runner rechecks that receipt and the
 mounted volume before it starts the cohort.
+
+The [first Expansion retry](../mei011-qwen-seed17-disk-retry-20261107/README.md)
+stopped at the kernel's memory warning guard during model load, before any
+tasks. The next continuation requires a complete residency-on native check on
+Expansion before any scoring. It keeps the original serving settings and
+reads and verifies the checkpoint before each timed run. The readback can
+warm the OS file cache; its time is reported separately and is outside the
+scored method. Full-run times are not cold-storage startup comparisons.
 
 ## Context-speed evidence
 
