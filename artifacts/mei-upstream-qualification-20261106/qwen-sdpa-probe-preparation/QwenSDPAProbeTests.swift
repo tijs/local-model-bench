@@ -42,7 +42,8 @@ final class QwenSDPAProbeTests: XCTestCase {
         let scale: Float = 1 / Float(256).squareRoot()
         func attend(_ query: MLXArray) -> MLXArray {
             MLXFast.scaledDotProductAttention(
-                queries: query, keys: k, values: v, scale: scale)
+                queries: query, keys: k, values: v, scale: scale,
+                mask: MLXFast.ScaledDotProductAttentionMaskMode.none)
         }
         // Same reference operations as the upstream Python benchmark.
         let expandedK = repeated(k, count: 8, axis: 1)
