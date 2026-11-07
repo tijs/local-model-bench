@@ -187,7 +187,23 @@ def main():
             check=False,
         )
         try:
-            outcome = json.loads((output / "outcome.json").read_text())
+            outcome_path = output / "outcome.json"
+            if run.returncode and not outcome_path.is_file():
+                raise ValueError(
+                    f"qualification exited {run.returncode} before the supervisor created an outcome"
+                )
+            outcome = json.loads(outcome_path.read_text())
+            if run.returncode and (output / "qualification.json").is_file():
+                result = json.loads((output / "qualification.json").read_text())
+                if result.get("cleanup_error") == "server process was not launched":
+                    cfg = yaml.safe_load((output / "config.yaml").read_text())
+                    runtime = Path(
+                        cfg["required_runner_environment"]["MEI_RUNTIME_BASE"]
+                    )
+                    if not runtime.exists() and not runtime.is_symlink():
+                        raise ValueError(
+                            f"qualification stopped before launch: {result['error']}"
+                        )
             if outcome.get("returncode") is not None:
                 subprocess.run(
                     [

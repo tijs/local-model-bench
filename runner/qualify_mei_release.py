@@ -26,7 +26,13 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from mei_clean_speed import STOPPER, git_bytes, launch_receipt, verify_receipt
+from mei_clean_speed import (
+    STOPPER,
+    clean_environment,
+    git_bytes,
+    launch_receipt,
+    verify_receipt,
+)
 from mei_provenance import verify_mei_runtime
 from run_mei_acceptance import (
     REPO,
@@ -598,6 +604,8 @@ def main() -> int:
 
         signal.signal(signal.SIGTERM, interrupt)
         return child(cfg, args.output)
+    if "mei_clean_speed_launch" in cfg:
+        clean_environment(cfg)
     if Path(cfg["required_runner_environment"]["MEI_RUNTIME_BASE"]).exists():
         raise ValueError("qualification requires a fresh runtime/cache directory")
     for port in (8017, 8024):

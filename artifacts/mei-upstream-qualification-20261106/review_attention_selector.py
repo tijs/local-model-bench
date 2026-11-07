@@ -138,6 +138,9 @@ def comparison(candidate, control):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--timing-attempt", choices=("original", "retry"), default="original"
+    )
     parser.add_argument("--model", choices=MODELS)
     parser.add_argument(
         "--speed-spec",
@@ -159,10 +162,13 @@ def main():
     if candidate["source_revision"] != protocol["candidate_source"]:
         raise ValueError("unexpected production source")
     native = read(PREP / "attention-selector-native-campaign.json")["cells"]
-    matrix = read(PREP / "attention-selector-speed-matrix.json")
+    stem = "attention-selector-speed" + (
+        "-retry" if args.timing_attempt == "retry" else ""
+    )
+    matrix = read(PREP / f"{stem}-matrix.json")
     refs = baseline_references(matrix)
     prior_matrix = read(PREP / "apple-main-speed-matrix.json")["cells"]
-    progress = read(PREP / "attention-selector-speed-progress.json")
+    progress = read(PREP / f"{stem}-progress.json")
     if args.model is None and (
         progress["status"] != "measurement_cells_complete"
         or progress["current"] is not None
