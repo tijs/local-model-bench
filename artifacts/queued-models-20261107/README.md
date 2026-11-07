@@ -25,3 +25,11 @@ Stage verified weights under `/Volumes/Expansion/local-model-bench`. Retain
 committed config snapshots, logs, checksums, transcripts and failed admissions.
 Use the standard pressure, swap, disk and byte-budget guards. Do not score a
 profile before native admission or silently substitute another quant or sampler.
+
+Use `qualify_toolspace.py` with the ToolSpace native profile. For Gemma, use
+`gemma_checkpoint.py --stage` for exact local staging and
+`runner/run_mei_acceptance.py` with the Gemma native profile. Preserve native
+output at `artifacts/queued-<model>-native-20261107`. Once reviewed, run
+`run_score.py <model> 17` and then `run_score.py <model> 29` using the locked uv
+environment. The score wrapper checks the native result, frozen method and
+checkpoint, preserves provenance, and replays the saved grades and scripts.
