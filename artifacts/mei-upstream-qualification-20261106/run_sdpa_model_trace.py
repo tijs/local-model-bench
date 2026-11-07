@@ -289,7 +289,7 @@ def main():
     os.environ.clear()
     os.environ.update(cfg["environment"])
     args.output, args.deadline, args.skip_context, args.skip_cache = (
-        OUTPUT,
+        output,
         900,
         True,
         True,
