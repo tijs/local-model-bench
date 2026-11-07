@@ -104,11 +104,13 @@ prepare one bounded Qwen diagnosis. The existing row-sharing flag selects fused
 row views versus retained original projections; no kernel, quantization or
 production policy is changed. Both arms add a conservative512MiB workspace
 estimate for the426,885,120 bytes of projection tensors, keeping every resource
-guard unchanged. Static profile/one-variable/capacity checks pass. The diagnostic
-is now running after the twelve-cell campaign exited and was reviewed; only its
-two exact owned roots were added to terminal preservation. Unchanged
-prefill timing would reject row sharing as sufficient explanation; this
-one-process-per-arm screen cannot establish a release performance verdict.
+guard unchanged. The completed [strict audit](qwen-fused-rows-review-20261107.json)
+passes all28 observable rows,18 API cases and30 model-file checks, retaining all20
+measured requests. The [verdict](qwen-fused-rows-verdict-20261107.json) does not
+support row sharing as a sufficient explanation: retained-original prefill and
+request means do not recover the slowdown, while observed process peak memory
+increases. Keep the default; no production duplicate-weight policy is adopted.
+One process per arm cannot establish confidence intervals or a release verdict.
 
 [Ornith's complete four-process audit](ornith-batched-complete-speed-review.json)
 now also passes all56 observable rows,36 live API cases and44 post-run model-file
@@ -134,7 +136,7 @@ decode improves, loaded decode remains slightly lower, and its
 [whole-request means](groot-batched-latency-review.json) are faster at both
 contexts. Do not describe that as a universal throughput recovery. Qwen's
 loaded-request slowdown and the source-only Apple merge remain open release
-work. The predeclared same-binary row-layout screen is running; these observations
+work. The same-binary row-layout screen is complete; these observations
 do not qualify a later executable or produce task scores.
 
 ## Previous comparison and preserved regression
