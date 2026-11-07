@@ -11,8 +11,15 @@ from review_attention_selector import snapshot
 from run_speed_matrix import PREP, ROOT, save_progress
 
 sys.path.insert(0, str(ROOT / "runner"))
+sys.path.insert(0, str(ROOT / "artifacts/mei011-comparison-preparation-20261106"))
 from build_context_speed_cohort import committed_config, validate_resources
 from qualify_mei_release import stream_observable, succeeded
+from run_scored_cohort import (
+    check_disk_headroom,
+    check_model_store,
+    check_ports,
+    checkpoint_readback,
+)
 
 CONFIGS = Path("configs/mei-upstream-qualification-20261106")
 PIN = PREP / "qwen-media-prefix-pre-run-model-hashes.json"
@@ -24,18 +31,19 @@ def read(path):
     return json.loads(path.read_text())
 
 
-def declarations():
+def declarations(*, retry=False):
     revision = subprocess.check_output(
         ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
     ).strip()
     cells = []
     for name, control in (("legacy", "b2"), ("owned", "c2")):
-        cfg = CONFIGS / f"qwen-prefill-trace-{name}.yaml"
+        arm = "legacy-retry" if retry and name == "legacy" else name
+        cfg = CONFIGS / f"qwen-prefill-trace-{arm}.yaml"
         control_cfg = CONFIGS / f"qwen-stream-ttft-{control}.yaml"
         raw, baseline = ((ROOT / p).read_bytes() for p in (cfg, control_cfg))
         committed_config(ROOT, str(cfg), revision, raw)
         committed_config(ROOT, str(control_cfg), revision, baseline)
-        runtime = f"qwen-upstream011-prefill-trace-{name}-20261107"
+        runtime = f"qwen-upstream011-prefill-trace-{arm}-20261107"
         expected = yaml.safe_load(
             baseline.decode().replace(
                 f"qwen-upstream011-stream-ttft-{control}-20261107", runtime
@@ -53,10 +61,36 @@ def declarations():
             {
                 "name": name,
                 "config": str(cfg),
-                "output": f"artifacts/mei011-qwen-prefill-trace-{name}-20261107",
+                "output": f"artifacts/mei011-qwen-prefill-trace-{arm}-20261107",
             }
         )
     return cells
+
+
+def verify_stopped_attempt():
+    progress = read(PREP / "qwen-prefill-trace-progress.json")
+    original = declarations()[0]
+    directory = ROOT / original["output"]
+    outcome = read(directory / "outcome.json")
+    if (
+        progress["status"] != "stopped_for_review"
+        or progress["current"] != original
+        or progress["completed"]
+        or outcome["status"] != "failed"
+        or outcome["stop_reason"] != "sustained warning memory pressure"
+        or read(directory / "qualification.json")["rows"]
+        or not read(directory / "owned-kv-cleanup.json")["server_exited"]
+    ):
+        raise ValueError("retry requires the reviewed startup-only pressure stop")
+    verify_saved_hashes(directory)
+
+
+def verify_saved_hashes(output):
+    saved = read(output / "post-run-model-hashes.json")
+    if saved["all_match"] is not True or saved["files"] != [
+        row | {"matches": True} for row in read(PIN)["files"]
+    ]:
+        raise ValueError("checkpoint hashes differ")
 
 
 def examine(cell, reference):
@@ -82,11 +116,7 @@ def examine(cell, reference):
         raise ValueError(
             "expected loader marker and one phase record per completed stream"
         )
-    saved = read(output / "post-run-model-hashes.json")
-    if saved["all_match"] is not True or saved["files"] != [
-        row | {"matches": True} for row in read(PIN)["files"]
-    ]:
-        raise ValueError("checkpoint hashes differ")
+    verify_saved_hashes(output)
     return [
         {k: row[k] for k in ("context", "phase", "repeat")} | {"profile": line}
         for row, line in zip(rows, profiles, strict=True)
@@ -96,12 +126,16 @@ def examine(cell, reference):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--preflight", action="store_true")
+    parser.add_argument("--retry", action="store_true")
     args = parser.parse_args()
-    cells = declarations()
+    cells = declarations(retry=args.retry)
+    if args.retry:
+        verify_stopped_attempt()
     if args.preflight:
         print(json.dumps(cells, indent=2))
         return 0
-    progress_path = PREP / "qwen-prefill-trace-progress.json"
+    suffix = "-retry" if args.retry else ""
+    progress_path = PREP / f"qwen-prefill-trace{suffix}-progress.json"
     if progress_path.exists() or any(
         (ROOT / cell["output"]).exists() for cell in cells
     ):
@@ -123,6 +157,16 @@ def main():
         print(f"START prefill trace {cell['name']}", flush=True)
         try:
             output = ROOT / cell["output"]
+            if args.retry:
+                check_ports()
+                check_disk_headroom()
+                check_model_store()
+                readback = checkpoint_readback(
+                    "qwen", yaml.safe_load((ROOT / cell["config"]).read_bytes())
+                )
+                check_ports()
+                progress.setdefault("readbacks", {})[cell["name"]] = readback
+                save_progress(progress, progress_path)
             child = subprocess.run(
                 [
                     sys.executable,

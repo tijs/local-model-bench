@@ -129,7 +129,7 @@ def main():
     )
     allowed.update(
         f"qwen-upstream011-prefill-trace-{arm}-20261107"
-        for arm in ("legacy", "owned")
+        for arm in ("legacy", "legacy-retry", "owned")
     )
     if len(relative.parts) != 1 or relative.name not in allowed:
         raise ValueError("requires this campaign's exact owned runtime directory")
