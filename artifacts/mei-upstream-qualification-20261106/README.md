@@ -40,8 +40,12 @@ verification. The [separate Debug diagnostic](qwen-sdpa-probe-preparation/)
 was built from temporary inputs, then source was restored. The
 [guarded operator audit](qwen-sdpa-operator-review-20261107.json) passes all four
 numerical cases and retains600 samples: the two distinct forced TK1 processes
-are faster than both defaults on the synthetic BF16 fixture. Actual Qwen
-dispatch is being traced before any production inference or source change.
+are faster than both defaults on the synthetic BF16 fixture. The [real Qwen trace](../mei011-qwen-sdpa-model-trace-20261107/review-summary.json)
+confirms BF16 and padded KV layout. The [matched-layout operator audit](qwen-sdpa-operator-model-layout-review-20261107.json)
+retains the operator effect. The [real-model Debug ABBA](qwen-sdpa-real-abba-review-20261107.json)
+passes parity and all model-file checks, but the decode effect is small and
+whole-request time is essentially unchanged. An optimized same-binary screen
+is needed before choosing a production policy.
 The [same-binary floor screen](qwen-floor-screen-20261107.json) is complete.
 Its [strict review](qwen-floor-review-20261107.json) passes all28 observables,
 18 live API cases and30 model-file checks, retaining all20 measurements.
