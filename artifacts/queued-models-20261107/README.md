@@ -33,3 +33,8 @@ output at `artifacts/queued-<model>-native-20261107`. Once reviewed, run
 `run_score.py <model> 17` and then `run_score.py <model> 29` using the locked uv
 environment. The score wrapper checks the native result, frozen method and
 checkpoint, preserves provenance, and replays the saved grades and scripts.
+
+After both models have two complete audited seeds, `assemble_report.py --write`
+builds separate seed reports and a comparison against the original four
+controls. A critical household boundary failure remains visible in the seed
+reports and excludes that profile from qualified averages.
