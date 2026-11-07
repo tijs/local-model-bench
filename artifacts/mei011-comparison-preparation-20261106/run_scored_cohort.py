@@ -24,8 +24,10 @@ from build_agent_leaderboard import (
 from build_context_speed_cohort import committed_config
 from llama_provenance import verify_llama_runtime
 from mei_provenance import verify_mei_runtime
+from verify_model_store_migration import verify as verify_model_store
 
 RECEIPT = PREP / "verified-release-delivery.json"
+MODEL_STORE_RECEIPT = PREP / "model-store-migration.json"
 CONFIGS = ROOT / "configs/mei-0.11.0-comparison-20261107"
 RUNTIME_PREP = ROOT / "artifacts/mei-upstream-qualification-20261106"
 PRESERVE_MEI = RUNTIME_PREP / "preserve_native.py"
@@ -106,6 +108,16 @@ def check_disk_headroom():
     free = shutil.disk_usage(ROOT).free
     if free < MIN_START_DISK:
         raise ValueError(f"need 23 GiB before launch; have {free / 1024**3:.2f} GiB")
+
+
+def check_model_store():
+    head = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
+    ).strip()
+    snapshot = MODEL_STORE_RECEIPT.read_bytes()
+    committed_config(ROOT, str(MODEL_STORE_RECEIPT.relative_to(ROOT)), head, snapshot)
+    if verify_model_store() != json.loads(snapshot):
+        raise ValueError("host model store no longer matches the verified migration")
 
 
 def verify_frozen_method(declaration, head):
@@ -283,6 +295,7 @@ def run(cases):
 
     check_ports()
     check_disk_headroom()
+    check_model_store()
     with PROGRESS.open("x") as f:
         json.dump(progress, f, indent=2)
         f.write("\n")

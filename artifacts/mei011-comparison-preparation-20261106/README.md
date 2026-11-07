@@ -34,6 +34,10 @@ configs keep their recorded paths through the store-level aliases. Any change
 in full-run time can include model loading and, for GGUF, file-backed reads
 from a different device. Prior controlled speed timings precede that storage
 change; task outcomes and decode timing should be read separately.
+Before starting the retry, run the [migration verifier](verify_model_store_migration.py)
+with `--write` and commit its receipt. It binds the verified transfer to the
+pinned checkpoint files. The scored runner rechecks that receipt and the
+mounted volume before it starts the cohort.
 
 ## Context-speed evidence
 
