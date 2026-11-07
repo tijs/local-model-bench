@@ -5,8 +5,11 @@ import sys
 from dataclasses import asdict
 from pathlib import Path
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "runner"))
+from build_context_speed_cohort import contained
 from build_four_model_summary import aggregate_points, load_points
 
 BASELINE = "results/four-model-mei010-comparison.json"
@@ -18,6 +21,22 @@ METRICS = (
     "wall_minutes",
     "wired_increase_gib",
 )
+
+
+def verify_logics_control(baseline: Path, current: Path) -> None:
+    """Only the documentation date may change in a matched Logics seed."""
+    old, new = (yaml.safe_load(path.read_text()) for path in (baseline, current))
+    if any(cfg["inference_engine"] != "llama.cpp" for cfg in (old, new)):
+        raise ValueError("the Logics control must use llama.cpp")
+    for cfg in (old, new):
+        cfg.pop("last_updated", None)
+    if old != new:
+        changed = [
+            k
+            for k in sorted(old.keys() | new.keys())
+            if k not in old or k not in new or old[k] != new[k]
+        ]
+        raise ValueError(f"Logics control configuration differs: {', '.join(changed)}")
 
 
 def compare(root: Path, baseline: dict, current: dict) -> dict:
@@ -47,6 +66,11 @@ def compare(root: Path, baseline: dict, current: dict) -> dict:
         seeds = []
         for seed in (17, 29):
             left, right = (group[label, seed] for group in pairs)
+            if label == "Logics-SWE":
+                verify_logics_control(
+                    contained(root, left.supervision, "artifacts") / "config.yaml",
+                    contained(root, right.supervision, "artifacts") / "config.yaml",
+                )
             seeds.append(
                 {
                     "seed": seed,
