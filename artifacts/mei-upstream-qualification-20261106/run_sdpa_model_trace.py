@@ -40,7 +40,8 @@ def checked_artifact(cfg):
     artifact = cfg["artifact"]
     base = Path(artifact["asset_directory"])
     if (
-        digest(base / "mei") != artifact["debug_mei_sha256"]
+        digest(base / "mei")
+        != artifact.get("diagnostic_mei_sha256", artifact.get("debug_mei_sha256"))
         or digest(base / "mlx.metallib") != artifact["production_metallib_sha256"]
         or artifact["restored_exact_source_and_unchanged_production_assets"] is not True
     ):
@@ -85,7 +86,7 @@ def child(cfg, output, runtime):
     result["requests"] = []
     if cfg.get("arm"):
         result["scope"] = (
-            "Controlled same-Debug-binary dispatch screen, one loaded observation per process; no release timing claim."
+            f"Controlled same-{cfg.get('build_mode', 'debug')} diagnostic binary, one loaded observation per process; no release timing claim."
         )
     try:
         checked_artifact(cfg)
@@ -204,30 +205,37 @@ def child(cfg, output, runtime):
     return 1
 
 
+def case_paths(arm, build):
+    if arm == "trace":
+        if build != "debug":
+            raise ValueError("the preserved pilot trace uses the Debug build")
+        return DECLARATION, OUTPUT, RUNTIME
+    stem = "model" if build == "debug" else "optimized"
+    return (
+        PREP / f"qwen-sdpa-{stem}-{arm}-20261107.json",
+        OUTPUT.with_name(f"mei011-qwen-sdpa-{stem}-{arm}-20261107"),
+        RUNTIME.with_name(f"qwen-upstream011-sdpa-{stem}-{arm}-20261107"),
+    )
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--child", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument(
         "--arm", choices=("trace", "a1", "b1", "b2", "a2"), default="trace"
     )
+    parser.add_argument("--build", choices=("debug", "optimized"), default="debug")
     args = parser.parse_args()
     arm = args.arm
-    declaration = (
-        DECLARATION if arm == "trace" else PREP / f"qwen-sdpa-model-{arm}-20261107.json"
-    )
-    output = (
-        OUTPUT
-        if arm == "trace"
-        else OUTPUT.with_name(f"mei011-qwen-sdpa-model-{arm}-20261107")
-    )
-    runtime = (
-        RUNTIME
-        if arm == "trace"
-        else RUNTIME.with_name(f"qwen-upstream011-sdpa-model-{arm}-20261107")
-    )
+    declaration, output, runtime = case_paths(arm, args.build)
     cfg, raw = committed_native_config(declaration)
     if (
         cfg["benchmark_scope"] != "mei-kernel-diagnostic-v1"
+        or cfg.get("build_mode", "debug") != args.build
+        or (
+            args.build == "optimized"
+            and cfg["artifact"].get("compiled_configuration") != "release"
+        )
         or cfg["environment"]["MEI_RUNTIME_BASE"] != str(runtime)
         or runtime.resolve() != runtime
     ):
@@ -271,7 +279,7 @@ def main():
                 "requires the reviewed positive matched-layout operator screen"
             )
         for prior in order[: order.index(arm)]:
-            prior_dir = OUTPUT.with_name(f"mei011-qwen-sdpa-model-{prior}-20261107")
+            _, prior_dir, _ = case_paths(prior, args.build)
             outcome = json.loads((prior_dir / "outcome.json").read_text())
             result = json.loads((prior_dir / "trace-result.json").read_text())
             if (
@@ -299,7 +307,15 @@ def main():
         result = json.loads((out / "trace-result.json").read_text())
         return result["status"] == "passed" and result["server_stopped"] is True
 
-    command = [sys.executable, str(Path(__file__).resolve()), "--arm", arm, "--child"]
+    command = [
+        sys.executable,
+        str(Path(__file__).resolve()),
+        "--build",
+        args.build,
+        "--arm",
+        arm,
+        "--child",
+    ]
     return monitor_child(cfg, raw, args, command, diagnostic_check=checked)
 
 
