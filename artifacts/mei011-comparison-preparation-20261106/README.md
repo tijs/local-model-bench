@@ -35,3 +35,9 @@ GGUF/runtime and launch settings. Both fresh Logics processes passed; the
 runtime, model, prompts, and per-process evidence. Earlier timing values do not
 substitute for these fresh points. This qualification does not start or score the
 held-out task trajectories.
+
+The [validated speed inputs](qualified-context-speed-inputs.json) pass the
+existing cohort validator with all eight processes and eighty observations.
+The Mei model manifests match the current campaign's complete pre-run file
+lists by directory, relative path, byte count and digest. Use this input only
+if delivery verifies the same executable, Metal library and serving profile.
