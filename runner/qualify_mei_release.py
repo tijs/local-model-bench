@@ -308,6 +308,9 @@ def child(cfg: dict, output: Path) -> int:
                     ok=status.get("status") == "ok",
                     active_generations=scheduler["activeGenerations"],
                 )
+                memory = status.get("memory")
+                if isinstance(memory, dict):
+                    row["memory"] = memory
             except (OSError, ValueError, TypeError) as exc:
                 row.update(ok=False, error=f"{type(exc).__name__}: {exc}")
             row["elapsed_seconds"] = time.monotonic() - begin

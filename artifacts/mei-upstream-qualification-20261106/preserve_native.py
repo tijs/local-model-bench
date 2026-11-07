@@ -98,6 +98,9 @@ def main():
         f"qwen-upstream011-fused-rows-{arm}-20261107" for arm in ("a", "b")
     )
     allowed.update(
+        f"qwen-upstream011-floor-{arm}-20261107" for arm in ("a", "b")
+    )
+    allowed.update(
         f"{model}-upstream011-apple-main-native-20261107"
         for model in ("qwen", "ornith", "groot")
     )

@@ -326,13 +326,21 @@ class QualificationTests(unittest.TestCase):
                     self.wfile.write(data)
 
                 def do_GET(self, active=active, fail_status=fail_status):
+                    is_active = active.is_set()
                     self.reply(
                         {
                             "status": "ok",
                             "maxTokens": 8192,
-                            "scheduler": {"activeGenerations": int(active.is_set())},
+                            "scheduler": {"activeGenerations": int(is_active)},
+                            "memory": {
+                                "activeBytes": 512 if is_active else 256,
+                                "cacheBytes": 32,
+                                "peakBytes": 768,
+                                "memoryLimitBytes": 2048 if is_active else 1024,
+                                "cacheLimitBytes": 128,
+                            },
                         },
-                        500 if fail_status and active.is_set() else 200,
+                        500 if fail_status and is_active else 200,
                     )
 
                 def do_POST(self, requests=requests, active=active):
@@ -408,7 +416,32 @@ class QualificationTests(unittest.TestCase):
                     self.assertTrue(result["server_stopped"])
                     process.terminate.assert_called_once()
                     process.wait.assert_called_once()
-                    self.assertTrue((output / "status-samples.jsonl").read_text())
+                    samples = [
+                        json.loads(line)
+                        for line in (output / "status-samples.jsonl")
+                        .read_text()
+                        .splitlines()
+                    ]
+                    self.assertTrue(samples)
+                    self.assertEqual(samples, result["status_samples"])
+                    for sample in samples:
+                        if sample["ok"]:
+                            self.assertEqual(sample["memory"]["cacheLimitBytes"], 128)
+                            self.assertEqual(
+                                sample["memory"]["memoryLimitBytes"],
+                                2048 if sample["active_generations"] else 1024,
+                            )
+                    if not fail_status:
+                        active_samples = [
+                            r for r in samples if r["active_generations"] > 0
+                        ]
+                        self.assertTrue(active_samples)
+                        self.assertTrue(
+                            all(
+                                r["memory"]["memoryLimitBytes"] == 2048
+                                for r in active_samples
+                            )
+                        )
                     measured = [
                         row for row in result["rows"] if row["phase"] == "measured"
                     ]
