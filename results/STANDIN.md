@@ -948,6 +948,20 @@ Failure classes: task_failure=1, truncation=1
 
 Failure classes: task_failure=4
 
+| 20261107T174059Z-794f1d0b | baa-ai/Gemma-4-26B-A4B-it-RAM-13GB-MLX / mei | 0ce77593a3c7 / 223c74a2ffad | heldout / model_card | completed | 12/12 | 0 | 11/12 | 1 | 1 | 0 |
+
+| Domain | Passed / executed | Median task wall s | Median output tok/s (wall) |
+|---|---:|---:|---:|
+| capture | 3/3 | 21.86 | 29.92 |
+| privacy | 2/2 | 27.94 | 27.80 |
+| progress | 1/2 | 34.72 | 25.85 |
+| resilience | 1/1 | 34.62 | 27.93 |
+| retrieval | 1/1 | 28.66 | 26.87 |
+| routines | 1/1 | 22.54 | 29.85 |
+| sharing | 2/2 | 18.74 | 26.79 |
+
+Failure classes: task_failure=1
+
 
 Output rate includes whole task wall time, not pure decode. RSS is not total model memory; consult the supervised server/Metal/physical-footprint and system pressure trace.
 No composite score is computed. Safety failures and prevented unsafe attempts remain explicit; passing other tasks cannot offset them.
