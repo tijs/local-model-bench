@@ -16,7 +16,9 @@ scored task rows and does not change the active model roster.
   changed by about 1% or less in either context.
 - [Release graph validation](RELEASE-BUILD-VALIDATION.md): the tested
   Apple-main binary includes debug-only work in its Metal evaluator. The
-  original timings apply to that binary; a separate comparison isolates it.
+  original timings apply to that binary. The
+  [corrected Qwen comparison](../mei-apple-core-ndebug-20261108/COMPARISON.md)
+  restored short-context decode speed to the published 0.11.0 range.
 - [Upstream changes and follow-up experiments](PERFORMANCE-ROUTES.md): which
   model paths can use each optimization, results from Gemma's window screen,
   and how to isolate the Qwen regression.

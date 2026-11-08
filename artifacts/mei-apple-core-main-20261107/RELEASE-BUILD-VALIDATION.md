@@ -64,3 +64,19 @@ uncached 26/30,009-token prompts and five measured repeats per context.
 The two outer controls establish whether the short-context gap is present
 in the new session. The original and corrected builds share the MLX source
 and Metal bytes; that pair isolates the Release Cmlx build change.
+
+The [completed comparison](../mei-apple-core-ndebug-20261108/COMPARISON.md)
+passed all six timing processes under normal memory pressure with matching
+prompt bytes, outputs, usage and checkpoint hashes. At 26 input tokens,
+the corrected build recovered from 58.96 to 67.46 tokens/s (+14.4%),
+reducing total time from 2.31 s to 2.03 s. The gain repeated in both run
+orders. Published 0.11.0 was 66.98 tokens/s and 2.05 s. At 30,009 tokens,
+the corrected build's total time differed by 0.2% from the release, and
+the direction did not repeat across the two halves. No meaningful new
+Qwen speed gain over stable was established.
+
+Keep the manifest correction as local vMLX commit
+`e280bd2b87dff614991cb6f9213adaf797eb2db4`. There is no need to pursue the
+prepared dispatch trace to explain the large short-context regression.
+Mei 0.11.0 remains the stable pin. Qualify the corrected build on the other
+profiles before any separate promotion decision.
