@@ -145,6 +145,7 @@ def main():
         for model in ("qwen", "ornith", "groot", "gemma")
         for cell in ("native", "a1", "b1", "b2", "a2")
     )
+    allowed.add("gemma-mei-0111-qualification-20261108-schema-control")
     if len(relative.parts) != 1 or relative.name not in allowed:
         raise ValueError("requires this campaign's exact owned runtime directory")
     if base.resolve() != base or (base / "server.pid").exists():
