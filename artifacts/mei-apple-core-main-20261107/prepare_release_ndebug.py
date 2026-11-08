@@ -3,9 +3,11 @@
 import argparse
 import json
 import shlex
+import subprocess
 from pathlib import Path
 
 import yaml
+from patch_release_ndebug import original_manifest, release_manifest
 from prepare import CONFIGS, HERE, ROOT, digest, option
 from run_campaign import git_file
 
@@ -33,17 +35,21 @@ def artifact(build):
     receipt = json.loads(git_file(HERE / "build-receipt.json"))
     build = build.resolve(strict=True)
     if build.parent != EXPANSION or not build.name.startswith(
-        "apple-release-ndebug-build-20261108."
+        ("apple-release-ndebug-build-20261108.", "apple-release-ndebugbuild-20261108.")
     ):
         raise ValueError("expected the separate Expansion build directory")
     binary = build / "out/Products/Release/mei"
     library = binary.parent / "mlx.metallib"
-    patch = build / "manifest-change.diff"
-    readback = (build / "built-assets.sha256").read_text().splitlines()
+    patch = build / "aligned-manifest.diff"
+    flags = build / "aligned-cxx-flags.sha256"
+    evaluator = build / "aligned-metal-eval.txt"
+    readback = (build / "aligned-assets.sha256").read_text().splitlines()
     expected = {
         str(binary): digest(binary),
         str(library): digest(library),
         str(patch): digest(patch),
+        str(flags): digest(flags),
+        str(evaluator): digest(evaluator),
     }
     for line in readback:
         sha, path = line.split("  ", 1)
@@ -53,6 +59,23 @@ def artifact(build):
             )
     if expected:
         raise ValueError(f"build receipt lacks expected identities: {list(expected)}")
+    flag_targets = set()
+    args_root = build / "out/Intermediates.noindex/mlx-swift.build/Release"
+    for line in flags.read_text().splitlines():
+        sha, name = line.split("  ", 1)
+        args = Path(name).resolve(strict=True)
+        target = args.relative_to(args_root).parts[0]
+        options = shlex.split(args.read_text())
+        if digest(args) != sha or not {"-DNDEBUG", "-DNDEBUG=1"}.intersection(options):
+            raise ValueError(
+                f"Release compiler flags no longer match the receipt: {args}"
+            )
+        flag_targets.add(target)
+    if flag_targets != {"Cmlx-t.build", "CmlxGraphShim-t.build"}:
+        raise ValueError("both C++ targets need recorded Release compiler flags")
+    assembly = evaluator.read_text()
+    if "needs_commit" not in assembly or "verify_graph" in assembly:
+        raise ValueError("unexpected Release Metal evaluator instructions")
     binary_sha = digest(binary)
     metal_sha = digest(library)
     if (
@@ -62,18 +85,26 @@ def artifact(build):
         raise ValueError(
             "corrected executable must differ and reuse the original Metal library"
         )
-    diff = patch.read_text().splitlines()
-    if [
-        line for line in diff if line.startswith("+") and not line.startswith("+++")
-    ] != ['+        .define("NDEBUG", .when(configuration: .release)),'] or any(
-        line.startswith("-") and not line.startswith("---") for line in diff
+    checkout = build / "checkouts/vmlx-swift"
+    if (checkout / "Package.swift").read_text() != release_manifest(
+        original_manifest(checkout)
     ):
-        raise ValueError("expected the sole Release-only Cmlx manifest change")
+        raise ValueError(
+            "both Cmlx and its C++ graph shim require the same Release define"
+        )
+    if (
+        subprocess.check_output(
+            ["git", "-C", str(checkout), "diff", "--", "Package.swift"]
+        )
+        != patch.read_bytes()
+    ):
+        raise ValueError("staged manifest does not match its build receipt")
     return binary, {
         "source_revision": receipt["mei"],
         "binary_sha256": binary_sha,
         "metallib_sha256": metal_sha,
         "build_manifest_patch_sha256": digest(patch),
+        "cxx_flags_receipt_sha256": digest(flags),
         "qualification_build": True,
     }
 
@@ -129,9 +160,13 @@ def profiles(build):
             }
         )
     destination = ROOT / "artifacts" / LABEL
-    outputs[destination / "manifest-change.diff"] = (
-        build / "manifest-change.diff"
-    ).read_text()
+    for evidence in (
+        "aligned-manifest.diff",
+        "aligned-cxx-flags.sha256",
+        "aligned-assets.sha256",
+        "aligned-metal-eval.txt",
+    ):
+        outputs[destination / evidence] = (build / evidence).read_text()
     outputs[destination / "matrix.json"] = json.dumps(matrix, indent=2) + "\n"
     return outputs
 

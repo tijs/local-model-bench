@@ -29,12 +29,16 @@ The candidate's standalone CMake Release compile flags contain
 `NDEBUG` on the Cmlx C++ target. The missing define is consistent with
 the observed instructions in the optimized SwiftPM binary. Merely selecting
 an optimized build configuration does not prove these checks are off.
+[SwiftBuild's compiler response-file hashes](release-cmlx-flags.txt)
+confirm that the original Cmlx Debug and Release builds omit the define.
 
 Finish and preserve the original cohort. Then isolate the build difference:
 
 1. Use the same pinned source, dependencies and Metal library. Build an
-   optimized candidate with `NDEBUG` defined consistently for the Cmlx C++
-   translation units. Keep it separate from the running candidate.
+   optimized candidate with `NDEBUG` defined consistently for Cmlx and
+   CmlxGraphShim. The latter uses private MLX C++ types, including
+   `Allocator`, whose class definition changes under that macro. The
+   separate distributed shim uses only C headers and does not need the flag.
 2. Check the new binary's Metal evaluator and allocator; verify the graph
    validation and allocation-tracking symbols are gone, and retain the
    working Debug build and its validation.
@@ -44,11 +48,13 @@ Finish and preserve the original cohort. Then isolate the build difference:
 4. Trace attention or configuration hot paths only if a meaningful
    regression remains after that comparison.
 
-The [build script](build_release_ndebug.sh) stages separate SwiftPM
-checkouts on Expansion and inserts just the Release Cmlx define. It retains
-the fresh build's Metal hash before reusing the original Metal bytes, then
-requires the new executable's graph validation and allocation-tracking
-symbols to be absent.
+The [first build script](build_release_ndebug.sh) stages separate SwiftPM
+checkouts on Expansion. Its initial Cmlx-only artifact is unqualified and
+must not load a model. The [follow-up build](complete_release_ndebug.sh)
+preserves that artifact, applies the Release define to both C++ targets
+and records both sets of compiler flags. It retains the new Metal hash
+before reusing the original precompiled library, then requires the linked
+executable's graph validation and allocation-tracking symbols to be absent.
 
 [The profile generator](prepare_release_ndebug.py) requires the completed
 artifact hashes. It freezes native admission and six fresh Qwen timing
