@@ -7,7 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from prepare import HERE, ROOT, digest, option
+from prepare import HERE, RELEASE_LABELS, ROOT, digest, option
 
 PRESERVER = ROOT / "artifacts/mei-upstream-qualification-20261106"
 sys.path.insert(0, str(PRESERVER))
@@ -81,7 +81,7 @@ def campaign(phase, matrix_path=HERE / "matrix.json"):
     if matrix_path not in {
         HERE / "matrix.json",
         HERE.parent / "mei-apple-core-ndebug-20261108" / "matrix.json",
-        HERE.parent / "mei-0111-qualification-20261108" / "matrix.json",
+        *(HERE.parent / label / "matrix.json" for label in RELEASE_LABELS),
     }:
         raise ValueError("only the predeclared Apple core matrices are supported")
     label = matrix_path.parent.name

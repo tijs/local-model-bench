@@ -74,6 +74,12 @@ AUDITED_REVISION_PAIRS = (
         "732264d89a29866d14e6062ecb24dd7484e4eebf",
         "e280bd2b87dff614991cb6f9213adaf797eb2db4",
     ),
+    # Same runtime pin and launch contract; bounds trailing whitespace for
+    # structured generation without changing the unconstrained timing path.
+    (
+        "3c3807a836edf54f22857fdc8eb3047588badebc",
+        "e280bd2b87dff614991cb6f9213adaf797eb2db4",
+    ),
 )
 AUDITED_LAUNCHER_SHA256 = (
     "bfa28f23dee9e0321b042ed1bd9435a7096880bbb41bd2aafa18b2897e6b86cc"

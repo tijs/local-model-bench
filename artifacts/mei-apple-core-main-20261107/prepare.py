@@ -14,6 +14,8 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 LABEL = HERE.name
 RELEASE_LABEL = "mei-0111-qualification-20261108"
+SCHEMA_LABEL = "mei-0111-schema-qualification-20261108"
+RELEASE_LABELS = (RELEASE_LABEL, SCHEMA_LABEL)
 OLD = ROOT / "configs/mei-0.11.0-comparison-20261107"
 STABLE = {
     "qwen": OLD / "qwen-seed17.yaml",
@@ -69,7 +71,7 @@ def build(
         "qualification_build": True,
     }
     matrix = {"native": [], "cells": [], "model_manifests": {}}
-    if (label == RELEASE_LABEL) != (acceptance is not None):
+    if (label in RELEASE_LABELS) != (acceptance is not None):
         raise ValueError("the release matrix requires the matching Swift test bundle")
     live_acceptance = (
         {
@@ -81,7 +83,9 @@ def build(
         else None
     )
     outputs = {}
-    for model, path in STABLE.items():
+    models = ("gemma", "qwen", "ornith", "groot") if label == SCHEMA_LABEL else STABLE
+    for model in models:
+        path = STABLE[model]
         original = yaml.safe_load(path.read_bytes())
         argv = shlex.split(original["benchmark_launch_command"])
         model_path = Path(argv[option(argv, "--model-dir")]).resolve(strict=True)
@@ -142,7 +146,7 @@ def build(
                 else "mei-release-qualification-v1",
                 benchmark_status=(
                     "Mei 0.11.1 release qualification; no scored task rows."
-                    if label == RELEASE_LABEL
+                    if label in RELEASE_LABELS
                     else "Apple MLX core main qualification; no scored task rows."
                 ),
                 benchmark_launch_command=shlex.join(command),
@@ -203,7 +207,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--candidate-repo", type=Path, required=True)
     parser.add_argument("--binary", type=Path, required=True)
-    parser.add_argument("--label", choices=(LABEL, RELEASE_LABEL), default=LABEL)
+    parser.add_argument("--label", choices=(LABEL, *RELEASE_LABELS), default=LABEL)
     parser.add_argument("--acceptance", type=Path)
     args = parser.parse_args()
     outputs = build(

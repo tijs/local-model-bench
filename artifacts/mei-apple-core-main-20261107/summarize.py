@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 from statistics import mean, median
 
+from prepare import RELEASE_LABELS
 from run_campaign import HERE, ROOT, audit, check_native, git_file, save
 
 # isort: split
@@ -311,7 +312,7 @@ if __name__ == "__main__":
     matrix_path = args.matrix.resolve()
     if matrix_path not in {
         HERE / "matrix.json",
-        HERE.parent / "mei-0111-qualification-20261108" / "matrix.json",
+        *(HERE.parent / label / "matrix.json" for label in RELEASE_LABELS),
     }:
         parser.error("only the original and 0.11.1 release matrices are supported")
     if matrix_path != HERE / "matrix.json" and not args.native_only:

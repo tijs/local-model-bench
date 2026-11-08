@@ -141,7 +141,8 @@ def main():
         for cell in ("native", "r1", "a1", "b1", "b2", "a2", "r2")
     )
     allowed.update(
-        f"{model}-mei-0111-qualification-20261108-{cell}"
+        f"{model}-{label}-{cell}"
+        for label in ("mei-0111-qualification-20261108", "mei-0111-schema-qualification-20261108")
         for model in ("qwen", "ornith", "groot", "gemma")
         for cell in ("native", "a1", "b1", "b2", "a2")
     )
