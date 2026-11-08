@@ -69,6 +69,11 @@ AUDITED_REVISION_PAIRS = (
         "3b0689a64064001d34e8c3a7fb687ffb8dab3eb7",
         "19379503d289cd72f51f958df9c027f3c517829a",
     ),
+    # 0.11.1 changes only the version and aligns the two C++ Release builds.
+    (
+        "732264d89a29866d14e6062ecb24dd7484e4eebf",
+        "e280bd2b87dff614991cb6f9213adaf797eb2db4",
+    ),
 )
 AUDITED_LAUNCHER_SHA256 = (
     "bfa28f23dee9e0321b042ed1bd9435a7096880bbb41bd2aafa18b2897e6b86cc"

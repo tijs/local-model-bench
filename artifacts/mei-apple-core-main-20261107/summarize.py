@@ -3,6 +3,8 @@
 import argparse
 import json
 import math
+import sys
+from pathlib import Path
 from statistics import mean, median
 
 from run_campaign import HERE, ROOT, audit, check_native, git_file, save
@@ -161,8 +163,8 @@ def read_process(cell, reference):
     return checked["reference"], raw["prompt_sha256"], process
 
 
-def comparison(selected_model=None):
-    matrix = json.loads(git_file(HERE / "matrix.json"))
+def comparison(selected_model=None, matrix_path=HERE / "matrix.json"):
+    matrix = json.loads(git_file(matrix_path))
     native_comparison(matrix)
     models = matrix["model_manifests"]
     if selected_model is not None:
@@ -299,14 +301,28 @@ def markdown(results, selected_model=None):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--write", action="store_true")
+    parser.add_argument("--matrix", type=Path, default=HERE / "matrix.json")
     selection = parser.add_mutually_exclusive_group()
     selection.add_argument("--native-only", action="store_true")
     selection.add_argument(
         "--model", help="only report this model's complete ABBA result"
     )
     args = parser.parse_args()
+    matrix_path = args.matrix.resolve()
+    if matrix_path not in {
+        HERE / "matrix.json",
+        HERE.parent / "mei-0111-qualification-20261108" / "matrix.json",
+    }:
+        parser.error("only the original and 0.11.1 release matrices are supported")
+    if matrix_path != HERE / "matrix.json" and not args.native_only:
+        # The original prose describes the instrumented build, so return the
+        # audited measurements for the new release without reusing those claims.
+        if args.write:
+            parser.error("review the 0.11.1 timing JSON before writing release notes")
+        print(json.dumps(comparison(args.model, matrix_path), indent=2))
+        sys.exit(0)
     if args.native_only:
-        data = native_comparison(json.loads(git_file(HERE / "matrix.json")))
+        data = native_comparison(json.loads(git_file(matrix_path)))
         report = native_markdown(data)
         stem = "native"
     else:
@@ -314,7 +330,8 @@ if __name__ == "__main__":
         report = markdown(data, args.model)
         stem = f"comparison-{args.model}" if args.model else "comparison"
     if args.write:
-        text, raw = HERE / f"{stem.upper()}.md", HERE / f"{stem}.json"
+        text = matrix_path.parent / f"{stem.upper()}.md"
+        raw = matrix_path.parent / f"{stem}.json"
         if text.exists() or raw.exists():
             raise FileExistsError("refuse to overwrite qualification evidence")
         save(raw, data)

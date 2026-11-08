@@ -13,7 +13,7 @@ import yaml
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 LABEL = HERE.name
-CONFIGS = ROOT / "configs" / LABEL
+RELEASE_LABEL = "mei-0111-qualification-20261108"
 OLD = ROOT / "configs/mei-0.11.0-comparison-20261107"
 STABLE = {
     "qwen": OLD / "qwen-seed17.yaml",
@@ -52,7 +52,12 @@ def option(argv: list[str], key: str) -> int:
     return argv.index(key) + 1
 
 
-def build(candidate_repo: Path, binary: Path) -> dict[Path, str]:
+def build(
+    candidate_repo: Path,
+    binary: Path,
+    label: str = LABEL,
+    acceptance: Path | None = None,
+) -> dict[Path, str]:
     source = git(candidate_repo, "rev-parse", "HEAD")
     pins = json.loads((candidate_repo / "Package.resolved").read_text())["pins"]
     (vmlx,) = [p["state"]["revision"] for p in pins if p["identity"] == "vmlx-swift"]
@@ -64,6 +69,17 @@ def build(candidate_repo: Path, binary: Path) -> dict[Path, str]:
         "qualification_build": True,
     }
     matrix = {"native": [], "cells": [], "model_manifests": {}}
+    if (label == RELEASE_LABEL) != (acceptance is not None):
+        raise ValueError("the release matrix requires the matching Swift test bundle")
+    live_acceptance = (
+        {
+            "bundle": str(acceptance),
+            "executable_sha256": digest(acceptance / "Contents/MacOS/MeiTests"),
+            "expected_tests": 9,
+        }
+        if acceptance is not None
+        else None
+    )
     outputs = {}
     for model, path in STABLE.items():
         original = yaml.safe_load(path.read_bytes())
@@ -79,8 +95,8 @@ def build(candidate_repo: Path, binary: Path) -> dict[Path, str]:
         for cell in ("native", "a1", "b1", "b2", "a2"):
             native = cell == "native"
             candidate = native or cell.startswith("b")
-            name = f"{model}-{LABEL}-{cell}"
-            config_path = CONFIGS / f"{model}-{cell}.yaml"
+            name = f"{model}-{label}-{cell}"
+            config_path = ROOT / "configs" / label / f"{model}-{cell}.yaml"
             runtime = Path.home() / ".local/share/local-model-bench/mei-runtime" / name
             command = argv.copy()
             for key, value in {
@@ -124,7 +140,11 @@ def build(candidate_repo: Path, binary: Path) -> dict[Path, str]:
                 benchmark_scope="mei-native-acceptance-v1"
                 if native
                 else "mei-release-qualification-v1",
-                benchmark_status="Apple MLX core main qualification; no scored task rows.",
+                benchmark_status=(
+                    "Mei 0.11.1 release qualification; no scored task rows."
+                    if label == RELEASE_LABEL
+                    else "Apple MLX core main qualification; no scored task rows."
+                ),
                 benchmark_launch_command=shlex.join(command),
                 required_runner_environment=original["required_runner_environment"]
                 | {"MEI_RUNTIME_BASE": str(runtime)},
@@ -144,6 +164,8 @@ def build(candidate_repo: Path, binary: Path) -> dict[Path, str]:
                     mei_release_artifact=receipt,
                 )
             if not native:
+                if live_acceptance is not None and cell == "b1":
+                    cfg["mei_swift_acceptance"] = live_acceptance
                 cfg["mei_uncached_streaming_timing"] = True
                 cfg["mei_qualification"] = {
                     "repeats": 5,
@@ -173,7 +195,7 @@ def build(candidate_repo: Path, binary: Path) -> dict[Path, str]:
                     "output": f"artifacts/{name}",
                 }
             )
-    outputs[HERE / "matrix.json"] = json.dumps(matrix, indent=2) + "\n"
+    outputs[HERE.parent / label / "matrix.json"] = json.dumps(matrix, indent=2) + "\n"
     return outputs
 
 
@@ -181,13 +203,18 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--candidate-repo", type=Path, required=True)
     parser.add_argument("--binary", type=Path, required=True)
+    parser.add_argument("--label", choices=(LABEL, RELEASE_LABEL), default=LABEL)
+    parser.add_argument("--acceptance", type=Path)
     args = parser.parse_args()
     outputs = build(
-        args.candidate_repo.resolve(strict=True), args.binary.resolve(strict=True)
+        args.candidate_repo.resolve(strict=True),
+        args.binary.resolve(strict=True),
+        args.label,
+        args.acceptance.resolve(strict=True) if args.acceptance is not None else None,
     )
     if any(path.exists() for path in outputs):
         raise FileExistsError("refuse to overwrite existing qualification profiles")
-    CONFIGS.mkdir(parents=True, exist_ok=True)
     for path, content in outputs.items():
+        path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("x") as stream:
             stream.write(content)

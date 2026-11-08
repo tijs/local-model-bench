@@ -81,8 +81,9 @@ def campaign(phase, matrix_path=HERE / "matrix.json"):
     if matrix_path not in {
         HERE / "matrix.json",
         HERE.parent / "mei-apple-core-ndebug-20261108" / "matrix.json",
+        HERE.parent / "mei-0111-qualification-20261108" / "matrix.json",
     }:
-        raise ValueError("only the two predeclared Apple core matrices are supported")
+        raise ValueError("only the predeclared Apple core matrices are supported")
     label = matrix_path.parent.name
     matrix = json.loads(git_file(matrix_path))
     reference = {}
