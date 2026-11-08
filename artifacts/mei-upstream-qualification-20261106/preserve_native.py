@@ -136,6 +136,10 @@ def main():
         for model in ("qwen", "ornith", "groot", "gemma")
         for cell in ("native", "a1", "b1", "b2", "a2")
     )
+    allowed.update(
+        f"qwen-mei-apple-core-ndebug-20261108-{cell}"
+        for cell in ("native", "r1", "a1", "b1", "b2", "a2", "r2")
+    )
     if len(relative.parts) != 1 or relative.name not in allowed:
         raise ValueError("requires this campaign's exact owned runtime directory")
     if base.resolve() != base or (base / "server.pid").exists():

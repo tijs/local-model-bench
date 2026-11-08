@@ -7,7 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from prepare import HERE, LABEL, ROOT, digest, option
+from prepare import HERE, ROOT, digest, option
 
 PRESERVER = ROOT / "artifacts/mei-upstream-qualification-20261106"
 sys.path.insert(0, str(PRESERVER))
@@ -76,8 +76,14 @@ def check_native(path, native_config):
         raise ValueError(f"full native admission missing or mismatched: {path}")
 
 
-def campaign(phase):
-    matrix_path = HERE / "matrix.json"
+def campaign(phase, matrix_path=HERE / "matrix.json"):
+    matrix_path = matrix_path.resolve()
+    if matrix_path not in {
+        HERE / "matrix.json",
+        HERE.parent / "mei-apple-core-ndebug-20261108" / "matrix.json",
+    }:
+        raise ValueError("only the two predeclared Apple core matrices are supported")
+    label = matrix_path.parent.name
     matrix = json.loads(git_file(matrix_path))
     reference = {}
     cells = matrix["native" if phase == "native" else "cells"]
@@ -86,13 +92,13 @@ def campaign(phase):
     if phase == "timing":
         for cell in matrix["native"]:
             check_native(ROOT / cell["output"], ROOT / cell["config"])
-    progress = HERE / f"{phase}-progress.jsonl"
+    progress = matrix_path.parent / f"{phase}-progress.jsonl"
     with progress.open("x", buffering=1) as journal:
         for cell in cells:
             path = ROOT / cell["config"]
             cfg, _ = committed_native_config(path)
             output = ROOT / cell["output"]
-            expected = f"{cell['model']}-{LABEL}-{cell['cell']}"
+            expected = f"{cell['model']}-{label}-{cell['cell']}"
             runtime = Path(cfg["required_runner_environment"]["MEI_RUNTIME_BASE"])
             owned = (
                 Path.home() / ".local/share/local-model-bench/mei-runtime" / expected
@@ -166,4 +172,6 @@ def campaign(phase):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("phase", choices=("native", "timing"))
-    campaign(parser.parse_args().phase)
+    parser.add_argument("--matrix", type=Path, default=HERE / "matrix.json")
+    args = parser.parse_args()
+    campaign(args.phase, args.matrix)
