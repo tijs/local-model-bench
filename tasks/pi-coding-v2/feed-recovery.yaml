@@ -1,0 +1,68 @@
+name: feed-recovery
+prompt: |
+  After a worker restart, some feed entries are missing and some are counted twice.
+  Repair the existing export and resume APIs. A page token maps to [rows,next_token],
+  where each row is [event_id,key,delta]. A saved checkpoint is [page_token,offset]
+  pointing to the next raw row. A null token means complete. The store persists
+  totals per key and the list of applied event IDs in first-seen order. Duplicate
+  IDs are retries; the first payload wins even if a later payload differs.
+  pump(pages,state,limit) consumes at most limit raw rows, duplicates included,
+  returning a new state. Always normalize the checkpoint past exhausted and empty
+  pages, including at limit zero and after the final consumed row. Feed links are
+  finite and acyclic. Store and checkpoint can have been flushed independently:
+  a restart may replay already applied rows. Keep zero totals and caller inputs.
+  export(pages,start,limits) starts with an empty store and invokes pump for each
+  successive per-call limit; return the resulting state. Tokens and IDs are
+  strings (the empty string is valid). Offsets and limits are nonnegative.
+files:
+  store.py: |
+    def apply(state, row):
+        event, key, delta = row
+        state['totals'][key] = state['totals'].get(key, 0) + delta
+        state['seen'].append(event)
+  worker.py: |
+    from store import apply
+
+    def pump(pages, state, limit):
+        result = state.copy()
+        token, offset = result['at']
+        if token:
+            rows, following = pages[token]
+            for row in rows[offset:offset + limit]:
+                apply(result, row)
+            result['at'] = [following, 0]
+        return result
+
+    def export(pages, start, limits):
+        state = {'at': [start, 0], 'seen': [], 'totals': {}}
+        for limit in limits:
+            state = pump(pages, state, limit)
+        return state
+imports: |
+  from worker import export, pump
+  feed={'a':[[['1','x',3],['1','y',100]],'gap'],'gap':[[],''],'':[[['2','x',-3],['3','y',5]],'end'],'end':[[],None]}
+  def restart():
+      state={'at':['a',0],'seen':['1'],'totals':{'x':3}}
+      after=pump(feed,state,3)
+      return [state,after,pump(feed,after,1)]
+visible:
+- expression: "export(feed,'a',[1])"
+  expected: {at: [a,1], seen: ['1'], totals: {x: 3}}
+- expression: "export({'a':[[],None]},'a',[0])"
+  expected: {at: [null,0], seen: [], totals: {}}
+hidden:
+- expression: "export(feed,'a',[2])"
+  expected: {at: ['',0], seen: ['1'], totals: {x: 3}}
+- expression: "export(feed,'a',[0,1,0,1,2,0])"
+  expected: {at: [null,0], seen: ['1','2','3'], totals: {x: 0,y: 5}}
+- expression: "restart()"
+  expected:
+  - {at: [a,0], seen: ['1'], totals: {x: 3}}
+  - {at: ['',1], seen: ['1','2'], totals: {x: 0}}
+  - {at: [null,0], seen: ['1','2','3'], totals: {x: 0,y: 5}}
+- expression: "pump(feed,{'at':['a',2],'seen':['1'],'totals':{'x':3}},0)"
+  expected: {at: ['',0], seen: ['1'], totals: {x: 3}}
+- expression: "export({'':[[['','z',0],['','z',1]],None]},'',[3])"
+  expected: {at: [null,0], seen: [''], totals: {z: 0}}
+- expression: "export(feed,None,[0,2])"
+  expected: {at: [null,0], seen: [], totals: {}}

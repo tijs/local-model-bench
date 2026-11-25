@@ -9,10 +9,42 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from pi_coding.workspace import check
 from run_pi_coding import SUITE
-from test_pi_coding import REFERENCES as V1
 
 REFERENCES = {
-    "page-cursors": V1["page-cursors"],
+    "feed-recovery": {
+        "store.py": """def apply(state, row):
+    event, key, delta = row
+    if event in state['seen']:
+        return
+    state['seen'].append(event)
+    state['totals'][key] = state['totals'].get(key, 0) + delta
+""",
+        "worker.py": """from copy import deepcopy
+from store import apply
+
+def pump(pages, state, limit):
+    result = deepcopy(state)
+    token, offset = state['at']
+    while token is not None:
+        rows, following = pages[token]
+        if offset >= len(rows):
+            token, offset = following, 0
+            continue
+        if not limit:
+            break
+        apply(result, rows[offset])
+        offset += 1
+        limit -= 1
+    result['at'] = [token, offset]
+    return result
+
+def export(pages, start, limits):
+    state = {'at':[start,0], 'seen':[], 'totals':{}}
+    for limit in limits:
+        state = pump(pages,state,limit)
+    return state
+""",
+    },
     "batch-ledger": {
         "ledger.py": """from copy import deepcopy
 
@@ -122,6 +154,11 @@ class HardCodingTests(unittest.TestCase):
 
     def test_plausible_partial_repairs_fail_withheld_checks(self):
         mutations = {
+            "feed-recovery": (
+                "worker.py",
+                "result = deepcopy(state)",
+                "result = state.copy()",
+            ),
             "batch-ledger": (
                 "ledger.py",
                 "result = deepcopy(state)",

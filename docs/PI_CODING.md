@@ -19,7 +19,9 @@ The [first three-profile comparison](../results/pi-coding-v1/2026-11-25/README.m
 
 ## Pi coding v2 · benchmark-v9.12.0
 
-The new version scores four tasks. Three private repairs exercise interactions between requirements in a multi-file Python project. Batch ledger combines replay, rollback and legacy snapshots. Build waves combines scoped validation, cache invalidation and deep dependency chains. Temporal overlay combines revision selection, retraction, interval clipping and coalescing. Page cursors is repeated from v1 as an anchor. Report the three fresh tasks separately from the anchor. A 4/4 and an 11/12 belong to different suites.
+The new version scores four tasks. Four private repairs exercise interactions between requirements in a multi-file Python project. Batch ledger combines replay, rollback and legacy snapshots. Build waves combines scoped validation, cache invalidation and deep dependency chains. Temporal overlay combines revision selection, retraction, interval clipping and coalescing. Feed recovery combines replayed events, partial checkpoints and empty pages across a worker restart. All four tasks are new to this version. A 4/4 and an 11/12 belong to different suites.
+
+The feed fixture presents an issue against existing code, following the issue-repair format of [SWE-bench](https://www.swebench.com/). Its grader checks the saved state across interruptions and restarts, drawing on [τ-bench’s end-state evaluation](https://arxiv.org/abs/2406.12045). All prompts, fixtures and checks in v2 are locally authored.
 
 Use the same runner with a v2 config and a fresh results path. The manifests pin the suite, sources and budgets. Groot, Qwen, Ornith and Logics-SWE come from the active roster. Stock Inkling and experimental LoopCD 0.2 are additional comparison profiles. The five MLX profiles use the verified Mei 0.18.0 experiment binary; the Logics-SWE IQ4_XS profile verifies and launches its roster-pinned llama.cpp build and GGUF. Each profile uses greedy generation, seed 17, a 16,384-token context, 4,096 output tokens per request, and 480 seconds per task.
 
