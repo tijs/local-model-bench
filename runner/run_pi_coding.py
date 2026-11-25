@@ -172,7 +172,12 @@ def main():
     out = args.output.resolve()
     cfg = yaml.safe_load(config.read_text())
     cfg_rel = config.relative_to(REPO)
-    dataset = sorted(SUITE.glob("*.yaml"))
+    suite = cfg.get("suite", "pi-coding-v1")
+    if suite not in {"pi-coding-v1", "pi-coding-v2"}:
+        raise ValueError(f"Unknown coding suite: {suite}")
+    dataset = sorted((REPO / "tasks" / suite).glob("*.yaml"))
+    if not dataset:
+        raise ValueError(f"Empty coding suite: {suite}")
     sources = [
         *dataset,
         EXT,
@@ -200,6 +205,7 @@ def main():
         raise ValueError(f"Unexpected Pi version: {pi_version}")
     identity = {str(f.resolve().relative_to(REPO)): digest(f) for f in sources}
     protocol = {
+        "suite": suite,
         "sources": identity,
         "pi": pi_version,
         "context": cfg["context"],

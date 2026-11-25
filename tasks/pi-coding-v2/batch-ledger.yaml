@@ -1,0 +1,71 @@
+name: batch-ledger
+prompt: |
+  Repair commit(state, batch) and restore(snapshot, batches) in this ledger.
+  A state has balances (account -> integer) and seen (ID -> [source,destination,amount]).
+  In batch order, transfer each positive integer amount between existing distinct accounts.
+  On reuse of an ID, skip an identical transfer even when the current balance could no longer
+  cover it. Conflicting content raises ValueError("conflict"). Invalid transfers raise
+  ValueError("invalid"); insufficient balance raises ValueError("funds"). Validate before
+  moving funds. Neither successful nor failed calls may change caller-owned data.
+  Restore accepts current state snapshots and legacy bare balance mappings, including a
+  legacy account named "balances". Apply batches in order. A rejected batch is atomic:
+  discard it, record its zero-based index and continue from the last accepted state.
+  Return [final_state, rejected_indices]. All IDs and account names are strings.
+files:
+  ledger.py: |
+    def commit(state, batch):
+        result = dict(state)
+        for event, src, dst, amount in batch:
+            if event in result['seen']:
+                continue
+            result['balances'][src] -= amount
+            result['balances'][dst] += amount
+            result['seen'][event] = [src, dst, amount]
+        return result
+  recovery.py: |
+    from ledger import commit
+
+    def restore(snapshot, batches):
+        state = snapshot if 'balances' in snapshot else {'balances': snapshot, 'seen': {}}
+        rejected = []
+        for index, batch in enumerate(batches):
+            try:
+                state = commit(state, batch)
+            except ValueError:
+                rejected.append(index)
+        return [state, rejected]
+imports: |
+  from recovery import restore
+  from ledger import commit
+  def state():
+      return {'balances': {'a': 5, 'b': 0}, 'seen': {}}
+  def transfer(*rows):
+      return commit(state(), rows)
+  def rollback(s):
+      try: commit(s,[['x','a','b',3],['y','a','b',4]])
+      except ValueError: pass
+      return s
+visible:
+- expression: "transfer(['x','a','b',3])['balances']"
+  expected: {a: 2, b: 3}
+- expression: "transfer(['x','a','b',6])"
+  expected: {raises: ValueError, message: funds}
+hidden:
+- expression: "rollback(state())"
+  expected: {balances: {a: 5, b: 0}, seen: {}}
+- expression: "(lambda s: (commit(s,[['x','a','b',1]]),s)[1])(state())"
+  expected: {balances: {a: 5, b: 0}, seen: {}}
+- expression: "transfer(['x','a','b',5],['x','a','b',5])"
+  expected: {balances: {a: 0, b: 5}, seen: {x: [a,b,5]}}
+- expression: "transfer(['x','a','b',5],['x','a','b',4])"
+  expected: {raises: ValueError, message: conflict}
+- expression: "transfer(['x','a','b',True])"
+  expected: {raises: ValueError, message: invalid}
+- expression: "transfer(['x','a','a',2])"
+  expected: {raises: ValueError, message: invalid}
+- expression: "transfer(['x','q','a',1])"
+  expected: {raises: ValueError, message: invalid}
+- expression: "restore({'balances':4,'b':0},[[['x','balances','b',3]]])"
+  expected: [{balances: {balances: 1, b: 3}, seen: {x: [balances,b,3]}}, []]
+- expression: "restore(state(),[[['x','a','b',4],['z','a','b',3]],[['x','a','b',1]],[['x','a','b',2]],[['x','a','b',1]]])"
+  expected: [{balances: {a: 4, b: 1}, seen: {x: [a,b,1]}}, [0,2]]

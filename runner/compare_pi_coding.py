@@ -29,10 +29,11 @@ def compare(paths):
             raise ValueError(f"Duplicate profile {label}")
         rows = json.loads((path / "results.json").read_text())
         runs[label] = {r["task"]: r for r in rows}
+        suite = protocol.get("suite", "pi-coding-v1")
         declared = {
             Path(name).stem
             for name in protocol["sources"]
-            if name.startswith("tasks/pi-coding-v1/") and name.endswith(".yaml")
+            if name.startswith(f"tasks/{suite}/") and name.endswith(".yaml")
         }
         if declared != set(runs[label]):
             raise ValueError(f"Missing or unexpected task results: {path}")

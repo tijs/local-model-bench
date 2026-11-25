@@ -6,7 +6,8 @@ agent task quality, full-run time, memory and tool reliability with **Mei
 it is still a design, so the current tests use synthetic household workflows
 and real, contained Python automation.
 
-Current tooling release: [**benchmark-v9.11.10**](https://github.com/tijs/local-model-bench/releases/tag/benchmark-v9.11.10).
+Local benchmark version: [**benchmark-v9.12.0**](docs/releases/benchmark-v9.12.0.md).
+Published tooling release: [**benchmark-v9.11.10**](https://github.com/tijs/local-model-bench/releases/tag/benchmark-v9.11.10).
 The results below use the frozen **benchmark-v9.11.5** method with two seeds
 per profile. The MLX profiles use **Mei 0.11.0**; the GGUF profiles use pinned
 llama.cpp builds.

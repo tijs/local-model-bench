@@ -40,21 +40,31 @@ def endpoint(cfg, config_path, out):
     url = urlparse(base)
     if url.hostname not in {"127.0.0.1", "localhost", "::1"}:
         raise ValueError("Pi coding expects a local model endpoint")
-    managed = cfg.get("mei")
+    is_llama = "llama" in cfg
+    managed = cfg.get("llama") if is_llama else cfg.get("mei")
     if not managed:
         if cfg["model"] not in [m["id"] for m in get(base + "/models")["data"]]:
             raise ValueError("Expected served model missing")
         yield
         return
     binary = Path(managed["binary"]).expanduser().resolve()
-    model = Path(managed["directory"]).expanduser().resolve()
     verify(binary, managed["binary_sha256"])
-    verify(binary.with_name("mlx.metallib"), managed["metallib_sha256"])
-    weights = json.loads((config_path.parent / managed["file_manifest"]).read_text())
-    if {p.name for p in model.glob("*.safetensors")} != {
-        n for n in weights if n.endswith(".safetensors")
-    }:
-        raise ValueError("Unexpected model shard set")
+    if is_llama:
+        gguf = Path(managed["model_path"]).expanduser().resolve()
+        model = gguf.parent
+        weights = {gguf.name: managed["model_sha256"]}
+        for name, checksum in managed["libraries"].items():
+            verify(binary.with_name(name), checksum)
+    else:
+        model = Path(managed["directory"]).expanduser().resolve()
+        verify(binary.with_name("mlx.metallib"), managed["metallib_sha256"])
+        weights = json.loads(
+            (config_path.parent / managed["file_manifest"]).read_text()
+        )
+        if {p.name for p in model.glob("*.safetensors")} != {
+            n for n in weights if n.endswith(".safetensors")
+        }:
+            raise ValueError("Unexpected model shard set")
     with open(
         Path(tempfile.gettempdir()) / "local-model-bench-pi-coding.lock", "a"
     ) as lock:
@@ -67,6 +77,7 @@ def endpoint(cfg, config_path, out):
         ):
             raise RuntimeError("An existing inference process owns the host")
         with socket.socket() as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             s.bind((url.hostname, url.port))
         for name, checksum in weights.items():
             verify(model / name, checksum)
@@ -76,28 +87,46 @@ def endpoint(cfg, config_path, out):
             time.sleep(1)
         if not baseline_ready(baseline, None, 2):
             raise RuntimeError("Resource baseline failed")
-        cmd = [
-            str(binary),
-            "--model-dir",
-            str(model),
-            "--served-model-id",
-            cfg["model"],
-            "--port",
-            str(url.port),
-            "--context-cap",
-            str(cfg["context"]),
-            "--max-tokens",
-            str(cfg["output_tokens"]),
-            "--cache-mode",
-            "off",
-            "--temperature",
-            "0",
-            "--log-requests",
-            "true",
-            "--request-log",
-            str(out / "requests.jsonl"),
-            *managed["args"],
-        ]
+        if is_llama:
+            cmd = [
+                str(binary),
+                "--model",
+                str(gguf),
+                "--alias",
+                cfg["model"],
+                "--host",
+                url.hostname,
+                "--port",
+                str(url.port),
+                "--ctx-size",
+                str(cfg["context"]),
+                "--temp",
+                "0",
+                *managed["args"],
+            ]
+        else:
+            cmd = [
+                str(binary),
+                "--model-dir",
+                str(model),
+                "--served-model-id",
+                cfg["model"],
+                "--port",
+                str(url.port),
+                "--context-cap",
+                str(cfg["context"]),
+                "--max-tokens",
+                str(cfg["output_tokens"]),
+                "--cache-mode",
+                "off",
+                "--temperature",
+                "0",
+                "--log-requests",
+                "true",
+                "--request-log",
+                str(out / "requests.jsonl"),
+                *managed["args"],
+            ]
         env = {
             k: v
             for k, v in os.environ.items()
@@ -177,8 +206,15 @@ def endpoint(cfg, config_path, out):
                     time.sleep(1)
                 else:
                     raise TimeoutError("Model readiness deadline")
-                status = get(base + "/mei/status")
-                if status["contextCap"] != cfg["context"] or status["cacheReuse"]:
+                status = (
+                    get(base.rsplit("/v1", 1)[0] + "/props")
+                    if is_llama
+                    else get(base + "/mei/status")
+                )
+                if is_llama:
+                    if status["default_generation_settings"]["n_ctx"] != cfg["context"]:
+                        raise ValueError("Unexpected llama.cpp context")
+                elif status["contextCap"] != cfg["context"] or status["cacheReuse"]:
                     raise ValueError("Unexpected server settings")
                 write_json(out / "status.json", status)
                 yield

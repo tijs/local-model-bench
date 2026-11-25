@@ -16,3 +16,15 @@ The eight private fixtures cover interval merging, cross-file normalization with
 All three bundled profiles use the same local Mei 0.18.0 experimental binary (Mei 56a654d, backend c2d0cfa). Stock uses its original loop path. The 0.2 profile sets MEI_SPIKE_LOOPCD=0.2. Both use the same Inkling vocabulary-Q4 weights. Groot uses the text-only 4.5 bpw RCO-role export. Source patch and binary provenance are in /Volumes/Expansion/mei-loopcd-gYnk6wpe. Server caching is off. Comparisons measure the selected model profiles on this Mac.
 
 The [first three-profile comparison](../results/pi-coding-v1/2026-11-25/README.md) includes archived manifests and results that can be passed directly to the comparison command. When launching managed profiles consecutively on the same port, allow the previous server's TCP connections to leave TIME_WAIT before starting the next profile.
+
+## Pi coding v2 · benchmark-v9.12.0
+
+The new version scores four tasks. Three private repairs exercise interactions between requirements in a multi-file Python project. Batch ledger combines replay, rollback and legacy snapshots. Build waves combines scoped validation, cache invalidation and deep dependency chains. Temporal overlay combines revision selection, retraction, interval clipping and coalescing. Page cursors is repeated from v1 as an anchor. Report the three fresh tasks separately from the anchor. A 4/4 and an 11/12 belong to different suites.
+
+Use the same runner with a v2 config and a fresh results path. The manifests pin the suite, sources and budgets. Groot, Qwen, Ornith and Logics-SWE come from the active roster. Stock Inkling and experimental LoopCD 0.2 are additional comparison profiles. The five MLX profiles use the verified Mei 0.18.0 experiment binary; the Logics-SWE IQ4_XS profile verifies and launches its roster-pinned llama.cpp build and GGUF. Each profile uses greedy generation, seed 17, a 16,384-token context, 4,096 output tokens per request, and 480 seconds per task.
+
+```sh
+uv run --locked python runner/run_pi_coding.py --config configs/pi-coding-v2/qwen.yaml --output /Volumes/Expansion/pi-coding-runs/qwen-v2-1
+```
+
+The comparator reads historical v1 receipts directly. To reproduce the original v1 protocol fingerprint exactly, use commit 8a35f2dd.

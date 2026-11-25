@@ -1,0 +1,50 @@
+name: build-waves
+prompt: |
+  Repair waves(graph, targets, changed, cached) for this incremental build planner.
+  graph maps job names to immediate prerequisite names; duplicate edges/targets/changes
+  are allowed. Scope is targets and their transitive prerequisites. Ignore everything
+  outside that scope, including broken or cyclic components. Validate the whole scope
+  first (including cached jobs). Missing names raise ValueError("missing: NAME")
+  with the lexicographically smallest missing name; missing takes precedence over
+  cycles. Any in-scope cycle raises ValueError("cycle"). A job needs building if
+  changed, absent from cached, or any prerequisite needs building. Return parallel
+  waves of jobs needing work, sorted by name per wave. A job runs as soon as all
+  its prerequisites have finished; clean cached jobs are immediately available.
+  Inputs may not be mutated. Support chains at least 1500 jobs deep.
+files:
+  graph.py: |
+    def closure(graph, targets):
+        return set(targets).union(*(graph[t] for t in targets))
+  planner.py: |
+    from graph import closure
+
+    def waves(graph, targets, changed, cached):
+        jobs = closure(graph, targets)
+        return [[j] for j in sorted(jobs) if j in changed or j not in cached]
+imports: |
+  from planner import waves
+  g={'app':['x','y'],'x':['base'],'y':['base'],'base':[],'docs':[]}
+  def deep():
+      graph={str(i):[str(i-1)] if i else [] for i in range(1500)}
+      result=waves(graph,['1499'],['0'],list(graph))
+      return [len(result),result[0],result[-1]]
+visible:
+- expression: "waves(g,['app'],['base'],list(g))"
+  expected: [[base],[x,y],[app]]
+- expression: "waves(g,['app'],[],list(g))"
+  expected: []
+hidden:
+- expression: "waves(dict(g,bad=['other']),['app'],['bad'],['base','x','app'])"
+  expected: [[y],[app]]
+- expression: "waves({'a':['b','b'],'b':[],'c':['c']},['a','a'],['b','b'],[])"
+  expected: [[b],[a]]
+- expression: "waves({'a':['b'],'b':['a']},['a'],[],['a','b'])"
+  expected: {raises: ValueError, message: cycle}
+- expression: "waves({'a':['a','x'],'b':['z','c']},['a','b'],[],[])"
+  expected: {raises: ValueError, message: "missing: c"}
+- expression: "waves({'a':['bad']},[],['a'],[])"
+  expected: []
+- expression: "waves({'p':['b','x'],'b':['a'],'a':[],'x':[],'q':['z'],'z':[]},['p','q'],['b','q'],['a','b','z','q','p','x'])"
+  expected: [[b,q],[p]]
+- expression: "deep()"
+  expected: [1500,['0'],['1499']]
