@@ -126,3 +126,5 @@ Do not use automatic config discovery as an active-roster selector.
 [Original v9.9 attempts and grader finding](results/FOUR_MODEL_V9.9_INTERRUPTED.md) ·
 [Archived v8.3.1 summary](results/AGENT_SUMMARY_V8.3.1.md) ·
 [Release history](docs/releases/)
+
+The [Pi coding track](docs/PI_CODING.md) runs independently for a selected local model and compares saved runs on file edits, executable tests and time to a passing patch.
