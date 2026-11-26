@@ -134,7 +134,7 @@ class CodingTests(unittest.TestCase):
     def test_scoped_tools_and_transient_write(self):
         task = yaml.safe_load((SUITE / "event-keys.yaml").read_text())
         with tempfile.TemporaryDirectory() as root:
-            w = TaskWorkspace(task, Path(root), time.monotonic(), 4096)
+            w = TaskWorkspace(task, Path(root), time.monotonic(), 4096, 16384)
             self.assertIn("error", w.apply("read_file", {"path": "../oracle"}))
             req = {"path": "keys.py", "content": "new"}
             self.assertIn("error", w.apply("write_file", req))

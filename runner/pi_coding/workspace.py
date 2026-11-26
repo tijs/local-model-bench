@@ -76,14 +76,16 @@ print(json.dumps(observed, allow_nan=False))
 
 
 class TaskWorkspace:
-    def __init__(self, task, out, start, output_tokens):
+    def __init__(self, task, out, start, output_tokens, context):
         self.task = task
         self.files = task["files"].copy()
         self.out = out
         self.start = start
         self.output_tokens = output_tokens
+        self.context = context
         self.snapshots = []
         self.requests = 0
+        self.request_attempts = 0
         self.visible_tests = 0
         self.inject_failure = task.get("transient_first_write", False)
         self.lock = Lock()
@@ -91,6 +93,38 @@ class TaskWorkspace:
 
     def apply(self, action, args):
         with self.lock:
+            if action == "request":
+                self.request_attempts += 1
+                effective = args.get("max_tokens")
+                is_integer = isinstance(effective, int) and not isinstance(effective, bool)
+                accepted = is_integer and 1 <= effective <= self.output_tokens
+                if self.request_attempts == 1:
+                    accepted = accepted and effective == self.output_tokens
+                record = {
+                    "elapsed": time.monotonic() - self.start,
+                    "attempt": self.request_attempts,
+                    "configured_context": self.context,
+                    "configured_output_tokens": self.output_tokens,
+                    "effective_max_tokens": effective,
+                    "accepted": bool(accepted),
+                    "reason": (
+                        "within configured output ceiling"
+                        if accepted
+                        else (
+                            "first request must use the configured output ceiling"
+                            if self.request_attempts == 1
+                            else "effective max_tokens must be an integer within the configured output ceiling"
+                        )
+                    ),
+                }
+                with (self.out / "wire-budgets.jsonl").open("a") as journal:
+                    journal.write(json.dumps(record) + "\n")
+                if not accepted:
+                    raise RuntimeError(
+                        "Pi wire output budget outside protocol: "
+                        f"effective={effective!r}, configured={self.output_tokens}, "
+                        f"attempt={self.request_attempts}; {record['reason']}"
+                    )
             result = self._apply(action, args)
             with (self.out / "tools.jsonl").open("a") as journal:
                 journal.write(
@@ -108,8 +142,6 @@ class TaskWorkspace:
 
     def _apply(self, action, args):
         if action == "request":
-            if args.get("max_tokens") != self.output_tokens:
-                raise RuntimeError("Pi wire output budget differs from the protocol")
             if {t["function"]["name"] for t in args.get("tools", [])} != {
                 "read_file",
                 "edit_file",

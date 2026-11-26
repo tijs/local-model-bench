@@ -31,7 +31,9 @@ def run_task(task, cfg, out, agent, cwd):
     out.mkdir()
     token = secrets.token_urlsafe(32)
     start = time.monotonic()
-    workspace = TaskWorkspace(task, out, start, cfg["output_tokens"])
+    workspace = TaskWorkspace(
+        task, out, start, cfg["output_tokens"], cfg["context"]
+    )
 
     class Bridge(BaseHTTPRequestHandler):
         def log_message(self, *args):
