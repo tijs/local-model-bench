@@ -1,0 +1,395 @@
+[
+  {
+    "seconds": 142.60810558288358,
+    "files": {
+      "store.py": "def apply(state, row):\n    event, key, delta = row\n    if event in state['seen']:\n        return\n    state['totals'][key] = state['totals'].get(key, 0) + delta\n    state['seen'].append(event)",
+      "worker.py": "from store import apply\n\ndef pump(pages, state, limit):\n    result = state.copy()\n    token, offset = result['at']\n    if token:\n        rows, following = pages[token]\n        for row in rows[offset:offset + limit]:\n            apply(result, row)\n        result['at'] = [following, 0]\n    return result\n\ndef export(pages, start, limits):\n    state = {'at': [start, 0], 'seen': [], 'totals': {}}\n    for limit in limits:\n        state = pump(pages, state, limit)\n    return state\n"
+    },
+    "grade": {
+      "passed": false,
+      "cases": 8,
+      "failures": [
+        {
+          "expression": "export(feed,'a',[1])",
+          "expected": {
+            "at": [
+              "a",
+              1
+            ],
+            "seen": [
+              "1"
+            ],
+            "totals": {
+              "x": 3
+            }
+          },
+          "observed": {
+            "value": {
+              "at": [
+                "gap",
+                0
+              ],
+              "seen": [
+                "1"
+              ],
+              "totals": {
+                "x": 3
+              }
+            }
+          }
+        },
+        {
+          "expression": "export(feed,'a',[2])",
+          "expected": {
+            "at": [
+              "",
+              0
+            ],
+            "seen": [
+              "1"
+            ],
+            "totals": {
+              "x": 3
+            }
+          },
+          "observed": {
+            "value": {
+              "at": [
+                "gap",
+                0
+              ],
+              "seen": [
+                "1"
+              ],
+              "totals": {
+                "x": 3
+              }
+            }
+          }
+        },
+        {
+          "expression": "export(feed,'a',[0,1,0,1,2,0])",
+          "expected": {
+            "at": [
+              null,
+              0
+            ],
+            "seen": [
+              "1",
+              "2",
+              "3"
+            ],
+            "totals": {
+              "x": 0,
+              "y": 5
+            }
+          },
+          "observed": {
+            "value": {
+              "at": [
+                "",
+                0
+              ],
+              "seen": [],
+              "totals": {}
+            }
+          }
+        },
+        {
+          "expression": "restart()",
+          "expected": [
+            {
+              "at": [
+                "a",
+                0
+              ],
+              "seen": [
+                "1"
+              ],
+              "totals": {
+                "x": 3
+              }
+            },
+            {
+              "at": [
+                "",
+                1
+              ],
+              "seen": [
+                "1",
+                "2"
+              ],
+              "totals": {
+                "x": 0
+              }
+            },
+            {
+              "at": [
+                null,
+                0
+              ],
+              "seen": [
+                "1",
+                "2",
+                "3"
+              ],
+              "totals": {
+                "x": 0,
+                "y": 5
+              }
+            }
+          ],
+          "observed": {
+            "value": [
+              {
+                "at": [
+                  "a",
+                  0
+                ],
+                "seen": [
+                  "1"
+                ],
+                "totals": {
+                  "x": 3
+                }
+              },
+              {
+                "at": [
+                  "gap",
+                  0
+                ],
+                "seen": [
+                  "1"
+                ],
+                "totals": {
+                  "x": 3
+                }
+              },
+              {
+                "at": [
+                  "",
+                  0
+                ],
+                "seen": [
+                  "1"
+                ],
+                "totals": {
+                  "x": 3
+                }
+              }
+            ]
+          }
+        },
+        {
+          "expression": "pump(feed,{'at':['a',2],'seen':['1'],'totals':{'x':3}},0)",
+          "expected": {
+            "at": [
+              "",
+              0
+            ],
+            "seen": [
+              "1"
+            ],
+            "totals": {
+              "x": 3
+            }
+          },
+          "observed": {
+            "value": {
+              "at": [
+                "gap",
+                0
+              ],
+              "seen": [
+                "1"
+              ],
+              "totals": {
+                "x": 3
+              }
+            }
+          }
+        },
+        {
+          "expression": "export({'':[[['','z',0],['','z',1]],None]},'',[3])",
+          "expected": {
+            "at": [
+              null,
+              0
+            ],
+            "seen": [
+              ""
+            ],
+            "totals": {
+              "z": 0
+            }
+          },
+          "observed": {
+            "value": {
+              "at": [
+                "",
+                0
+              ],
+              "seen": [],
+              "totals": {}
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "seconds": 166.0987977499608,
+    "files": {
+      "store.py": "def apply(state, row):\n    event, key, delta = row\n    if event in state['seen']:\n        return\n    state['totals'][key] = state['totals'].get(key, 0) + delta\n    state['seen'].append(event)",
+      "worker.py": "from store import apply\n\n\ndef pump(pages, state, limit):\n    result = {\n        'at': [state['at'][0], state['at'][1]],\n        'seen': list(state['seen']),\n        'totals': dict(state['totals']),\n    }\n    token, offset = result['at']\n\n    consumed = 0\n    while token and consumed < limit:\n        rows, following = pages[token]\n        available = rows[offset:]\n        if not available:\n            token = following\n            offset = 0\n            continue\n\n        take = available[:limit - consumed]\n        for row in take:\n            apply(result, row)\n        consumed += len(take)\n\n        if consumed < limit:\n            token = following\n            offset = 0\n        else:\n            offset = offset + len(take)\n            if offset >= len(rows):\n                token = following\n                offset = 0\n            break\n\n    # normalize past exhausted and empty pages\n    while token:\n        rows, following = pages[token]\n        if offset >= len(rows):\n            token = following\n            offset = 0\n        else:\n            break\n\n    result['at'] = [token, offset]\n    return result\n\n\ndef export(pages, start, limits):\n    state = {'at': [start, 0], 'seen': [], 'totals': {}}\n    for limit in limits:\n        state = pump(pages, state, limit)\n    return state"
+    },
+    "grade": {
+      "passed": false,
+      "cases": 8,
+      "failures": [
+        {
+          "expression": "export(feed,'a',[0,1,0,1,2,0])",
+          "expected": {
+            "at": [
+              null,
+              0
+            ],
+            "seen": [
+              "1",
+              "2",
+              "3"
+            ],
+            "totals": {
+              "x": 0,
+              "y": 5
+            }
+          },
+          "observed": {
+            "value": {
+              "at": [
+                "",
+                0
+              ],
+              "seen": [
+                "1"
+              ],
+              "totals": {
+                "x": 3
+              }
+            }
+          }
+        },
+        {
+          "expression": "restart()",
+          "expected": [
+            {
+              "at": [
+                "a",
+                0
+              ],
+              "seen": [
+                "1"
+              ],
+              "totals": {
+                "x": 3
+              }
+            },
+            {
+              "at": [
+                "",
+                1
+              ],
+              "seen": [
+                "1",
+                "2"
+              ],
+              "totals": {
+                "x": 0
+              }
+            },
+            {
+              "at": [
+                null,
+                0
+              ],
+              "seen": [
+                "1",
+                "2",
+                "3"
+              ],
+              "totals": {
+                "x": 0,
+                "y": 5
+              }
+            }
+          ],
+          "observed": {
+            "value": [
+              {
+                "at": [
+                  "a",
+                  0
+                ],
+                "seen": [
+                  "1"
+                ],
+                "totals": {
+                  "x": 3
+                }
+              },
+              {
+                "at": [
+                  "",
+                  0
+                ],
+                "seen": [
+                  "1"
+                ],
+                "totals": {
+                  "x": 3
+                }
+              },
+              {
+                "at": [
+                  "",
+                  0
+                ],
+                "seen": [
+                  "1"
+                ],
+                "totals": {
+                  "x": 3
+                }
+              }
+            ]
+          }
+        },
+        {
+          "expression": "export({'':[[['','z',0],['','z',1]],None]},'',[3])",
+          "expected": {
+            "at": [
+              null,
+              0
+            ],
+            "seen": [
+              ""
+            ],
+            "totals": {
+              "z": 0
+            }
+          },
+          "observed": {
+            "value": {
+              "at": [
+                "",
+                0
+              ],
+              "seen": [],
+              "totals": {}
+            }
+          }
+        }
+      ]
+    }
+  }
+]

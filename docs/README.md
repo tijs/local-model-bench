@@ -49,6 +49,7 @@ per profile, plus individual observations and audit links.
   tools and dependent continuation, separate from scored runs.
 - [Native Mei acceptance](MEI_NATIVE_ACCEPTANCE.md): guarded release checks,
   independent of scored household and Python runs.
+- [Pi coding v2 original-budget diagnostic](../results/pi-coding-v2/2026-11-26/README.md) and [higher-budget cohort](../results/pi-coding-v2/high-budget-2026-11-26/README.md): six profiles, four repair tasks, protocol receipts and grader results. The [temporal repeat](../results/pi-coding-v2/high-budget-temporal-only-2026-11-26/README.md) is reported separately.
 - [Configurations](../configs/README.md): serving profiles and provenance.
 
 Use the locked Astral environment and commit the exact config before execution.

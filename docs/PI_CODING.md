@@ -30,3 +30,5 @@ uv run --locked python runner/run_pi_coding.py --config configs/pi-coding-v2/qwe
 ```
 
 The comparator reads historical v1 receipts directly. To reproduce the original v1 protocol fingerprint exactly, use commit 8a35f2dd.
+
+The [original-budget diagnostic](../results/pi-coding-v2/2026-11-26/README.md) and [matched higher-budget cohort](../results/pi-coding-v2/high-budget-2026-11-26/README.md) each record one trajectory per profile on all four v2 tasks. A [separate high-budget temporal repeat](../results/pi-coding-v2/high-budget-temporal-only-2026-11-26/README.md) checks the stock and LoopCD temporal outcomes. The cohorts changed context, output and task-time limits together; interpret them separately.
